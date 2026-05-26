@@ -31,7 +31,7 @@ class SportlinkMcpService
                 'Content-Type' => 'application/json',
             ])
             ->timeout($this->timeout)
-            ->retry(3, 1000);
+            ->retry(3, 1000, null, false);
     }
 
     public function healthCheck(): array
