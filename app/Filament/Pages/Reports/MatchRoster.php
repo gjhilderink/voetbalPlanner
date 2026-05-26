@@ -25,9 +25,9 @@ class MatchRoster extends Page implements HasTable
     use InteractsWithTable;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';
-    protected static ?string $navigationLabel                 = 'Wedstrijd rooster';
-    protected static ?string $title                           = 'Wedstrijd rooster per periode';
-    protected static ?string $navigationGroup                 = 'Rapportage';
+    protected static ?string $navigationLabel                = 'Wedstrijd rooster';
+    protected static ?string $title                          = 'Wedstrijd rooster per periode';
+    protected static string|\UnitEnum|null $navigationGroup  = 'Rapportage';
     protected static ?int    $navigationSort                  = 21;
 
     protected string $view = 'filament.pages.reports.match-roster';

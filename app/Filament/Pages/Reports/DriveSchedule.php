@@ -23,7 +23,7 @@ class DriveSchedule extends Page implements HasTable
     protected static string|\BackedEnum|null $navigationIcon  = 'heroicon-o-truck';
     protected static ?string $navigationLabel                  = 'Rijschema per elftal';
     protected static ?string $title                            = 'Rijschema per elftal';
-    protected static ?string $navigationGroup                  = 'Rapportage';
+    protected static string|\UnitEnum|null $navigationGroup    = 'Rapportage';
     protected static ?int    $navigationSort                   = 20;
 
     protected string $view = 'filament.pages.reports.drive-schedule';
