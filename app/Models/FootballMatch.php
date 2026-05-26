@@ -51,17 +51,17 @@ class FootballMatch extends Model
 
     public function coaches(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(Member::class, 'match_coaches');
+        return $this->belongsToMany(Member::class, 'match_coaches', 'match_id', 'member_id');
     }
 
     public function cleaners(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(Member::class, 'match_cleaners');
+        return $this->belongsToMany(Member::class, 'match_cleaners', 'match_id', 'member_id');
     }
 
     public function drivers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(Member::class, 'match_drivers');
+        return $this->belongsToMany(Member::class, 'match_drivers', 'match_id', 'member_id');
     }
 
     public function lineup(): \Illuminate\Database\Eloquent\Relations\HasOne
