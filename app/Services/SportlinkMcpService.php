@@ -137,44 +137,41 @@ class SportlinkMcpService
 
     public function discoverApi(): array
     {
-        $results = ['base_url_used' => $this->baseUrl];
+        $base    = $this->baseUrl;
+        $results = ['base_url_used' => $base];
 
-        // REST endpoints — now using correct absolute URL construction
-        foreach (['teams', 'members', 'matches', 'clubs', 'players', 'coaches'] as $path) {
-            $url = $this->url($path);
+        $probe = function (string $method, string $url, array $body = []) use (&$results): void {
+            $label = $method . ' ' . $url;
             try {
-                $response = Http::withHeaders($this->headers())
-                    ->timeout(10)
-                    ->retry(1, 0, null, false)
-                    ->get($url);
-                $results['GET /' . $path] = [
-                    'url'    => $url,
-                    'status' => $response->status(),
-                    'body'   => $response->json() ?? $response->body(),
+                $req = Http::withHeaders($this->headers())->timeout(10)->retry(1, 0, null, false);
+                $response = $method === 'POST' ? $req->post($url, $body) : $req->get($url);
+                $results[$label] = [
+                    'status'  => $response->status(),
+                    'headers' => array_map(fn($h) => implode(', ', $h), $response->headers()),
+                    'body'    => $response->json() ?? substr($response->body(), 0, 300),
                 ];
             } catch (\Throwable $e) {
-                $results['GET /' . $path] = ['url' => $url, 'error' => $e->getMessage()];
+                $results[$label] = ['error' => $e->getMessage()];
             }
-        }
+        };
 
-        // MCP JSON-RPC tools/list at exact base URL
-        try {
-            $response = Http::withHeaders($this->headers())
-                ->timeout(10)
-                ->retry(1, 0, null, false)
-                ->post($this->baseUrl, [
-                    'jsonrpc' => '2.0',
-                    'id'      => 1,
-                    'method'  => 'tools/list',
-                    'params'  => [],
-                ]);
-            $results['POST tools/list (MCP)'] = [
-                'url'    => $this->baseUrl,
-                'status' => $response->status(),
-                'body'   => $response->json() ?? $response->body(),
-            ];
-        } catch (\Throwable $e) {
-            $results['POST tools/list (MCP)'] = ['url' => $this->baseUrl, 'error' => $e->getMessage()];
+        // Probe the base URL itself and common MCP path variants
+        $probe('GET',  $base);
+        $probe('GET',  $base . '/');
+        $probe('GET',  $base . '/sse');
+        $probe('GET',  $base . '/health');
+        $probe('GET',  $base . '/status');
+
+        // MCP Streamable HTTP transport — POST to base URL
+        $probe('POST', $base, ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => []]);
+
+        // MCP SSE transport — POST to message/messages endpoint
+        $probe('POST', $base . '/message',  ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => []]);
+        $probe('POST', $base . '/messages', ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => []]);
+
+        // REST path variants
+        foreach (['teams', 'players', 'clubs', 'matches'] as $path) {
+            $probe('GET', $base . '/' . $path);
         }
 
         return $results;
