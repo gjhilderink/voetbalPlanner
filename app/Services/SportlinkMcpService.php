@@ -140,43 +140,33 @@ class SportlinkMcpService
         $base    = $this->baseUrl;
         $results = ['base_url_used' => $base, 'api_key_set' => !empty($this->apiKey)];
 
-        $req = fn(array $hdrs) => Http::withHeaders($hdrs)->timeout(10)->retry(1, 0, null, false);
-
-        $probe = function (string $method, string $url, array $body = [], array $extraHeaders = []) use (&$results, $req): void {
-            $label = $method . ' ' . str_replace($this->baseUrl, '', $url ?: $this->baseUrl);
+        $probe = function (string $method, string $url, array $body = [], array $override = []) use (&$results): void {
+            $label = $method . ' ' . str_replace($this->baseUrl, '', $url);
             try {
-                $headers  = array_merge($this->headers(), $extraHeaders);
-                $response = $method === 'POST' ? $req($headers)->post($url, $body) : $req($headers)->get($url);
+                $headers  = array_merge($this->headers(), $override);
+                $r        = Http::withHeaders($headers)->timeout(10)->retry(1, 0, null, false);
+                $response = $method === 'POST' ? $r->post($url, $body) : $r->get($url);
                 $results[$label] = [
                     'status' => $response->status(),
-                    'body'   => $response->json() ?? substr($response->body(), 0, 400),
+                    'body'   => $response->json() ?? substr($response->body(), 0, 500),
                 ];
             } catch (\Throwable $e) {
                 $results[$label] = ['error' => $e->getMessage()];
             }
         };
 
-        // FastAPI auto-docs — reveals all available routes
-        $probe('GET', $base . '/openapi.json');
-        $probe('GET', $base . '/docs');
+        // FIX: PHP [] encodes as JSON array — MCP needs {} (object) for empty params
+        $toolsList = ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => new \stdClass()];
 
-        // Health (confirmed working)
-        $probe('GET', $base . '/health');
+        // MCP endpoint with fixed params — should return tool list
+        $probe('POST', $base . '/mcp', $toolsList);
 
-        // MCP Streamable HTTP — POST JSON-RPC to various paths
-        $mcpPayload = ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => []];
-        $probe('POST', $base . '/mcp',          $mcpPayload);
-        $probe('POST', $base . '/rpc',          $mcpPayload);
-        $probe('POST', $base . '/jsonrpc',      $mcpPayload);
-        $probe('POST', $base . '/tools/list',   $mcpPayload);
-
-        // Try without auth to see if 404 is an auth mask
-        $noAuth = ['Authorization' => '', 'Accept' => 'application/json'];
-        $probe('GET', $base . '/health', [], ['Authorization' => '']);
-
-        // Try alternative auth formats
-        $probe('GET', $base . '/teams', [], ['Authorization' => '', 'X-API-Key' => $this->apiKey]);
-        $probe('GET', $base . '/teams?' . http_build_query(['api_key' => $this->apiKey]));
+        // REST /teams — try every common auth format
+        $probe('GET', $base . '/teams');                                                              // Bearer (default)
+        $probe('GET', $base . '/teams', [], ['Authorization' => $this->apiKey]);                     // raw token, no Bearer
+        $probe('GET', $base . '/teams', [], ['Authorization' => 'Token ' . $this->apiKey]);          // Token prefix
+        $probe('GET', $base . '/teams', [], ['Authorization' => '', 'X-API-Key' => $this->apiKey]); // X-API-Key header
+        $probe('GET', $base . '/teams', [], ['Authorization' => '']);                                // no auth → expect 401
 
         return $results;
     }
