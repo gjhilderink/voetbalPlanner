@@ -22,7 +22,7 @@ use Filament\Schemas\Schema;
 
 class ManageSettings extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
     protected static ?string $navigationLabel = 'Instellingen';
     protected static ?string $title = 'Sportlink MCP Instellingen';
     protected static ?int $navigationSort = 10;
