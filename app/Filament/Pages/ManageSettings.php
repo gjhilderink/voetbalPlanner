@@ -7,7 +7,10 @@ namespace App\Filament\Pages;
 use App\Jobs\FullSyncJob;
 use App\Models\Setting;
 use App\Models\SyncLog;
+use App\Services\MatchSyncService;
+use App\Services\MemberSyncService;
 use App\Services\SportlinkMcpService;
+use App\Services\TeamSyncService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
@@ -183,18 +186,57 @@ class ManageSettings extends Page
                         Notification::make()
                             ->warning()
                             ->title('Niet geconfigureerd')
-                            ->body('Configureer eerst de MCP verbinding.')
+                            ->body('Configureer eerst de URL en API sleutel.')
                             ->send();
                         return;
                     }
 
-                    FullSyncJob::dispatch();
+                    $errors = [];
+                    $totals = [];
 
-                    Notification::make()
-                        ->success()
-                        ->title('Synchronisatie gestart')
-                        ->body('De synchronisatie is in de wachtrij geplaatst.')
-                        ->send();
+                    try {
+                        $log = app(TeamSyncService::class)->sync();
+                        $totals[] = $log->records_synced . ' teams';
+                        if ($log->status === 'failed') {
+                            $errors[] = 'Teams: ' . $log->error_message;
+                        }
+                    } catch (\Throwable $e) {
+                        $errors[] = 'Teams: ' . $e->getMessage();
+                    }
+
+                    try {
+                        $log = app(MemberSyncService::class)->sync();
+                        $totals[] = $log->records_synced . ' leden';
+                        if ($log->status === 'failed') {
+                            $errors[] = 'Leden: ' . $log->error_message;
+                        }
+                    } catch (\Throwable $e) {
+                        $errors[] = 'Leden: ' . $e->getMessage();
+                    }
+
+                    try {
+                        $log = app(MatchSyncService::class)->sync();
+                        $totals[] = $log->records_synced . ' wedstrijden';
+                        if ($log->status === 'failed') {
+                            $errors[] = 'Wedstrijden: ' . $log->error_message;
+                        }
+                    } catch (\Throwable $e) {
+                        $errors[] = 'Wedstrijden: ' . $e->getMessage();
+                    }
+
+                    if (empty($errors)) {
+                        Notification::make()
+                            ->success()
+                            ->title('Synchronisatie voltooid')
+                            ->body('Gesynchroniseerd: ' . implode(', ', $totals) . '.')
+                            ->send();
+                    } else {
+                        Notification::make()
+                            ->warning()
+                            ->title('Synchronisatie gedeeltelijk mislukt')
+                            ->body(implode("\n", $errors))
+                            ->send();
+                    }
                 }),
         ];
     }
