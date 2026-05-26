@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\MemberResource\Pages;
 use App\Models\Member;
+use App\Models\Team;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -26,7 +27,7 @@ class MemberResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make()->schema([
+            Section::make('Persoonsgegevens')->schema([
                 Forms\Components\TextInput::make('name')
                     ->label('Naam')
                     ->required()
@@ -43,15 +44,30 @@ class MemberResource extends Resource
                     ->label('Geboortedatum'),
                 Forms\Components\Select::make('role')
                     ->label('Rol')
-                    ->options(['player' => 'Speler', 'coach' => 'Coach'])
+                    ->options([
+                        'player'  => 'Speler',
+                        'coach'   => 'Coach',
+                        'medical' => 'Medische staf',
+                        'staff'   => 'Overige staf',
+                    ])
                     ->required(),
                 Forms\Components\Toggle::make('is_active')
                     ->label('Actief')
                     ->default(true),
                 Forms\Components\TextInput::make('external_id')
-                    ->label('Extern ID')
+                    ->label('Extern ID (relatiecode)')
                     ->disabled(),
             ])->columns(2),
+
+            Section::make('Teams')->schema([
+                Forms\Components\Select::make('teams')
+                    ->label('Gekoppelde teams')
+                    ->multiple()
+                    ->relationship('teams', 'name')
+                    ->preload()
+                    ->searchable()
+                    ->columnSpanFull(),
+            ]),
         ]);
     }
 
@@ -59,21 +75,55 @@ class MemberResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')->label('Naam')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('email')->label('E-mail')->searchable(),
-                Tables\Columns\TextColumn::make('phone')->label('Telefoon'),
-                Tables\Columns\TextColumn::make('role')->label('Rol')
-                    ->formatStateUsing(fn($state) => $state === 'coach' ? 'Coach' : 'Speler'),
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Naam')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('teams.name')
+                    ->label('Teams')
+                    ->badge()
+                    ->separator(',')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('role')
+                    ->label('Rol')
+                    ->badge()
+                    ->formatStateUsing(fn($state) => match($state) {
+                        'player'  => 'Speler',
+                        'coach'   => 'Coach',
+                        'medical' => 'Medische staf',
+                        'staff'   => 'Overige staf',
+                        default   => $state,
+                    })
+                    ->color(fn($state) => match($state) {
+                        'coach'   => 'warning',
+                        'medical' => 'danger',
+                        'staff'   => 'gray',
+                        default   => 'primary',
+                    }),
+                Tables\Columns\TextColumn::make('email')->label('E-mail')->searchable()->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('phone')->label('Telefoon')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_active')->label('Actief')->boolean(),
                 Tables\Columns\TextColumn::make('last_synced_at')
                     ->label('Laatste sync')
                     ->dateTime('d-m-Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('teams')
+                    ->label('Team')
+                    ->relationship('teams', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->multiple(),
                 Tables\Filters\SelectFilter::make('role')
                     ->label('Rol')
-                    ->options(['player' => 'Speler', 'coach' => 'Coach']),
+                    ->options([
+                        'player'  => 'Speler',
+                        'coach'   => 'Coach',
+                        'medical' => 'Medische staf',
+                        'staff'   => 'Overige staf',
+                    ]),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Actief'),
             ])
             ->actions([
@@ -84,7 +134,8 @@ class MemberResource extends Resource
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('name');
     }
 
     public static function getRelations(): array
@@ -95,9 +146,9 @@ class MemberResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListMembers::route('/'),
+            'index'  => Pages\ListMembers::route('/'),
             'create' => Pages\CreateMember::route('/create'),
-            'edit' => Pages\EditMember::route('/{record}/edit'),
+            'edit'   => Pages\EditMember::route('/{record}/edit'),
         ];
     }
 }

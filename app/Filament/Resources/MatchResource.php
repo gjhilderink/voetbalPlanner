@@ -6,8 +6,10 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\MatchResource\Pages;
 use App\Models\FootballMatch;
+use App\Models\Member;
 use Filament\Actions;
 use Filament\Forms;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -30,7 +32,10 @@ class MatchResource extends Resource
                 Forms\Components\Select::make('team_id')
                     ->label('Team')
                     ->relationship('team', 'name')
-                    ->required(),
+                    ->required()
+                    ->live()
+                    ->searchable()
+                    ->preload(),
                 Forms\Components\TextInput::make('opponent')
                     ->label('Tegenstander')
                     ->required()
@@ -60,12 +65,30 @@ class MatchResource extends Resource
                     ->label('Aanwezig tijd'),
                 Forms\Components\Select::make('coach_id')
                     ->label('Coach')
-                    ->relationship('coach', 'name')
-                    ->searchable(),
+                    ->options(function (Get $get): array {
+                        $teamId = $get('team_id');
+                        $query = Member::whereIn('role', ['coach', 'staff'])->where('is_active', true)->orderBy('name');
+                        if ($teamId) {
+                            $query->whereHas('teams', fn($q) => $q->where('teams.id', $teamId));
+                        }
+                        return $query->pluck('name', 'id')->toArray();
+                    })
+                    ->searchable()
+                    ->nullable()
+                    ->placeholder('Selecteer coach...'),
                 Forms\Components\Select::make('fruit_hero_id')
                     ->label('Fruitheld')
-                    ->relationship('fruitHero', 'name')
-                    ->searchable(),
+                    ->options(function (Get $get): array {
+                        $teamId = $get('team_id');
+                        $query = Member::where('role', 'player')->where('is_active', true)->orderBy('name');
+                        if ($teamId) {
+                            $query->whereHas('teams', fn($q) => $q->where('teams.id', $teamId));
+                        }
+                        return $query->pluck('name', 'id')->toArray();
+                    })
+                    ->searchable()
+                    ->nullable()
+                    ->placeholder('Selecteer fruitheld...'),
                 Forms\Components\Textarea::make('notes')
                     ->label('Opmerkingen')
                     ->rows(3),
