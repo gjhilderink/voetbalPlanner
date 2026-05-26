@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Team extends Model
+{
+    use HasFactory, HasUuids, SoftDeletes;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
+    protected $fillable = [
+        'external_id', 'name', 'category', 'age_group',
+        'season', 'photo', 'is_active', 'last_synced_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+            'last_synced_at' => 'datetime',
+        ];
+    }
+
+    public function members(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Member::class)
+            ->withPivot(['role', 'season', 'is_active'])
+            ->withTimestamps();
+    }
+
+    public function matches(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Match::class);
+    }
+
+    public function coaches(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Member::class)
+            ->wherePivot('role', 'coach')
+            ->withTimestamps();
+    }
+}
