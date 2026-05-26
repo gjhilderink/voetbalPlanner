@@ -9,6 +9,7 @@ use App\Models\Member;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -25,7 +26,7 @@ class MemberResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Forms\Components\Section::make()->schema([
+            Section::make()->schema([
                 Forms\Components\TextInput::make('name')
                     ->label('Naam')
                     ->required()

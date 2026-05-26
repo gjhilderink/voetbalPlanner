@@ -9,6 +9,7 @@ use App\Models\FootballMatch;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -25,7 +26,7 @@ class MatchResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Forms\Components\Section::make('Wedstrijdgegevens')->schema([
+            Section::make('Wedstrijdgegevens')->schema([
                 Forms\Components\Select::make('team_id')
                     ->label('Team')
                     ->relationship('team', 'name')
@@ -54,7 +55,7 @@ class MatchResource extends Resource
                     ->default('scheduled')
                     ->required(),
             ])->columns(2),
-            Forms\Components\Section::make('Extra informatie')->schema([
+            Section::make('Extra informatie')->schema([
                 Forms\Components\TimePicker::make('arrival_time')
                     ->label('Aanwezig tijd'),
                 Forms\Components\Select::make('coach_id')
