@@ -202,6 +202,7 @@ class MatchRoster extends Page implements HasTable
             ])
             ->defaultGroup('match_datetime')
             ->striped()
-            ->paginated(50);
+            ->paginationPageOptions([25, 50, 100, 'all'])
+            ->defaultPaginationPageOption(50);
     }
 }
