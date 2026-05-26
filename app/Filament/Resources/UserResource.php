@@ -131,9 +131,9 @@ class UserResource extends Resource
                     ->visible(fn(User $record): bool =>
                         auth()->user()?->canImpersonate() && $record->canBeImpersonated()
                     )
-                    ->action(function (User $record): void {
+                    ->action(function (User $record) {
                         auth()->user()->impersonate($record);
-                        redirect('/admin');
+                        return redirect('/admin');
                     })
                     ->requiresConfirmation()
                     ->modalHeading(fn(User $record) => 'Inloggen als ' . $record->name)
