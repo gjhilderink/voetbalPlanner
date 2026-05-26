@@ -8,6 +8,7 @@ use App\Jobs\FullSyncJob;
 use App\Models\Setting;
 use App\Models\SyncLog;
 use App\Services\MatchSyncService;
+use Illuminate\Support\HtmlString;
 use App\Services\MemberSyncService;
 use App\Services\SportlinkMcpService;
 use App\Services\TeamSyncService;
@@ -170,6 +171,24 @@ class ManageSettings extends Page
                             ->send();
                     }
                 }),
+
+            Action::make('debugApi')
+                ->label('Debug API')
+                ->icon('heroicon-o-magnifying-glass')
+                ->color('gray')
+                ->modalHeading('Raw API response')
+                ->modalContent(function (): HtmlString {
+                    $result = app(SportlinkMcpService::class)->discoverApi();
+                    $json = htmlspecialchars(
+                        json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                    );
+                    return new HtmlString(
+                        '<pre style="font-size:12px;background:#f3f4f6;padding:1rem;border-radius:6px;overflow:auto;max-height:70vh;white-space:pre-wrap;word-break:break-all">'
+                        . $json . '</pre>'
+                    );
+                })
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Sluiten'),
 
             Action::make('syncNow')
                 ->label('Nu synchroniseren')

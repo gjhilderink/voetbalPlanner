@@ -128,4 +128,49 @@ class SportlinkMcpService
     {
         return !empty($this->baseUrl) && !empty($this->apiKey);
     }
+
+    public function discoverApi(): array
+    {
+        $results = [];
+        $endpoints = ['/teams', '/members', '/matches', '/clubs', '/players', '/coaches'];
+
+        foreach ($endpoints as $endpoint) {
+            try {
+                $response = $this->client()->get($endpoint);
+                $results['GET ' . $endpoint] = [
+                    'status' => $response->status(),
+                    'body'   => $response->json() ?? $response->body(),
+                ];
+            } catch (\Throwable $e) {
+                $results['GET ' . $endpoint] = ['error' => $e->getMessage()];
+            }
+        }
+
+        // Try MCP JSON-RPC tools/list
+        try {
+            $response = Http::baseUrl($this->baseUrl)
+                ->withHeaders([
+                    'Authorization'  => 'Bearer ' . $this->apiKey,
+                    'Accept'         => 'application/json',
+                    'Content-Type'   => 'application/json',
+                ])
+                ->timeout(10)
+                ->retry(1, 0, null, false)
+                ->post('', [
+                    'jsonrpc' => '2.0',
+                    'id'      => 1,
+                    'method'  => 'tools/list',
+                    'params'  => [],
+                ]);
+
+            $results['POST tools/list (MCP)'] = [
+                'status' => $response->status(),
+                'body'   => $response->json() ?? $response->body(),
+            ];
+        } catch (\Throwable $e) {
+            $results['POST tools/list (MCP)'] = ['error' => $e->getMessage()];
+        }
+
+        return $results;
+    }
 }
