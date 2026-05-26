@@ -63,19 +63,40 @@ class MatchResource extends Resource
             Section::make('Extra informatie')->schema([
                 Forms\Components\TimePicker::make('arrival_time')
                     ->label('Aanwezig tijd'),
-                Forms\Components\Select::make('coach_id')
-                    ->label('Coach')
+                Forms\Components\TextInput::make('dressing_room')
+                    ->label('Kleedkamer'),
+                Forms\Components\Select::make('coaches')
+                    ->label('Coach(es)')
+                    ->multiple()
                     ->options(function (Get $get): array {
                         $teamId = $get('team_id');
-                        $query = Member::whereIn('role', ['coach', 'staff'])->where('is_active', true)->orderBy('name');
+                        $query = Member::whereIn('role', ['coach', 'staff'])
+                            ->where('is_active', true)
+                            ->orderBy('name');
                         if ($teamId) {
                             $query->whereHas('teams', fn($q) => $q->where('teams.id', $teamId));
                         }
                         return $query->pluck('name', 'id')->toArray();
                     })
+                    ->relationship('coaches', 'name')
                     ->searchable()
-                    ->nullable()
-                    ->placeholder('Selecteer coach...'),
+                    ->preload()
+                    ->placeholder('Selecteer coach(es)...'),
+                Forms\Components\Select::make('cleaners')
+                    ->label('Wie maakt kleedkamer schoon?')
+                    ->multiple()
+                    ->options(function (Get $get): array {
+                        $teamId = $get('team_id');
+                        $query = Member::where('is_active', true)->orderBy('name');
+                        if ($teamId) {
+                            $query->whereHas('teams', fn($q) => $q->where('teams.id', $teamId));
+                        }
+                        return $query->pluck('name', 'id')->toArray();
+                    })
+                    ->relationship('cleaners', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->placeholder('Selecteer schoonmakers...'),
                 Forms\Components\Select::make('fruit_hero_id')
                     ->label('Fruitheld')
                     ->options(function (Get $get): array {
@@ -89,9 +110,26 @@ class MatchResource extends Resource
                     ->searchable()
                     ->nullable()
                     ->placeholder('Selecteer fruitheld...'),
+                Forms\Components\Select::make('drivers')
+                    ->label('Rijders (uitwedstrijd)')
+                    ->multiple()
+                    ->options(function (Get $get): array {
+                        $teamId = $get('team_id');
+                        $query = Member::where('is_active', true)->orderBy('name');
+                        if ($teamId) {
+                            $query->whereHas('teams', fn($q) => $q->where('teams.id', $teamId));
+                        }
+                        return $query->pluck('name', 'id')->toArray();
+                    })
+                    ->relationship('drivers', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->placeholder('Selecteer rijders...')
+                    ->visible(fn(Get $get): bool => !(bool) $get('is_home')),
                 Forms\Components\Textarea::make('notes')
                     ->label('Opmerkingen')
-                    ->rows(3),
+                    ->rows(3)
+                    ->columnSpanFull(),
             ])->columns(2),
         ]);
     }

@@ -20,7 +20,7 @@ class FootballMatch extends Model
     protected $fillable = [
         'external_id', 'team_id', 'opponent', 'match_datetime',
         'location', 'is_home', 'status', 'score_home', 'score_away',
-        'arrival_time', 'coach_id', 'fruit_hero_id', 'notes', 'last_synced_at',
+        'arrival_time', 'dressing_room', 'coach_id', 'fruit_hero_id', 'notes', 'last_synced_at',
     ];
 
     protected function casts(): array
@@ -47,6 +47,16 @@ class FootballMatch extends Model
     public function fruitHero(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Member::class, 'fruit_hero_id');
+    }
+
+    public function coaches(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Member::class, 'match_coaches');
+    }
+
+    public function cleaners(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Member::class, 'match_cleaners');
     }
 
     public function drivers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
