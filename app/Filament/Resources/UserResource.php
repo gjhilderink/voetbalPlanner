@@ -9,6 +9,7 @@ use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
 use Filament\Actions;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -123,6 +124,21 @@ class UserResource extends Resource
                 Tables\Filters\TernaryFilter::make('is_active')->label('Actief'),
             ])
             ->actions([
+                Actions\Action::make('impersonate')
+                    ->label('Login als')
+                    ->icon('heroicon-o-identification')
+                    ->color('warning')
+                    ->visible(fn(User $record): bool =>
+                        auth()->user()?->canImpersonate() && $record->canBeImpersonated()
+                    )
+                    ->action(function (User $record): void {
+                        auth()->user()->impersonate($record);
+                        redirect('/admin');
+                    })
+                    ->requiresConfirmation()
+                    ->modalHeading(fn(User $record) => 'Inloggen als ' . $record->name)
+                    ->modalDescription('Je krijgt toegang als deze gebruiker. Gebruik de "Terug naar eigen account" knop bovenin om terug te keren.')
+                    ->modalSubmitActionLabel('Inloggen als'),
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
             ])

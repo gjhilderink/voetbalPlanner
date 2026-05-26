@@ -11,12 +11,14 @@ use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -45,6 +47,22 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
-            ->authMiddleware([Authenticate::class]);
+            ->authMiddleware([Authenticate::class])
+            ->renderHook(
+                PanelsRenderHook::BODY_START,
+                fn(): string => Blade::render('@if(app(\Lab404\Impersonate\Services\ImpersonateManager::class)->isImpersonating())
+                    <div class="flex items-center justify-between gap-4 bg-warning-500 px-6 py-2 text-sm font-medium text-white">
+                        <span>
+                            <x-heroicon-s-eye class="inline-block w-4 h-4 mr-1" />
+                            Je bent ingelogd als <strong>{{ auth()->user()->name }}</strong>
+                        </span>
+                        <a href="{{ route(\'impersonate.leave\') }}"
+                           class="inline-flex items-center gap-1 rounded bg-white/20 px-3 py-1 text-white hover:bg-white/30">
+                            <x-heroicon-s-arrow-left-on-rectangle class="w-4 h-4" />
+                            Terug naar eigen account
+                        </a>
+                    </div>
+                @endif'),
+            );
     }
 }

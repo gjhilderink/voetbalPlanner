@@ -11,12 +11,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Lab404\Impersonate\Models\Impersonate;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements FilamentUser
 {
-    use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasRoles, HasUuids, Impersonate, Notifiable, SoftDeletes;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -46,6 +47,18 @@ class User extends Authenticatable implements FilamentUser
     public function isAdmin(): bool
     {
         return $this->hasAnyRole(['super_admin', 'club_admin']);
+    }
+
+    // Only super_admins can start impersonation
+    public function canImpersonate(): bool
+    {
+        return $this->hasRole('super_admin');
+    }
+
+    // super_admins cannot be impersonated
+    public function canBeImpersonated(): bool
+    {
+        return !$this->hasRole('super_admin');
     }
 
     public function managedTeamIds(): \Illuminate\Support\Collection
