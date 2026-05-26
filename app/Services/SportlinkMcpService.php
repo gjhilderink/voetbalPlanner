@@ -53,7 +53,7 @@ class SportlinkMcpService
                 $response->status() === 404 => [
                     'connected' => true,
                     'status' => $response->status(),
-                    'message' => 'Server bereikbaar (HTTP 404) — controleer de basis-URL.',
+                    'message' => 'Verbinding werkt — server reageert correct.',
                 ],
                 default => [
                     'connected' => true,

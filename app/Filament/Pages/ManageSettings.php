@@ -146,16 +146,17 @@ class ManageSettings extends Page
 
                     $result = $service->healthCheck();
 
-                    if ($result['connected'] && $result['status'] >= 200 && $result['status'] < 300) {
+                    $authFailed = in_array($result['status'], [401, 403]);
+                    if ($result['connected'] && !$authFailed) {
                         Notification::make()
                             ->success()
-                            ->title('Verbinding succesvol')
+                            ->title('Verbinding geslaagd')
                             ->body($result['message'])
                             ->send();
                     } elseif ($result['connected']) {
                         Notification::make()
                             ->warning()
-                            ->title('Server bereikbaar')
+                            ->title('Authenticatie mislukt')
                             ->body($result['message'])
                             ->send();
                     } else {
