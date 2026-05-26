@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'mcp' => [
+        'base_url' => env('MCP_BASE_URL', ''),
+        'api_key' => env('MCP_API_KEY', ''),
+        'timeout' => env('MCP_TIMEOUT', 30),
+    ],
+
 ];
