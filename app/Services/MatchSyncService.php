@@ -26,20 +26,23 @@ class MatchSyncService
         ]);
 
         try {
-            $matchesData = $this->mcpService->getMatches();
-            $synced = 0;
+            $schedule = $this->mcpService->getSchedule();
+            $results  = $this->mcpService->getResults();
+            $synced   = 0;
 
-            foreach ($matchesData as $matchData) {
-                $dto = MatchDTO::fromMcpData($matchData);
-                $team = Team::where('external_id', $dto->teamExternalId)->first();
+            foreach ([['schedule', $schedule], ['results', $results]] as [$type, $matchesData]) {
+                foreach ($matchesData as $matchData) {
+                    $dto  = MatchDTO::fromMcpData($matchData, $type);
+                    $team = Team::where('external_id', $dto->teamExternalId)->first();
 
-                if (!$team) {
-                    Log::warning('Team not found for match', ['team_external_id' => $dto->teamExternalId]);
-                    continue;
+                    if (!$team) {
+                        Log::warning('Team not found for match', ['team_external_id' => $dto->teamExternalId]);
+                        continue;
+                    }
+
+                    $this->upsertMatch($dto, $team->id);
+                    $synced++;
                 }
-
-                $this->upsertMatch($dto, $team->id);
-                $synced++;
             }
 
             $log->update([

@@ -164,15 +164,25 @@ class SportlinkMcpService
         return $allPlayers;
     }
 
-    public function getMatches(?string $teamCode = null, ?string $season = null): array
+    public function getSchedule(?string $teamCode = null, int $days = 365): array
     {
-        $args = array_filter(['teamcode' => $teamCode, 'seizoen' => $season]);
-        $result = $this->callTool('get_matches', empty($args) ? [] : $args);
-        if (!is_array($result)) {
-            // Try Dutch variant
-            $result = $this->callTool('get_wedstrijden', empty($args) ? [] : $args);
-        }
+        $args = array_filter(['teamcode' => $teamCode, 'aantaldagen' => $days]);
+        $result = $this->callTool('get_schedule', $args);
         return is_array($result) ? $result : [];
+    }
+
+    public function getResults(?string $teamCode = null, int $days = 365): array
+    {
+        $args = array_filter(['teamcode' => $teamCode, 'aantaldagen' => $days]);
+        $result = $this->callTool('get_results', $args);
+        return is_array($result) ? $result : [];
+    }
+
+    public function getMatches(?string $teamCode = null): array
+    {
+        $schedule = $this->getSchedule($teamCode);
+        $results  = $this->getResults($teamCode);
+        return array_merge($schedule, $results);
     }
 
     public function getCoaches(): array
@@ -204,12 +214,17 @@ class SportlinkMcpService
         $toolsData = $this->mcpPost('tools/list');
         $results['tools_list'] = $toolsData['result']['tools'] ?? $toolsData;
 
-        // Call get_teams to see actual field names and data format
-        $results['get_teams_raw'] = $this->callTool('get_teams');
+        // Call get_teams — first 3 entries to see field names
+        $teams = $this->callTool('get_teams');
+        $results['get_teams_sample'] = is_array($teams) ? array_slice($teams, 0, 3) : $teams;
 
-        // Try get_matches / get_wedstrijden
-        $matchData = $this->mcpPost('tools/call', ['name' => 'get_matches', 'arguments' => new \stdClass()]);
-        $results['get_matches_raw'] = $matchData['result']['content'][0]['text'] ?? $matchData;
+        // Upcoming schedule (first 5 matches)
+        $scheduleRaw = $this->mcpPost('tools/call', ['name' => 'get_schedule', 'arguments' => ['aantalregels' => 5]]);
+        $results['get_schedule_raw'] = $scheduleRaw['result']['content'][0]['text'] ?? $scheduleRaw;
+
+        // Past results (first 5)
+        $resultsRaw = $this->mcpPost('tools/call', ['name' => 'get_results', 'arguments' => ['aantalregels' => 5]]);
+        $results['get_results_raw'] = $resultsRaw['result']['content'][0]['text'] ?? $resultsRaw;
 
         return $results;
     }

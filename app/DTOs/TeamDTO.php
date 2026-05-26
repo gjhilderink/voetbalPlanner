@@ -17,11 +17,12 @@ readonly class TeamDTO
 
     public static function fromMcpData(array $data): self
     {
+        // Actual Sportlink MCP field names from get_teams tool
         return new self(
-            externalId: (string) $data['id'],
-            name: $data['name'] ?? $data['naam'] ?? '',
-            category: $data['category'] ?? $data['categorie'] ?? null,
-            ageGroup: $data['age_group'] ?? $data['leeftijdsklasse'] ?? null,
+            externalId: (string) ($data['teamcode'] ?? $data['id'] ?? ''),
+            name: $data['teamnaam'] ?? $data['name'] ?? $data['naam'] ?? '',
+            category: $data['competitiesoort'] ?? $data['category'] ?? $data['categorie'] ?? null,
+            ageGroup: $data['leeftijdscategorie'] ?? $data['age_group'] ?? $data['leeftijdsklasse'] ?? null,
             season: $data['season'] ?? $data['seizoen'] ?? null,
             isActive: (bool) ($data['active'] ?? $data['actief'] ?? true),
         );

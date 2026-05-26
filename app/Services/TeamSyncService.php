@@ -28,7 +28,14 @@ class TeamSyncService
             $teamsData = $this->mcpService->getTeams();
             $synced = 0;
 
+            // Deduplicate by teamcode — same team appears once per competition/poule
+            $seen = [];
             foreach ($teamsData as $teamData) {
+                $code = (string) ($teamData['teamcode'] ?? $teamData['id'] ?? '');
+                if ($code === '' || isset($seen[$code])) {
+                    continue;
+                }
+                $seen[$code] = true;
                 $dto = TeamDTO::fromMcpData($teamData);
                 $this->upsertTeam($dto);
                 $synced++;

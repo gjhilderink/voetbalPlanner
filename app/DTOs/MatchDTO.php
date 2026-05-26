@@ -16,16 +16,49 @@ readonly class MatchDTO
         public string $status = 'scheduled',
     ) {}
 
-    public static function fromMcpData(array $data): self
+    public static function fromMcpData(array $data, string $type = 'schedule'): self
     {
+        // Actual Sportlink MCP field names from get_schedule / get_results tools
+        $teamcode   = (string) ($data['teamcode'] ?? $data['team_id'] ?? '');
+        $thuisteam  = $data['thuisteam'] ?? $data['home_team'] ?? null;
+        $uitteam    = $data['uitteam'] ?? $data['away_team'] ?? null;
+        $eigenTeam  = $data['eigenteam'] ?? null;
+
+        // Determine opponent and home/away based on which side our team is on
+        $isHome = true;
+        $opponent = '';
+        if ($eigenTeam !== null) {
+            $isHome   = ($eigenTeam === $thuisteam);
+            $opponent = $isHome ? ($uitteam ?? '') : ($thuisteam ?? '');
+        } elseif ($thuisteam !== null && $uitteam !== null) {
+            $opponent = $uitteam; // default: assume we are home
+        } else {
+            $opponent = $data['opponent'] ?? $data['tegenstander'] ?? '';
+            $isHome   = (bool) ($data['thuis'] ?? $data['is_home'] ?? true);
+        }
+
+        // Build datetime from separate datum + tijd fields if needed
+        $datum = $data['datum'] ?? $data['date'] ?? $data['match_datetime'] ?? '';
+        $tijd  = $data['tijd'] ?? $data['time'] ?? '';
+        $datetime = $datum;
+        if ($datum && $tijd && !str_contains($datum, ' ') && !str_contains($datum, 'T')) {
+            $datetime = $datum . ' ' . $tijd;
+        }
+
+        $status = match($type) {
+            'results'  => 'played',
+            'schedule' => 'scheduled',
+            default    => $data['status'] ?? 'scheduled',
+        };
+
         return new self(
-            externalId: (string) $data['id'],
-            teamExternalId: (string) $data['team_id'],
-            opponent: $data['opponent'] ?? $data['tegenstander'] ?? '',
-            matchDatetime: $data['match_datetime'] ?? $data['datum'] ?? '',
-            location: $data['location'] ?? $data['locatie'] ?? null,
-            isHome: (bool) ($data['is_home'] ?? $data['thuis'] ?? true),
-            status: $data['status'] ?? 'scheduled',
+            externalId: (string) ($data['wedstrijdnummer'] ?? $data['id'] ?? uniqid()),
+            teamExternalId: $teamcode,
+            opponent: $opponent,
+            matchDatetime: $datetime,
+            location: $data['accommodatie'] ?? $data['locatie'] ?? $data['location'] ?? null,
+            isHome: $isHome,
+            status: $status,
         );
     }
 }
