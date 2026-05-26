@@ -146,10 +146,16 @@ class ManageSettings extends Page
 
                     $result = $service->healthCheck();
 
-                    if ($result['connected']) {
+                    if ($result['connected'] && $result['status'] >= 200 && $result['status'] < 300) {
                         Notification::make()
                             ->success()
-                            ->title('Verbinding geslaagd')
+                            ->title('Verbinding succesvol')
+                            ->body($result['message'])
+                            ->send();
+                    } elseif ($result['connected']) {
+                        Notification::make()
+                            ->warning()
+                            ->title('Server bereikbaar')
                             ->body($result['message'])
                             ->send();
                     } else {

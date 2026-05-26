@@ -37,18 +37,36 @@ class SportlinkMcpService
     public function healthCheck(): array
     {
         try {
-            $response = $this->client()->get('/health');
-            return [
-                'connected' => $response->successful(),
-                'status' => $response->status(),
-                'message' => $response->successful() ? 'Verbinding succesvol' : 'Verbinding mislukt',
-            ];
+            $response = $this->client()->get('/');
+
+            return match(true) {
+                $response->successful() => [
+                    'connected' => true,
+                    'status' => $response->status(),
+                    'message' => 'Verbinding succesvol (HTTP ' . $response->status() . ')',
+                ],
+                $response->status() === 401, $response->status() === 403 => [
+                    'connected' => true,
+                    'status' => $response->status(),
+                    'message' => 'Server bereikbaar maar authenticatie mislukt — controleer uw API sleutel.',
+                ],
+                $response->status() === 404 => [
+                    'connected' => true,
+                    'status' => $response->status(),
+                    'message' => 'Server bereikbaar (HTTP 404) — controleer de basis-URL.',
+                ],
+                default => [
+                    'connected' => true,
+                    'status' => $response->status(),
+                    'message' => 'Server bereikbaar (HTTP ' . $response->status() . ').',
+                ],
+            };
         } catch (\Throwable $e) {
             Log::error('MCP health check failed', ['error' => $e->getMessage()]);
             return [
                 'connected' => false,
                 'status' => 0,
-                'message' => 'Verbinding mislukt: ' . $e->getMessage(),
+                'message' => 'Server niet bereikbaar: ' . $e->getMessage(),
             ];
         }
     }
