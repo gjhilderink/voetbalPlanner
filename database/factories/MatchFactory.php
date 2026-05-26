@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 
 class MatchFactory extends Factory
 {
-    protected $model = \App\Models\Match::class;
+    protected $model = \App\Models\FootballMatch::class;
 
     public function definition(): array
     {

@@ -19,7 +19,7 @@ class Lineup extends Model
 
     public function match(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(Match::class);
+        return $this->belongsTo(FootballMatch::class);
     }
 
     public function players(): \Illuminate\Database\Eloquent\Relations\HasMany

@@ -8,13 +8,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\LineupResource;
 use App\Models\Lineup;
 use App\Models\LineupPlayer;
-use App\Models\Match as GameMatch;
+use App\Models\FootballMatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LineupController extends Controller
 {
-    public function show(GameMatch $match): JsonResponse
+    public function show(FootballMatch $match): JsonResponse
     {
         $lineup = $match->lineup()->with('players.member')->first();
 
@@ -33,7 +33,7 @@ class LineupController extends Controller
         ]);
     }
 
-    public function store(Request $request, GameMatch $match): JsonResponse
+    public function store(Request $request, FootballMatch $match): JsonResponse
     {
         $validated = $request->validate([
             'formation' => 'nullable|string|max:20',

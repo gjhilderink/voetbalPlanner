@@ -7,13 +7,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\GoalResource;
 use App\Models\Goal;
-use App\Models\Match as GameMatch;
+use App\Models\FootballMatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class GoalController extends Controller
 {
-    public function index(GameMatch $match): JsonResponse
+    public function index(FootballMatch $match): JsonResponse
     {
         $goals = $match->goals()->with(['scorer', 'assist'])->orderBy('minute')->get();
 
@@ -24,7 +24,7 @@ class GoalController extends Controller
         ]);
     }
 
-    public function store(Request $request, GameMatch $match): JsonResponse
+    public function store(Request $request, FootballMatch $match): JsonResponse
     {
         $validated = $request->validate([
             'scorer_id' => 'required|uuid|exists:members,id',
@@ -46,7 +46,7 @@ class GoalController extends Controller
         ], 201);
     }
 
-    public function destroy(GameMatch $match, Goal $goal): JsonResponse
+    public function destroy(FootballMatch $match, Goal $goal): JsonResponse
     {
         $goal->delete();
 

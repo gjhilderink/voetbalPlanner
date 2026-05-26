@@ -38,7 +38,7 @@ class Team extends Model
 
     public function matches(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(Match::class);
+        return $this->hasMany(FootballMatch::class);
     }
 
     public function coaches(): \Illuminate\Database\Eloquent\Relations\BelongsToMany

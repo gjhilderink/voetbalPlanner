@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\MatchResource\Pages;
-use App\Models\Match as GameMatch;
+use App\Models\FootballMatch;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -14,7 +14,7 @@ use Filament\Tables\Table;
 
 class MatchResource extends Resource
 {
-    protected static ?string $model = GameMatch::class;
+    protected static ?string $model = FootballMatch::class;
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-calendar';
     protected static ?string $navigationLabel = 'Wedstrijden';
     protected static ?string $modelLabel = 'Wedstrijd';

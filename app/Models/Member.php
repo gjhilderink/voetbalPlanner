@@ -44,7 +44,7 @@ class Member extends Model
 
     public function matchesAsCoach(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(Match::class, 'coach_id');
+        return $this->hasMany(FootballMatch::class, 'coach_id');
     }
 
     public function goals(): \Illuminate\Database\Eloquent\Relations\HasMany

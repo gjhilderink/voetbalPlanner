@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Widgets;
 
-use App\Models\Match as GameMatch;
+use App\Models\FootballMatch;
 use App\Models\Member;
 use App\Models\SyncLog;
 use App\Models\Team;
@@ -26,7 +26,7 @@ class StatsOverviewWidget extends BaseWidget
                 ->description('Actieve leden')
                 ->color('primary')
                 ->icon('heroicon-o-users'),
-            Stat::make('Komende wedstrijden', GameMatch::where('match_datetime', '>=', now())->where('status', 'scheduled')->count())
+            Stat::make('Komende wedstrijden', FootballMatch::where('match_datetime', '>=', now())->where('status', 'scheduled')->count())
                 ->description('Geplande wedstrijden')
                 ->color('warning')
                 ->icon('heroicon-o-calendar'),

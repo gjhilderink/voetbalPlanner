@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\DTOs\MatchDTO;
-use App\Models\Match as GameMatch;
+use App\Models\FootballMatch;
 use App\Models\SyncLog;
 use App\Models\Team;
 use Illuminate\Support\Facades\Log;
@@ -62,9 +62,9 @@ class MatchSyncService
         return $log;
     }
 
-    private function upsertMatch(MatchDTO $dto, string $teamId): GameMatch
+    private function upsertMatch(MatchDTO $dto, string $teamId): FootballMatch
     {
-        return GameMatch::updateOrCreate(
+        return FootballMatch::updateOrCreate(
             ['external_id' => $dto->externalId],
             [
                 'team_id' => $teamId,

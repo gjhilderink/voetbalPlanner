@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MatchResource;
-use App\Models\Match as GameMatch;
+use App\Models\FootballMatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,7 +14,7 @@ class MatchController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $matches = GameMatch::query()
+        $matches = FootballMatch::query()
             ->with(['team', 'coach', 'fruitHero'])
             ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
             ->when($request->status, fn($q, $s) => $q->where('status', $s))
@@ -37,7 +37,7 @@ class MatchController extends Controller
         ]);
     }
 
-    public function show(GameMatch $match): JsonResponse
+    public function show(FootballMatch $match): JsonResponse
     {
         $match->load(['team', 'coach', 'fruitHero', 'drivers', 'lineup.players.member', 'goals.scorer', 'goals.assist']);
 
@@ -48,7 +48,7 @@ class MatchController extends Controller
         ]);
     }
 
-    public function update(Request $request, GameMatch $match): JsonResponse
+    public function update(Request $request, FootballMatch $match): JsonResponse
     {
         $validated = $request->validate([
             'arrival_time' => 'nullable|date_format:H:i',
