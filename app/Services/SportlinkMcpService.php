@@ -138,41 +138,45 @@ class SportlinkMcpService
     public function discoverApi(): array
     {
         $base    = $this->baseUrl;
-        $results = ['base_url_used' => $base];
+        $results = ['base_url_used' => $base, 'api_key_set' => !empty($this->apiKey)];
 
-        $probe = function (string $method, string $url, array $body = []) use (&$results): void {
-            $label = $method . ' ' . $url;
+        $req = fn(array $hdrs) => Http::withHeaders($hdrs)->timeout(10)->retry(1, 0, null, false);
+
+        $probe = function (string $method, string $url, array $body = [], array $extraHeaders = []) use (&$results, $req): void {
+            $label = $method . ' ' . str_replace($this->baseUrl, '', $url ?: $this->baseUrl);
             try {
-                $req = Http::withHeaders($this->headers())->timeout(10)->retry(1, 0, null, false);
-                $response = $method === 'POST' ? $req->post($url, $body) : $req->get($url);
+                $headers  = array_merge($this->headers(), $extraHeaders);
+                $response = $method === 'POST' ? $req($headers)->post($url, $body) : $req($headers)->get($url);
                 $results[$label] = [
-                    'status'  => $response->status(),
-                    'headers' => array_map(fn($h) => implode(', ', $h), $response->headers()),
-                    'body'    => $response->json() ?? substr($response->body(), 0, 300),
+                    'status' => $response->status(),
+                    'body'   => $response->json() ?? substr($response->body(), 0, 400),
                 ];
             } catch (\Throwable $e) {
                 $results[$label] = ['error' => $e->getMessage()];
             }
         };
 
-        // Probe the base URL itself and common MCP path variants
-        $probe('GET',  $base);
-        $probe('GET',  $base . '/');
-        $probe('GET',  $base . '/sse');
-        $probe('GET',  $base . '/health');
-        $probe('GET',  $base . '/status');
+        // FastAPI auto-docs — reveals all available routes
+        $probe('GET', $base . '/openapi.json');
+        $probe('GET', $base . '/docs');
 
-        // MCP Streamable HTTP transport — POST to base URL
-        $probe('POST', $base, ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => []]);
+        // Health (confirmed working)
+        $probe('GET', $base . '/health');
 
-        // MCP SSE transport — POST to message/messages endpoint
-        $probe('POST', $base . '/message',  ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => []]);
-        $probe('POST', $base . '/messages', ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => []]);
+        // MCP Streamable HTTP — POST JSON-RPC to various paths
+        $mcpPayload = ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => []];
+        $probe('POST', $base . '/mcp',          $mcpPayload);
+        $probe('POST', $base . '/rpc',          $mcpPayload);
+        $probe('POST', $base . '/jsonrpc',      $mcpPayload);
+        $probe('POST', $base . '/tools/list',   $mcpPayload);
 
-        // REST path variants
-        foreach (['teams', 'players', 'clubs', 'matches'] as $path) {
-            $probe('GET', $base . '/' . $path);
-        }
+        // Try without auth to see if 404 is an auth mask
+        $noAuth = ['Authorization' => '', 'Accept' => 'application/json'];
+        $probe('GET', $base . '/health', [], ['Authorization' => '']);
+
+        // Try alternative auth formats
+        $probe('GET', $base . '/teams', [], ['Authorization' => '', 'X-API-Key' => $this->apiKey]);
+        $probe('GET', $base . '/teams?' . http_build_query(['api_key' => $this->apiKey]));
 
         return $results;
     }
