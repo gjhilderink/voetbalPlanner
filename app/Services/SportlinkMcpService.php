@@ -214,17 +214,26 @@ class SportlinkMcpService
         $toolsData = $this->mcpPost('tools/list');
         $results['tools_list'] = $toolsData['result']['tools'] ?? $toolsData;
 
-        // Call get_teams — first 3 entries to see field names
+        // Call get_teams — first 3 unique teams to see field names
         $teams = $this->callTool('get_teams');
         $results['get_teams_sample'] = is_array($teams) ? array_slice($teams, 0, 3) : $teams;
 
+        // Get players for first team we find
+        if (is_array($teams) && !empty($teams)) {
+            $firstCode = (string) ($teams[0]['teamcode'] ?? '');
+            if ($firstCode) {
+                $players = $this->callTool('get_team_players', ['teamcode' => $firstCode, 'toon_foto' => false]);
+                $results['get_team_players_sample'] = is_array($players) ? array_slice($players, 0, 3) : $players;
+            }
+        }
+
         // Upcoming schedule (first 5 matches)
         $scheduleRaw = $this->mcpPost('tools/call', ['name' => 'get_schedule', 'arguments' => ['aantalregels' => 5]]);
-        $results['get_schedule_raw'] = $scheduleRaw['result']['content'][0]['text'] ?? $scheduleRaw;
+        $results['get_schedule_sample'] = $scheduleRaw['result']['content'][0]['text'] ?? $scheduleRaw;
 
         // Past results (first 5)
         $resultsRaw = $this->mcpPost('tools/call', ['name' => 'get_results', 'arguments' => ['aantalregels' => 5]]);
-        $results['get_results_raw'] = $resultsRaw['result']['content'][0]['text'] ?? $resultsRaw;
+        $results['get_results_sample'] = $resultsRaw['result']['content'][0]['text'] ?? $resultsRaw;
 
         return $results;
     }

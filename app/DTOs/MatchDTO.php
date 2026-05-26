@@ -6,6 +6,9 @@ namespace App\DTOs;
 
 readonly class MatchDTO
 {
+    // Bon Boys club relation code — used to determine home/away from API data
+    private const BON_BOYS_CLUB_CODE = 'BBKR536';
+
     public function __construct(
         public string $externalId,
         public string $teamExternalId,
@@ -14,51 +17,68 @@ readonly class MatchDTO
         public ?string $location = null,
         public bool $isHome = true,
         public string $status = 'scheduled',
+        public ?int $scoreHome = null,
+        public ?int $scoreAway = null,
+        public ?string $arrivalTime = null,
     ) {}
 
     public static function fromMcpData(array $data, string $type = 'schedule'): self
     {
-        // Actual Sportlink MCP field names from get_schedule / get_results tools
-        $teamcode   = (string) ($data['teamcode'] ?? $data['team_id'] ?? '');
-        $thuisteam  = $data['thuisteam'] ?? $data['home_team'] ?? null;
-        $uitteam    = $data['uitteam'] ?? $data['away_team'] ?? null;
-        $eigenTeam  = $data['eigenteam'] ?? null;
+        // wedstrijdcode is the unique match identifier (wedstrijdnummer is NOT unique)
+        $externalId = (string) ($data['wedstrijdcode'] ?? $data['id'] ?? uniqid());
 
-        // Determine opponent and home/away based on which side our team is on
-        $isHome = true;
-        $opponent = '';
-        if ($eigenTeam !== null) {
-            $isHome   = ($eigenTeam === $thuisteam);
-            $opponent = $isHome ? ($uitteam ?? '') : ($thuisteam ?? '');
-        } elseif ($thuisteam !== null && $uitteam !== null) {
-            $opponent = $uitteam; // default: assume we are home
+        // Determine if Bon Boys is home or away from the club relation code
+        $thuisCode  = $data['thuisteamclubrelatiecode'] ?? '';
+        $uitCode    = $data['uitteamclubrelatiecode'] ?? '';
+        $thuisTeam  = $data['thuisteam'] ?? '';
+        $uitTeam    = $data['uitteam'] ?? '';
+
+        if ($thuisCode === self::BON_BOYS_CLUB_CODE) {
+            $isHome         = true;
+            $opponent       = $uitTeam;
+            $teamExternalId = (string) ($data['thuisteamid'] ?? '');
+        } elseif ($uitCode === self::BON_BOYS_CLUB_CODE) {
+            $isHome         = false;
+            $opponent       = $thuisTeam;
+            $teamExternalId = (string) ($data['uitteamid'] ?? '');
         } else {
-            $opponent = $data['opponent'] ?? $data['tegenstander'] ?? '';
-            $isHome   = (bool) ($data['thuis'] ?? $data['is_home'] ?? true);
+            // Fallback: use teamnaam to find our team (schedule has this field)
+            $isHome         = true;
+            $opponent       = $uitTeam ?: ($data['tegenstander'] ?? '');
+            $teamExternalId = (string) ($data['thuisteamid'] ?? $data['teamcode'] ?? '');
         }
 
-        // Build datetime from separate datum + tijd fields if needed
-        $datum = $data['datum'] ?? $data['date'] ?? $data['match_datetime'] ?? '';
-        $tijd  = $data['tijd'] ?? $data['time'] ?? '';
-        $datetime = $datum;
-        if ($datum && $tijd && !str_contains($datum, ' ') && !str_contains($datum, 'T')) {
-            $datetime = $datum . ' ' . $tijd;
-        }
+        // wedstrijddatum is a proper ISO datetime — use it directly
+        $matchDatetime = $data['wedstrijddatum'] ?? $data['datum'] ?? '';
 
-        $status = match($type) {
-            'results'  => 'played',
-            'schedule' => 'scheduled',
-            default    => $data['status'] ?? 'scheduled',
+        // Map API status to internal status
+        $status = match(true) {
+            $type === 'results'                              => 'played',
+            isset($data['status']) && str_contains($data['status'], 'Uitgespeeld') => 'played',
+            isset($data['status']) && str_contains($data['status'], 'Afgelast')    => 'cancelled',
+            default                                         => 'scheduled',
         };
 
+        // Parse score from "3 - 5" format
+        $scoreHome = null;
+        $scoreAway = null;
+        if (isset($data['uitslag']) && str_contains($data['uitslag'], ' - ')) {
+            [$h, $a] = explode(' - ', $data['uitslag'], 2);
+            $scoreHome = is_numeric(trim($h)) ? (int) trim($h) : null;
+            $scoreAway = is_numeric(trim($a)) ? (int) trim($a) : null;
+        }
+
         return new self(
-            externalId: (string) ($data['wedstrijdnummer'] ?? $data['id'] ?? uniqid()),
-            teamExternalId: $teamcode,
+            externalId: $externalId,
+            teamExternalId: $teamExternalId,
             opponent: $opponent,
-            matchDatetime: $datetime,
-            location: $data['accommodatie'] ?? $data['locatie'] ?? $data['location'] ?? null,
+            matchDatetime: $matchDatetime,
+            location: $data['accommodatie'] ?? null,
             isHome: $isHome,
             status: $status,
+            scoreHome: $scoreHome,
+            scoreAway: $scoreAway,
+            arrivalTime: ($data['verzameltijd'] ?? '') ?: null,
         );
     }
 }

@@ -70,12 +70,15 @@ class MatchSyncService
         return FootballMatch::updateOrCreate(
             ['external_id' => $dto->externalId],
             [
-                'team_id' => $teamId,
-                'opponent' => $dto->opponent,
+                'team_id'        => $teamId,
+                'opponent'       => $dto->opponent,
                 'match_datetime' => $dto->matchDatetime,
-                'location' => $dto->location,
-                'is_home' => $dto->isHome,
-                'status' => $dto->status,
+                'location'       => $dto->location,
+                'is_home'        => $dto->isHome,
+                'status'         => $dto->status,
+                'score_home'     => $dto->scoreHome,
+                'score_away'     => $dto->scoreAway,
+                'arrival_time'   => $dto->arrivalTime,
                 'last_synced_at' => now(),
             ]
         );
