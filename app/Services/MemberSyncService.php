@@ -31,14 +31,22 @@ class MemberSyncService
 
             foreach ($membersData as $memberData) {
                 $dto = MemberDTO::fromMcpData($memberData);
+
+                if (empty($dto->externalId)) {
+                    Log::warning('Member skipped: no external ID', ['data_keys' => array_keys($memberData)]);
+                    continue;
+                }
+
                 $member = $this->upsertMember($dto);
 
-                if (isset($memberData['team_id'])) {
-                    $team = Team::where('external_id', $memberData['team_id'])->first();
+                // _teamcode is injected by getMembers() to indicate which team this player belongs to
+                $teamcode = $memberData['_teamcode'] ?? null;
+                if ($teamcode) {
+                    $team = Team::where('external_id', (string) $teamcode)->first();
                     if ($team) {
                         $member->teams()->syncWithoutDetaching([
                             $team->id => [
-                                'role' => $dto->role,
+                                'role'      => $dto->role,
                                 'is_active' => $dto->isActive,
                             ]
                         ]);

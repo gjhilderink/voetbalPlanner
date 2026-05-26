@@ -143,17 +143,23 @@ class SportlinkMcpService
 
     public function getMembers(?string $teamCode = null): array
     {
+        // teamcode MUST be a string — the MCP schema validates it as string
         if ($teamCode) {
-            $result = $this->callTool('get_team_players', ['teamcode' => $teamCode]);
+            $result = $this->callTool('get_team_players', ['teamcode' => (string) $teamCode, 'toon_foto' => false]);
             return is_array($result) ? $result : [];
         }
 
-        // Without a team code, get all teams first then collect players
+        // Deduplicate teams by teamcode before iterating (same team appears once per competition)
+        $seen       = [];
         $allPlayers = [];
         foreach ($this->getTeams() as $team) {
-            $code = $team['teamcode'] ?? $team['id'] ?? null;
-            if (!$code) continue;
-            $players = $this->callTool('get_team_players', ['teamcode' => $code]);
+            $code = (string) ($team['teamcode'] ?? $team['id'] ?? '');
+            if ($code === '' || isset($seen[$code])) {
+                continue;
+            }
+            $seen[$code] = true;
+
+            $players = $this->callTool('get_team_players', ['teamcode' => $code, 'toon_foto' => false]);
             if (is_array($players)) {
                 foreach ($players as $p) {
                     $p['_teamcode'] = $code;
