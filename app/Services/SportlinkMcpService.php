@@ -224,12 +224,25 @@ class SportlinkMcpService
         $teams = $this->callTool('get_teams');
         $results['get_teams_sample'] = is_array($teams) ? array_slice($teams, 0, 3) : $teams;
 
-        // Get players for first team we find
+        // Get players for first team — show RAW MCP response to reveal actual field names
         if (is_array($teams) && !empty($teams)) {
             $firstCode = (string) ($teams[0]['teamcode'] ?? '');
             if ($firstCode) {
-                $players = $this->callTool('get_team_players', ['teamcode' => $firstCode, 'toon_foto' => false]);
-                $results['get_team_players_sample'] = is_array($players) ? array_slice($players, 0, 3) : $players;
+                // Raw MCP call so we see the full undecoded text response
+                $rawResponse = $this->mcpPost('tools/call', [
+                    'name'      => 'get_team_players',
+                    'arguments' => ['teamcode' => $firstCode, 'toon_foto' => false],
+                ]);
+                $rawText = $rawResponse['result']['content'][0]['text'] ?? null;
+                $decoded = $rawText ? json_decode($rawText, true) : null;
+
+                $results['get_team_players_teamcode']  = $firstCode;
+                $results['get_team_players_raw_text']  = $rawText;   // raw JSON string
+                $results['get_team_players_decoded']   = is_array($decoded) ? array_slice($decoded, 0, 2) : $decoded;
+                $results['get_team_players_type']      = gettype($decoded);
+                $results['get_team_players_keys']      = is_array($decoded) && !empty($decoded)
+                    ? array_keys((array) $decoded[0])
+                    : (is_array($decoded) ? array_keys($decoded) : 'not-array');
             }
         }
 
