@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Setting;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -21,14 +20,8 @@ class SportlinkMcpService
             Setting::get('mcp_base_url', config('services.mcp.base_url', '')),
             '/'
         );
-        $this->apiKey = Setting::get('mcp_api_key', config('services.mcp.api_key', ''));
+        $this->apiKey  = Setting::get('mcp_api_key', config('services.mcp.api_key', ''));
         $this->timeout = (int) Setting::get('mcp_timeout', config('services.mcp.timeout', 30));
-    }
-
-    // Build absolute URL, avoiding Guzzle base-URL path-replacement quirks.
-    private function url(string $path = ''): string
-    {
-        return $this->baseUrl . '/' . ltrim($path, '/');
     }
 
     private function headers(): array
@@ -40,34 +33,96 @@ class SportlinkMcpService
         ];
     }
 
+    // Parse SSE response body: "event: message\ndata: {...}\n\n"
+    private function parseSSE(string $body): array
+    {
+        foreach (explode("\n", $body) as $line) {
+            $line = trim($line);
+            if (str_starts_with($line, 'data: ')) {
+                $decoded = json_decode(substr($line, 6), true);
+                if ($decoded !== null) {
+                    return $decoded;
+                }
+            }
+        }
+        return [];
+    }
+
+    // Central MCP JSON-RPC caller
+    private function mcpPost(string $method, array $params = []): array
+    {
+        $url = $this->baseUrl . '/mcp';
+        try {
+            $response = Http::withHeaders($this->headers())
+                ->timeout($this->timeout)
+                ->retry(3, 1000, null, false)
+                ->post($url, [
+                    'jsonrpc' => '2.0',
+                    'id'      => time(),
+                    'method'  => $method,
+                    'params'  => empty($params) ? new \stdClass() : $params,
+                ]);
+
+            $data = $this->parseSSE($response->body()) ?: ($response->json() ?? []);
+
+            Log::debug('MCP call', [
+                'method' => $method,
+                'status' => $response->status(),
+                'result' => $data,
+            ]);
+
+            return $data;
+        } catch (\Throwable $e) {
+            Log::error('MCP call failed', ['method' => $method, 'error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    // Call a named tool and return its content payload
+    private function callTool(string $name, array $arguments = []): mixed
+    {
+        $data = $this->mcpPost('tools/call', [
+            'name'      => $name,
+            'arguments' => empty($arguments) ? new \stdClass() : $arguments,
+        ]);
+
+        // MCP result: {result: {content: [{type: "text", text: "...JSON..."}]}}
+        $content = $data['result']['content'] ?? [];
+
+        foreach ($content as $item) {
+            if (($item['type'] ?? '') === 'text') {
+                $decoded = json_decode($item['text'], true);
+                return $decoded ?? $item['text'];
+            }
+        }
+
+        // Fallback: return raw result
+        return $data['result'] ?? $data;
+    }
+
     public function healthCheck(): array
     {
         try {
             $response = Http::withHeaders($this->headers())
                 ->timeout(10)
                 ->retry(1, 0, null, false)
-                ->get($this->baseUrl);
+                ->get($this->baseUrl . '/health');
 
             return match(true) {
                 $response->successful() => [
                     'connected' => true,
                     'status'    => $response->status(),
-                    'message'   => 'Verbinding succesvol (HTTP ' . $response->status() . ')',
+                    'message'   => 'Verbinding succesvol — ' . ($response->json('server') ?? 'server') . ' is bereikbaar.',
                 ],
                 in_array($response->status(), [401, 403]) => [
                     'connected' => true,
                     'status'    => $response->status(),
                     'message'   => 'Server bereikbaar maar authenticatie mislukt — controleer uw API sleutel.',
                 ],
-                $response->status() === 404 => [
-                    'connected' => true,
-                    'status'    => $response->status(),
-                    'message'   => 'Verbinding werkt — server reageert correct.',
-                ],
                 default => [
                     'connected' => true,
                     'status'    => $response->status(),
-                    'message'   => 'Server bereikbaar (HTTP ' . $response->status() . ').',
+                    'message'   => 'Verbinding werkt — server reageert correct.',
                 ],
             };
         } catch (\Throwable $e) {
@@ -82,52 +137,57 @@ class SportlinkMcpService
 
     public function getTeams(): array
     {
-        return $this->get('teams');
+        $result = $this->callTool('get_teams');
+        return is_array($result) ? $result : [];
     }
 
-    public function getMembers(?string $teamId = null): array
+    public function getMembers(?string $teamCode = null): array
     {
-        $params = $teamId ? '?team_id=' . $teamId : '';
-        return $this->get('members' . $params);
+        if ($teamCode) {
+            $result = $this->callTool('get_team_players', ['teamcode' => $teamCode]);
+            return is_array($result) ? $result : [];
+        }
+
+        // Without a team code, get all teams first then collect players
+        $allPlayers = [];
+        foreach ($this->getTeams() as $team) {
+            $code = $team['teamcode'] ?? $team['id'] ?? null;
+            if (!$code) continue;
+            $players = $this->callTool('get_team_players', ['teamcode' => $code]);
+            if (is_array($players)) {
+                foreach ($players as $p) {
+                    $p['_teamcode'] = $code;
+                    $allPlayers[]   = $p;
+                }
+            }
+        }
+        return $allPlayers;
     }
 
-    public function getMatches(?string $teamId = null, ?string $season = null): array
+    public function getMatches(?string $teamCode = null, ?string $season = null): array
     {
-        $params = array_filter(['team_id' => $teamId, 'season' => $season]);
-        $qs = $params ? '?' . http_build_query($params) : '';
-        return $this->get('matches' . $qs);
+        $args = array_filter(['teamcode' => $teamCode, 'seizoen' => $season]);
+        $result = $this->callTool('get_matches', empty($args) ? [] : $args);
+        if (!is_array($result)) {
+            // Try Dutch variant
+            $result = $this->callTool('get_wedstrijden', empty($args) ? [] : $args);
+        }
+        return is_array($result) ? $result : [];
     }
 
     public function getCoaches(): array
     {
-        return $this->get('coaches');
+        $result = $this->callTool('get_coaches');
+        if (!is_array($result)) {
+            $result = $this->callTool('get_trainers');
+        }
+        return is_array($result) ? $result : [];
     }
 
-    private function get(string $path): array
+    public function listTools(): array
     {
-        $url = $this->url($path);
-        try {
-            $response = Http::withHeaders($this->headers())
-                ->timeout($this->timeout)
-                ->retry(3, 1000, null, false)
-                ->get($url);
-
-            Log::debug('MCP GET', [
-                'url'    => $url,
-                'status' => $response->status(),
-                'body'   => substr($response->body(), 0, 500),
-            ]);
-
-            if ($response->failed()) {
-                Log::warning('MCP request failed', ['url' => $url, 'status' => $response->status()]);
-                return [];
-            }
-
-            return $response->json() ?? [];
-        } catch (\Throwable $e) {
-            Log::error('MCP request error', ['url' => $url, 'error' => $e->getMessage()]);
-            return [];
-        }
+        $data = $this->mcpPost('tools/list');
+        return $data['result']['tools'] ?? [];
     }
 
     public function isConfigured(): bool
@@ -140,33 +200,16 @@ class SportlinkMcpService
         $base    = $this->baseUrl;
         $results = ['base_url_used' => $base, 'api_key_set' => !empty($this->apiKey)];
 
-        $probe = function (string $method, string $url, array $body = [], array $override = []) use (&$results): void {
-            $label = $method . ' ' . str_replace($this->baseUrl, '', $url);
-            try {
-                $headers  = array_merge($this->headers(), $override);
-                $r        = Http::withHeaders($headers)->timeout(10)->retry(1, 0, null, false);
-                $response = $method === 'POST' ? $r->post($url, $body) : $r->get($url);
-                $results[$label] = [
-                    'status' => $response->status(),
-                    'body'   => $response->json() ?? substr($response->body(), 0, 500),
-                ];
-            } catch (\Throwable $e) {
-                $results[$label] = ['error' => $e->getMessage()];
-            }
-        };
+        // Full tools list (no truncation)
+        $toolsData = $this->mcpPost('tools/list');
+        $results['tools_list'] = $toolsData['result']['tools'] ?? $toolsData;
 
-        // FIX: PHP [] encodes as JSON array — MCP needs {} (object) for empty params
-        $toolsList = ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => new \stdClass()];
+        // Call get_teams to see actual field names and data format
+        $results['get_teams_raw'] = $this->callTool('get_teams');
 
-        // MCP endpoint with fixed params — should return tool list
-        $probe('POST', $base . '/mcp', $toolsList);
-
-        // REST /teams — try every common auth format
-        $probe('GET', $base . '/teams');                                                              // Bearer (default)
-        $probe('GET', $base . '/teams', [], ['Authorization' => $this->apiKey]);                     // raw token, no Bearer
-        $probe('GET', $base . '/teams', [], ['Authorization' => 'Token ' . $this->apiKey]);          // Token prefix
-        $probe('GET', $base . '/teams', [], ['Authorization' => '', 'X-API-Key' => $this->apiKey]); // X-API-Key header
-        $probe('GET', $base . '/teams', [], ['Authorization' => '']);                                // no auth → expect 401
+        // Try get_matches / get_wedstrijden
+        $matchData = $this->mcpPost('tools/call', ['name' => 'get_matches', 'arguments' => new \stdClass()]);
+        $results['get_matches_raw'] = $matchData['result']['content'][0]['text'] ?? $matchData;
 
         return $results;
     }
