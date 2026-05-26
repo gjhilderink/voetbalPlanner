@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Setting;
-use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -17,109 +17,115 @@ class SportlinkMcpService
 
     public function __construct()
     {
-        $this->baseUrl = Setting::get('mcp_base_url', config('services.mcp.base_url', ''));
+        $this->baseUrl = rtrim(
+            Setting::get('mcp_base_url', config('services.mcp.base_url', '')),
+            '/'
+        );
         $this->apiKey = Setting::get('mcp_api_key', config('services.mcp.api_key', ''));
         $this->timeout = (int) Setting::get('mcp_timeout', config('services.mcp.timeout', 30));
     }
 
-    public function client(): PendingRequest
+    // Build absolute URL, avoiding Guzzle base-URL path-replacement quirks.
+    private function url(string $path = ''): string
     {
-        return Http::baseUrl($this->baseUrl)
-            ->withHeaders([
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-            ])
-            ->timeout($this->timeout)
-            ->retry(3, 1000, null, false);
+        return $this->baseUrl . '/' . ltrim($path, '/');
+    }
+
+    private function headers(): array
+    {
+        return [
+            'Authorization' => 'Bearer ' . $this->apiKey,
+            'Accept'        => 'application/json',
+            'Content-Type'  => 'application/json',
+        ];
     }
 
     public function healthCheck(): array
     {
         try {
-            $response = $this->client()->get('/');
+            $response = Http::withHeaders($this->headers())
+                ->timeout(10)
+                ->retry(1, 0, null, false)
+                ->get($this->baseUrl);
 
             return match(true) {
                 $response->successful() => [
                     'connected' => true,
-                    'status' => $response->status(),
-                    'message' => 'Verbinding succesvol (HTTP ' . $response->status() . ')',
+                    'status'    => $response->status(),
+                    'message'   => 'Verbinding succesvol (HTTP ' . $response->status() . ')',
                 ],
-                $response->status() === 401, $response->status() === 403 => [
+                in_array($response->status(), [401, 403]) => [
                     'connected' => true,
-                    'status' => $response->status(),
-                    'message' => 'Server bereikbaar maar authenticatie mislukt — controleer uw API sleutel.',
+                    'status'    => $response->status(),
+                    'message'   => 'Server bereikbaar maar authenticatie mislukt — controleer uw API sleutel.',
                 ],
                 $response->status() === 404 => [
                     'connected' => true,
-                    'status' => $response->status(),
-                    'message' => 'Verbinding werkt — server reageert correct.',
+                    'status'    => $response->status(),
+                    'message'   => 'Verbinding werkt — server reageert correct.',
                 ],
                 default => [
                     'connected' => true,
-                    'status' => $response->status(),
-                    'message' => 'Server bereikbaar (HTTP ' . $response->status() . ').',
+                    'status'    => $response->status(),
+                    'message'   => 'Server bereikbaar (HTTP ' . $response->status() . ').',
                 ],
             };
         } catch (\Throwable $e) {
             Log::error('MCP health check failed', ['error' => $e->getMessage()]);
             return [
                 'connected' => false,
-                'status' => 0,
-                'message' => 'Server niet bereikbaar: ' . $e->getMessage(),
+                'status'    => 0,
+                'message'   => 'Server niet bereikbaar: ' . $e->getMessage(),
             ];
         }
     }
 
     public function getTeams(): array
     {
-        return $this->get('/teams');
+        return $this->get('teams');
     }
 
     public function getMembers(?string $teamId = null): array
     {
-        $endpoint = '/members';
-        if ($teamId) {
-            $endpoint .= '?team_id=' . $teamId;
-        }
-        return $this->get($endpoint);
+        $params = $teamId ? '?team_id=' . $teamId : '';
+        return $this->get('members' . $params);
     }
 
     public function getMatches(?string $teamId = null, ?string $season = null): array
     {
-        $params = array_filter([
-            'team_id' => $teamId,
-            'season' => $season,
-        ]);
-        $endpoint = '/matches' . ($params ? '?' . http_build_query($params) : '');
-        return $this->get($endpoint);
+        $params = array_filter(['team_id' => $teamId, 'season' => $season]);
+        $qs = $params ? '?' . http_build_query($params) : '';
+        return $this->get('matches' . $qs);
     }
 
     public function getCoaches(): array
     {
-        return $this->get('/coaches');
+        return $this->get('coaches');
     }
 
-    private function get(string $endpoint): array
+    private function get(string $path): array
     {
+        $url = $this->url($path);
         try {
-            $response = $this->client()->get($endpoint);
+            $response = Http::withHeaders($this->headers())
+                ->timeout($this->timeout)
+                ->retry(3, 1000, null, false)
+                ->get($url);
+
+            Log::debug('MCP GET', [
+                'url'    => $url,
+                'status' => $response->status(),
+                'body'   => substr($response->body(), 0, 500),
+            ]);
 
             if ($response->failed()) {
-                Log::warning('MCP request failed', [
-                    'endpoint' => $endpoint,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
+                Log::warning('MCP request failed', ['url' => $url, 'status' => $response->status()]);
                 return [];
             }
 
             return $response->json() ?? [];
         } catch (\Throwable $e) {
-            Log::error('MCP request error', [
-                'endpoint' => $endpoint,
-                'error' => $e->getMessage(),
-            ]);
+            Log::error('MCP request error', ['url' => $url, 'error' => $e->getMessage()]);
             return [];
         }
     }
@@ -131,44 +137,44 @@ class SportlinkMcpService
 
     public function discoverApi(): array
     {
-        $results = [];
-        $endpoints = ['/teams', '/members', '/matches', '/clubs', '/players', '/coaches'];
+        $results = ['base_url_used' => $this->baseUrl];
 
-        foreach ($endpoints as $endpoint) {
+        // REST endpoints — now using correct absolute URL construction
+        foreach (['teams', 'members', 'matches', 'clubs', 'players', 'coaches'] as $path) {
+            $url = $this->url($path);
             try {
-                $response = $this->client()->get($endpoint);
-                $results['GET ' . $endpoint] = [
+                $response = Http::withHeaders($this->headers())
+                    ->timeout(10)
+                    ->retry(1, 0, null, false)
+                    ->get($url);
+                $results['GET /' . $path] = [
+                    'url'    => $url,
                     'status' => $response->status(),
                     'body'   => $response->json() ?? $response->body(),
                 ];
             } catch (\Throwable $e) {
-                $results['GET ' . $endpoint] = ['error' => $e->getMessage()];
+                $results['GET /' . $path] = ['url' => $url, 'error' => $e->getMessage()];
             }
         }
 
-        // Try MCP JSON-RPC tools/list
+        // MCP JSON-RPC tools/list at exact base URL
         try {
-            $response = Http::baseUrl($this->baseUrl)
-                ->withHeaders([
-                    'Authorization'  => 'Bearer ' . $this->apiKey,
-                    'Accept'         => 'application/json',
-                    'Content-Type'   => 'application/json',
-                ])
+            $response = Http::withHeaders($this->headers())
                 ->timeout(10)
                 ->retry(1, 0, null, false)
-                ->post('', [
+                ->post($this->baseUrl, [
                     'jsonrpc' => '2.0',
                     'id'      => 1,
                     'method'  => 'tools/list',
                     'params'  => [],
                 ]);
-
             $results['POST tools/list (MCP)'] = [
+                'url'    => $this->baseUrl,
                 'status' => $response->status(),
                 'body'   => $response->json() ?? $response->body(),
             ];
         } catch (\Throwable $e) {
-            $results['POST tools/list (MCP)'] = ['error' => $e->getMessage()];
+            $results['POST tools/list (MCP)'] = ['url' => $this->baseUrl, 'error' => $e->getMessage()];
         }
 
         return $results;
