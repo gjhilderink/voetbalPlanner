@@ -22,6 +22,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Some shared hosting servers ship libcurl without newer TLS constants.
+        // Define them with their standard integer values so Guzzle doesn't crash.
+        if (!defined('CURL_SSLVERSION_TLSv1_2')) {
+            define('CURL_SSLVERSION_TLSv1_2', 6);
+        }
+        if (!defined('CURL_SSLVERSION_TLSv1_3')) {
+            define('CURL_SSLVERSION_TLSv1_3', 7);
+        }
     }
 }
