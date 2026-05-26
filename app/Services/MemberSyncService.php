@@ -55,7 +55,7 @@ class MemberSyncService
             ]);
 
             Log::info('Members synced successfully', ['count' => $synced]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $log->update([
                 'status' => 'failed',
                 'error_message' => $e->getMessage(),

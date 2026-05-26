@@ -43,7 +43,7 @@ class SportlinkMcpService
                 'status' => $response->status(),
                 'message' => $response->successful() ? 'Verbinding succesvol' : 'Verbinding mislukt',
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('MCP health check failed', ['error' => $e->getMessage()]);
             return [
                 'connected' => false,
@@ -97,7 +97,7 @@ class SportlinkMcpService
             }
 
             return $response->json() ?? [];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('MCP request error', [
                 'endpoint' => $endpoint,
                 'error' => $e->getMessage(),
