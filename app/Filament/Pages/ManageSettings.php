@@ -26,6 +26,11 @@ use Filament\Schemas\Schema;
 
 class ManageSettings extends Page
 {
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->isAdmin() ?? false;
+    }
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
     protected static ?string $navigationLabel = 'Instellingen';
     protected static ?string $title = 'Sportlink MCP Instellingen';

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,7 +14,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable, SoftDeletes;
 
@@ -30,14 +32,34 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'date_of_birth' => 'date',
-            'is_active' => 'boolean',
+            'password'          => 'hashed',
+            'date_of_birth'     => 'date',
+            'is_active'         => 'boolean',
         ];
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return (bool) $this->is_active;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasAnyRole(['super_admin', 'club_admin']);
+    }
+
+    public function managedTeamIds(): \Illuminate\Support\Collection
+    {
+        return $this->managedTeams()->pluck('teams.id');
     }
 
     public function member(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(Member::class);
+    }
+
+    public function managedTeams(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Team::class, 'user_team');
     }
 }

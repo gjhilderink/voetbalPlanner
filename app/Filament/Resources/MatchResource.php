@@ -15,6 +15,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class MatchResource extends Resource
 {
@@ -187,6 +188,18 @@ class MatchResource extends Resource
                     Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user  = auth()->user();
+
+        if (!$user || $user->isAdmin()) {
+            return $query;
+        }
+
+        return $query->whereIn('team_id', $user->managedTeamIds());
     }
 
     public static function getRelations(): array

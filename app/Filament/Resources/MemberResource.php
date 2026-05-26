@@ -8,6 +8,7 @@ use App\Filament\Resources\MemberResource\Pages;
 use App\Models\Member;
 use App\Models\Team;
 use Filament\Actions;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -136,6 +137,19 @@ class MemberResource extends Resource
                 ]),
             ])
             ->defaultSort('name');
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user  = auth()->user();
+
+        if (!$user || $user->isAdmin()) {
+            return $query;
+        }
+
+        $teamIds = $user->managedTeamIds();
+        return $query->whereHas('teams', fn($q) => $q->whereIn('teams.id', $teamIds));
     }
 
     public static function getRelations(): array
