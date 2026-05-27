@@ -115,22 +115,36 @@ class WhatsAppService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
                 'Content-Type'  => 'application/json',
+                'Accept'        => 'application/json, text/event-stream',
             ])->timeout(15)->post($this->bridgeUrl, [
                 'jsonrpc' => '2.0',
                 'method'  => $method,
                 'params'  => empty($params) ? new \stdClass() : $params,
             ]);
 
-            $body = $response->json();
+            $rawBody     = $response->body();
+            $contentType = $response->header('Content-Type') ?? '';
 
             Log::debug('WhatsApp MCP response', [
-                'method' => $method,
-                'status' => $response->status(),
-                'body'   => $body,
+                'method'       => $method,
+                'status'       => $response->status(),
+                'content_type' => $contentType,
+                'body'         => $rawBody,
             ]);
 
             if (!$response->successful()) {
-                return ['success' => false, 'error' => 'HTTP ' . $response->status() . ': ' . $response->body()];
+                return ['success' => false, 'error' => 'HTTP ' . $response->status() . ': ' . $rawBody];
+            }
+
+            // MCP Streamable HTTP transport may return text/event-stream
+            if (str_contains($contentType, 'text/event-stream')) {
+                $body = $this->parseSseResponse($rawBody);
+            } else {
+                $body = json_decode($rawBody, true);
+            }
+
+            if ($body === null) {
+                return ['success' => false, 'error' => 'Leeg of onleesbaar antwoord van bridge: ' . $rawBody];
             }
 
             // JSON-RPC protocol-level error
@@ -147,12 +161,31 @@ class WhatsAppService
                 return ['success' => false, 'error' => $text];
             }
 
-            return ['success' => true, 'data' => $result];
+            return ['success' => true, 'data' => $result ?: null];
 
         } catch (\Throwable $e) {
             Log::error('WhatsApp MCP request failed', ['method' => $method, 'error' => $e->getMessage()]);
             return ['success' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    private function parseSseResponse(string $raw): ?array
+    {
+        foreach (explode("\n", $raw) as $line) {
+            $line = trim($line);
+            if (!str_starts_with($line, 'data: ')) {
+                continue;
+            }
+            $data = substr($line, 6);
+            if ($data === '' || $data === '[DONE]') {
+                continue;
+            }
+            $decoded = json_decode($data, true);
+            if ($decoded !== null) {
+                return $decoded;
+            }
+        }
+        return null;
     }
 
     private function formatPhone(string $phone): ?string
