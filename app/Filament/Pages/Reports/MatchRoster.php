@@ -56,7 +56,7 @@ class MatchRoster extends Page implements HasTable
             ->columns([
                 TextColumn::make('match_datetime')
                     ->label('Datum')
-                    ->date('D d-m-Y')
+                    ->formatStateUsing(fn($state) => $state ? $state->locale('nl')->isoFormat('ddd DD-MM-YYYY') : '-')
                     ->sortable(),
                 TextColumn::make('arrival_time')
                     ->label('Aanvang')
@@ -180,9 +180,9 @@ class MatchRoster extends Page implements HasTable
                 Group::make('match_datetime')
                     ->label('Week')
                     ->getTitleFromRecordUsing(function ($record): string {
-                        $dt     = $record->match_datetime;
-                        $start  = $dt->copy()->startOfWeek()->format('d-m');
-                        $end    = $dt->copy()->endOfWeek()->format('d-m-Y');
+                        $dt    = $record->match_datetime;
+                        $start = $dt->copy()->startOfWeek()->locale('nl')->isoFormat('D MMM');
+                        $end   = $dt->copy()->endOfWeek()->locale('nl')->isoFormat('D MMM YYYY');
                         return "Week {$dt->weekOfYear} ({$start} t/m {$end})";
                     })
                     ->orderQueryUsing(fn($query, $direction) => $query->orderBy('match_datetime', $direction))
@@ -190,8 +190,7 @@ class MatchRoster extends Page implements HasTable
                 Group::make('match_datetime')
                     ->label('Maand')
                     ->getTitleFromRecordUsing(function ($record): string {
-                        static $maanden = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
-                        return ucfirst($maanden[$record->match_datetime->format('n') - 1]) . ' ' . $record->match_datetime->format('Y');
+                        return ucfirst($record->match_datetime->locale('nl')->isoFormat('MMMM YYYY'));
                     })
                     ->orderQueryUsing(fn($query, $direction) => $query->orderBy('match_datetime', $direction))
                     ->collapsible(),
