@@ -241,10 +241,10 @@ class BarDutyResource extends Resource
                     ->collapsible(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
+                Actions\EditAction::make()
                     ->visible(fn(BarDuty $record) => self::canEdit($record)),
 
-                Tables\Actions\Action::make('assignMembers')
+                Actions\Action::make('assignMembers')
                     ->label('Leden toewijzen')
                     ->icon('heroicon-o-user-plus')
                     ->color('info')
@@ -280,7 +280,7 @@ class BarDutyResource extends Resource
                             ->send();
                     }),
 
-                Tables\Actions\DeleteAction::make()
+                Actions\DeleteAction::make()
                     ->visible(fn(BarDuty $record) => self::canDelete($record)),
             ])
             ->defaultGroup('date')
