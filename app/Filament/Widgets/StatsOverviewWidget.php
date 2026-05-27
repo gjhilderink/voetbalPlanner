@@ -31,7 +31,8 @@ class StatsOverviewWidget extends BaseWidget
             $syncQuery->where('club_id', $tenant->id);
         }
 
-        $lastSync = $syncQuery->latest()->first();
+        $lastSync = $syncQuery->latest()->first()
+            ?? SyncLog::where('status', 'completed')->latest()->first();
 
         return [
             Stat::make('Teams', $teamQuery->count())
