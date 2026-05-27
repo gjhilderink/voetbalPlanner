@@ -70,32 +70,33 @@ class MatchResource extends Resource
                 Forms\Components\Select::make('coaches')
                     ->label('Coach(es)')
                     ->multiple()
-                    ->options(function (Get $get): array {
-                        $teamId = $get('team_id');
-                        $query = Member::whereIn('role', ['coach', 'staff'])
+                    ->relationship(
+                        name: 'coaches',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn(Builder $query, Get $get) => $query
+                            ->whereIn('role', ['coach', 'staff'])
                             ->where('is_active', true)
-                            ->orderBy('name');
-                        if ($teamId) {
-                            $query->whereHas('teams', fn($q) => $q->where('teams.id', $teamId));
-                        }
-                        return $query->pluck('name', 'id')->toArray();
-                    })
-                    ->relationship('coaches', 'name')
+                            ->when($get('team_id'), fn($q, $teamId) =>
+                                $q->whereHas('teams', fn($t) => $t->where('teams.id', $teamId))
+                            )
+                            ->orderBy('name')
+                    )
                     ->searchable()
                     ->preload()
                     ->placeholder('Selecteer coach(es)...'),
                 Forms\Components\Select::make('cleaners')
                     ->label('Wie maakt kleedkamer schoon?')
                     ->multiple()
-                    ->options(function (Get $get): array {
-                        $teamId = $get('team_id');
-                        $query = Member::where('is_active', true)->orderBy('name');
-                        if ($teamId) {
-                            $query->whereHas('teams', fn($q) => $q->where('teams.id', $teamId));
-                        }
-                        return $query->pluck('name', 'id')->toArray();
-                    })
-                    ->relationship('cleaners', 'name')
+                    ->relationship(
+                        name: 'cleaners',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn(Builder $query, Get $get) => $query
+                            ->where('is_active', true)
+                            ->when($get('team_id'), fn($q, $teamId) =>
+                                $q->whereHas('teams', fn($t) => $t->where('teams.id', $teamId))
+                            )
+                            ->orderBy('name')
+                    )
                     ->searchable()
                     ->preload()
                     ->placeholder('Selecteer schoonmakers...'),
@@ -115,15 +116,16 @@ class MatchResource extends Resource
                 Forms\Components\Select::make('drivers')
                     ->label('Rijders (uitwedstrijd)')
                     ->multiple()
-                    ->options(function (Get $get): array {
-                        $teamId = $get('team_id');
-                        $query = Member::where('is_active', true)->orderBy('name');
-                        if ($teamId) {
-                            $query->whereHas('teams', fn($q) => $q->where('teams.id', $teamId));
-                        }
-                        return $query->pluck('name', 'id')->toArray();
-                    })
-                    ->relationship('drivers', 'name')
+                    ->relationship(
+                        name: 'drivers',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn(Builder $query, Get $get) => $query
+                            ->where('is_active', true)
+                            ->when($get('team_id'), fn($q, $teamId) =>
+                                $q->whereHas('teams', fn($t) => $t->where('teams.id', $teamId))
+                            )
+                            ->orderBy('name')
+                    )
                     ->searchable()
                     ->preload()
                     ->placeholder('Selecteer rijders...')
