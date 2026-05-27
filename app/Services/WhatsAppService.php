@@ -86,7 +86,7 @@ class WhatsAppService
         return $this->mcpRequest('tools/call', [
             'name'      => $this->sendTool,
             'arguments' => [
-                'phone'   => $formatted,
+                'to'      => $formatted,
                 'message' => $message,
             ],
         ]);
