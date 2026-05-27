@@ -51,13 +51,11 @@ class AdminPanelProvider extends PanelProvider
                 fn(): string => Blade::render('@if(app(\Lab404\Impersonate\Services\ImpersonateManager::class)->isImpersonating())
                     <div class="flex items-center justify-between gap-4 bg-warning-500 px-6 py-2 text-sm font-medium text-white">
                         <span>
-                            <x-heroicon-s-eye class="inline-block w-4 h-4 mr-1" />
-                            Je bent ingelogd als <strong>{{ auth()->user()->name }}</strong>
+                            &#128065; Je bent ingelogd als <strong>{{ auth()->user()->name }}</strong>
                         </span>
                         <a href="{{ route(\'impersonate.leave\') }}"
                            class="inline-flex items-center gap-1 rounded bg-white/20 px-3 py-1 text-white hover:bg-white/30">
-                            <x-heroicon-s-arrow-left-on-rectangle class="w-4 h-4" />
-                            Terug naar eigen account
+                            &larr; Terug naar eigen account
                         </a>
                     </div>
                 @endif'),
