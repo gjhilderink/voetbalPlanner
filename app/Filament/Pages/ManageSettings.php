@@ -79,7 +79,7 @@ class ManageSettings extends Page
                             ->content(function (): HtmlString|string {
                                 $path = filament()->getTenant()?->logo_path;
                                 if (!$path) return 'Geen logo ingesteld.';
-                                $url = \Illuminate\Support\Facades\Storage::disk('public')->url($path);
+                                $url = asset('logos/' . basename($path));
                                 return new HtmlString(
                                     '<img src="' . $url . '"'
                                     . ' alt="Logo" style="max-height:80px;max-width:220px;'
@@ -90,8 +90,7 @@ class ManageSettings extends Page
                         FileUpload::make('club_logo_path')
                             ->label('Logo')
                             ->image()
-                            ->disk('public')
-                            ->directory('logos')
+                            ->disk('logos')
                             ->imagePreviewHeight('80')
                             ->maxSize(2048)
                             ->columnSpanFull(),

@@ -54,8 +54,7 @@ class ClubResource extends Resource
                 Forms\Components\FileUpload::make('logo_path')
                     ->label('Logo')
                     ->image()
-                    ->disk('public')
-                    ->directory('logos')
+                    ->disk('logos')
                     ->imagePreviewHeight('80')
                     ->maxSize(2048)
                     ->columnSpanFull(),
@@ -94,7 +93,7 @@ class ClubResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('logo_path')
                     ->label('Logo')
-                    ->disk('public')
+                    ->disk('logos')
                     ->height(40)
                     ->width(40),
                 Tables\Columns\TextColumn::make('name')
