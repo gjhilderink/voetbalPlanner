@@ -8,10 +8,11 @@ use App\Jobs\FullSyncJob;
 use App\Models\Setting;
 use App\Models\SyncLog;
 use App\Services\MatchSyncService;
-use Illuminate\Support\HtmlString;
 use App\Services\MemberSyncService;
 use App\Services\SportlinkMcpService;
 use App\Services\TeamSyncService;
+use App\Services\WhatsAppService;
+use Illuminate\Support\HtmlString;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
@@ -47,18 +48,20 @@ class ManageSettings extends Page
         $clubId = $club?->id;
 
         $this->form->fill([
-            'mcp_enabled'    => filter_var(Setting::get('mcp_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
-            'mcp_base_url'   => Setting::get('mcp_base_url', '', $clubId),
-            'mcp_api_key'    => Setting::get('mcp_api_key', '', $clubId),
-            'mcp_timeout'    => (int) Setting::get('mcp_timeout', 30, $clubId),
-            'mcp_club_id'    => Setting::get('mcp_club_id', '', $clubId),
-            'club_name'      => $club?->name,
-            'club_address'   => $club?->address,
-            'club_city'      => $club?->city,
-            'club_phone'     => $club?->phone,
-            'club_email'     => $club?->email,
-            'club_website'   => $club?->website,
-            'club_logo_path' => $club?->logo_path,
+            'mcp_enabled'         => filter_var(Setting::get('mcp_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
+            'mcp_base_url'        => Setting::get('mcp_base_url', '', $clubId),
+            'mcp_api_key'         => Setting::get('mcp_api_key', '', $clubId),
+            'mcp_timeout'         => (int) Setting::get('mcp_timeout', 30, $clubId),
+            'mcp_club_id'         => Setting::get('mcp_club_id', '', $clubId),
+            'whatsapp_enabled'    => filter_var(Setting::get('whatsapp_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
+            'whatsapp_api_key'    => Setting::get('whatsapp_api_key', '', $clubId),
+            'club_name'           => $club?->name,
+            'club_address'        => $club?->address,
+            'club_city'           => $club?->city,
+            'club_phone'          => $club?->phone,
+            'club_email'          => $club?->email,
+            'club_website'        => $club?->website,
+            'club_logo_path'      => $club?->logo_path,
         ]);
     }
 
@@ -152,6 +155,24 @@ class ManageSettings extends Page
                     ])
                     ->columns(2),
 
+                Section::make('WhatsApp')
+                    ->description('Verstuur WhatsApp berichten via de Nubix WhatsApp bridge.')
+                    ->schema([
+                        Toggle::make('whatsapp_enabled')
+                            ->label('WhatsApp ingeschakeld')
+                            ->helperText('Schakel WhatsApp berichten in voor deze club.')
+                            ->columnSpanFull(),
+                        TextInput::make('whatsapp_api_key')
+                            ->label('API sleutel (Bearer token)')
+                            ->placeholder('nubix_...')
+                            ->password()
+                            ->revealable()
+                            ->maxLength(500)
+                            ->helperText('De Bearer token voor de Nubix WhatsApp bridge.')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
+
                 Section::make('Synchronisatiestatus')
                     ->schema([
                         Placeholder::make('last_sync')
@@ -189,6 +210,9 @@ class ManageSettings extends Page
         Setting::set('mcp_club_id', $data['mcp_club_id'] ?? '', 'mcp', false, $clubId);
         Setting::set('mcp_timeout', (string) $data['mcp_timeout'], 'mcp', false, $clubId);
 
+        Setting::set('whatsapp_enabled', $data['whatsapp_enabled'] ? '1' : '0', 'whatsapp', false, $clubId);
+        Setting::set('whatsapp_api_key', $data['whatsapp_api_key'] ?? '', 'whatsapp', true, $clubId);
+
         $club = filament()->getTenant();
         if ($club) {
             $club->update([
@@ -211,6 +235,51 @@ class ManageSettings extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('testWhatsApp')
+                ->label('Test WhatsApp')
+                ->icon('heroicon-o-chat-bubble-left-ellipsis')
+                ->color('success')
+                ->form([
+                    \Filament\Forms\Components\TextInput::make('test_phone')
+                        ->label('Telefoonnummer (incl. landcode)')
+                        ->placeholder('+31612345678')
+                        ->tel()
+                        ->required(),
+                    \Filament\Forms\Components\Textarea::make('test_message')
+                        ->label('Testbericht')
+                        ->default('Hallo! Dit is een testbericht vanuit VoetbalPlanner.')
+                        ->rows(3)
+                        ->required(),
+                ])
+                ->action(function (array $data): void {
+                    $service = app(WhatsAppService::class)->forClub(filament()->getTenant()?->id);
+
+                    if (!$service->isConfigured()) {
+                        Notification::make()
+                            ->warning()
+                            ->title('WhatsApp niet geconfigureerd')
+                            ->body('Sla eerst de API sleutel op en schakel WhatsApp in.')
+                            ->send();
+                        return;
+                    }
+
+                    $result = $service->sendMessage($data['test_phone'], $data['test_message']);
+
+                    if ($result['success']) {
+                        Notification::make()
+                            ->success()
+                            ->title('Bericht verzonden')
+                            ->body('Het testbericht is verstuurd naar ' . $data['test_phone'])
+                            ->send();
+                    } else {
+                        Notification::make()
+                            ->danger()
+                            ->title('Versturen mislukt')
+                            ->body($result['error'])
+                            ->send();
+                    }
+                }),
+
             Action::make('testConnection')
                 ->label('Test verbinding')
                 ->icon('heroicon-o-signal')

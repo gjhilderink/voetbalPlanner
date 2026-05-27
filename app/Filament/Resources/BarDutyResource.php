@@ -8,6 +8,7 @@ use App\Filament\Resources\BarDutyResource\Pages;
 use App\Models\BarDuty;
 use App\Models\Member;
 use App\Models\Team;
+use App\Services\WhatsAppService;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -279,6 +280,61 @@ class BarDutyResource extends Resource
                             ->success()
                             ->title('Leden opgeslagen')
                             ->send();
+                    }),
+
+                Actions\Action::make('notifyWhatsApp')
+                    ->label('WhatsApp')
+                    ->icon('heroicon-o-chat-bubble-left-ellipsis')
+                    ->color('success')
+                    ->visible(fn(BarDuty $record): bool =>
+                        $record->members->isNotEmpty()
+                        && app(WhatsAppService::class)->forClub(filament()->getTenant()?->id)->isConfigured()
+                        && auth()->user()?->hasAnyRole(['super_admin', 'club_admin', 'bar_commissie'])
+                    )
+                    ->form(fn(BarDuty $record): array => [
+                        Forms\Components\Placeholder::make('recipients')
+                            ->label('Ontvangers')
+                            ->content($record->members->pluck('name')->join(', ')),
+                        Forms\Components\Textarea::make('message')
+                            ->label('Bericht')
+                            ->default(
+                                'Hallo! Je staat ingepland voor bardienst op '
+                                . $record->date?->locale('nl')->isoFormat('ddd D MMMM')
+                                . ' (' . match($record->shift) {
+                                    'ochtend' => 'ochtend',
+                                    'middag'  => 'middag',
+                                    'avond'   => 'avond',
+                                    default   => $record->shift,
+                                } . ')'
+                                . '. Graag aanwezig zijn!'
+                            )
+                            ->rows(4)
+                            ->required(),
+                    ])
+                    ->action(function (BarDuty $record, array $data): void {
+                        $service  = app(WhatsAppService::class)->forClub(filament()->getTenant()?->id);
+                        $sent     = 0;
+                        $failed   = [];
+
+                        foreach ($record->members as $member) {
+                            if (empty($member->phone)) {
+                                $failed[] = $member->name . ' (geen nummer)';
+                                continue;
+                            }
+                            $result = $service->sendMessage($member->phone, $data['message']);
+                            $result['success'] ? $sent++ : ($failed[] = $member->name . ': ' . $result['error']);
+                        }
+
+                        if ($sent > 0 && empty($failed)) {
+                            Notification::make()->success()->title("WhatsApp verstuurd naar {$sent} leden")->send();
+                        } elseif ($sent > 0) {
+                            Notification::make()->warning()
+                                ->title("{$sent} verstuurd, " . count($failed) . ' mislukt')
+                                ->body(implode("\n", $failed))
+                                ->send();
+                        } else {
+                            Notification::make()->danger()->title('Versturen mislukt')->body(implode("\n", $failed))->send();
+                        }
                     }),
 
                 Actions\DeleteAction::make()

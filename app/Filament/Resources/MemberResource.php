@@ -7,7 +7,9 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\MemberResource\Pages;
 use App\Models\Member;
 use App\Models\Team;
+use App\Services\WhatsAppService;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -138,6 +140,33 @@ class MemberResource extends Resource
                 Tables\Filters\TernaryFilter::make('is_active')->label('Actief'),
             ])
             ->actions([
+                Actions\Action::make('whatsapp')
+                    ->label('WhatsApp')
+                    ->icon('heroicon-o-chat-bubble-left-ellipsis')
+                    ->color('success')
+                    ->visible(fn(Member $record): bool =>
+                        !empty($record->phone)
+                        && (app(WhatsAppService::class)->forClub(filament()->getTenant()?->id)->isConfigured())
+                    )
+                    ->form(fn(Member $record): array => [
+                        Forms\Components\Placeholder::make('to')
+                            ->label('Ontvanger')
+                            ->content($record->name . ' (' . $record->phone . ')'),
+                        Forms\Components\Textarea::make('message')
+                            ->label('Bericht')
+                            ->rows(4)
+                            ->required(),
+                    ])
+                    ->action(function (Member $record, array $data): void {
+                        $service = app(WhatsAppService::class)->forClub(filament()->getTenant()?->id);
+                        $result  = $service->sendMessage($record->phone, $data['message']);
+
+                        if ($result['success']) {
+                            Notification::make()->success()->title('WhatsApp verstuurd')->send();
+                        } else {
+                            Notification::make()->danger()->title('Versturen mislukt')->body($result['error'])->send();
+                        }
+                    }),
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
             ])
