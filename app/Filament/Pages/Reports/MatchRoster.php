@@ -6,7 +6,9 @@ namespace App\Filament\Pages\Reports;
 
 use App\Models\FootballMatch;
 use App\Models\Team;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Pages\Page;
 use Filament\Tables\Columns\BadgeColumn;
@@ -35,6 +37,75 @@ class MatchRoster extends Page implements HasTable
     public static function canAccess(): bool
     {
         return auth()->check();
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('exportPdf')
+                ->label('PDF exporteren')
+                ->icon('heroicon-o-document-arrow-down')
+                ->color('gray')
+                ->action(function (): \Symfony\Component\HttpFoundation\StreamedResponse {
+                    $user    = auth()->user();
+                    $tenant  = filament()->getTenant();
+                    $filters = $this->tableFilters;
+
+                    $teamId    = $filters['team_id']['value'] ?? null;
+                    $status    = $filters['status']['value'] ?? null;
+                    $fromDate  = $filters['period']['from'] ?? null;
+                    $untilDate = $filters['period']['until'] ?? null;
+
+                    $query = FootballMatch::query()
+                        ->with(['team', 'coaches', 'drivers', 'cleaners', 'fruitHero'])
+                        ->orderBy('match_datetime');
+
+                    if ($tenant) {
+                        $query->whereHas('team', fn($q) => $q->where('club_id', $tenant->id));
+                    }
+                    if (!$user?->isAdmin()) {
+                        $query->whereIn('team_id', $user->managedTeamIds());
+                    }
+                    if ($teamId) {
+                        $query->where('team_id', $teamId);
+                    }
+                    if ($status) {
+                        $query->where('status', $status);
+                    }
+                    if ($fromDate) {
+                        $query->whereDate('match_datetime', '>=', $fromDate);
+                    }
+                    if ($untilDate) {
+                        $query->whereDate('match_datetime', '<=', $untilDate);
+                    }
+
+                    $matches  = $query->get();
+                    $teamName = $teamId ? Team::find($teamId)?->name : null;
+
+                    $periodLabel = null;
+                    if ($fromDate || $untilDate) {
+                        $from  = $fromDate  ? Carbon::parse($fromDate)->format('d-m-Y')  : '...';
+                        $until = $untilDate ? Carbon::parse($untilDate)->format('d-m-Y') : '...';
+                        $periodLabel = "Periode: {$from} t/m {$until}";
+                    }
+
+                    $pdf = Pdf::loadView('pdf.match-roster', [
+                        'matches'     => $matches,
+                        'club'        => $tenant,
+                        'teamName'    => $teamName,
+                        'periodLabel' => $periodLabel,
+                    ])
+                    ->setPaper('a4', 'landscape');
+
+                    $filename = 'wedstrijd-rooster-' . now()->format('Y-m-d') . '.pdf';
+
+                    return response()->streamDownload(
+                        fn() => print($pdf->output()),
+                        $filename,
+                        ['Content-Type' => 'application/pdf']
+                    );
+                }),
+        ];
     }
 
     public function table(Table $table): Table
