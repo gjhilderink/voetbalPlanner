@@ -79,8 +79,9 @@ class ManageSettings extends Page
                             ->content(function (): HtmlString|string {
                                 $path = filament()->getTenant()?->logo_path;
                                 if (!$path) return 'Geen logo ingesteld.';
+                                $url = \Illuminate\Support\Facades\Storage::disk('public')->url($path);
                                 return new HtmlString(
-                                    '<img src="' . asset('storage/' . $path) . '"'
+                                    '<img src="' . $url . '"'
                                     . ' alt="Logo" style="max-height:80px;max-width:220px;'
                                     . 'border-radius:6px;border:1px solid #e5e7eb;padding:4px;background:#fff;">'
                                 );

@@ -99,7 +99,7 @@
     <div class="header">
         <div class="header-logo">
             @if($club?->logo_path)
-                <img src="{{ public_path('storage/' . $club->logo_path) }}" alt="{{ $club->name }}">
+                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->path($club->logo_path) }}" alt="{{ $club->name }}">
             @endif
         </div>
         <div class="header-text">
