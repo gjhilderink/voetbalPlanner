@@ -10,12 +10,13 @@ use Illuminate\Support\Facades\Log;
 
 class WhatsAppService
 {
-    private const BRIDGE_URL = 'https://mcp.nubixhosting.nl/mcp/whatsapp/mcp';
+    private const DEFAULT_BRIDGE_URL = 'https://mcp.nubixhosting.nl/mcp/whatsapp/mcp';
 
-    private ?string $clubId   = null;
-    private bool    $enabled  = false;
-    private string  $apiKey   = '';
-    private string  $sendTool = 'send_message';
+    private ?string $clubId    = null;
+    private bool    $enabled   = false;
+    private string  $apiKey    = '';
+    private string  $bridgeUrl = self::DEFAULT_BRIDGE_URL;
+    private string  $sendTool  = 'send_message';
 
     public function __construct()
     {
@@ -32,9 +33,10 @@ class WhatsAppService
     private function bootSettings(): void
     {
         $id = $this->clubId;
-        $this->enabled  = filter_var(Setting::get('whatsapp_enabled', false, $id), FILTER_VALIDATE_BOOLEAN);
-        $this->apiKey   = Setting::get('whatsapp_api_key', '', $id) ?? '';
-        $this->sendTool = Setting::get('whatsapp_send_tool', 'send_message', $id) ?? 'send_message';
+        $this->enabled   = filter_var(Setting::get('whatsapp_enabled', false, $id), FILTER_VALIDATE_BOOLEAN);
+        $this->apiKey    = Setting::get('whatsapp_api_key', '', $id) ?? '';
+        $this->bridgeUrl = Setting::get('whatsapp_bridge_url', self::DEFAULT_BRIDGE_URL, $id) ?: self::DEFAULT_BRIDGE_URL;
+        $this->sendTool  = Setting::get('whatsapp_send_tool', 'send_message', $id) ?? 'send_message';
     }
 
     public function isConfigured(): bool
@@ -56,11 +58,10 @@ class WhatsAppService
 
         $tools = collect($result['data']['tools'] ?? []);
 
-        // Auto-detect the send tool
+        // Auto-detect the send tool and its argument names
         $sendTool = $tools->first(fn($t) => str_contains(strtolower($t['name'] ?? ''), 'send'));
-        $toolName = $sendTool['name'] ?? 'send_message';
-
-        if ($this->clubId && $toolName !== $this->sendTool) {
+        if ($sendTool && $this->clubId) {
+            $toolName = $sendTool['name'];
             Setting::set('whatsapp_send_tool', $toolName, 'whatsapp', false, $this->clubId);
             $this->sendTool = $toolName;
         }
@@ -81,8 +82,13 @@ class WhatsAppService
 
         $formatted = $this->formatPhone($phone);
         if (!$formatted) {
-            return ['success' => false, 'error' => 'Ongeldig telefoonnummer'];
+            return ['success' => false, 'error' => 'Ongeldig telefoonnummer: ' . $phone];
         }
+
+        Log::info('WhatsApp send attempt', [
+            'tool'  => $this->sendTool,
+            'phone' => $formatted,
+        ]);
 
         return $this->callTool($this->sendTool, [
             'phone'   => $formatted,
@@ -109,7 +115,7 @@ class WhatsAppService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
                 'Content-Type'  => 'application/json',
-            ])->timeout(15)->post(self::BRIDGE_URL, [
+            ])->timeout(15)->post($this->bridgeUrl, [
                 'jsonrpc' => '2.0',
                 'id'      => 1,
                 'method'  => $method,
@@ -118,16 +124,31 @@ class WhatsAppService
 
             $body = $response->json();
 
+            Log::debug('WhatsApp MCP response', [
+                'method' => $method,
+                'status' => $response->status(),
+                'body'   => $body,
+            ]);
+
             if (!$response->successful()) {
                 return ['success' => false, 'error' => 'HTTP ' . $response->status() . ': ' . $response->body()];
             }
 
+            // JSON-RPC protocol-level error
             if (isset($body['error'])) {
                 $msg = $body['error']['message'] ?? json_encode($body['error']);
                 return ['success' => false, 'error' => $msg];
             }
 
-            return ['success' => true, 'data' => $body['result'] ?? $body];
+            $result = $body['result'] ?? $body;
+
+            // MCP tool-level error: result.isError = true
+            if (!empty($result['isError'])) {
+                $text = collect($result['content'] ?? [])->where('type', 'text')->first()['text'] ?? json_encode($result);
+                return ['success' => false, 'error' => $text];
+            }
+
+            return ['success' => true, 'data' => $result];
 
         } catch (\Throwable $e) {
             Log::error('WhatsApp MCP request failed', ['method' => $method, 'error' => $e->getMessage()]);
@@ -137,7 +158,6 @@ class WhatsAppService
 
     private function formatPhone(string $phone): ?string
     {
-        // Strip everything except digits and leading +
         $clean = preg_replace('/[^\d]/', '', $phone);
 
         if (empty($clean)) {

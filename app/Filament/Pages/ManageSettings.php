@@ -54,6 +54,7 @@ class ManageSettings extends Page
             'mcp_timeout'         => (int) Setting::get('mcp_timeout', 30, $clubId),
             'mcp_club_id'         => Setting::get('mcp_club_id', '', $clubId),
             'whatsapp_enabled'    => filter_var(Setting::get('whatsapp_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
+            'whatsapp_bridge_url' => Setting::get('whatsapp_bridge_url', 'https://mcp.nubixhosting.nl/mcp/whatsapp/mcp', $clubId),
             'whatsapp_api_key'    => Setting::get('whatsapp_api_key', '', $clubId),
             'club_name'           => $club?->name,
             'club_address'        => $club?->address,
@@ -162,6 +163,13 @@ class ManageSettings extends Page
                             ->label('WhatsApp ingeschakeld')
                             ->helperText('Schakel WhatsApp berichten in voor deze club.')
                             ->columnSpanFull(),
+                        TextInput::make('whatsapp_bridge_url')
+                            ->label('Bridge URL')
+                            ->placeholder('https://mcp.nubixhosting.nl/mcp/whatsapp/mcp')
+                            ->url()
+                            ->maxLength(500)
+                            ->helperText('MCP endpoint van de WhatsApp bridge.')
+                            ->columnSpanFull(),
                         TextInput::make('whatsapp_api_key')
                             ->label('API sleutel (Bearer token)')
                             ->placeholder('nubix_...')
@@ -210,8 +218,9 @@ class ManageSettings extends Page
         Setting::set('mcp_club_id', $data['mcp_club_id'] ?? '', 'mcp', false, $clubId);
         Setting::set('mcp_timeout', (string) $data['mcp_timeout'], 'mcp', false, $clubId);
 
-        Setting::set('whatsapp_enabled', $data['whatsapp_enabled'] ? '1' : '0', 'whatsapp', false, $clubId);
-        Setting::set('whatsapp_api_key', $data['whatsapp_api_key'] ?? '', 'whatsapp', true, $clubId);
+        Setting::set('whatsapp_enabled',    $data['whatsapp_enabled'] ? '1' : '0', 'whatsapp', false, $clubId);
+        Setting::set('whatsapp_bridge_url', $data['whatsapp_bridge_url'] ?? '', 'whatsapp', false, $clubId);
+        Setting::set('whatsapp_api_key',    $data['whatsapp_api_key'] ?? '', 'whatsapp', true, $clubId);
 
         $club = filament()->getTenant();
         if ($club) {
@@ -235,6 +244,24 @@ class ManageSettings extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('debugWhatsApp')
+                ->label('Debug WhatsApp')
+                ->icon('heroicon-o-magnifying-glass')
+                ->color('gray')
+                ->modalHeading('WhatsApp bridge — tools/list response')
+                ->modalContent(function (): HtmlString {
+                    $result = app(WhatsAppService::class)->forClub(filament()->getTenant()?->id)->discoverTools();
+                    $json = htmlspecialchars(
+                        json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                    );
+                    return new HtmlString(
+                        '<pre style="font-size:12px;background:#f3f4f6;padding:1rem;border-radius:6px;overflow:auto;max-height:70vh;white-space:pre-wrap;word-break:break-all">'
+                        . $json . '</pre>'
+                    );
+                })
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Sluiten'),
+
             Action::make('testWhatsApp')
                 ->label('Test WhatsApp')
                 ->icon('heroicon-o-chat-bubble-left-ellipsis')
