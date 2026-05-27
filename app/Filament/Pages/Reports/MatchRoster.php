@@ -55,11 +55,11 @@ class MatchRoster extends Page implements HasTable
             })
             ->columns([
                 TextColumn::make('match_datetime')
-                    ->label('Datum & tijd')
-                    ->dateTime('D d-m-Y H:i')
+                    ->label('Datum')
+                    ->date('D d-m-Y')
                     ->sortable(),
                 TextColumn::make('arrival_time')
-                    ->label('Verzamelen')
+                    ->label('Aanvang')
                     ->time('H:i'),
                 TextColumn::make('team.name')
                     ->label('Elftal')
