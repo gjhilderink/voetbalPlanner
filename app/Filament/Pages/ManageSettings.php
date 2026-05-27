@@ -74,6 +74,18 @@ class ManageSettings extends Page
                             ->label('Clubnaam')
                             ->maxLength(255)
                             ->columnSpanFull(),
+                        Placeholder::make('logo_current')
+                            ->label('Huidig logo')
+                            ->content(function (): HtmlString|string {
+                                $path = filament()->getTenant()?->logo_path;
+                                if (!$path) return 'Geen logo ingesteld.';
+                                return new HtmlString(
+                                    '<img src="' . asset('storage/' . $path) . '"'
+                                    . ' alt="Logo" style="max-height:80px;max-width:220px;'
+                                    . 'border-radius:6px;border:1px solid #e5e7eb;padding:4px;background:#fff;">'
+                                );
+                            })
+                            ->columnSpanFull(),
                         FileUpload::make('club_logo_path')
                             ->label('Logo')
                             ->image()
