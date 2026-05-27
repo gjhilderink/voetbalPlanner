@@ -87,8 +87,9 @@ class ManageSettings extends Page
                                 $url = asset('logos/' . basename($path));
                                 return new HtmlString(
                                     '<img src="' . $url . '"'
-                                    . ' alt="Logo" style="max-height:80px;max-width:220px;'
-                                    . 'border-radius:6px;border:1px solid #e5e7eb;padding:4px;background:#fff;">'
+                                    . ' alt="Logo" style="display:block;max-height:100px;max-width:260px;'
+                                    . 'width:auto;height:auto;object-fit:contain;'
+                                    . 'border-radius:6px;border:1px solid #e5e7eb;padding:6px;background:#fff;">'
                                 );
                             })
                             ->columnSpanFull(),
