@@ -90,12 +90,14 @@ class MemberSyncService
 
     private function upsertMember(MemberDTO $dto): Member
     {
+        $existing = Member::where('external_id', $dto->externalId)->first();
+
         return Member::updateOrCreate(
             ['external_id' => $dto->externalId],
             [
                 'name'           => $dto->name,
-                'email'          => $dto->email,
-                'phone'          => $dto->phone,
+                'email'          => $dto->email ?: $existing?->email,
+                'phone'          => $dto->phone ?: $existing?->phone,
                 'date_of_birth'  => $dto->dateOfBirth,
                 'role'           => $dto->role,
                 'is_active'      => $dto->isActive,
