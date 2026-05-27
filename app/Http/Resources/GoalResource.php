@@ -12,13 +12,11 @@ class GoalResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'minute' => $this->minute,
-            'is_own_goal' => $this->is_own_goal,
-            'is_penalty' => $this->is_penalty,
-            'scorer' => new MemberResource($this->whenLoaded('scorer')),
-            'assist' => new MemberResource($this->whenLoaded('assist')),
-            'created_at' => $this->created_at?->toISOString(),
+            'id'         => $this->id,
+            'minute'     => $this->minute ?? 0,
+            'type'       => $this->is_own_goal ? 'own_goal' : ($this->is_penalty ? 'penalty' : 'regular'),
+            'scorerName' => $this->whenLoaded('scorer', fn() => $this->scorer?->name ?? '', ''),
+            'assistName' => $this->whenLoaded('assist', fn() => $this->assist?->name ?? '', ''),
         ];
     }
 }

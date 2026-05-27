@@ -16,38 +16,26 @@ class MatchController extends Controller
     {
         $matches = FootballMatch::query()
             ->with(['team', 'coach', 'fruitHero'])
+            ->when($request->has('is_home'), fn($q) => $q->where('is_home', $request->boolean('is_home')))
+            ->when($request->boolean('has_drivers'), fn($q) => $q->has('drivers'))
             ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
             ->when($request->status, fn($q, $s) => $q->where('status', $s))
             ->when($request->upcoming, fn($q) => $q->where('match_datetime', '>=', now()))
             ->when($request->date_from, fn($q, $d) => $q->where('match_datetime', '>=', $d))
             ->when($request->date_to, fn($q, $d) => $q->where('match_datetime', '<=', $d))
-            ->when($request->has('is_home'), fn($q) => $q->where('is_home', filter_var($request->is_home, FILTER_VALIDATE_BOOLEAN)))
-            ->when($request->has_drivers, fn($q) => $q->whereHas('drivers'))
             ->orderBy('match_datetime')
             ->paginate($request->integer('per_page', 15));
 
-        return response()->json([
-            'success' => true,
-            'data' => MatchResource::collection($matches),
-            'meta' => [
-                'current_page' => $matches->currentPage(),
-                'last_page' => $matches->lastPage(),
-                'per_page' => $matches->perPage(),
-                'total' => $matches->total(),
-            ],
-            'message' => '',
-        ]);
+        return response()->json(
+            collect($matches->items())->map(fn($m) => (new MatchResource($m))->resolve())
+        );
     }
 
     public function show(FootballMatch $match): JsonResponse
     {
         $match->load(['team', 'coach', 'fruitHero', 'drivers', 'lineup.players.member', 'goals.scorer', 'goals.assist']);
 
-        return response()->json([
-            'success' => true,
-            'data' => new MatchResource($match),
-            'message' => '',
-        ]);
+        return response()->json((new MatchResource($match))->resolve());
     }
 
     public function update(Request $request, FootballMatch $match): JsonResponse

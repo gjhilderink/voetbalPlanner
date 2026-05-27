@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\LineupResource;
+use App\Http\Resources\LineupPlayerResource;
 use App\Models\Lineup;
 use App\Models\LineupPlayer;
 use App\Models\FootballMatch;
@@ -19,18 +19,12 @@ class LineupController extends Controller
         $lineup = $match->lineup()->with('players.member')->first();
 
         if (!$lineup) {
-            return response()->json([
-                'success' => false,
-                'data' => null,
-                'message' => 'Geen opstelling gevonden.',
-            ], 404);
+            return response()->json([]);
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => new LineupResource($lineup),
-            'message' => '',
-        ]);
+        return response()->json(
+            $lineup->players->map(fn($p) => (new LineupPlayerResource($p))->resolve())->values()
+        );
     }
 
     public function store(Request $request, FootballMatch $match): JsonResponse
@@ -67,10 +61,10 @@ class LineupController extends Controller
             ]);
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => new LineupResource($lineup->load('players.member')),
-            'message' => 'Opstelling opgeslagen.',
-        ], 201);
+        $saved = $lineup->load('players.member');
+        return response()->json(
+            $saved->players->map(fn($p) => (new LineupPlayerResource($p))->resolve())->values(),
+            201
+        );
     }
 }

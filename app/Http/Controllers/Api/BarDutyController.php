@@ -30,17 +30,9 @@ class BarDutyController extends Controller
             ->orderBy('date')
             ->paginate($request->integer('per_page', 25));
 
-        return response()->json([
-            'success' => true,
-            'data'    => BarDutyResource::collection($duties),
-            'meta'    => [
-                'current_page' => $duties->currentPage(),
-                'last_page'    => $duties->lastPage(),
-                'per_page'     => $duties->perPage(),
-                'total'        => $duties->total(),
-            ],
-            'message' => '',
-        ]);
+        return response()->json(
+            collect($duties->items())->map(fn($d) => (new BarDutyResource($d))->resolve())
+        );
     }
 
     public function show(BarDuty $barDuty): JsonResponse
@@ -61,12 +53,12 @@ class BarDutyController extends Controller
         $this->authorizeRole(['super_admin', 'club_admin', 'bar_commissie']);
 
         $validated = $request->validate([
-            'date'    => 'required|date_format:Y-m-d',
-            'shift'   => 'required|in:ochtend,middag,avond',
-            'team_id' => 'nullable|uuid|exists:teams,id',
-            'status'  => 'sometimes|in:open,bevestigd,vervuld',
-            'notes'   => 'nullable|string|max:2000',
-            'member_ids' => 'nullable|array|max:2',
+            'date'         => 'required|date_format:Y-m-d',
+            'shift'        => 'required|in:ochtend,middag,avond',
+            'team_id'      => 'nullable|uuid|exists:teams,id',
+            'status'       => 'sometimes|in:open,bevestigd,vervuld',
+            'notes'        => 'nullable|string|max:2000',
+            'member_ids'   => 'nullable|array|max:2',
             'member_ids.*' => 'uuid|exists:members,id',
         ]);
 
@@ -135,7 +127,6 @@ class BarDutyController extends Controller
         $user = $request->user();
 
         if (!$user->hasAnyRole(['super_admin', 'club_admin', 'bar_commissie'])) {
-            // Coaches may only assign to their own teams
             if (!in_array($barDuty->team_id, $user->managedTeamIds()->all())) {
                 return response()->json(['success' => false, 'message' => 'Geen toegang.'], 403);
             }

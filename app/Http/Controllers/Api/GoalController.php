@@ -17,11 +17,9 @@ class GoalController extends Controller
     {
         $goals = $match->goals()->with(['scorer', 'assist'])->orderBy('minute')->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => GoalResource::collection($goals),
-            'message' => '',
-        ]);
+        return response()->json(
+            $goals->map(fn($g) => (new GoalResource($g))->resolve())->values()
+        );
     }
 
     public function store(Request $request, FootballMatch $match): JsonResponse

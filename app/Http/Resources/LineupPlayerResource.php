@@ -12,12 +12,12 @@ class LineupPlayerResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'position' => $this->position,
-            'shirt_number' => $this->shirt_number,
-            'is_substitute' => $this->is_substitute,
-            'substituted_at_minute' => $this->substituted_at_minute,
-            'member' => new MemberResource($this->whenLoaded('member')),
+            'id'           => $this->id,
+            'memberName'   => $this->whenLoaded('member', fn() => $this->member?->name ?? '', ''),
+            'position'     => $this->position ?? '',
+            'jerseyNumber' => (string) ($this->shirt_number ?? ''),
+            'isStarter'    => !(bool) $this->is_substitute,
+            'isCaptain'    => false,
         ];
     }
 }
