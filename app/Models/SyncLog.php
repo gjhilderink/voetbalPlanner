@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 class SyncLog extends Model
 {
     protected $fillable = [
-        'type', 'status', 'records_synced',
+        'club_id', 'type', 'status', 'records_synced',
         'error_message', 'metadata', 'started_at', 'completed_at',
     ];
 
