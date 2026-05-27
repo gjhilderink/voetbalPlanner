@@ -13,6 +13,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Support\Str;
 
 class ClubResource extends Resource
@@ -39,7 +40,7 @@ class ClubResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->live(onBlur: true)
-                    ->afterStateUpdated(fn($state, Forms\Set $set, string $operation) =>
+                    ->afterStateUpdated(fn($state, Set $set, string $operation) =>
                         $operation === 'create'
                             ? $set('slug', Str::slug($state))
                             : null
