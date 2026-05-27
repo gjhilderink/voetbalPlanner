@@ -10,13 +10,15 @@ use Illuminate\Support\Facades\Log;
 
 class WhatsAppService
 {
-    private const DEFAULT_BRIDGE_URL = 'https://mcp.nubixhosting.nl/mcp/whatsapp/mcp';
+    private const DEFAULT_BRIDGE_URL    = 'https://mcp.nubixhosting.nl/mcp/whatsapp/mcp';
+    private const PROTOCOL_VERSION      = '2024-11-05';
 
     private ?string $clubId    = null;
     private bool    $enabled   = false;
     private string  $apiKey    = '';
     private string  $bridgeUrl = self::DEFAULT_BRIDGE_URL;
     private string  $sendTool  = 'send_message';
+    private ?string $sessionId = null;
 
     public function __construct()
     {
@@ -25,7 +27,8 @@ class WhatsAppService
 
     public function forClub(?string $clubId): static
     {
-        $this->clubId = $clubId;
+        $this->clubId    = $clubId;
+        $this->sessionId = null; // reset session on club switch
         $this->bootSettings();
         return $this;
     }
@@ -58,12 +61,10 @@ class WhatsAppService
 
         $tools = collect($result['data']['tools'] ?? []);
 
-        // Auto-detect the send tool and its argument names
         $sendTool = $tools->first(fn($t) => str_contains(strtolower($t['name'] ?? ''), 'send'));
         if ($sendTool && $this->clubId) {
-            $toolName = $sendTool['name'];
-            Setting::set('whatsapp_send_tool', $toolName, 'whatsapp', false, $this->clubId);
-            $this->sendTool = $toolName;
+            Setting::set('whatsapp_send_tool', $sendTool['name'], 'whatsapp', false, $this->clubId);
+            $this->sendTool = $sendTool['name'];
         }
 
         $toolList = $tools->pluck('name')->join(', ');
@@ -85,11 +86,6 @@ class WhatsAppService
             return ['success' => false, 'error' => 'Ongeldig telefoonnummer: ' . $phone];
         }
 
-        Log::info('WhatsApp send attempt', [
-            'tool'  => $this->sendTool,
-            'phone' => $formatted,
-        ]);
-
         return $this->callTool($this->sendTool, [
             'phone'   => $formatted,
             'message' => $message,
@@ -100,6 +96,53 @@ class WhatsAppService
     {
         return $this->mcpRequest('tools/list', []);
     }
+
+    // -------------------------------------------------------------------------
+    // MCP session management
+    // -------------------------------------------------------------------------
+
+    private function ensureSession(): void
+    {
+        if ($this->sessionId) {
+            return;
+        }
+
+        $response = Http::withHeaders($this->baseHeaders())
+            ->timeout(15)
+            ->post($this->bridgeUrl, [
+                'jsonrpc' => '2.0',
+                'method'  => 'initialize',
+                'params'  => [
+                    'protocolVersion' => self::PROTOCOL_VERSION,
+                    'capabilities'    => new \stdClass(),
+                    'clientInfo'      => ['name' => 'VoetbalPlanner', 'version' => '1.0'],
+                ],
+            ]);
+
+        $sessionId = $response->header('Mcp-Session-Id');
+
+        Log::debug('WhatsApp MCP initialize', [
+            'status'     => $response->status(),
+            'session_id' => $sessionId,
+            'body'       => $response->body(),
+        ]);
+
+        if ($sessionId) {
+            $this->sessionId = $sessionId;
+
+            // Send the required initialized notification (no response expected)
+            Http::withHeaders($this->baseHeaders() + ['Mcp-Session-Id' => $sessionId])
+                ->timeout(5)
+                ->post($this->bridgeUrl, [
+                    'jsonrpc' => '2.0',
+                    'method'  => 'notifications/initialized',
+                ]);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal request helpers
+    // -------------------------------------------------------------------------
 
     private function callTool(string $name, array $arguments): array
     {
@@ -112,15 +155,20 @@ class WhatsAppService
     private function mcpRequest(string $method, array $params): array
     {
         try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type'  => 'application/json',
-                'Accept'        => 'application/json, text/event-stream',
-            ])->timeout(15)->post($this->bridgeUrl, [
-                'jsonrpc' => '2.0',
-                'method'  => $method,
-                'params'  => empty($params) ? new \stdClass() : $params,
-            ]);
+            $this->ensureSession();
+
+            $headers = $this->baseHeaders();
+            if ($this->sessionId) {
+                $headers['Mcp-Session-Id'] = $this->sessionId;
+            }
+
+            $response = Http::withHeaders($headers)
+                ->timeout(15)
+                ->post($this->bridgeUrl, [
+                    'jsonrpc' => '2.0',
+                    'method'  => $method,
+                    'params'  => empty($params) ? new \stdClass() : $params,
+                ]);
 
             $rawBody     = $response->body();
             $contentType = $response->header('Content-Type') ?? '';
@@ -136,18 +184,14 @@ class WhatsAppService
                 return ['success' => false, 'error' => 'HTTP ' . $response->status() . ': ' . $rawBody];
             }
 
-            // MCP Streamable HTTP transport may return text/event-stream
-            if (str_contains($contentType, 'text/event-stream')) {
-                $body = $this->parseSseResponse($rawBody);
-            } else {
-                $body = json_decode($rawBody, true);
-            }
+            $body = str_contains($contentType, 'text/event-stream')
+                ? $this->parseSseResponse($rawBody)
+                : json_decode($rawBody, true);
 
             if ($body === null) {
-                return ['success' => false, 'error' => 'Leeg of onleesbaar antwoord van bridge: ' . $rawBody];
+                return ['success' => false, 'error' => 'Leeg of onleesbaar antwoord: ' . $rawBody];
             }
 
-            // JSON-RPC protocol-level error
             if (isset($body['error'])) {
                 $msg = $body['error']['message'] ?? json_encode($body['error']);
                 return ['success' => false, 'error' => $msg];
@@ -155,7 +199,6 @@ class WhatsAppService
 
             $result = $body['result'] ?? $body;
 
-            // MCP tool-level error: result.isError = true
             if (!empty($result['isError'])) {
                 $text = collect($result['content'] ?? [])->where('type', 'text')->first()['text'] ?? json_encode($result);
                 return ['success' => false, 'error' => $text];
@@ -188,6 +231,15 @@ class WhatsAppService
         return null;
     }
 
+    private function baseHeaders(): array
+    {
+        return [
+            'Authorization' => 'Bearer ' . $this->apiKey,
+            'Content-Type'  => 'application/json',
+            'Accept'        => 'application/json, text/event-stream',
+        ];
+    }
+
     private function formatPhone(string $phone): ?string
     {
         $clean = preg_replace('/[^\d]/', '', $phone);
@@ -196,17 +248,14 @@ class WhatsAppService
             return null;
         }
 
-        // Already full international (e.g. 31612345678)
         if (strlen($clean) >= 11 && str_starts_with($clean, '31')) {
             return $clean;
         }
 
-        // Dutch local (0612345678 → 31612345678)
         if (str_starts_with($clean, '0')) {
             return '31' . substr($clean, 1);
         }
 
-        // Add NL country code if only 9 digits
         if (strlen($clean) === 9) {
             return '31' . $clean;
         }
