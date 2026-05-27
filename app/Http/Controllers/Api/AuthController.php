@@ -32,6 +32,7 @@ class AuthController extends Controller
             ], 403);
         }
 
+        $user->load('club', 'managedTeams');
         $token = $user->createToken('flutterflow-app')->plainTextToken;
 
         return response()->json([
@@ -58,9 +59,11 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
+        $user = $request->user()->load('club', 'managedTeams');
+
         return response()->json([
             'success' => true,
-            'data' => new UserResource($request->user()),
+            'data' => new UserResource($user),
             'message' => '',
         ]);
     }
