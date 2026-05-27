@@ -251,11 +251,15 @@ class ManageSettings extends Page
                 ->modalHeading('WhatsApp bridge — tools/list response')
                 ->modalContent(function (): HtmlString {
                     $result = app(WhatsAppService::class)->forClub(filament()->getTenant()?->id)->discoverTools();
-                    $json = htmlspecialchars(
+                    $json   = htmlspecialchars(
                         json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
                     );
                     return new HtmlString(
-                        '<pre style="font-size:12px;background:#f3f4f6;padding:1rem;border-radius:6px;overflow:auto;max-height:70vh;white-space:pre-wrap;word-break:break-all">'
+                        '<p style="font-size:11px;color:#6b7280;margin-bottom:8px">'
+                        . 'Status: <strong>' . ($result['response_status'] ?? '?') . '</strong>'
+                        . ' &nbsp;|&nbsp; Content-Type: <strong>' . htmlspecialchars($result['response_type'] ?? '') . '</strong>'
+                        . '</p>'
+                        . '<pre style="font-size:12px;background:#f3f4f6;padding:1rem;border-radius:6px;overflow:auto;max-height:70vh;white-space:pre-wrap;word-break:break-all">'
                         . $json . '</pre>'
                     );
                 })

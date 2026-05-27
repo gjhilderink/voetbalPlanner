@@ -10,15 +10,14 @@ use Illuminate\Support\Facades\Log;
 
 class WhatsAppService
 {
-    private const DEFAULT_BRIDGE_URL    = 'https://mcp.nubixhosting.nl/mcp/whatsapp/mcp';
-    private const PROTOCOL_VERSION      = '2024-11-05';
+    private const DEFAULT_BRIDGE_URL = 'https://mcp.nubixhosting.nl/mcp/whatsapp/mcp';
 
     private ?string $clubId    = null;
     private bool    $enabled   = false;
     private string  $apiKey    = '';
     private string  $bridgeUrl = self::DEFAULT_BRIDGE_URL;
     private string  $sendTool  = 'send_message';
-    private ?string $sessionId = null;
+    private int     $requestId = 1;
 
     public function __construct()
     {
@@ -27,8 +26,7 @@ class WhatsAppService
 
     public function forClub(?string $clubId): static
     {
-        $this->clubId    = $clubId;
-        $this->sessionId = null; // reset session on club switch
+        $this->clubId = $clubId;
         $this->bootSettings();
         return $this;
     }
@@ -53,7 +51,7 @@ class WhatsAppService
             return ['connected' => false, 'message' => 'WhatsApp niet geconfigureerd'];
         }
 
-        $result = $this->mcpRequest('tools/list', []);
+        $result = $this->mcpRequest('tools/list', new \stdClass());
 
         if (!$result['success']) {
             return ['connected' => false, 'message' => $result['error']];
@@ -67,10 +65,9 @@ class WhatsAppService
             $this->sendTool = $sendTool['name'];
         }
 
-        $toolList = $tools->pluck('name')->join(', ');
         return [
             'connected' => true,
-            'message'   => "Verbonden. Beschikbare tools: {$toolList}",
+            'message'   => 'Verbonden. Tools: ' . $tools->pluck('name')->join(', '),
             'tools'     => $tools->all(),
         ];
     }
@@ -86,179 +83,122 @@ class WhatsAppService
             return ['success' => false, 'error' => 'Ongeldig telefoonnummer: ' . $phone];
         }
 
-        return $this->callTool($this->sendTool, [
-            'phone'   => $formatted,
-            'message' => $message,
+        return $this->mcpRequest('tools/call', [
+            'name'      => $this->sendTool,
+            'arguments' => [
+                'phone'   => $formatted,
+                'message' => $message,
+            ],
         ]);
     }
 
+    /**
+     * Returns a full diagnostic dump for the settings debug modal.
+     */
     public function discoverTools(): array
     {
-        return $this->mcpRequest('tools/list', []);
+        $raw = $this->rawPost('tools/list', new \stdClass());
+        return [
+            'request_url'    => $this->bridgeUrl,
+            'response_status'=> $raw['status'],
+            'response_type'  => $raw['content_type'],
+            'response_body'  => $raw['body'],
+            'parsed'         => $raw['parsed'],
+        ];
     }
 
     // -------------------------------------------------------------------------
-    // MCP session management
+    // Internal
     // -------------------------------------------------------------------------
 
-    private function ensureSession(): void
+    private function mcpRequest(string $method, array|object $params): array
     {
-        if ($this->sessionId) {
-            return;
+        $raw = $this->rawPost($method, $params);
+
+        if ($raw['status'] === 0) {
+            return ['success' => false, 'error' => $raw['body']];
         }
 
-        $response = Http::withHeaders($this->baseHeaders())
-            ->timeout(15)
-            ->post($this->bridgeUrl, [
-                'jsonrpc' => '2.0',
-                'method'  => 'initialize',
-                'params'  => [
-                    'protocolVersion' => self::PROTOCOL_VERSION,
-                    'capabilities'    => new \stdClass(),
-                    'clientInfo'      => ['name' => 'VoetbalPlanner', 'version' => '1.0'],
-                ],
-            ]);
-
-        $sessionId = $response->header('Mcp-Session-Id');
-
-        Log::debug('WhatsApp MCP initialize', [
-            'status'     => $response->status(),
-            'session_id' => $sessionId,
-            'body'       => $response->body(),
-        ]);
-
-        if ($sessionId) {
-            $this->sessionId = $sessionId;
-
-            // Send the required initialized notification (no response expected)
-            Http::withHeaders($this->baseHeaders() + ['Mcp-Session-Id' => $sessionId])
-                ->timeout(5)
-                ->post($this->bridgeUrl, [
-                    'jsonrpc' => '2.0',
-                    'method'  => 'notifications/initialized',
-                ]);
+        if ($raw['status'] >= 400) {
+            return ['success' => false, 'error' => 'HTTP ' . $raw['status'] . ': ' . $raw['body']];
         }
+
+        $body = $raw['parsed'];
+
+        if ($body === null) {
+            return ['success' => false, 'error' => 'Leeg of onleesbaar antwoord: ' . $raw['body']];
+        }
+
+        if (isset($body['error'])) {
+            $msg = $body['error']['message'] ?? json_encode($body['error']);
+            return ['success' => false, 'error' => $msg];
+        }
+
+        $result = $body['result'] ?? $body;
+
+        if (!empty($result['isError'])) {
+            $text = collect($result['content'] ?? [])->where('type', 'text')->first()['text'] ?? json_encode($result);
+            return ['success' => false, 'error' => $text];
+        }
+
+        return ['success' => true, 'data' => $result ?: null];
     }
 
-    // -------------------------------------------------------------------------
-    // Internal request helpers
-    // -------------------------------------------------------------------------
-
-    private function callTool(string $name, array $arguments): array
-    {
-        return $this->mcpRequest('tools/call', [
-            'name'      => $name,
-            'arguments' => $arguments,
-        ]);
-    }
-
-    private function mcpRequest(string $method, array $params): array
+    private function rawPost(string $method, array|object $params): array
     {
         try {
-            $this->ensureSession();
+            $payload = [
+                'jsonrpc' => '2.0',
+                'id'      => $this->requestId++,
+                'method'  => $method,
+                'params'  => $params,
+            ];
 
-            $headers = $this->baseHeaders();
-            if ($this->sessionId) {
-                $headers['Mcp-Session-Id'] = $this->sessionId;
-            }
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type'  => 'application/json',
+                'Accept'        => 'application/json, text/event-stream',
+            ])->timeout(15)->post($this->bridgeUrl, $payload);
 
-            $response = Http::withHeaders($headers)
-                ->timeout(15)
-                ->post($this->bridgeUrl, [
-                    'jsonrpc' => '2.0',
-                    'method'  => $method,
-                    'params'  => empty($params) ? new \stdClass() : $params,
-                ]);
-
-            $rawBody     = $response->body();
+            $status      = $response->status();
             $contentType = $response->header('Content-Type') ?? '';
+            $rawBody     = $response->body();
 
-            Log::debug('WhatsApp MCP response', [
-                'method'       => $method,
-                'status'       => $response->status(),
-                'content_type' => $contentType,
-                'body'         => $rawBody,
-            ]);
+            Log::debug('WhatsApp bridge', compact('method', 'status', 'contentType', 'rawBody'));
 
-            if (!$response->successful()) {
-                return ['success' => false, 'error' => 'HTTP ' . $response->status() . ': ' . $rawBody];
-            }
-
-            $body = str_contains($contentType, 'text/event-stream')
-                ? $this->parseSseResponse($rawBody)
+            $parsed = str_contains($contentType, 'text/event-stream')
+                ? $this->parseSse($rawBody)
                 : json_decode($rawBody, true);
 
-            if ($body === null) {
-                return ['success' => false, 'error' => 'Leeg of onleesbaar antwoord: ' . $rawBody];
-            }
-
-            if (isset($body['error'])) {
-                $msg = $body['error']['message'] ?? json_encode($body['error']);
-                return ['success' => false, 'error' => $msg];
-            }
-
-            $result = $body['result'] ?? $body;
-
-            if (!empty($result['isError'])) {
-                $text = collect($result['content'] ?? [])->where('type', 'text')->first()['text'] ?? json_encode($result);
-                return ['success' => false, 'error' => $text];
-            }
-
-            return ['success' => true, 'data' => $result ?: null];
+            return compact('status', 'contentType', 'rawBody', 'parsed') + ['body' => $rawBody];
 
         } catch (\Throwable $e) {
-            Log::error('WhatsApp MCP request failed', ['method' => $method, 'error' => $e->getMessage()]);
-            return ['success' => false, 'error' => $e->getMessage()];
+            Log::error('WhatsApp bridge exception', ['method' => $method, 'error' => $e->getMessage()]);
+            return ['status' => 0, 'contentType' => '', 'rawBody' => $e->getMessage(), 'body' => $e->getMessage(), 'parsed' => null];
         }
     }
 
-    private function parseSseResponse(string $raw): ?array
+    private function parseSse(string $raw): ?array
     {
         foreach (explode("\n", $raw) as $line) {
             $line = trim($line);
-            if (!str_starts_with($line, 'data: ')) {
-                continue;
-            }
+            if (!str_starts_with($line, 'data: ')) continue;
             $data = substr($line, 6);
-            if ($data === '' || $data === '[DONE]') {
-                continue;
-            }
+            if ($data === '' || $data === '[DONE]') continue;
             $decoded = json_decode($data, true);
-            if ($decoded !== null) {
-                return $decoded;
-            }
+            if ($decoded !== null) return $decoded;
         }
         return null;
-    }
-
-    private function baseHeaders(): array
-    {
-        return [
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Content-Type'  => 'application/json',
-            'Accept'        => 'application/json, text/event-stream',
-        ];
     }
 
     private function formatPhone(string $phone): ?string
     {
         $clean = preg_replace('/[^\d]/', '', $phone);
+        if (empty($clean)) return null;
 
-        if (empty($clean)) {
-            return null;
-        }
-
-        if (strlen($clean) >= 11 && str_starts_with($clean, '31')) {
-            return $clean;
-        }
-
-        if (str_starts_with($clean, '0')) {
-            return '31' . substr($clean, 1);
-        }
-
-        if (strlen($clean) === 9) {
-            return '31' . $clean;
-        }
+        if (strlen($clean) >= 11 && str_starts_with($clean, '31')) return $clean;
+        if (str_starts_with($clean, '0')) return '31' . substr($clean, 1);
+        if (strlen($clean) === 9) return '31' . $clean;
 
         return $clean;
     }
