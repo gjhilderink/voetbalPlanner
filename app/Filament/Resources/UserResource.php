@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\UserRole;
 use App\Filament\Resources\UserResource\Pages;
+use App\Models\Club;
 use App\Models\User;
 use Filament\Actions;
 use Filament\Forms;
@@ -60,6 +61,15 @@ class UserResource extends Resource
                     ->default(true),
             ])->columns(2),
 
+            Section::make('Club')->schema([
+                Forms\Components\Select::make('club_id')
+                    ->label('Club')
+                    ->options(Club::where('is_active', true)->orderBy('name')->pluck('name', 'id'))
+                    ->searchable()
+                    ->placeholder('Geen club (super admin)')
+                    ->columnSpanFull(),
+            ]),
+
             Section::make('Rechten')->schema([
                 Forms\Components\Select::make('roles')
                     ->label('Rollen')
@@ -113,6 +123,10 @@ class UserResource extends Resource
                     ->label('Teams')
                     ->badge()
                     ->separator(','),
+                Tables\Columns\TextColumn::make('club.name')
+                    ->label('Club')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actief')
                     ->boolean(),
@@ -158,8 +172,7 @@ class UserResource extends Resource
         $tenant = filament()->getTenant();
 
         if ($tenant) {
-            $query->where('club_id', $tenant->id)
-                  ->orWhereNull('club_id'); // include super_admins (no club)
+            $query->where('club_id', $tenant->id);
         }
 
         return $query;
