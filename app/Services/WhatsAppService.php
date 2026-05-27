@@ -117,9 +117,8 @@ class WhatsAppService
                 'Content-Type'  => 'application/json',
             ])->timeout(15)->post($this->bridgeUrl, [
                 'jsonrpc' => '2.0',
-                'id'      => 1,
                 'method'  => $method,
-                'params'  => $params,
+                'params'  => empty($params) ? new \stdClass() : $params,
             ]);
 
             $body = $response->json();
