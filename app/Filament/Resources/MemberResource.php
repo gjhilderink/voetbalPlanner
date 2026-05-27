@@ -104,6 +104,12 @@ class MemberResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('email')->label('E-mail')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('phone')->label('Telefoon')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('source')
+                    ->label('Bron')
+                    ->badge()
+                    ->getStateUsing(fn($record) => $record->external_id ? 'sync' : 'manual')
+                    ->formatStateUsing(fn($state) => $state === 'sync' ? 'Sportlink' : 'Manueel')
+                    ->color(fn($state) => $state === 'sync' ? 'info' : 'gray'),
                 Tables\Columns\IconColumn::make('is_active')->label('Actief')->boolean(),
                 Tables\Columns\TextColumn::make('last_synced_at')
                     ->label('Laatste sync')
