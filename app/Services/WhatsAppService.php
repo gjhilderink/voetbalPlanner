@@ -170,11 +170,16 @@ class WhatsAppService
                 ? $this->parseSse($rawBody)
                 : json_decode($rawBody, true);
 
-            return compact('status', 'contentType', 'rawBody', 'parsed') + ['body' => $rawBody];
+            return [
+                'status'       => $status,
+                'content_type' => $contentType,
+                'body'         => $rawBody,
+                'parsed'       => $parsed,
+            ];
 
         } catch (\Throwable $e) {
             Log::error('WhatsApp bridge exception', ['method' => $method, 'error' => $e->getMessage()]);
-            return ['status' => 0, 'contentType' => '', 'rawBody' => $e->getMessage(), 'body' => $e->getMessage(), 'parsed' => null];
+            return ['status' => 0, 'content_type' => '', 'body' => $e->getMessage(), 'parsed' => null];
         }
     }
 
