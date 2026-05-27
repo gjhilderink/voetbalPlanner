@@ -21,6 +21,8 @@ class MatchController extends Controller
             ->when($request->upcoming, fn($q) => $q->where('match_datetime', '>=', now()))
             ->when($request->date_from, fn($q, $d) => $q->where('match_datetime', '>=', $d))
             ->when($request->date_to, fn($q, $d) => $q->where('match_datetime', '<=', $d))
+            ->when($request->has('is_home'), fn($q) => $q->where('is_home', filter_var($request->is_home, FILTER_VALIDATE_BOOLEAN)))
+            ->when($request->has_drivers, fn($q) => $q->whereHas('drivers'))
             ->orderBy('match_datetime')
             ->paginate($request->integer('per_page', 15));
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BarDutyController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
 use App\Http\Controllers\Api\MatchController;
@@ -44,6 +45,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/matches/{match}/goals', [GoalController::class, 'index']);
         Route::post('/matches/{match}/goals', [GoalController::class, 'store']);
         Route::delete('/matches/{match}/goals/{goal}', [GoalController::class, 'destroy']);
+
+        // Bar duties
+        Route::apiResource('bar-duties', BarDutyController::class)
+            ->only(['index', 'show', 'store', 'update', 'destroy']);
+        Route::patch('bar-duties/{barDuty}/members', [BarDutyController::class, 'assignMembers']);
 
         // Sync (admin only)
         Route::middleware('role:super_admin|club_admin')->prefix('sync')->group(function () {
