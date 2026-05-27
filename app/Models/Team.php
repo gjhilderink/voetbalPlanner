@@ -18,7 +18,7 @@ class Team extends Model
 
     protected $fillable = [
         'external_id', 'name', 'category', 'age_group',
-        'season', 'photo', 'is_active', 'last_synced_at',
+        'season', 'photo', 'is_active', 'last_synced_at', 'club_id',
     ];
 
     protected function casts(): array
@@ -46,5 +46,10 @@ class Team extends Model
         return $this->belongsToMany(Member::class)
             ->wherePivot('role', 'coach')
             ->withTimestamps();
+    }
+
+    public function club(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Club::class);
     }
 }

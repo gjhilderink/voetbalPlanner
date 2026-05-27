@@ -25,6 +25,7 @@ class MatchResource extends Resource
     protected static ?string $modelLabel = 'Wedstrijd';
     protected static ?string $pluralModelLabel = 'Wedstrijden';
     protected static ?int $navigationSort = 3;
+    protected static bool $isScopedToTenant = false;
 
     public static function form(Schema $schema): Schema
     {
@@ -192,8 +193,13 @@ class MatchResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
-        $user  = auth()->user();
+        $query  = parent::getEloquentQuery();
+        $user   = auth()->user();
+        $tenant = filament()->getTenant();
+
+        if ($tenant) {
+            $query->whereHas('team', fn($q) => $q->where('club_id', $tenant->id));
+        }
 
         if (!$user || $user->isAdmin()) {
             return $query;

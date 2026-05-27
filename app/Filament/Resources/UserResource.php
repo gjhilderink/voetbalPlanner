@@ -15,6 +15,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Hash;
 
 class UserResource extends Resource
@@ -25,6 +26,7 @@ class UserResource extends Resource
     protected static ?string $modelLabel = 'Gebruiker';
     protected static ?string $pluralModelLabel = 'Gebruikers';
     protected static ?int $navigationSort = 9;
+    protected static bool $isScopedToTenant = false;
 
     public static function canViewAny(): bool
     {
@@ -148,6 +150,19 @@ class UserResource extends Resource
                 ]),
             ])
             ->defaultSort('name');
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query  = parent::getEloquentQuery();
+        $tenant = filament()->getTenant();
+
+        if ($tenant) {
+            $query->where('club_id', $tenant->id)
+                  ->orWhereNull('club_id'); // include super_admins (no club)
+        }
+
+        return $query;
     }
 
     public static function getRelations(): array

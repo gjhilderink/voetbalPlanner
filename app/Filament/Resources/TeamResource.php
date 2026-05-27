@@ -23,6 +23,7 @@ class TeamResource extends Resource
     protected static ?string $modelLabel = 'Team';
     protected static ?string $pluralModelLabel = 'Teams';
     protected static ?int $navigationSort = 1;
+    protected static bool $isScopedToTenant = false;
 
     public static function form(Schema $schema): Schema
     {
@@ -84,8 +85,13 @@ class TeamResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
-        $user  = auth()->user();
+        $query  = parent::getEloquentQuery();
+        $user   = auth()->user();
+        $tenant = filament()->getTenant();
+
+        if ($tenant) {
+            $query->where('club_id', $tenant->id);
+        }
 
         if (!$user || $user->isAdmin()) {
             return $query;

@@ -47,6 +47,10 @@ class MatchRoster extends Page implements HasTable
                     ->with(['team', 'coaches', 'drivers', 'cleaners', 'fruitHero'])
                     ->orderBy('match_datetime');
 
+                if ($tenant = filament()->getTenant()) {
+                    $query->whereHas('team', fn($q) => $q->where('club_id', $tenant->id));
+                }
+
                 if (!$user?->isAdmin()) {
                     $query->whereIn('team_id', $user->managedTeamIds());
                 }

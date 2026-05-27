@@ -13,6 +13,7 @@ use App\Services\MemberSyncService;
 use App\Services\SportlinkMcpService;
 use App\Services\TeamSyncService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -42,12 +43,21 @@ class ManageSettings extends Page
 
     public function mount(): void
     {
+        $club = filament()->getTenant();
+
         $this->form->fill([
-            'mcp_enabled'  => filter_var(Setting::get('mcp_enabled', false), FILTER_VALIDATE_BOOLEAN),
-            'mcp_base_url' => Setting::get('mcp_base_url', ''),
-            'mcp_api_key'  => Setting::get('mcp_api_key', ''),
-            'mcp_timeout'  => (int) Setting::get('mcp_timeout', 30),
-            'mcp_club_id'  => Setting::get('mcp_club_id', ''),
+            'mcp_enabled'    => filter_var(Setting::get('mcp_enabled', false), FILTER_VALIDATE_BOOLEAN),
+            'mcp_base_url'   => Setting::get('mcp_base_url', ''),
+            'mcp_api_key'    => Setting::get('mcp_api_key', ''),
+            'mcp_timeout'    => (int) Setting::get('mcp_timeout', 30),
+            'mcp_club_id'    => Setting::get('mcp_club_id', ''),
+            'club_name'      => $club?->name,
+            'club_address'   => $club?->address,
+            'club_city'      => $club?->city,
+            'club_phone'     => $club?->phone,
+            'club_email'     => $club?->email,
+            'club_website'   => $club?->website,
+            'club_logo_path' => $club?->logo_path,
         ]);
     }
 
@@ -56,6 +66,42 @@ class ManageSettings extends Page
         return $schema
             ->statePath('data')
             ->components([
+                Section::make('Club informatie')
+                    ->description('Basisinformatie over de club.')
+                    ->schema([
+                        TextInput::make('club_name')
+                            ->label('Clubnaam')
+                            ->maxLength(255)
+                            ->columnSpanFull(),
+                        FileUpload::make('club_logo_path')
+                            ->label('Logo')
+                            ->image()
+                            ->disk('public')
+                            ->directory('logos')
+                            ->imagePreviewHeight('80')
+                            ->maxSize(2048)
+                            ->columnSpanFull(),
+                        TextInput::make('club_address')
+                            ->label('Adres')
+                            ->maxLength(500),
+                        TextInput::make('club_city')
+                            ->label('Woonplaats')
+                            ->maxLength(100),
+                        TextInput::make('club_phone')
+                            ->label('Telefoon')
+                            ->tel()
+                            ->maxLength(30),
+                        TextInput::make('club_email')
+                            ->label('E-mail')
+                            ->email()
+                            ->maxLength(255),
+                        TextInput::make('club_website')
+                            ->label('Website')
+                            ->url()
+                            ->maxLength(255),
+                    ])
+                    ->columns(2),
+
                 Section::make('Verbindingsinstellingen')
                     ->description('Configureer de verbinding met de Sportlink MCP API.')
                     ->schema([
@@ -127,6 +173,19 @@ class ManageSettings extends Page
         Setting::set('mcp_api_key', $data['mcp_api_key'], 'mcp', true);
         Setting::set('mcp_club_id', $data['mcp_club_id'] ?? '', 'mcp');
         Setting::set('mcp_timeout', (string) $data['mcp_timeout'], 'mcp');
+
+        $club = filament()->getTenant();
+        if ($club) {
+            $club->update([
+                'name'      => $data['club_name'] ?? $club->name,
+                'address'   => $data['club_address'] ?? null,
+                'city'      => $data['club_city'] ?? null,
+                'phone'     => $data['club_phone'] ?? null,
+                'email'     => $data['club_email'] ?? null,
+                'website'   => $data['club_website'] ?? null,
+                'logo_path' => $data['club_logo_path'] ?? $club->logo_path,
+            ]);
+        }
 
         Notification::make()
             ->success()

@@ -24,6 +24,7 @@ class MemberResource extends Resource
     protected static ?string $modelLabel = 'Lid';
     protected static ?string $pluralModelLabel = 'Leden';
     protected static ?int $navigationSort = 2;
+    protected static bool $isScopedToTenant = false;
 
     public static function form(Schema $schema): Schema
     {
@@ -141,8 +142,13 @@ class MemberResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
-        $user  = auth()->user();
+        $query  = parent::getEloquentQuery();
+        $user   = auth()->user();
+        $tenant = filament()->getTenant();
+
+        if ($tenant) {
+            $query->whereHas('teams', fn($q) => $q->where('club_id', $tenant->id));
+        }
 
         if (!$user || $user->isAdmin()) {
             return $query;
