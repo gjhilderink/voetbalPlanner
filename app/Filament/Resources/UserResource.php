@@ -66,7 +66,8 @@ class UserResource extends Resource
                     ->label('Club')
                     ->options(Club::where('is_active', true)->orderBy('name')->pluck('name', 'id'))
                     ->searchable()
-                    ->placeholder('Geen club (super admin)')
+                    ->placeholder('— Alle clubs (super admin) —')
+                    ->helperText('Super admins hebben automatisch toegang tot alle clubs en hebben geen club-koppeling nodig.')
                     ->columnSpanFull(),
             ]),
 
@@ -125,6 +126,7 @@ class UserResource extends Resource
                     ->separator(','),
                 Tables\Columns\TextColumn::make('club.name')
                     ->label('Club')
+                    ->getStateUsing(fn($record) => $record->hasRole('super_admin') ? 'Alle clubs' : ($record->club?->name ?? '-'))
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_active')
