@@ -10,6 +10,7 @@ use App\Models\Member;
 use App\Models\Team;
 use Filament\Actions;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -238,6 +239,49 @@ class BarDutyResource extends Resource
                 Group::make('team.name')
                     ->label('Elftal')
                     ->collapsible(),
+            ])
+            ->actions([
+                Tables\Actions\EditAction::make()
+                    ->visible(fn(BarDuty $record) => self::canEdit($record)),
+
+                Tables\Actions\Action::make('assignMembers')
+                    ->label('Leden toewijzen')
+                    ->icon('heroicon-o-user-plus')
+                    ->color('info')
+                    ->modalHeading(fn(BarDuty $record) => 'Leden toewijzen — '
+                        . ($record->team?->name ?? '') . ' · '
+                        . $record->date?->locale('nl')->isoFormat('ddd D MMM'))
+                    ->visible(fn(BarDuty $record): bool => auth()->user()?->hasRole('coach')
+                        && in_array($record->team_id, auth()->user()->managedTeamIds()->all()))
+                    ->form(fn(BarDuty $record): array => [
+                        Forms\Components\Select::make('members')
+                            ->label('Leden (max. 2)')
+                            ->multiple()
+                            ->maxItems(2)
+                            ->options(
+                                Member::query()
+                                    ->when(
+                                        $record->team_id,
+                                        fn($q) => $q->whereHas('teams', fn($t) => $t->where('teams.id', $record->team_id)),
+                                    )
+                                    ->where('is_active', true)
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
+                                    ->all()
+                            )
+                            ->default($record->members->pluck('id')->all())
+                            ->helperText('Selecteer maximaal 2 leden uit het elftal'),
+                    ])
+                    ->action(function (BarDuty $record, array $data): void {
+                        $record->members()->sync($data['members'] ?? []);
+                        Notification::make()
+                            ->success()
+                            ->title('Leden opgeslagen')
+                            ->send();
+                    }),
+
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn(BarDuty $record) => self::canDelete($record)),
             ])
             ->defaultGroup('date')
             ->defaultSort('date')
