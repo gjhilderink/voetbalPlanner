@@ -16,4 +16,9 @@ class CreateBarDuty extends CreateRecord
         $data['club_id'] = filament()->getTenant()?->id;
         return $data;
     }
+
+    protected function afterCreate(): void
+    {
+        $this->getRecord()->refreshStatus();
+    }
 }

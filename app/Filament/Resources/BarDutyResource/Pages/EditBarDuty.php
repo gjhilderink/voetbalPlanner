@@ -19,4 +19,9 @@ class EditBarDuty extends EditRecord
                 ->visible(fn() => BarDutyResource::canDelete($this->getRecord())),
         ];
     }
+
+    protected function afterSave(): void
+    {
+        $this->getRecord()->refreshStatus();
+    }
 }

@@ -274,6 +274,7 @@ class BarDutyResource extends Resource
                     ])
                     ->action(function (BarDuty $record, array $data): void {
                         $record->members()->sync($data['members'] ?? []);
+                        $record->refreshStatus();
                         Notification::make()
                             ->success()
                             ->title('Leden opgeslagen')

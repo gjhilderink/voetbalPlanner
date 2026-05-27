@@ -41,4 +41,14 @@ class BarDuty extends Model
     {
         return $this->belongsToMany(Member::class, 'bar_duty_member');
     }
+
+    public function refreshStatus(): void
+    {
+        if ($this->status === 'vervuld') {
+            return;
+        }
+
+        $count = $this->members()->count();
+        $this->update(['status' => $count >= 2 ? 'bevestigd' : 'open']);
+    }
 }
