@@ -57,13 +57,9 @@ class DriveSchedule extends Page implements HasTable
             })
             ->columns([
                 TextColumn::make('match_datetime')
-                    ->label('Datum')
-                    ->dateTime('D d-m-Y')
+                    ->label('Datum & aanvang')
+                    ->formatStateUsing(fn($state) => $state ? $state->locale('nl')->isoFormat('ddd DD-MM-YYYY HH:mm') : '-')
                     ->sortable(),
-                TextColumn::make('match_datetime')
-                    ->label('Tijd')
-                    ->dateTime('H:i')
-                    ->name('aanvangstijd'),
                 TextColumn::make('team.name')
                     ->label('Elftal')
                     ->sortable()
