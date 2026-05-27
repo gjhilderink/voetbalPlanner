@@ -13,15 +13,28 @@ class SportlinkMcpService
     private string $baseUrl;
     private string $apiKey;
     private int $timeout;
+    private ?string $clubId = null;
 
     public function __construct()
     {
+        $this->bootSettings();
+    }
+
+    public function forClub(?string $clubId): static
+    {
+        $this->clubId = $clubId;
+        $this->bootSettings();
+        return $this;
+    }
+
+    private function bootSettings(): void
+    {
         $this->baseUrl = rtrim(
-            Setting::get('mcp_base_url', config('services.mcp.base_url', '')),
+            Setting::get('mcp_base_url', config('services.mcp.base_url', ''), $this->clubId),
             '/'
         );
-        $this->apiKey  = Setting::get('mcp_api_key', config('services.mcp.api_key', ''));
-        $this->timeout = (int) Setting::get('mcp_timeout', config('services.mcp.timeout', 30));
+        $this->apiKey  = Setting::get('mcp_api_key', config('services.mcp.api_key', ''), $this->clubId);
+        $this->timeout = (int) Setting::get('mcp_timeout', config('services.mcp.timeout', 30), $this->clubId);
     }
 
     private function headers(): array

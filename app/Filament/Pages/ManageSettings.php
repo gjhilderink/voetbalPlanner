@@ -43,14 +43,15 @@ class ManageSettings extends Page
 
     public function mount(): void
     {
-        $club = filament()->getTenant();
+        $club   = filament()->getTenant();
+        $clubId = $club?->id;
 
         $this->form->fill([
-            'mcp_enabled'    => filter_var(Setting::get('mcp_enabled', false), FILTER_VALIDATE_BOOLEAN),
-            'mcp_base_url'   => Setting::get('mcp_base_url', ''),
-            'mcp_api_key'    => Setting::get('mcp_api_key', ''),
-            'mcp_timeout'    => (int) Setting::get('mcp_timeout', 30),
-            'mcp_club_id'    => Setting::get('mcp_club_id', ''),
+            'mcp_enabled'    => filter_var(Setting::get('mcp_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
+            'mcp_base_url'   => Setting::get('mcp_base_url', '', $clubId),
+            'mcp_api_key'    => Setting::get('mcp_api_key', '', $clubId),
+            'mcp_timeout'    => (int) Setting::get('mcp_timeout', 30, $clubId),
+            'mcp_club_id'    => Setting::get('mcp_club_id', '', $clubId),
             'club_name'      => $club?->name,
             'club_address'   => $club?->address,
             'club_city'      => $club?->city,
@@ -154,7 +155,8 @@ class ManageSettings extends Page
                         Placeholder::make('mcp_status')
                             ->label('Verbindingsstatus')
                             ->content(function (): string {
-                                if (!Setting::get('mcp_base_url') || !Setting::get('mcp_api_key')) {
+                                $clubId = filament()->getTenant()?->id;
+                                if (!Setting::get('mcp_base_url', null, $clubId) || !Setting::get('mcp_api_key', null, $clubId)) {
                                     return 'Niet geconfigureerd';
                                 }
                                 return 'Geconfigureerd';
@@ -166,13 +168,14 @@ class ManageSettings extends Page
 
     public function save(): void
     {
-        $data = $this->form->getState();
+        $data   = $this->form->getState();
+        $clubId = filament()->getTenant()?->id;
 
-        Setting::set('mcp_enabled', $data['mcp_enabled'] ? '1' : '0', 'mcp');
-        Setting::set('mcp_base_url', $data['mcp_base_url'], 'mcp');
-        Setting::set('mcp_api_key', $data['mcp_api_key'], 'mcp', true);
-        Setting::set('mcp_club_id', $data['mcp_club_id'] ?? '', 'mcp');
-        Setting::set('mcp_timeout', (string) $data['mcp_timeout'], 'mcp');
+        Setting::set('mcp_enabled', $data['mcp_enabled'] ? '1' : '0', 'mcp', false, $clubId);
+        Setting::set('mcp_base_url', $data['mcp_base_url'], 'mcp', false, $clubId);
+        Setting::set('mcp_api_key', $data['mcp_api_key'], 'mcp', true, $clubId);
+        Setting::set('mcp_club_id', $data['mcp_club_id'] ?? '', 'mcp', false, $clubId);
+        Setting::set('mcp_timeout', (string) $data['mcp_timeout'], 'mcp', false, $clubId);
 
         $club = filament()->getTenant();
         if ($club) {
@@ -201,7 +204,7 @@ class ManageSettings extends Page
                 ->icon('heroicon-o-signal')
                 ->color('gray')
                 ->action(function (): void {
-                    $service = app(SportlinkMcpService::class);
+                    $service = app(SportlinkMcpService::class)->forClub(filament()->getTenant()?->id);
 
                     if (!$service->isConfigured()) {
                         Notification::make()
@@ -242,7 +245,7 @@ class ManageSettings extends Page
                 ->color('gray')
                 ->modalHeading('Raw API response')
                 ->modalContent(function (): HtmlString {
-                    $result = app(SportlinkMcpService::class)->discoverApi();
+                    $result = app(SportlinkMcpService::class)->forClub(filament()->getTenant()?->id)->discoverApi();
                     $json = htmlspecialchars(
                         json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
                     );
@@ -263,7 +266,7 @@ class ManageSettings extends Page
                 ->modalDescription('Dit start een volledige synchronisatie van teams, leden en wedstrijden vanuit Sportlink. Dit kan enkele minuten duren.')
                 ->modalSubmitActionLabel('Starten')
                 ->action(function (): void {
-                    $service = app(SportlinkMcpService::class);
+                    $service = app(SportlinkMcpService::class)->forClub(filament()->getTenant()?->id);
 
                     if (!$service->isConfigured()) {
                         Notification::make()
