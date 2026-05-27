@@ -34,14 +34,6 @@ class MemberResource extends Resource
                     ->label('Naam')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\TextInput::make('email')
-                    ->label('E-mail')
-                    ->email()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('phone')
-                    ->label('Telefoon')
-                    ->tel()
-                    ->maxLength(20),
                 Forms\Components\DatePicker::make('date_of_birth')
                     ->label('Geboortedatum'),
                 Forms\Components\Select::make('role')
@@ -59,6 +51,17 @@ class MemberResource extends Resource
                 Forms\Components\TextInput::make('external_id')
                     ->label('Extern ID (relatiecode)')
                     ->disabled(),
+            ])->columns(2),
+
+            Section::make('Communicatie')->schema([
+                Forms\Components\TextInput::make('email')
+                    ->label('E-mail')
+                    ->email()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('phone')
+                    ->label('Mobiel nummer')
+                    ->tel()
+                    ->maxLength(20),
             ])->columns(2),
 
             Section::make('Teams')->schema([
@@ -102,8 +105,8 @@ class MemberResource extends Resource
                         'staff'   => 'gray',
                         default   => 'primary',
                     }),
-                Tables\Columns\TextColumn::make('email')->label('E-mail')->searchable()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('phone')->label('Telefoon')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('email')->label('E-mail')->searchable()->toggleable(),
+                Tables\Columns\TextColumn::make('phone')->label('Mobiel')->toggleable(),
                 Tables\Columns\TextColumn::make('source')
                     ->label('Bron')
                     ->badge()
