@@ -56,6 +56,7 @@ class ManageSettings extends Page
             'whatsapp_enabled'    => filter_var(Setting::get('whatsapp_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
             'whatsapp_bridge_url' => Setting::get('whatsapp_bridge_url', 'https://mcp.nubixhosting.nl/mcp/whatsapp/mcp', $clubId),
             'whatsapp_api_key'    => Setting::get('whatsapp_api_key', '', $clubId),
+            'debug_enabled'       => filter_var(Setting::get('debug_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
             'club_name'           => $club?->name,
             'club_address'        => $club?->address,
             'club_city'           => $club?->city,
@@ -204,6 +205,14 @@ class ManageSettings extends Page
                             }),
                     ])
                     ->columns(2),
+
+                Section::make('Ontwikkelaarsopties')
+                    ->schema([
+                        Toggle::make('debug_enabled')
+                            ->label('Debug modus inschakelen')
+                            ->helperText('Toont de Debug API en Debug WhatsApp knoppen in de header.')
+                            ->columnSpanFull(),
+                    ]),
             ]);
     }
 
@@ -221,6 +230,8 @@ class ManageSettings extends Page
         Setting::set('whatsapp_enabled',    $data['whatsapp_enabled'] ? '1' : '0', 'whatsapp', false, $clubId);
         Setting::set('whatsapp_bridge_url', $data['whatsapp_bridge_url'] ?? '', 'whatsapp', false, $clubId);
         Setting::set('whatsapp_api_key',    $data['whatsapp_api_key'] ?? '', 'whatsapp', true, $clubId);
+
+        Setting::set('debug_enabled', $data['debug_enabled'] ? '1' : '0', 'app', false, $clubId);
 
         $club = filament()->getTenant();
         if ($club) {
@@ -248,6 +259,7 @@ class ManageSettings extends Page
                 ->label('Debug WhatsApp')
                 ->icon('heroicon-o-magnifying-glass')
                 ->color('gray')
+                ->visible(fn() => filter_var(Setting::get('debug_enabled', false, filament()->getTenant()?->id), FILTER_VALIDATE_BOOLEAN))
                 ->modalHeading('WhatsApp bridge — tools/list response')
                 ->modalContent(function (): HtmlString {
                     $result = app(WhatsAppService::class)->forClub(filament()->getTenant()?->id)->discoverTools();
@@ -355,6 +367,7 @@ class ManageSettings extends Page
                 ->label('Debug API')
                 ->icon('heroicon-o-magnifying-glass')
                 ->color('gray')
+                ->visible(fn() => filter_var(Setting::get('debug_enabled', false, filament()->getTenant()?->id), FILTER_VALIDATE_BOOLEAN))
                 ->modalHeading('Raw API response')
                 ->modalContent(function (): HtmlString {
                     $result = app(SportlinkMcpService::class)->forClub(filament()->getTenant()?->id)->discoverApi();
