@@ -279,9 +279,10 @@ class ManageSettings extends Page
 
                     $errors = [];
                     $totals = [];
+                    $clubId = filament()->getTenant()?->id;
 
                     try {
-                        $log = app(TeamSyncService::class)->sync();
+                        $log = app(TeamSyncService::class)->forClub($clubId)->sync();
                         $totals[] = $log->records_synced . ' teams';
                         if ($log->status === 'failed') {
                             $errors[] = 'Teams: ' . $log->error_message;
@@ -291,7 +292,7 @@ class ManageSettings extends Page
                     }
 
                     try {
-                        $log = app(MemberSyncService::class)->sync();
+                        $log = app(MemberSyncService::class)->forClub($clubId)->sync();
                         $totals[] = $log->records_synced . ' leden';
                         if ($log->status === 'failed') {
                             $errors[] = 'Leden: ' . $log->error_message;
@@ -301,7 +302,7 @@ class ManageSettings extends Page
                     }
 
                     try {
-                        $log = app(MatchSyncService::class)->sync();
+                        $log = app(MatchSyncService::class)->forClub($clubId)->sync();
                         $totals[] = $log->records_synced . ' wedstrijden';
                         if ($log->status === 'failed') {
                             $errors[] = 'Wedstrijden: ' . $log->error_message;

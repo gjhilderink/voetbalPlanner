@@ -11,17 +11,27 @@ use Illuminate\Support\Facades\Log;
 
 class TeamSyncService
 {
+    private ?string $clubId = null;
+
     public function __construct(
         private readonly SportlinkMcpService $mcpService
     ) {}
 
+    public function forClub(?string $clubId): static
+    {
+        $this->clubId = $clubId;
+        $this->mcpService->forClub($clubId);
+        return $this;
+    }
+
     public function sync(): SyncLog
     {
         $log = SyncLog::create([
-            'type' => 'teams',
-            'status' => 'started',
+            'club_id'        => $this->clubId,
+            'type'           => 'teams',
+            'status'         => 'started',
             'records_synced' => 0,
-            'started_at' => now(),
+            'started_at'     => now(),
         ]);
 
         try {
@@ -42,17 +52,17 @@ class TeamSyncService
             }
 
             $log->update([
-                'status' => 'completed',
+                'status'         => 'completed',
                 'records_synced' => $synced,
-                'completed_at' => now(),
+                'completed_at'   => now(),
             ]);
 
             Log::info('Teams synced successfully', ['count' => $synced]);
         } catch (\Throwable $e) {
             $log->update([
-                'status' => 'failed',
+                'status'        => 'failed',
                 'error_message' => $e->getMessage(),
-                'completed_at' => now(),
+                'completed_at'  => now(),
             ]);
             Log::error('Team sync failed', ['error' => $e->getMessage()]);
             throw $e;
@@ -66,11 +76,12 @@ class TeamSyncService
         return Team::updateOrCreate(
             ['external_id' => $dto->externalId],
             [
-                'name' => $dto->name,
-                'category' => $dto->category,
-                'age_group' => $dto->ageGroup,
-                'season' => $dto->season,
-                'is_active' => $dto->isActive,
+                'club_id'        => $this->clubId,
+                'name'           => $dto->name,
+                'category'       => $dto->category,
+                'age_group'      => $dto->ageGroup,
+                'season'         => $dto->season,
+                'is_active'      => $dto->isActive,
                 'last_synced_at' => now(),
             ]
         );

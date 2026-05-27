@@ -12,17 +12,27 @@ use Illuminate\Support\Facades\Log;
 
 class MemberSyncService
 {
+    private ?string $clubId = null;
+
     public function __construct(
         private readonly SportlinkMcpService $mcpService
     ) {}
 
+    public function forClub(?string $clubId): static
+    {
+        $this->clubId = $clubId;
+        $this->mcpService->forClub($clubId);
+        return $this;
+    }
+
     public function sync(): SyncLog
     {
         $log = SyncLog::create([
-            'type' => 'members',
-            'status' => 'started',
+            'club_id'        => $this->clubId,
+            'type'           => 'members',
+            'status'         => 'started',
             'records_synced' => 0,
-            'started_at' => now(),
+            'started_at'     => now(),
         ]);
 
         try {
@@ -42,7 +52,9 @@ class MemberSyncService
                 // _teamcode is injected by getMembers() to indicate which team this player belongs to
                 $teamcode = $memberData['_teamcode'] ?? null;
                 if ($teamcode) {
-                    $team = Team::where('external_id', (string) $teamcode)->first();
+                    $team = Team::where('external_id', (string) $teamcode)
+                        ->when($this->clubId, fn($q) => $q->where('club_id', $this->clubId))
+                        ->first();
                     if ($team) {
                         $member->teams()->syncWithoutDetaching([
                             $team->id => [
@@ -57,17 +69,17 @@ class MemberSyncService
             }
 
             $log->update([
-                'status' => 'completed',
+                'status'         => 'completed',
                 'records_synced' => $synced,
-                'completed_at' => now(),
+                'completed_at'   => now(),
             ]);
 
             Log::info('Members synced successfully', ['count' => $synced]);
         } catch (\Throwable $e) {
             $log->update([
-                'status' => 'failed',
+                'status'        => 'failed',
                 'error_message' => $e->getMessage(),
-                'completed_at' => now(),
+                'completed_at'  => now(),
             ]);
             Log::error('Member sync failed', ['error' => $e->getMessage()]);
             throw $e;
@@ -81,12 +93,12 @@ class MemberSyncService
         return Member::updateOrCreate(
             ['external_id' => $dto->externalId],
             [
-                'name' => $dto->name,
-                'email' => $dto->email,
-                'phone' => $dto->phone,
-                'date_of_birth' => $dto->dateOfBirth,
-                'role' => $dto->role,
-                'is_active' => $dto->isActive,
+                'name'           => $dto->name,
+                'email'          => $dto->email,
+                'phone'          => $dto->phone,
+                'date_of_birth'  => $dto->dateOfBirth,
+                'role'           => $dto->role,
+                'is_active'      => $dto->isActive,
                 'last_synced_at' => now(),
             ]
         );

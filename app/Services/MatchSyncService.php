@@ -12,17 +12,27 @@ use Illuminate\Support\Facades\Log;
 
 class MatchSyncService
 {
+    private ?string $clubId = null;
+
     public function __construct(
         private readonly SportlinkMcpService $mcpService
     ) {}
 
+    public function forClub(?string $clubId): static
+    {
+        $this->clubId = $clubId;
+        $this->mcpService->forClub($clubId);
+        return $this;
+    }
+
     public function sync(): SyncLog
     {
         $log = SyncLog::create([
-            'type' => 'matches',
-            'status' => 'started',
+            'club_id'        => $this->clubId,
+            'type'           => 'matches',
+            'status'         => 'started',
             'records_synced' => 0,
-            'started_at' => now(),
+            'started_at'     => now(),
         ]);
 
         try {
@@ -33,7 +43,9 @@ class MatchSyncService
             foreach ([['schedule', $schedule], ['results', $results]] as [$type, $matchesData]) {
                 foreach ($matchesData as $matchData) {
                     $dto  = MatchDTO::fromMcpData($matchData, $type);
-                    $team = Team::where('external_id', $dto->teamExternalId)->first();
+                    $team = Team::where('external_id', $dto->teamExternalId)
+                        ->when($this->clubId, fn($q) => $q->where('club_id', $this->clubId))
+                        ->first();
 
                     if (!$team) {
                         Log::warning('Team not found for match', ['team_external_id' => $dto->teamExternalId]);
@@ -46,17 +58,17 @@ class MatchSyncService
             }
 
             $log->update([
-                'status' => 'completed',
+                'status'         => 'completed',
                 'records_synced' => $synced,
-                'completed_at' => now(),
+                'completed_at'   => now(),
             ]);
 
             Log::info('Matches synced successfully', ['count' => $synced]);
         } catch (\Throwable $e) {
             $log->update([
-                'status' => 'failed',
+                'status'        => 'failed',
                 'error_message' => $e->getMessage(),
-                'completed_at' => now(),
+                'completed_at'  => now(),
             ]);
             Log::error('Match sync failed', ['error' => $e->getMessage()]);
             throw $e;
