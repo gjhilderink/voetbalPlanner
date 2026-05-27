@@ -9,6 +9,7 @@
             font-family: DejaVu Sans, sans-serif;
             font-size: 11px;
             color: #1a1a1a;
+            margin: 18px 24px;
         }
 
         .header {
@@ -84,8 +85,8 @@
         .footer {
             position: fixed;
             bottom: 0;
-            left: 0;
-            right: 0;
+            left: 24px;
+            right: 24px;
             text-align: center;
             font-size: 9px;
             color: #9ca3af;
