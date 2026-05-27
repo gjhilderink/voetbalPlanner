@@ -55,13 +55,9 @@ class MatchRoster extends Page implements HasTable
             })
             ->columns([
                 TextColumn::make('match_datetime')
-                    ->label('Datum')
-                    ->dateTime('D d-m-Y')
+                    ->label('Datum & tijd')
+                    ->dateTime('D d-m-Y H:i')
                     ->sortable(),
-                TextColumn::make('match_datetime')
-                    ->label('Aanvang')
-                    ->dateTime('H:i')
-                    ->name('aanvangstijd'),
                 TextColumn::make('arrival_time')
                     ->label('Verzamelen')
                     ->time('H:i'),
