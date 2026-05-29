@@ -18,6 +18,12 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', fn() => response()->json(['status' => 'ok', 'timestamp' => now()]));
     Route::get('/sync/health', [SyncController::class, 'healthCheck']);
 
+    // Debug (remove after troubleshooting)
+    Route::get('/debug/echo', fn(\Illuminate\Http\Request $r) => response()->json([
+        'auth_header' => $r->header('Authorization'),
+        'bearer_token' => $r->bearerToken(),
+    ]));
+
     Route::middleware('auth:sanctum')->group(function () {
         // Auth
         Route::post('/auth/logout', [AuthController::class, 'logout']);
