@@ -16,8 +16,8 @@ class BarDutyResource extends JsonResource
             'date'     => $this->date?->format('Y-m-d') ?? '',
             'shift'    => $this->shift ?? '',
             'status'   => $this->status ?? '',
-            'teamName' => $this->whenLoaded('team', fn() => $this->team?->name ?? '', ''),
-            'members'  => $this->whenLoaded('members', fn() => $this->members->pluck('name')->join(', '), ''),
+            'teamName' => $this->team?->name ?? '',
+            'members'  => $this->members?->pluck('name')->join(', ') ?? '',
             'notes'    => $this->notes ?? '',
         ];
     }

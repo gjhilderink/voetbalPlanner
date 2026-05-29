@@ -15,8 +15,8 @@ class GoalResource extends JsonResource
             'id'         => $this->id,
             'minute'     => $this->minute ?? 0,
             'type'       => $this->is_own_goal ? 'own_goal' : ($this->is_penalty ? 'penalty' : 'regular'),
-            'scorerName' => $this->whenLoaded('scorer', fn() => $this->scorer?->name ?? '', ''),
-            'assistName' => $this->whenLoaded('assist', fn() => $this->assist?->name ?? '', ''),
+            'scorerName' => $this->scorer?->name ?? '',
+            'assistName' => $this->assist?->name ?? '',
         ];
     }
 }

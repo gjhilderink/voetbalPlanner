@@ -13,7 +13,7 @@ class LineupPlayerResource extends JsonResource
     {
         return [
             'id'           => $this->id,
-            'memberName'   => $this->whenLoaded('member', fn() => $this->member?->name ?? '', ''),
+            'memberName'   => $this->member?->name ?? '',
             'position'     => $this->position ?? '',
             'jerseyNumber' => (string) ($this->shirt_number ?? ''),
             'isStarter'    => !(bool) $this->is_substitute,
