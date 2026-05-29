@@ -20,8 +20,11 @@ Route::prefix('v1')->group(function () {
 
     // Debug (remove after troubleshooting)
     Route::get('/debug/echo', fn(\Illuminate\Http\Request $r) => response()->json([
-        'auth_header' => $r->header('Authorization'),
-        'bearer_token' => $r->bearerToken(),
+        'auth_header'   => $r->header('Authorization'),
+        'bearer_token'  => $r->bearerToken(),
+        'query_token'   => $r->query('token'),
+        'all_headers'   => collect($r->headers->all())->map(fn($v) => implode(', ', $v)),
+        'all_query'     => $r->query(),
     ]));
     Route::get('/debug/token', fn(\Illuminate\Http\Request $r) => response()->json((function () use ($r) {
         $raw = $r->bearerToken();
