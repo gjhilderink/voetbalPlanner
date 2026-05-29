@@ -4,6 +4,8 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutterflow_ai/flutterflow_ai.dart';
+import 'package:flutterflow_ai/src/helpers/api_helpers.dart';
+import 'package:flutterflow_ai/src/helpers/variable_helpers.dart';
 
 Future<void> main(List<String> args) async {
   final options = _parseCliOptions(args);
@@ -61,7 +63,7 @@ void _fixApiGroupAuth(FFProject project) {
 
   // Find authToken AppState field
   final authField = project.appState.fields
-      .cast<FFStateField?>()
+      .cast<FFAppStateField?>()
       .firstWhere(
         (f) => f?.parameter.identifier.name == 'authToken',
         orElse: () => null,
@@ -69,17 +71,18 @@ void _fixApiGroupAuth(FFProject project) {
   if (authField == null) return;
   final authTokenId = authField.parameter.identifier.deepCopy();
 
-  // Add group-level Authorization header (idempotent)
+  // Add group-level Authorization header (idempotent).
+  // Use name "bearerToken" to avoid conflicting with per-endpoint "token" variables.
   if (!group.sharedHeaders.any((h) => h.startsWith('Authorization:'))) {
-    group.sharedHeaders.add('Authorization: Bearer [token]');
+    group.sharedHeaders.add('Authorization: Bearer [bearerToken]');
   }
 
-  // Add group-level token variable bound to AppState (idempotent)
-  if (!group.sharedVariables.any((v) => v.identifier.name == 'token')) {
+  // Add group-level bearerToken variable bound to AppState (idempotent)
+  if (!group.sharedVariables.any((v) => v.identifier.name == 'bearerToken')) {
     group.sharedVariables.add(
       FFApiValue(
         identifier: FFIdentifier(
-          name: 'token',
+          name: 'bearerToken',
           key: generateRandomAlphaNumericString(),
         ),
         type: FFBaseDataType.String,
@@ -88,7 +91,8 @@ void _fixApiGroupAuth(FFProject project) {
     );
   }
 
-  // Remove per-endpoint Authorization headers so they don't conflict
+  // Remove per-endpoint Authorization headers (now handled at group level).
+  // Keep per-endpoint "token" variables — page actions still pass them.
   for (final endpoint in group.endpoints) {
     endpoint.headers.removeWhere((h) => h.startsWith('Authorization:'));
   }
@@ -170,21 +174,21 @@ Future<bool> authenticateBiometric() async {
 
 void _addBiometricButton(App app) {
   app.editPage('LoginPage', (page) {
-    // Find the primary login button by its label text
-    final loginButton = page.findByText('Inloggen');
+    // Target the login button by its stable widget key
+    final loginButton = page.findByKey('Button_bg6zh5x9');
 
     // Insert biometric button directly below the login button
     page.ensureInsertedAfter(
       loginButton,
       Button(
-        text: 'Inloggen met biometrie',
-        icon: Icons.fingerprint,
+        'Inloggen met biometrie',
+        name: 'BiometricLoginButton',
+        icon: 'fingerprint',
         width: double.infinity,
         color: Colors.secondaryBackground,
         textColor: Colors.primaryText,
-        padding: EdgeInsets.symmetric(vertical: 16),
-        borderRadius: BorderRadius.circular(8),
-        actions: [
+        borderRadius: 8,
+        onTap: [
           CallCustomAction.named(
             'AuthenticateBiometric',
             returnType: bool_,
@@ -192,12 +196,8 @@ void _addBiometricButton(App app) {
           ),
           If(
             ActionOutput('biometricResult'),
-            then: [
-              Navigate('WedstrijdenPage', replaceRoute: true),
-            ],
-            orElse: [
-              Snackbar('Biometrische verificatie mislukt'),
-            ],
+            then: Navigate('WedstrijdenPage', replaceRoute: true),
+            orElse: Snackbar('Biometrische verificatie mislukt'),
           ),
         ],
       ),
