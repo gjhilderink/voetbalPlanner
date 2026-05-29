@@ -22,7 +22,7 @@ class UserResource extends JsonResource
                 'name'      => $this->club->name,
                 'slug'      => $this->club->slug,
                 'logo_path' => $this->club->logo_path,
-            ] : null,
+            ] : ['id' => '', 'name' => '', 'slug' => '', 'logo_path' => null],
             'roles'         => $this->getRoleNames()->values(),
             'managed_teams' => $this->managedTeams->map(fn($t) => [
                 'id'   => $t->id,

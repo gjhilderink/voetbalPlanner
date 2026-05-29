@@ -23,6 +23,23 @@ Route::prefix('v1')->group(function () {
         'auth_header' => $r->header('Authorization'),
         'bearer_token' => $r->bearerToken(),
     ]));
+    Route::get('/debug/token', fn(\Illuminate\Http\Request $r) => response()->json((function () use ($r) {
+        $raw = $r->bearerToken();
+        if (!$raw) return ['error' => 'no bearer token'];
+        [$id, $hash] = array_pad(explode('|', $raw, 2), 2, null);
+        $pat = \Laravel\Sanctum\PersonalAccessToken::find($id);
+        if (!$pat) return ['error' => 'token not found in db', 'id' => $id];
+        $user = \App\Models\User::withTrashed()->find($pat->tokenable_id);
+        return [
+            'token_id'       => $pat->id,
+            'tokenable_type' => $pat->tokenable_type,
+            'tokenable_id'   => $pat->tokenable_id,
+            'hash_match'     => hash_equals($pat->token, hash('sha256', $hash ?? '')),
+            'user_found'     => !!$user,
+            'user_deleted'   => $user?->deleted_at ? true : false,
+            'user_active'    => $user?->is_active,
+        ];
+    })()));
 
     Route::middleware('auth:sanctum')->group(function () {
         // Auth
