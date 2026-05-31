@@ -8,7 +8,7 @@ import 'package:flutterflow_ai/src/helpers/api_helpers.dart';
 import 'package:flutterflow_ai/src/helpers/collection_helpers.dart'
     show findCollectionField;
 import 'package:flutterflow_ai/src/helpers/tree_helpers.dart'
-    show findDescendants;
+    show findDescendants, removeByKey;
 import 'package:flutterflow_ai/src/helpers/variable_helpers.dart';
 
 Future<void> main(List<String> args) async {
@@ -62,6 +62,9 @@ void buildEditFlow(App app) {
 
     // Add teamId == Param('teamId') filter to all Firestore queries on TeamChatPage
     _addTeamChatFilters(project);
+
+    // Remove chat button from inside the ConditionalBuilder (moved to before it)
+    _moveChatButtonOutOfConditional(project);
   });
 
   // Biometric button on LoginPage
@@ -469,10 +472,10 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
 
 void _addChatButton(App app) {
   app.editPage('WedstrijdenPage', (page) {
-    // Insert chat button above the matches ListView wrapper
-    final listWrapper = page.findByName('ListViewWrapper');
+    // Insert chat button above the ConditionalBuilder that wraps the match list.
+    // Using the key directly is stable; finding by name would land inside the conditional.
     page.ensureInsertedBefore(
-      listWrapper,
+      page.findByKey('ConditionalBuilder_f1ph1tgg'),
       Button(
         'Team Chat',
         name: 'OpenTeamChatButton',
@@ -541,6 +544,23 @@ final _rng = Random();
 String _randomSuffix() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   return List.generate(8, (_) => chars[_rng.nextInt(chars.length)]).join();
+}
+
+// ─── Chat button placement fix ────────────────────────────────────────────────
+
+void _moveChatButtonOutOfConditional(FFProject project) {
+  const conditionalKey = 'ConditionalBuilder_f1ph1tgg';
+  final wc = findPage(project, name: 'WedstrijdenPage');
+  if (wc == null) return;
+
+  final conditional = findByKey(wc.node, conditionalKey);
+  if (conditional == null) return;
+
+  // Remove any OpenTeamChatButton found inside the ConditionalBuilder.
+  // On subsequent pushes the button lives before the conditional, so this is a no-op.
+  for (final btn in findDescendants(conditional, (n) => n.name == 'OpenTeamChatButton')) {
+    removeByKey(wc.node, btn.key);
+  }
 }
 
 // ─── Firestore teamId filter ──────────────────────────────────────────────────
