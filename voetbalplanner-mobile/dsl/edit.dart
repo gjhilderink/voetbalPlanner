@@ -5,6 +5,10 @@ import 'dart:math';
 
 import 'package:flutterflow_ai/flutterflow_ai.dart';
 import 'package:flutterflow_ai/src/helpers/api_helpers.dart';
+import 'package:flutterflow_ai/src/helpers/collection_helpers.dart'
+    show findCollectionField;
+import 'package:flutterflow_ai/src/helpers/tree_helpers.dart'
+    show findDescendants;
 import 'package:flutterflow_ai/src/helpers/variable_helpers.dart';
 
 Future<void> main(List<String> args) async {
@@ -55,6 +59,9 @@ void buildEditFlow(App app) {
 
     // Chat + push notifications: firebase_messaging + custom actions + AppState fields
     _addChatInfrastructure(project);
+
+    // Add teamId == Param('teamId') filter to all Firestore queries on TeamChatPage
+    _addTeamChatFilters(project);
   });
 
   // Biometric button on LoginPage
@@ -534,6 +541,93 @@ final _rng = Random();
 String _randomSuffix() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   return List.generate(8, (_) => chars[_rng.nextInt(chars.length)]).join();
+}
+
+// ─── Firestore teamId filter ──────────────────────────────────────────────────
+
+void _addTeamChatFilters(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+
+  // Locate teamId page param identifier.
+  FFIdentifier? teamIdParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'teamId') {
+      teamIdParamId = param.identifier.deepCopy();
+      break;
+    }
+  }
+  if (teamIdParamId == null) return;
+
+  // Locate teamId collection field identifier.
+  final teamIdField = findCollectionField(
+    project,
+    collectionName: 'teamChats',
+    fieldName: 'teamId',
+  );
+  if (teamIdField == null) return;
+
+  final whereFilter = FFFirestoreWhere(
+    isAnd: true,
+    filters: [
+      FFFirestoreWhere_NestedFilter(
+        baseFilter: FFFirestoreFilter(
+          collectionFieldIdentifier: teamIdField.identifier.deepCopy(),
+          relation: FFFirestoreFilter_Relation.EQUAL_TO,
+          variable: varFromPageParam(teamIdParamId),
+        ),
+      ),
+    ],
+  );
+
+  // Walk every node on the page (including the root) and patch all Firestore
+  // query actions that don't already have a where clause.
+  final allNodes = [wc.node, ...findDescendants(wc.node, (_) => true)];
+  for (final node in allNodes) {
+    for (final trigger in node.triggerActions) {
+      if (trigger.hasRootAction()) {
+        _applyFilterToActionChain(trigger.rootAction, whereFilter);
+      }
+    }
+  }
+}
+
+void _applyFilterToActionChain(
+  FFActionNode node,
+  FFFirestoreWhere whereFilter,
+) {
+  // Patch this node if it is a Firestore query without a filter.
+  if (node.hasAction() &&
+      node.action.hasDatabase() &&
+      node.action.database.hasFirestoreQuery()) {
+    final query = node.action.database.firestoreQuery;
+    if (!query.hasWhere()) {
+      query.where = whereFilter.deepCopy();
+    }
+  }
+
+  // Recurse into all branches.
+  if (node.hasConditionActions()) {
+    for (final branch in node.conditionActions.trueActions) {
+      if (branch.hasTrueAction()) {
+        _applyFilterToActionChain(branch.trueAction, whereFilter);
+      }
+    }
+    if (node.conditionActions.hasFalseAction()) {
+      _applyFilterToActionChain(node.conditionActions.falseAction, whereFilter);
+    }
+  }
+  if (node.hasLoopAction() && node.loopAction.hasAction()) {
+    _applyFilterToActionChain(node.loopAction.action, whereFilter);
+  }
+  if (node.hasParallelActions()) {
+    for (final branch in node.parallelActions.actions) {
+      _applyFilterToActionChain(branch, whereFilter);
+    }
+  }
+  if (node.hasFollowUpAction()) {
+    _applyFilterToActionChain(node.followUpAction, whereFilter);
+  }
 }
 
 // ─── CLI boilerplate ─────────────────────────────────────────────────────────
