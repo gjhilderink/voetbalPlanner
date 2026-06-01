@@ -1359,8 +1359,8 @@ void _repairLoginApiCallBindings(
           variableIdentifier: varId.deepCopy(),
           variable: varFromTextFieldValue(fieldKey),
         ));
-      } else if (!existing.hasVariable()) {
-        // Replace static/empty binding with live TextField value
+      } else {
+        // Always overwrite — existing binding may point to wrong source/key
         existing.clearValue();
         existing.variable = varFromTextFieldValue(fieldKey);
       }
