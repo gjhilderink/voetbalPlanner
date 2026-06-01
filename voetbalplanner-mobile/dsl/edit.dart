@@ -16,6 +16,8 @@ import 'package:flutterflow_ai/src/helpers/state_update.dart'
     show StateFieldUpdate;
 import 'package:flutterflow_ai/src/helpers/tree_helpers.dart'
     show findDescendants, removeByKey, insertBeforeKey, getPropertyChild;
+import 'package:flutterflow_ai/src/helpers/nav_bar_helpers.dart'
+    show setNavBarEnabled, addNavBarPage;
 import 'package:flutterflow_ai/src/helpers/variable_helpers.dart';
 import 'package:flutterflow_ai/src/ui/actions.dart' show Actions;
 import 'package:flutterflow_ai/src/ui/ui.dart' show UI;
@@ -107,6 +109,8 @@ void _buildEditFlowRemoveChatPage(App app) {
     _restructureWedstrijdenPageBody(project);
     _addMatchNavigation(project);
     _addUpcomingFilter(project);
+    _addChatPageAppBars(project);
+    _setupNavBar(project);
   });
   _addBiometricButton(app);
   // Ensure the collection exists (idempotent) — needed for the recreate push.
@@ -160,6 +164,10 @@ void buildEditFlow(App app) {
 
     // Upcoming matches filter: showAllMatches state + toggle + visibility
     _addUpcomingFilter(project);
+
+    // AppBar (+ back button) on chat sub-pages, global NavBar for main pages
+    _addChatPageAppBars(project);
+    _setupNavBar(project);
   });
 
   // Biometric button on LoginPage
@@ -356,6 +364,52 @@ void _addUpcomingFilter(FFProject project) {
     );
     insertBeforeKey(wc.node, 'ConditionalBuilder_f1ph1tgg', toggleRow);
   }
+}
+
+// ─── NavBar + chat page AppBars ──────────────────────────────────────────────
+
+// Adds an AppBar to TeamChatPage and DirectChatPage so users can navigate back.
+// Idempotent: skipped when an appBar slot is already registered.
+void _addChatPageAppBars(FFProject project) {
+  _ensureChatAppBar(project, 'TeamChatPage', 'teamName');
+  _ensureChatAppBar(project, 'DirectChatPage', 'memberName');
+}
+
+void _ensureChatAppBar(FFProject project, String pageName, String titleParamName) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+  if (getPropertyChild(wc.node, 'appBar') != null) return; // already set
+
+  // Find the title param identifier.
+  FFIdentifier? titleParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == titleParamName) {
+      titleParamId = param.identifier.deepCopy();
+      break;
+    }
+  }
+
+  final titleNode = UI.text('', name: 'AppBar Title');
+  if (titleParamId != null) {
+    titleNode.props.text.textValue = FFStringValue(variable: varFromPageParam(titleParamId));
+  }
+
+  final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: true);
+
+  wc.node.children.add(appBarNode);
+  wc.node.childPropertyMap['appBar'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: appBarNode.key)],
+  );
+}
+
+// Enables the global NavBar and registers the 4 main pages.
+// Idempotent: addNavBarPage silently skips duplicates.
+void _setupNavBar(FFProject project) {
+  setNavBarEnabled(project, enabled: true);
+  addNavBarPage(project, pageName: 'WedstrijdenPage', iconName: 'sports');
+  addNavBarPage(project, pageName: 'RijschemaPage',   iconName: 'directions_car');
+  addNavBarPage(project, pageName: 'BardienPage',     iconName: 'sports_bar');
+  addNavBarPage(project, pageName: 'ProfielPage',     iconName: 'person');
 }
 
 // ─── API group auth fix ───────────────────────────────────────────────────────
