@@ -1,3 +1,15 @@
+# Set CORS headers at the Apache level so they appear on every response
+# regardless of what PHP does — including error responses and exceptions.
+# Apache's "always" flag ensures these headers are added even on 4xx/5xx.
+# "set" (not "add") means Apache overwrites any value PHP already set,
+# preventing duplicate "*, *" values.
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, Accept, X-Requested-With"
+    Header always set Access-Control-Max-Age "86400"
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
@@ -5,10 +17,10 @@
 
     RewriteEngine On
 
-    # Route OPTIONS preflight requests to PHP so HandleCorsApi middleware
-    # can respond with the correct Access-Control-* headers.
+    # Answer OPTIONS preflight directly at Apache — no PHP round-trip needed.
+    # The CORS headers above are already set by mod_headers.
     RewriteCond %{REQUEST_METHOD} ^OPTIONS
-    RewriteRule .* index.php [L]
+    RewriteRule .* - [R=204,L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
