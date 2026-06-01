@@ -5,7 +5,9 @@
 
     RewriteEngine On
 
-    # OPTIONS is handled by index.php which sets CORS headers and exits early.
+    # OPTIONS preflight must reach index.php so PHP can return CORS headers.
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule .* index.php [L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
