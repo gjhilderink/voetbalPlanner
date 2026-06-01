@@ -9,13 +9,13 @@ import 'package:flutterflow_ai/src/helpers/api_helpers.dart';
 import 'package:flutterflow_ai/src/helpers/collection_helpers.dart'
     show findCollectionField;
 import 'package:flutterflow_ai/src/helpers/function_call_helpers.dart'
-    show orConditionsVar, codeExpressionVar, CodeExpressionArg;
+    show CodeExpressionArg, codeExpressionVar;
 import 'package:flutterflow_ai/src/helpers/param_value.dart'
     show VariableParamValue;
 import 'package:flutterflow_ai/src/helpers/state_update.dart'
     show StateFieldUpdate;
 import 'package:flutterflow_ai/src/helpers/tree_helpers.dart'
-    show findDescendants, removeByKey, insertBeforeKey;
+    show findDescendants, removeByKey, insertBeforeKey, getPropertyChild;
 import 'package:flutterflow_ai/src/helpers/variable_helpers.dart';
 import 'package:flutterflow_ai/src/ui/actions.dart' show Actions;
 import 'package:flutterflow_ai/src/ui/ui.dart' show UI;
@@ -104,6 +104,7 @@ void _buildEditFlowRemoveChatPage(App app) {
     _addBiometricInfrastructure(project);
     _addChatInfrastructure(project);
     _moveChatButtonOutOfConditional(project);
+    _restructureWedstrijdenPageBody(project);
     _addMatchNavigation(project);
     _addUpcomingFilter(project);
   });
@@ -150,6 +151,9 @@ void buildEditFlow(App app) {
 
     // Remove chat button from inside the ConditionalBuilder (moved to before it)
     _moveChatButtonOutOfConditional(project);
+
+    // Wrap Scaffold body in a Column so widgets can be stacked above the list
+    _restructureWedstrijdenPageBody(project);
 
     // Tap on match list item → WedstrijdDetailPage
     _addMatchNavigation(project);
@@ -222,9 +226,9 @@ void buildEditFlow(App app) {
     _addTeamChatFilters(project);
   });
 
-  // Chat menu bottom sheet component + navigation button on WedstrijdenPage
-  final chatMenuSheet = _buildChatMenuSheet(app);
-  _addChatButton(app, chatMenuSheet);
+  // Chat navigation button on WedstrijdenPage
+  // (ChatMenuSheet with DirectChatPage navigate deferred to next push)
+  _addChatButton(app);
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
@@ -236,28 +240,22 @@ void _addMatchNavigation(FFProject project) {
   if (listView == null || listView.children.isEmpty) return;
   final itemTemplate = listView.children.first;
 
-  // Idempotent: skip if ON_TAP already attached to the item template.
-  if (itemTemplate.triggerActions.any(
+  if (project.getWidgetClassByName('WedstrijdDetailPage') == null) return;
+
+  // Always re-apply so the matchId param binding stays current.
+  itemTemplate.triggerActions.removeWhere(
     (t) => t.trigger.triggerType == FFActionTriggerType.ON_TAP,
-  )) return;
-
-  final detailWc = project.getWidgetClassByName('WedstrijdDetailPage');
-  if (detailWc == null) return;
-
-  // Pass the whole match document as the first page param if one is declared.
-  Map<String, VariableParamValue>? params;
-  if (detailWc.params.isNotEmpty) {
-    final firstParam = detailWc.params.values.first;
-    params = {
-      firstParam.identifier.name: VariableParamValue(
-        varFromGeneratorVariable('ListView_erdckv6e'),
-      ),
-    };
-  }
+  );
 
   Actions.onTap(
     itemTemplate,
-    Actions.navigate(project, pageName: 'WedstrijdDetailPage', params: params),
+    Actions.navigate(
+      project,
+      pageName: 'WedstrijdDetailPage',
+      params: {
+        'matchId': VariableParamValue(generatorVarField('ListView_erdckv6e', 'id')),
+      },
+    ),
   );
 }
 
@@ -293,33 +291,41 @@ void _addUpcomingFilter(FFProject project) {
     showAllId = existingField.parameter.identifier;
   }
 
-  // 2. Bind list-item visibility to: showAllMatches || isUpcomingMatch(match_date).
+  // 2. Bind list-item visibility to: showAllMatches || isUpcoming(matchDatetime).
+  //    Uses a custom function — codeExpressionVar rejects Boolean page-state args.
   //    Only set visibility once — subsequent pushes skip this block.
   final listView = findByKey(wc.node, 'ListView_erdckv6e');
-  if (listView != null &&
-      listView.children.isNotEmpty &&
-      !listView.children.first.props.hasVisibility()) {
+  if (listView != null && listView.children.isNotEmpty) {
     final itemTemplate = listView.children.first;
-    final showAllVar = varFromPageState(showAllId.deepCopy());
-    final matchDateVar = generatorVarField('ListView_erdckv6e', 'match_date');
-    // Inline Dart expression: true when matchDate is today or future.
-    final isUpcomingExpr = codeExpressionVar(
-      expression: r"matchDateStr == null || matchDateStr.isEmpty || "
-          r"!DateTime.parse(matchDateStr.substring(0, 10))"
-          r".isBefore(DateTime.now().subtract(const Duration(hours: 2)))",
-      arguments: [
-        CodeExpressionArg(
-          name: 'matchDateStr',
-          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-          value: FFValue(variable: matchDateVar),
+    // Always re-apply — a previous push may have set a broken value.
+    itemTemplate.props.clearVisibility();
+    {
+      // Check only matchDatetime via codeExpressionVar (String arg works; Boolean arg does not).
+      final matchDatetimeVar = generatorVarField('ListView_erdckv6e', 'matchDatetime');
+      final dateCheckVar = codeExpressionVar(
+        expression: r"matchDatetime != null && matchDatetime.isNotEmpty && "
+            r"!DateTime.parse(matchDatetime.length >= 10 "
+            r"? matchDatetime.substring(0, 10) : '2000-01-01')"
+            r".isBefore(DateTime.now().subtract(const Duration(hours: 12)))",
+        arguments: [
+          CodeExpressionArg(
+            name: 'matchDatetime',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: matchDatetimeVar),
+          ),
+        ],
+        returnType: FFParameter(
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
         ),
-      ],
-      returnType: FFParameter(
-        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
-      ),
-    );
-    itemTemplate.props.ensureVisibility().visibleValue =
-        orConditionsVar([showAllVar, isUpcomingExpr]);
+      );
+      // Set visibility using only the date check (String arg only).
+      // FlutterFlow's server rejects: boolean CodeExpressionArgs, conditionalValue
+      // and combineConditions when codeExpression is involved.
+      // The showAll toggle wires the state field; further visibility for showAll
+      // would require a different mechanism (e.g. reload different data).
+      itemTemplate.props.ensureVisibility().visibleValue =
+          FFBooleanValue(variable: dateCheckVar);
+    }
   }
 
   // 3. Add a toggle row before the ConditionalBuilder (idempotent by name check).
@@ -841,81 +847,35 @@ void _buildDirectChatPage(App app, FirestoreCollectionHandle directMessages) {
   );
 }
 
-// ─── Chat menu bottom sheet component ────────────────────────────────────────
-
-dynamic _buildChatMenuSheet(App app) {
-  try {
-    return app.component(
-      'ChatMenuSheet',
-      description: 'Bottom sheet to kies tussen team chat en direct bericht.',
-      body: Column(
-        spacing: 12,
-        children: [
-          Container(
-            padding: 16,
-            child: Text('Chat', style: Styles.headlineMedium),
-          ),
-          Button(
-            'Team Chat',
-            name: 'ChatMenuTeamChatButton',
-            icon: 'group',
-            width: double.infinity,
-            color: Colors.secondary,
-            textColor: Colors.primaryBackground,
-            borderRadius: 8,
-            onTap: [
-              Navigate(
-                'TeamChatPage',
-                params: {
-                  'teamId': AppState('currentTeamId'),
-                  'teamName': AppState('clubName'),
-                },
-              ),
-            ],
-          ),
-          Button(
-            'Individuele Chat',
-            name: 'ChatMenuDirectButton',
-            icon: 'chat_bubble_outline',
-            width: double.infinity,
-            color: Colors.primaryBackground,
-            textColor: Colors.primaryText,
-            borderRadius: 8,
-            onTap: [
-              Navigate(
-                'DirectChatPage',
-                params: {
-                  'memberId': AppState('currentTeamId'),
-                  'memberName': AppState('clubName'),
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  } catch (_) {
-    return app.existingComponent('ChatMenuSheet');
-  }
-}
-
 // ─── Chat navigation on WedstrijdenPage ──────────────────────────────────────
 
-void _addChatButton(App app, dynamic chatMenuSheet) {
+// NOTE: ChatMenuSheet component (with "Individuele Chat" → DirectChatPage) is
+// intentionally deferred to a subsequent push. DirectChatPage must exist in the
+// fetched project before Navigate('DirectChatPage') can be resolved at compile
+// time. Run the DSL once to create DirectChatPage, then enable the bottom-sheet
+// menu on the next push.
+void _addChatButton(App app) {
   app.editPage('WedstrijdenPage', (page) {
     // Insert chat button above the ConditionalBuilder that wraps the match list.
+    // Using the key directly is stable; finding by name would land inside the conditional.
     page.ensureInsertedBefore(
       page.findByKey('ConditionalBuilder_f1ph1tgg'),
       Button(
-        'Chat',
-        name: 'OpenChatMenuButton',
+        'Team Chat',
+        name: 'OpenTeamChatButton',
         icon: 'chat',
         width: double.infinity,
         color: Colors.secondary,
         textColor: Colors.primaryBackground,
         borderRadius: 8,
         onTap: [
-          ShowBottomSheet(chatMenuSheet),
+          Navigate(
+            'TeamChatPage',
+            params: {
+              'teamId': AppState('currentTeamId'),
+              'teamName': AppState('clubName'),
+            },
+          ),
         ],
       ),
     );
@@ -982,21 +942,61 @@ void _moveChatButtonOutOfConditional(FFProject project) {
     // Remove any chat buttons found inside the ConditionalBuilder.
     for (final btn in findDescendants(
       conditional,
-      (n) =>
-          n.name == 'OpenTeamChatButton' || n.name == 'OpenChatMenuButton',
+      (n) => n.name == 'OpenTeamChatButton' || n.name == 'OpenChatMenuButton',
     )) {
       removeByKey(wc.node, btn.key);
     }
   }
 
-  // Migrate old button: remove 'OpenTeamChatButton' from the page body
-  // so the new 'OpenChatMenuButton' can replace it cleanly.
+  // Remove any stale 'OpenChatMenuButton' from outside the conditional
+  // (from intermediate pushes during chat-menu migration).
   for (final btn in findDescendants(
     wc.node,
-    (n) => n.name == 'OpenTeamChatButton',
+    (n) => n.name == 'OpenChatMenuButton',
   )) {
     removeByKey(wc.node, btn.key);
   }
+}
+
+// ─── WedstrijdenPage body restructure ────────────────────────────────────────
+
+// The Scaffold body is a single-child named slot. insertBeforeKey/
+// ensureInsertedBefore both insert into the flat children array without
+// registering in childPropertyMap, so added widgets end up unrendered.
+// Fix: wrap the body ConditionalBuilder in a Column so siblings can live
+// inside a real multi-child layout.
+void _restructureWedstrijdenPageBody(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdenPage');
+  if (wc == null) return;
+
+  // Idempotent: already wrapped
+  final bodyChild = getPropertyChild(wc.node, 'body');
+  if (bodyChild == null) return;
+  if (bodyChild.type == FFWidgetType.Column) return;
+
+  // 1. Remove orphaned Scaffold children (not registered in any slot).
+  //    These are widgets that previous pushes incorrectly appended to
+  //    Scaffold.children instead of a named slot (e.g. body).
+  final slottedKeys = wc.node.childPropertyMap.values
+      .expand((v) => v.keyRefs.map((r) => r.key))
+      .toSet();
+  wc.node.children.removeWhere((n) => !slottedKeys.contains(n.key));
+
+  // 2. Create a full-height Column to be the new body.
+  final bodyColumn = UI.column(name: 'PageBodyColumn', mainAxisMin: false);
+
+  // 3. Mark ConditionalBuilder as Expanded so it fills remaining space.
+  UI.expanded(bodyChild);
+  bodyColumn.children.add(bodyChild);
+
+  // 4. Swap ConditionalBuilder for the Column in Scaffold.children.
+  final idx = wc.node.children.indexWhere((n) => n.key == bodyChild.key);
+  wc.node.children[idx] = bodyColumn;
+
+  // 5. Re-point the body slot to the Column.
+  wc.node.childPropertyMap['body'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: bodyColumn.key)],
+  );
 }
 
 // ─── Firestore teamId filter ──────────────────────────────────────────────────
