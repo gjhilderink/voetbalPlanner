@@ -1,20 +1,9 @@
-<IfModule mod_headers.c>
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, Accept, X-Requested-With"
-    Header always set Access-Control-Max-Age "86400"
-</IfModule>
-
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
     </IfModule>
 
     RewriteEngine On
-
-    # Return 204 for OPTIONS preflight
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^ - [R=204,L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
