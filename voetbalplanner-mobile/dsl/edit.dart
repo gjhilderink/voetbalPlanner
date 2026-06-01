@@ -1281,13 +1281,9 @@ void _ensurePageStateField(FFWidgetClass wc, String name, FFBaseDataType type) {
   );
 }
 
-void _makeLoginPageScrollable(FFProject project) {
-  final wc = findPage(project, name: 'LoginPage');
-  if (wc == null) return;
-  final column = findByKey(wc.node, 'Column_agcaeg1m');
-  if (column == null || !column.props.hasColumn()) return;
-  column.props.column.scrollable = true;
-}
+// Scrollable column intentionally disabled — caused tap events on login buttons
+// to be absorbed by the scroll wrapper.
+void _makeLoginPageScrollable(FFProject project) {}
 
 void _addLedenLoginSection(App app) {
   app.editPage('LoginPage', (page) {
