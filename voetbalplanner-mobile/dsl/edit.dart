@@ -1303,14 +1303,13 @@ void _fixLoginButtonBindings(FFProject project) {
   final loginButton = findByKey(wc.node, 'Button_bg6zh5x9');
   if (loginButton == null) return;
 
-  // Email TextField: keyboard type EMAIL_ADDRESS, not a password field,
-  // and not the MagicLinkEmailField we added.
+  // Email TextField: first non-password TextField that isn't MagicLinkEmailField.
+  // Do NOT filter by keyboardType — the field may use default keyboard type.
   final emailTextFields = findDescendants(
     wc.node,
     (n) =>
         n.props.hasTextField() &&
         !n.props.textField.passwordField &&
-        n.props.textField.keyboardType == FFTextInputType.EMAIL_ADDRESS &&
         n.name != 'MagicLinkEmailField',
   );
   final passwordTextFields = findDescendants(
