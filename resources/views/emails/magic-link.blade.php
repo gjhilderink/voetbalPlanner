@@ -22,7 +22,7 @@
     </div>
     <div class="body">
         <p>Hallo {{ $recipientName }},</p>
-        <p>Klik op de knop hieronder om in te loggen in de app. De link is <strong>15 minuten</strong> geldig.</p>
+        <p>Klik op de knop hieronder om in te loggen in de app. De link is <strong>30 minuten</strong> geldig.</p>
 
         <a href="{{ $loginUrl }}" class="button">Inloggen in de app</a>
 

@@ -106,7 +106,7 @@ class AuthController extends Controller
             MagicLinkToken::create([
                 'email'      => $email,
                 'token'      => $token,
-                'expires_at' => now()->addMinutes(15),
+                'expires_at' => now()->addMinutes(30),
             ]);
 
             $name = $user?->name ?? $member?->name ?? 'Lid';
