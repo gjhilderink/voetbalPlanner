@@ -3,9 +3,20 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 
-// CORS is handled by HandleCorsApi middleware — do NOT add raw header() calls here.
-// Symfony sends non-Content-Type headers with replace=false, so any header set here
-// AND by the middleware would produce duplicate values (e.g. "*, *").
+// CORS headers are set here — before Laravel boots — so they appear on every
+// response including exceptions. HandleCorsApi is now a passthrough (no CORS
+// headers in the response object), so Symfony never calls header() for these
+// fields and there are no duplicates.
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With');
+header('Access-Control-Max-Age: 86400');
+
+// Answer OPTIONS preflight immediately — no Laravel round-trip needed.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
 
 define('LARAVEL_START', microtime(true));
 

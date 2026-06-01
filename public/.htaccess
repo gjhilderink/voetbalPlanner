@@ -17,10 +17,7 @@
 
     RewriteEngine On
 
-    # Answer OPTIONS preflight directly at Apache — no PHP round-trip needed.
-    # The CORS headers above are already set by mod_headers.
-    RewriteCond %{REQUEST_METHOD} ^OPTIONS
-    RewriteRule .* - [R=204,L]
+    # OPTIONS is handled by index.php which sets CORS headers and exits early.
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
