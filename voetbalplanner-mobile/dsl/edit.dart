@@ -436,10 +436,7 @@ void _fixApiGroupAuth(FFProject project) {
   if (authField == null) return;
   final authTokenId = authField.parameter.identifier.deepCopy();
 
-  if (!group.sharedHeaders.any((h) => h.startsWith('Authorization:'))) {
-    group.sharedHeaders.add('Authorization: Bearer [bearerToken]');
-  }
-
+  // Ensure group-level bearerToken variable exists (referenced by per-endpoint headers).
   if (!group.sharedVariables.any((v) => v.identifier.name == 'bearerToken')) {
     group.sharedVariables.add(
       FFApiValue(
@@ -453,8 +450,17 @@ void _fixApiGroupAuth(FFProject project) {
     );
   }
 
+  // Use per-endpoint Authorization instead of a group-level shared header.
+  // Login and VerifyMagicLink are public endpoints — sending an empty
+  // "Authorization: Bearer " causes some proxies/WAFs to reject with 400.
+  group.sharedHeaders.removeWhere((h) => h.startsWith('Authorization:'));
+
+  const _noAuthEndpoints = {'Login', 'VerifyMagicLink', 'SendMagicLink'};
   for (final endpoint in group.endpoints) {
     endpoint.headers.removeWhere((h) => h.startsWith('Authorization:'));
+    if (!_noAuthEndpoints.contains(endpoint.identifier.name)) {
+      endpoint.headers.add('Authorization: Bearer [bearerToken]');
+    }
   }
 }
 
