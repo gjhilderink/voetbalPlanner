@@ -1,15 +1,3 @@
-# Set CORS headers at the Apache level so they appear on every response
-# regardless of what PHP does — including error responses and exceptions.
-# Apache's "always" flag ensures these headers are added even on 4xx/5xx.
-# "set" (not "add") means Apache overwrites any value PHP already set,
-# preventing duplicate "*, *" values.
-<IfModule mod_headers.c>
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, Accept, X-Requested-With"
-    Header always set Access-Control-Max-Age "86400"
-</IfModule>
-
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
