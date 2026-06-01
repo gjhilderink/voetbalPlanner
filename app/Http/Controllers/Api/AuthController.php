@@ -85,13 +85,17 @@ class AuthController extends Controller
      */
     public function sendMagicLink(MagicLinkRequest $request): JsonResponse
     {
-        $email = strtolower($request->validated('email'));
-        $user  = User::where('email', $email)->where('is_active', true)->first();
+        $email  = strtolower($request->validated('email'));
+        $user   = User::where('email', $email)->where('is_active', true)->first();
+        $member = \App\Models\Member::where('email', $email)->where('is_active', true)->first();
 
-        \Log::info('[MagicLink] sendMagicLink called', ['email' => $email, 'user_found' => (bool) $user]);
+        \Log::info('[MagicLink] sendMagicLink called', [
+            'email'        => $email,
+            'user_found'   => (bool) $user,
+            'member_found' => (bool) $member,
+        ]);
 
-        if ($user) {
-            // Delete any unused, unexpired tokens for this email to avoid clutter.
+        if ($user || $member) {
             MagicLinkToken::where('email', $email)
                 ->whereNull('used_at')
                 ->where('expires_at', '>', now())
@@ -105,8 +109,10 @@ class AuthController extends Controller
                 'expires_at' => now()->addMinutes(15),
             ]);
 
+            $name = $user?->name ?? $member?->name ?? 'Lid';
+
             try {
-                Mail::to($user->email)->send(new MagicLinkMail($token, $user->name));
+                Mail::to($email)->send(new MagicLinkMail($token, $name));
                 \Log::info('[MagicLink] mail sent', ['email' => $email]);
             } catch (\Throwable $e) {
                 \Log::error('[MagicLink] mail failed', ['email' => $email, 'error' => $e->getMessage()]);
@@ -141,11 +147,36 @@ class AuthController extends Controller
         $user = User::where('email', $record->email)->where('is_active', true)->first();
 
         if (!$user) {
-            return response()->json([
-                'success' => false,
-                'data'    => null,
-                'message' => 'Geen actief account gevonden.',
-            ], 401);
+            // No user account yet — try to find an active member and auto-create one.
+            $member = \App\Models\Member::where('email', $record->email)
+                ->where('is_active', true)
+                ->first();
+
+            if (!$member) {
+                return response()->json([
+                    'success' => false,
+                    'data'    => null,
+                    'message' => 'Geen actief account gevonden.',
+                ], 401);
+            }
+
+            $clubId = $member->teams()->first()?->club_id;
+
+            $user = User::create([
+                'name'      => $member->name,
+                'email'     => $member->email,
+                'phone'     => $member->phone,
+                'is_active' => true,
+                'club_id'   => $clubId,
+                'password'  => Str::random(32),
+            ]);
+
+            $member->update(['user_id' => $user->id]);
+
+            \Log::info('[MagicLink] auto-created user from member', [
+                'email'   => $record->email,
+                'user_id' => $user->id,
+            ]);
         }
 
         // Mark token as used — single-use only.
