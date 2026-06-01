@@ -21,6 +21,12 @@ Route::prefix('v1')->group(function () {
     Route::get('/sync/health', [SyncController::class, 'healthCheck']);
 
     // Debug (remove after troubleshooting)
+    Route::post('/debug/post-echo', fn(\Illuminate\Http\Request $r) => response()->json([
+        'body_all'      => $r->all(),
+        'body_raw'      => $r->getContent(),
+        'content_type'  => $r->header('Content-Type'),
+        'auth_header'   => $r->header('Authorization'),
+    ]));
     Route::get('/debug/echo', fn(\Illuminate\Http\Request $r) => response()->json([
         'auth_header'   => $r->header('Authorization'),
         'bearer_token'  => $r->bearerToken(),
