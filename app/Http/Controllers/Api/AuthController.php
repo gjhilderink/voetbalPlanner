@@ -88,6 +88,8 @@ class AuthController extends Controller
         $email = strtolower($request->validated('email'));
         $user  = User::where('email', $email)->where('is_active', true)->first();
 
+        \Log::info('[MagicLink] sendMagicLink called', ['email' => $email, 'user_found' => (bool) $user]);
+
         if ($user) {
             // Delete any unused, unexpired tokens for this email to avoid clutter.
             MagicLinkToken::where('email', $email)
@@ -103,7 +105,12 @@ class AuthController extends Controller
                 'expires_at' => now()->addMinutes(15),
             ]);
 
-            Mail::to($user->email)->send(new MagicLinkMail($token, $user->name));
+            try {
+                Mail::to($user->email)->send(new MagicLinkMail($token, $user->name));
+                \Log::info('[MagicLink] mail sent', ['email' => $email]);
+            } catch (\Throwable $e) {
+                \Log::error('[MagicLink] mail failed', ['email' => $email, 'error' => $e->getMessage()]);
+            }
         }
 
         return response()->json([
