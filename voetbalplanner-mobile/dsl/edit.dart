@@ -113,6 +113,7 @@ void _buildEditFlowRemoveChatPage(App app) {
     _setupNavBar(project);
     _addMagicLinkInfrastructure(project);
     _makeLoginPageScrollable(project);
+    _fixLoginButtonBindings(project);
   });
   _addBiometricButton(app);
   _addLedenLoginSection(app);
@@ -173,6 +174,7 @@ void buildEditFlow(App app) {
     _setupNavBar(project);
     _addMagicLinkInfrastructure(project);
     _makeLoginPageScrollable(project);
+    _fixLoginButtonBindings(project);
   });
 
   // Biometric button on LoginPage
@@ -1284,6 +1286,73 @@ void _ensurePageStateField(FFWidgetClass wc, String name, FFBaseDataType type) {
 // Scrollable column intentionally disabled — caused tap events on login buttons
 // to be absorbed by the scroll wrapper.
 void _makeLoginPageScrollable(FFProject project) {}
+
+void _fixLoginButtonBindings(FFProject project) {
+  // Find Login endpoint and its password variable identifier
+  final endpoint = findApiEndpoint(project, name: 'Login', groupName: 'VoetbalPlannerAPI');
+  if (endpoint == null) return;
+
+  final passwordEndpointVar = endpoint.variables.cast<FFApiValue?>()
+      .firstWhere((v) => v?.identifier.name == 'password', orElse: () => null);
+  if (passwordEndpointVar == null) return;
+
+  final wc = findPage(project, name: 'LoginPage');
+  if (wc == null) return;
+
+  final loginButton = findByKey(wc.node, 'Button_bg6zh5x9');
+  if (loginButton == null) return;
+
+  // Find the password TextField (obscureText == true) on LoginPage
+  final textFields = findDescendants(
+    wc.node,
+    (n) => n.props.hasTextField() && n.props.textField.passwordField,
+  );
+  if (textFields.isEmpty) return;
+  final passwordFieldKey = textFields.first.key;
+
+  // Walk the onTap action chain and fix only the missing password binding
+  for (final ta in loginButton.triggerActions) {
+    if (!ta.hasTrigger()) continue;
+    if (ta.trigger.triggerType != FFActionTriggerType.ON_TAP) continue;
+    if (!ta.hasRootAction()) continue;
+    _addMissingPasswordBinding(
+      ta.rootAction,
+      passwordEndpointVar.identifier,
+      passwordFieldKey,
+    );
+    break;
+  }
+}
+
+void _addMissingPasswordBinding(
+  FFActionNode node,
+  FFIdentifier passwordVarId,
+  String passwordFieldKey,
+) {
+  if (node.hasAction() &&
+      node.action.hasDatabase() &&
+      node.action.database.hasApiCall()) {
+    final apiCall = node.action.database.apiCall;
+
+    // Only add if password binding is absent or has no value set
+    final existing = apiCall.variables.cast<FFApiCallValue?>().firstWhere(
+      (v) => v?.variableIdentifier.name == 'password',
+      orElse: () => null,
+    );
+    if (existing == null) {
+      apiCall.variables.add(FFApiCallValue(
+        variableIdentifier: passwordVarId.deepCopy(),
+        variable: varFromTextFieldValue(passwordFieldKey),
+      ));
+    } else if (!existing.hasVariable() && !existing.hasInputValue()) {
+      existing.variable = varFromTextFieldValue(passwordFieldKey);
+    }
+  }
+
+  if (node.hasFollowUpAction()) {
+    _addMissingPasswordBinding(node.followUpAction, passwordVarId, passwordFieldKey);
+  }
+}
 
 void _addLedenLoginSection(App app) {
   app.editPage('LoginPage', (page) {
