@@ -3,6 +3,16 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 
+// CORS: set headers before anything else so web/browser clients can reach the API.
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With');
+header('Access-Control-Max-Age: 86400');
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 define('LARAVEL_START', microtime(true));
 
 // Determine if the application is in maintenance mode...
