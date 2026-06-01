@@ -34,7 +34,7 @@ Route::get('/magic/{token}', function (string $token) {
     }
 
     $scheme   = env('MAGIC_LINK_APP_SCHEME', 'voetbalplanner');
-    $deepLink = "{$scheme}://verify?token={$token}";
+    $deepLink = "{$scheme}:///verify?token={$token}";
 
     return view('magic-redirect', ['expired' => false, 'deepLink' => $deepLink]);
 })->where('token', '[a-zA-Z0-9]{64}');
