@@ -1288,13 +1288,14 @@ void _ensurePageStateField(FFWidgetClass wc, String name, FFBaseDataType type) {
 void _makeLoginPageScrollable(FFProject project) {}
 
 void _fixLoginButtonBindings(FFProject project) {
-  // Find Login endpoint and its password variable identifier
   final endpoint = findApiEndpoint(project, name: 'Login', groupName: 'VoetbalPlannerAPI');
   if (endpoint == null) return;
 
+  final emailEndpointVar = endpoint.variables.cast<FFApiValue?>()
+      .firstWhere((v) => v?.identifier.name == 'email', orElse: () => null);
   final passwordEndpointVar = endpoint.variables.cast<FFApiValue?>()
       .firstWhere((v) => v?.identifier.name == 'password', orElse: () => null);
-  if (passwordEndpointVar == null) return;
+  if (emailEndpointVar == null || passwordEndpointVar == null) return;
 
   final wc = findPage(project, name: 'LoginPage');
   if (wc == null) return;
@@ -1302,31 +1303,45 @@ void _fixLoginButtonBindings(FFProject project) {
   final loginButton = findByKey(wc.node, 'Button_bg6zh5x9');
   if (loginButton == null) return;
 
-  // Find the password TextField (obscureText == true) on LoginPage
-  final textFields = findDescendants(
+  // Email TextField: keyboard type EMAIL_ADDRESS, not a password field,
+  // and not the MagicLinkEmailField we added.
+  final emailTextFields = findDescendants(
+    wc.node,
+    (n) =>
+        n.props.hasTextField() &&
+        !n.props.textField.passwordField &&
+        n.props.textField.keyboardType == FFTextInputType.EMAIL_ADDRESS &&
+        n.name != 'MagicLinkEmailField',
+  );
+  final passwordTextFields = findDescendants(
     wc.node,
     (n) => n.props.hasTextField() && n.props.textField.passwordField,
   );
-  if (textFields.isEmpty) return;
-  final passwordFieldKey = textFields.first.key;
+  if (emailTextFields.isEmpty || passwordTextFields.isEmpty) return;
 
-  // Walk the onTap action chain and fix only the missing password binding
+  final emailFieldKey    = emailTextFields.first.key;
+  final passwordFieldKey = passwordTextFields.first.key;
+
   for (final ta in loginButton.triggerActions) {
     if (!ta.hasTrigger()) continue;
     if (ta.trigger.triggerType != FFActionTriggerType.ON_TAP) continue;
     if (!ta.hasRootAction()) continue;
-    _addMissingPasswordBinding(
+    _repairLoginApiCallBindings(
       ta.rootAction,
+      emailEndpointVar.identifier,
       passwordEndpointVar.identifier,
+      emailFieldKey,
       passwordFieldKey,
     );
     break;
   }
 }
 
-void _addMissingPasswordBinding(
+void _repairLoginApiCallBindings(
   FFActionNode node,
+  FFIdentifier emailVarId,
   FFIdentifier passwordVarId,
+  String emailFieldKey,
   String passwordFieldKey,
 ) {
   if (node.hasAction() &&
@@ -1334,23 +1349,35 @@ void _addMissingPasswordBinding(
       node.action.database.hasApiCall()) {
     final apiCall = node.action.database.apiCall;
 
-    // Only add if password binding is absent or has no value set
-    final existing = apiCall.variables.cast<FFApiCallValue?>().firstWhere(
-      (v) => v?.variableIdentifier.name == 'password',
-      orElse: () => null,
-    );
-    if (existing == null) {
-      apiCall.variables.add(FFApiCallValue(
-        variableIdentifier: passwordVarId.deepCopy(),
-        variable: varFromTextFieldValue(passwordFieldKey),
-      ));
-    } else if (!existing.hasVariable() && !existing.hasInputValue()) {
-      existing.variable = varFromTextFieldValue(passwordFieldKey);
+    void _repair(FFIdentifier varId, String fieldKey) {
+      final existing = apiCall.variables.cast<FFApiCallValue?>().firstWhere(
+        (v) => v?.variableIdentifier.name == varId.name,
+        orElse: () => null,
+      );
+      if (existing == null) {
+        apiCall.variables.add(FFApiCallValue(
+          variableIdentifier: varId.deepCopy(),
+          variable: varFromTextFieldValue(fieldKey),
+        ));
+      } else if (!existing.hasVariable()) {
+        // Replace static/empty binding with live TextField value
+        existing.clearValue();
+        existing.variable = varFromTextFieldValue(fieldKey);
+      }
     }
+
+    _repair(emailVarId, emailFieldKey);
+    _repair(passwordVarId, passwordFieldKey);
   }
 
   if (node.hasFollowUpAction()) {
-    _addMissingPasswordBinding(node.followUpAction, passwordVarId, passwordFieldKey);
+    _repairLoginApiCallBindings(
+      node.followUpAction,
+      emailVarId,
+      passwordVarId,
+      emailFieldKey,
+      passwordFieldKey,
+    );
   }
 }
 
