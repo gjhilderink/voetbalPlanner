@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     // Auth
     Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/magic-link', [AuthController::class, 'sendMagicLink']);
+    Route::post('/auth/verify-magic-link', [AuthController::class, 'verifyMagicLink']);
 
     // Health
     Route::get('/health', fn() => response()->json(['status' => 'ok', 'timestamp' => now()]));
