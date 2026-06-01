@@ -5,6 +5,11 @@
 
     RewriteEngine On
 
+    # Route OPTIONS preflight requests to PHP so HandleCorsApi middleware
+    # can respond with the correct Access-Control-* headers.
+    RewriteCond %{REQUEST_METHOD} ^OPTIONS
+    RewriteRule .* index.php [L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
