@@ -112,6 +112,7 @@ void _buildEditFlowRemoveChatPage(App app) {
     _addChatPageAppBars(project);
     _setupNavBar(project);
     _addMagicLinkInfrastructure(project);
+    _makeLoginPageScrollable(project);
   });
   _addBiometricButton(app);
   _addLedenLoginSection(app);
@@ -171,6 +172,7 @@ void buildEditFlow(App app) {
     _addChatPageAppBars(project);
     _setupNavBar(project);
     _addMagicLinkInfrastructure(project);
+    _makeLoginPageScrollable(project);
   });
 
   // Biometric button on LoginPage
@@ -1165,15 +1167,21 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 Future<bool> sendMagicLink(String? email) async {
-  if (email == null || email.isEmpty) return false;
+  if (email == null || email.isEmpty) {
+    debugPrint('[SendMagicLink] email is null or empty');
+    return false;
+  }
   try {
+    debugPrint('[SendMagicLink] POST to magic-link, email=$email');
     final response = await http.post(
       Uri.parse('https://voetbalplanner.nubix.nl/api/v1/auth/magic-link'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email}),
     );
+    debugPrint('[SendMagicLink] status=${response.statusCode} body=${response.body}');
     return response.statusCode == 200;
-  } catch (_) {
+  } catch (e) {
+    debugPrint('[SendMagicLink] exception: $e');
     return false;
   }
 }
@@ -1271,6 +1279,14 @@ void _ensurePageStateField(FFWidgetClass wc, String name, FFBaseDataType type) {
       ),
     ),
   );
+}
+
+void _makeLoginPageScrollable(FFProject project) {
+  final wc = findPage(project, name: 'LoginPage');
+  if (wc == null) return;
+  final column = findByKey(wc.node, 'Column_agcaeg1m');
+  if (column == null || !column.props.hasColumn()) return;
+  column.props.column.scrollable = true;
 }
 
 void _addLedenLoginSection(App app) {
