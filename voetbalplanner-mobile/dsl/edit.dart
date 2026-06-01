@@ -111,8 +111,10 @@ void _buildEditFlowRemoveChatPage(App app) {
     _addUpcomingFilter(project);
     _addChatPageAppBars(project);
     _setupNavBar(project);
+    _addMagicLinkInfrastructure(project);
   });
   _addBiometricButton(app);
+  _addLedenLoginSection(app);
   // Ensure the collection exists (idempotent) — needed for the recreate push.
   try {
     app.collection(
@@ -168,10 +170,12 @@ void buildEditFlow(App app) {
     // AppBar (+ back button) on chat sub-pages, global NavBar for main pages
     _addChatPageAppBars(project);
     _setupNavBar(project);
+    _addMagicLinkInfrastructure(project);
   });
 
   // Biometric button on LoginPage
   _addBiometricButton(app);
+  _addLedenLoginSection(app);
 
   // Chat: Firestore collections (idempotent try/catch)
   late final FirestoreCollectionHandle teamChats;
@@ -211,6 +215,7 @@ void buildEditFlow(App app) {
   // Chat pages
   _buildTeamChatPage(app, teamChats);
   _buildDirectChatPage(app, directMessages);
+  _buildMagicLinkVerifyPage(app);
 
   // editPageOnLoad REPLACES the full onLoad on every push, which lets us keep the
   // collection reference fresh. FCM subscription uses editPageOnLoad because
@@ -1138,6 +1143,228 @@ void _applyFilterToActionChain(
   if (node.hasFollowUpAction()) {
     _applyFilterToActionChain(node.followUpAction, whereFilter);
   }
+}
+
+// ─── Magic link / ledenlogin ─────────────────────────────────────────────────
+
+void _addMagicLinkInfrastructure(FFProject project) {
+  if (findPubDependency(project, name: 'http') == null) {
+    addPubDependency(project, name: 'http', version: '^1.2.0');
+  }
+
+  const _sendCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future<bool> sendMagicLink(String? email) async {
+  if (email == null || email.isEmpty) return false;
+  try {
+    final response = await http.post(
+      Uri.parse('https://voetbalplanner.nubix.nl/api/v1/auth/magic-link'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    return response.statusCode == 200;
+  } catch (_) {
+    return false;
+  }
+}
+''';
+
+  if (findCustomAction(project, name: 'SendMagicLink') == null) {
+    addCustomAction(
+      project,
+      name: 'SendMagicLink',
+      description: 'Verstuurt een magic link naar het opgegeven e-mailadres via de Laravel API.',
+      arguments: [
+        FFParameter(
+          identifier: FFIdentifier(name: 'email'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
+      ],
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+      ),
+      code: _sendCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'SendMagicLink', code: _sendCode);
+  }
+
+  const _verifyCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future<String> verifyMagicLink(String? token) async {
+  if (token == null || token.isEmpty) return '';
+  try {
+    final response = await http.post(
+      Uri.parse('https://voetbalplanner.nubix.nl/api/v1/auth/verify-magic-link'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'token': token}),
+    );
+    if (response.statusCode != 200) return '';
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (data['success'] != true) return '';
+    return (data['data']?['token'] as String?) ?? '';
+  } catch (_) {
+    return '';
+  }
+}
+''';
+
+  if (findCustomAction(project, name: 'VerifyMagicLink') == null) {
+    addCustomAction(
+      project,
+      name: 'VerifyMagicLink',
+      description: 'Verifieert een magic link token. Retourneert het Sanctum bearer token bij succes, of lege string bij mislukking.',
+      arguments: [
+        FFParameter(
+          identifier: FFIdentifier(name: 'token'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
+      ],
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ),
+      code: _verifyCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'VerifyMagicLink', code: _verifyCode);
+  }
+
+  // State field on LoginPage for magic link email input
+  final wc = findPage(project, name: 'LoginPage');
+  if (wc == null) return;
+  _ensurePageStateField(wc, 'magicLinkEmail', FFBaseDataType.String);
+}
+
+void _ensurePageStateField(FFWidgetClass wc, String name, FFBaseDataType type) {
+  final exists = wc.classModel.stateFields.any(
+    (f) => f.parameter.identifier.name == name,
+  );
+  if (exists) return;
+  wc.classModel.stateFields.add(
+    FFWidgetClassStateField(
+      parameter: FFParameter(
+        identifier: FFIdentifier(
+          name: name,
+          key: generateRandomAlphaNumericString(),
+        ),
+        dataType: FFDataTypeV2(scalarType: type),
+      ),
+    ),
+  );
+}
+
+void _addLedenLoginSection(App app) {
+  app.editPage('LoginPage', (page) {
+    final biometricButton = page.findByName('BiometricLoginButton');
+    page.ensureInsertedAfter(
+      biometricButton,
+      Column(
+        name: 'LedenLoginSection',
+        spacing: 12,
+        children: [
+          Divider(),
+          Text(
+            'of login als lid',
+            style: Styles.bodyMedium,
+            name: 'LedenLoginLabel',
+          ),
+          TextField(
+            hint: 'E-mailadres',
+            name: 'MagicLinkEmailField',
+            onChanged: [SetState('magicLinkEmail', TextValue())],
+          ),
+          Button(
+            'Stuur inloglink',
+            name: 'SendMagicLinkButton',
+            icon: 'mail_outline',
+            width: double.infinity,
+            color: Colors.secondary,
+            textColor: Colors.primaryBackground,
+            borderRadius: 8,
+            onTap: [
+              CallCustomAction.named(
+                'SendMagicLink',
+                returnType: bool_,
+                arguments: {'email': State('magicLinkEmail')},
+                outputAs: 'magicLinkSendResult',
+              ),
+              If(
+                ActionOutput('magicLinkSendResult'),
+                then: Snackbar('E-mail verstuurd! Controleer uw inbox voor de inloglink.'),
+                orElse: Snackbar('Kon geen inloglink versturen. Probeer het opnieuw.'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  });
+}
+
+void _buildMagicLinkVerifyPage(App app) {
+  // Create page without onLoad so the body compiles independently of action
+  // lookups. The onLoad (which calls VerifyMagicLink) is wired via
+  // app.editPageOnLoad — same pattern as TeamChatPage + SubscribeToTeamTopic.
+  app.ensurePage(
+    'MagicLinkVerifyPage',
+    description: 'Verwerkt een magic link token uit de e-mail deep link en logt de gebruiker automatisch in.',
+    route: 'verify',
+    params: {
+      'token': string.withDefault(''),
+    },
+    body: Column(
+      mainAxis: MainAxis.center,
+      spacing: 16,
+      children: [
+        ProgressBar.circular(size: 40, thickness: 4),
+        Text(
+          'Inloglink verifiëren...',
+          style: Styles.bodyMedium,
+          name: 'VerifyingText',
+        ),
+      ],
+    ),
+  );
+
+  app.editPageOnLoad('MagicLinkVerifyPage', [
+    CallCustomAction.named(
+      'VerifyMagicLink',
+      returnType: string,
+      arguments: {'token': Param('token')},
+      outputAs: 'sanctumToken',
+    ),
+    If(
+      Not(Equals(ActionOutput('sanctumToken'), '')),
+      then: [
+        UpdateAppState.set('authToken', ActionOutput('sanctumToken')),
+        Navigate('WedstrijdenPage', replaceRoute: true),
+      ],
+      orElse: [
+        Snackbar('Deze inloglink is ongeldig of verlopen.'),
+        Navigate('LoginPage', replaceRoute: true),
+      ],
+    ),
+  ]);
 }
 
 // ─── CLI boilerplate ─────────────────────────────────────────────────────────
