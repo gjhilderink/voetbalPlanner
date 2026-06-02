@@ -109,10 +109,12 @@ class AuthController extends Controller
                 'expires_at' => now()->addMinutes(30),
             ]);
 
-            $name = $user?->name ?? $member?->name ?? 'Lid';
+            $name  = $user?->name ?? $member?->name ?? 'Lid';
+            $club  = $user?->club
+                ?? ($member ? \App\Models\Club::find($member->teams()->first()?->club_id) : null);
 
             try {
-                Mail::to($email)->send(new MagicLinkMail($token, $name));
+                Mail::to($email)->send(new MagicLinkMail($token, $name, $club));
                 \Log::info('[MagicLink] mail sent', ['email' => $email]);
             } catch (\Throwable $e) {
                 \Log::error('[MagicLink] mail failed', ['email' => $email, 'error' => $e->getMessage()]);

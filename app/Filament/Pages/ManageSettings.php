@@ -14,8 +14,10 @@ use App\Services\TeamSyncService;
 use App\Services\WhatsAppService;
 use Illuminate\Support\HtmlString;
 use Filament\Actions\Action;
+use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -64,6 +66,11 @@ class ManageSettings extends Page
             'club_email'          => $club?->email,
             'club_website'        => $club?->website,
             'club_logo_path'      => $club?->logo_path,
+            'primary_color'       => $club?->primary_color ?? '#1e3a5f',
+            'secondary_color'     => $club?->secondary_color ?? '#ffffff',
+            'email_header_text'   => $club?->email_header_text,
+            'email_intro_text'    => $club?->email_intro_text,
+            'email_footer_text'   => $club?->email_footer_text,
         ]);
     }
 
@@ -118,6 +125,34 @@ class ManageSettings extends Page
                             ->label('Website')
                             ->url()
                             ->maxLength(255),
+                    ])
+                    ->columns(2),
+
+                Section::make('Huisstijl')
+                    ->description('Kies de kleuren en e-mailopmaak die bij de club passen.')
+                    ->schema([
+                        ColorPicker::make('primary_color')
+                            ->label('Primaire kleur')
+                            ->hex()
+                            ->helperText('Hoofdkleur voor app-elementen en e-mails.'),
+                        ColorPicker::make('secondary_color')
+                            ->label('Secundaire kleur')
+                            ->hex()
+                            ->helperText('Accentkleur voor app-elementen.'),
+                        TextInput::make('email_header_text')
+                            ->label('E-mail koptekst')
+                            ->placeholder(config('app.name'))
+                            ->maxLength(255)
+                            ->helperText('Tekst in de kleurenbalk bovenaan de e-mail (leeg = clubnaam).'),
+                        Textarea::make('email_intro_text')
+                            ->label('E-mail intro')
+                            ->rows(3)
+                            ->maxLength(1000)
+                            ->helperText('Inleidende tekst in de e-mail (leeg = standaard).'),
+                        TextInput::make('email_footer_text')
+                            ->label('E-mail voettekst')
+                            ->maxLength(255)
+                            ->helperText('Tekst onderaan de e-mail (leeg = standaard).'),
                     ])
                     ->columns(2),
 
@@ -237,13 +272,18 @@ class ManageSettings extends Page
         $club = filament()->getTenant();
         if ($club) {
             $club->update([
-                'name'      => $data['club_name'] ?? $club->name,
-                'address'   => $data['club_address'] ?? null,
-                'city'      => $data['club_city'] ?? null,
-                'phone'     => $data['club_phone'] ?? null,
-                'email'     => $data['club_email'] ?? null,
-                'website'   => $data['club_website'] ?? null,
-                'logo_path' => $data['club_logo_path'] ?? $club->logo_path,
+                'name'               => $data['club_name'] ?? $club->name,
+                'address'            => $data['club_address'] ?? null,
+                'city'               => $data['club_city'] ?? null,
+                'phone'              => $data['club_phone'] ?? null,
+                'email'              => $data['club_email'] ?? null,
+                'website'            => $data['club_website'] ?? null,
+                'logo_path'          => $data['club_logo_path'] ?? $club->logo_path,
+                'primary_color'      => $data['primary_color'] ?? $club->primary_color,
+                'secondary_color'    => $data['secondary_color'] ?? $club->secondary_color,
+                'email_header_text'  => $data['email_header_text'] ?? null,
+                'email_intro_text'   => $data['email_intro_text'] ?? null,
+                'email_footer_text'  => $data['email_footer_text'] ?? null,
             ]);
         }
 

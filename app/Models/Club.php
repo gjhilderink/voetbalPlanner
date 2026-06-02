@@ -19,6 +19,8 @@ class Club extends Model
     protected $fillable = [
         'name', 'slug', 'logo_path', 'address', 'city',
         'phone', 'email', 'website', 'is_active',
+        'primary_color', 'secondary_color',
+        'email_header_text', 'email_intro_text', 'email_footer_text',
     ];
 
     protected function casts(): array

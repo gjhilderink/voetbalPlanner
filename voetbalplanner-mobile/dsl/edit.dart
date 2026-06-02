@@ -9,7 +9,7 @@ import 'package:flutterflow_ai/src/helpers/api_helpers.dart';
 import 'package:flutterflow_ai/src/helpers/collection_helpers.dart'
     show findCollectionField;
 import 'package:flutterflow_ai/src/helpers/function_call_helpers.dart'
-    show CodeExpressionArg, codeExpressionVar, interpolateVar;
+    show CodeExpressionArg, codeExpressionVar, colorFromStringVar, interpolateVar;
 import 'package:flutterflow_ai/src/helpers/param_value.dart'
     show VariableParamValue;
 import 'package:flutterflow_ai/src/helpers/state_update.dart'
@@ -22,7 +22,7 @@ import 'package:flutterflow_ai/src/helpers/variable_helpers.dart';
 import 'package:flutterflow_ai/src/ui/actions.dart' show Actions;
 import 'package:flutterflow_ai/src/ui/ui.dart' show UI;
 import 'package:flutterflow_ai/src/ui/ui_types.dart'
-    show UITextStyle, UIMainAxisAlignment, UIEdgeInsets;
+    show UIColor, UITextStyle, UIMainAxisAlignment, UIEdgeInsets;
 
 bool Function(ProjectError) get _validationFilter => (error) {
   if (error.type == 'firestoreSetup') return false;
@@ -504,28 +504,46 @@ void _addUpcomingFilter(FFProject project) {
 void _addWelcomeGreeting(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdenPage');
   if (wc == null) return;
-  if (findDescendants(wc.node, (n) => n.name == 'WelcomeGreetingContainer').isNotEmpty) return;
 
   final userNameId = _findAppStateFieldId(project, 'userName');
-  if (userNameId == null) return;
+  final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
 
-  final greetingText = UI.text('Welkom!', name: 'WelcomeGreetingText', style: UITextStyle.titleMedium);
-  greetingText.props.text.textValue = interpolateVar([
-    'Welkom, ',
-    varFromAppState(userNameId.deepCopy()),
-    '!',
-  ]);
+  final existing = findDescendants(wc.node, (n) => n.name == 'WelcomeGreetingContainer');
 
-  final greetingContainer = UI.container(
-    name: 'WelcomeGreetingContainer',
-    child: greetingText,
-    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    width: double.infinity,
-  );
+  if (existing.isEmpty) {
+    if (userNameId == null) return;
 
-  final showAllRow = findDescendants(wc.node, (n) => n.name == 'ShowAllMatchesRow').firstOrNull;
-  if (showAllRow != null) {
-    insertBeforeKey(wc.node, showAllRow.key, greetingContainer);
+    final greetingText = UI.text(
+      'Welkom!',
+      name: 'WelcomeGreetingText',
+      style: UITextStyle.titleMedium,
+      color: UIColor.white,
+    );
+    greetingText.props.text.textValue = interpolateVar([
+      'Welkom, ',
+      varFromAppState(userNameId.deepCopy()),
+      '!',
+    ]);
+
+    final greetingContainer = UI.container(
+      name: 'WelcomeGreetingContainer',
+      child: greetingText,
+      padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      width: double.infinity,
+    );
+    if (primaryColorId != null) {
+      greetingContainer.props.container.boxDecoration.colorValue =
+          colorFromStringVar(varFromAppState(primaryColorId.deepCopy()));
+    }
+
+    final showAllRow = findDescendants(wc.node, (n) => n.name == 'ShowAllMatchesRow').firstOrNull;
+    if (showAllRow != null) {
+      insertBeforeKey(wc.node, showAllRow.key, greetingContainer);
+    }
+  } else if (primaryColorId != null) {
+    // Container already exists — keep color in sync.
+    existing.first.props.container.boxDecoration.colorValue =
+        colorFromStringVar(varFromAppState(primaryColorId.deepCopy()));
   }
 }
 
@@ -1461,6 +1479,12 @@ Future<String> verifyMagicLink(String? token) async {
     if (response.statusCode != 200) return '';
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     if (data['success'] != true) return '';
+    final userData = (data['data']?['user'] as Map<String, dynamic>?) ?? {};
+    final clubData = (userData['club'] as Map<String, dynamic>?) ?? {};
+    final primaryColor = (clubData['primary_color'] as String?) ?? '#1e3a5f';
+    FFAppState().update(() {
+      FFAppState().primaryColor = primaryColor;
+    });
     return (data['data']?['token'] as String?) ?? '';
   } catch (_) {
     return '';
@@ -1598,6 +1622,7 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().userEmail = (user['email'] as String?) ?? '';
       FFAppState().clubName = (club['name'] as String?) ?? '';
       FFAppState().currentTeamId = firstTeamId;
+      FFAppState().primaryColor = (club['primary_color'] as String?) ?? '#1e3a5f';
     });
 
     // Sign in anonymously so FlutterFlow's Firebase Auth route guard (loggedIn)
@@ -1681,6 +1706,7 @@ void _fixLoginButtonBindings(FFProject project) {
   _ensureAppStateField(project, 'loginEmail', FFBaseDataType.String);
   _ensureAppStateField(project, 'loginPassword', FFBaseDataType.String);
   _ensureAppStateField(project, 'loginError', FFBaseDataType.String);
+  _ensureAppStateField(project, 'primaryColor', FFBaseDataType.String, persisted: true);
 
   // Resolve WedstrijdenPage route so the custom action can navigate via GoRouter.
   final wedstrijdenWc = findPage(project, name: 'WedstrijdenPage');
