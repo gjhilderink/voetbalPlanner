@@ -9,7 +9,7 @@ import 'package:flutterflow_ai/src/helpers/api_helpers.dart';
 import 'package:flutterflow_ai/src/helpers/collection_helpers.dart'
     show findCollectionField;
 import 'package:flutterflow_ai/src/helpers/function_call_helpers.dart'
-    show CodeExpressionArg, codeExpressionVar;
+    show CodeExpressionArg, codeExpressionVar, interpolateVar;
 import 'package:flutterflow_ai/src/helpers/param_value.dart'
     show VariableParamValue;
 import 'package:flutterflow_ai/src/helpers/state_update.dart'
@@ -22,7 +22,7 @@ import 'package:flutterflow_ai/src/helpers/variable_helpers.dart';
 import 'package:flutterflow_ai/src/ui/actions.dart' show Actions;
 import 'package:flutterflow_ai/src/ui/ui.dart' show UI;
 import 'package:flutterflow_ai/src/ui/ui_types.dart'
-    show UITextStyle, UIMainAxisAlignment;
+    show UITextStyle, UIMainAxisAlignment, UIEdgeInsets;
 
 bool Function(ProjectError) get _validationFilter => (error) {
   if (error.type == 'firestoreSetup') return false;
@@ -109,6 +109,8 @@ void _buildEditFlowRemoveChatPage(App app) {
     _restructureWedstrijdenPageBody(project);
     _addMatchNavigation(project);
     _addUpcomingFilter(project);
+    _addWelcomeGreeting(project);
+    _setupProfielPage(project);
     _addChatPageAppBars(project);
     _setupNavBar(project);
     _addMagicLinkInfrastructure(project);
@@ -169,6 +171,12 @@ void buildEditFlow(App app) {
 
     // Upcoming matches filter: showAllMatches state + toggle + visibility
     _addUpcomingFilter(project);
+
+    // Welcome greeting at the top of WedstrijdenPage
+    _addWelcomeGreeting(project);
+
+    // Profile page: bind AppState fields (naam, e-mail, club)
+    _setupProfielPage(project);
 
     // AppBar (+ back button) on chat sub-pages, global NavBar for main pages
     _addChatPageAppBars(project);
@@ -469,6 +477,93 @@ void _addUpcomingFilter(FFProject project) {
       ]),
     ),
   );
+}
+
+// ─── Welcome greeting on WedstrijdenPage ─────────────────────────────────────
+
+void _addWelcomeGreeting(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdenPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'WelcomeGreetingContainer').isNotEmpty) return;
+
+  final userNameId = _findAppStateFieldId(project, 'userName');
+  if (userNameId == null) return;
+
+  final greetingText = UI.text('Welkom!', name: 'WelcomeGreetingText', style: UITextStyle.titleMedium);
+  greetingText.props.text.textValue = interpolateVar([
+    'Welkom, ',
+    varFromAppState(userNameId.deepCopy()),
+    '!',
+  ]);
+
+  final greetingContainer = UI.container(
+    name: 'WelcomeGreetingContainer',
+    child: greetingText,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    width: double.infinity,
+  );
+
+  final showAllRow = findDescendants(wc.node, (n) => n.name == 'ShowAllMatchesRow').firstOrNull;
+  if (showAllRow != null) {
+    insertBeforeKey(wc.node, showAllRow.key, greetingContainer);
+  }
+}
+
+// ─── ProfielPage: bind AppState data ─────────────────────────────────────────
+
+void _setupProfielPage(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'ProfielInfoCard').isNotEmpty) return;
+
+  final userNameId = _findAppStateFieldId(project, 'userName');
+  final userEmailId = _findAppStateFieldId(project, 'userEmail');
+  final clubNameId = _findAppStateFieldId(project, 'clubName');
+
+  FFNode _boundText(String name, FFIdentifier? fieldId, String fallback, UITextStyle style) {
+    final node = UI.text(fallback, name: name, style: style);
+    if (fieldId != null) {
+      node.props.text.textValue = FFStringValue(variable: varFromAppState(fieldId.deepCopy()));
+    }
+    return node;
+  }
+
+  final infoCard = UI.container(
+    name: 'ProfielInfoCard',
+    padding: UIEdgeInsets.all(16),
+    width: double.infinity,
+    child: UI.column(
+      name: 'ProfielInfoContent',
+      spacing: 8,
+      children: [
+        _boundText('ProfielNaam', userNameId, 'Naam', UITextStyle.titleLarge),
+        _boundText('ProfielEmail', userEmailId, 'E-mailadres', UITextStyle.bodyMedium),
+        _boundText('ProfielClub', clubNameId, 'Club', UITextStyle.bodyMedium),
+      ],
+    ),
+  );
+
+  final bodyChild = getPropertyChild(wc.node, 'body');
+  if (bodyChild == null) {
+    final column = UI.column(name: 'ProfielBodyColumn');
+    column.children.add(infoCard);
+    wc.node.children.add(column);
+    wc.node.childPropertyMap['body'] = FFChildrenKeys(
+      keyRefs: [FFNodeKeyReference(key: column.key)],
+    );
+  } else if (bodyChild.type == FFWidgetType.Column) {
+    bodyChild.children.insert(0, infoCard);
+  } else {
+    // Existing body is not a column — wrap it with our card prepended
+    UI.expanded(bodyChild);
+    final column = UI.column(name: 'ProfielBodyColumn', mainAxisMin: false);
+    column.children.addAll([infoCard, bodyChild]);
+    final idx = wc.node.children.indexWhere((n) => n.key == bodyChild.key);
+    if (idx >= 0) wc.node.children[idx] = column;
+    wc.node.childPropertyMap['body'] = FFChildrenKeys(
+      keyRefs: [FFNodeKeyReference(key: column.key)],
+    );
+  }
 }
 
 // ─── NavBar + chat page AppBars ──────────────────────────────────────────────
