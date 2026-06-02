@@ -29,7 +29,6 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->locale('nl')
             ->tenant(\App\Models\Club::class, slugAttribute: 'slug')
             ->colors(['primary' => Color::Green])
             ->brandName('VoetbalPlanner')
