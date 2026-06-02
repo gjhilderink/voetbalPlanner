@@ -117,6 +117,7 @@ void _buildEditFlowRemoveChatPage(App app) {
   });
   _addBiometricButton(app);
   _addLedenLoginSection(app);
+  app.raw((project) { _fixLoginPageLabels(project); });
   // Ensure the collection exists (idempotent) — needed for the recreate push.
   try {
     app.collection(
@@ -234,13 +235,16 @@ void buildEditFlow(App app) {
     SetState('chatMessages', ActionOutput('loadedMessages')),
     CallCustomAction.named(
       'SubscribeToTeamTopic',
-      arguments: {'teamId': Param('teamId')},
+      arguments: {'teamId': AppState('currentTeamId')},
     ),
   ]);
 
-  // Add teamId filter AFTER page() has written the fresh TeamChatPage
+  // Add teamId filter AFTER page() has written the fresh TeamChatPage.
+  // Also fix login page labels here — after _addLedenLoginSection ran.
   app.raw((project) {
     _addTeamChatFilters(project);
+    _fixLoginPageLabels(project);
+    _resetTeamChatAppBar(project);
   });
 
   // Chat navigation button on WedstrijdenPage
@@ -282,7 +286,7 @@ void _addUpcomingFilter(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdenPage');
   if (wc == null) return;
 
-  // 1. Ensure showAllMatches boolean state field exists on WedstrijdenPage.
+  // 1. Ensure showAllMatches boolean state field.
   FFIdentifier showAllId;
   final existingField = wc.classModel.stateFields
       .cast<FFWidgetClassStateField?>()
@@ -308,57 +312,93 @@ void _addUpcomingFilter(FFProject project) {
     showAllId = existingField.parameter.identifier;
   }
 
-  // 2. Bind list-item visibility to: showAllMatches || isUpcoming(matchDatetime).
-  //    Uses a custom function — codeExpressionVar rejects Boolean page-state args.
-  //    Only set visibility once — subsequent pushes skip this block.
+  // 2. Remove broken codeExpressionVar visibility — it was hiding ALL items.
+  //    Server-side ?upcoming=1 replaces client-side date checks.
   final listView = findByKey(wc.node, 'ListView_erdckv6e');
   if (listView != null && listView.children.isNotEmpty) {
-    final itemTemplate = listView.children.first;
-    // Always re-apply — a previous push may have set a broken value.
-    itemTemplate.props.clearVisibility();
-    {
-      // Check only matchDatetime via codeExpressionVar (String arg works; Boolean arg does not).
-      final matchDatetimeVar = generatorVarField('ListView_erdckv6e', 'matchDatetime');
-      final dateCheckVar = codeExpressionVar(
-        expression: r"matchDatetime != null && matchDatetime.isNotEmpty && "
-            r"!DateTime.parse(matchDatetime.length >= 10 "
-            r"? matchDatetime.substring(0, 10) : '2000-01-01')"
-            r".isBefore(DateTime.now().subtract(const Duration(hours: 12)))",
-        arguments: [
-          CodeExpressionArg(
-            name: 'matchDatetime',
-            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-            value: FFValue(variable: matchDatetimeVar),
-          ),
-        ],
-        returnType: FFParameter(
-          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
-        ),
-      );
-      // Set visibility using only the date check (String arg only).
-      // FlutterFlow's server rejects: boolean CodeExpressionArgs, conditionalValue
-      // and combineConditions when codeExpression is involved.
-      // The showAll toggle wires the state field; further visibility for showAll
-      // would require a different mechanism (e.g. reload different data).
-      itemTemplate.props.ensureVisibility().visibleValue =
-          FFBooleanValue(variable: dateCheckVar);
-    }
+    listView.children.first.props.clearVisibility();
   }
 
-  // 3. Add a toggle row before the ConditionalBuilder (idempotent by name check).
-  const toggleRowName = 'ShowAllMatchesRow';
-  final alreadyHasToggle =
-      findDescendants(wc.node, (n) => n.name == toggleRowName).isNotEmpty;
-  if (!alreadyHasToggle) {
-    final switchNode = UI.toggle(name: 'ShowAllMatchesToggle');
-    Actions.onToggle(
-      switchNode,
-      Actions.updatePageState(
-        project,
-        widgetClassName: 'WedstrijdenPage',
-        updates: [StateFieldUpdate.toggle('showAllMatches')],
+  // 3. Ensure GetUpcomingMatches endpoint exists (idempotent).
+  final group = findApiGroup(project, name: 'VoetbalPlannerAPI');
+  if (group == null) return;
+
+  final existingUpcomingEp = group.endpoints
+      .cast<FFApiEndpoint?>()
+      .firstWhere(
+        (ep) => ep?.identifier.name == 'GetUpcomingMatches',
+        orElse: () => null,
+      );
+  if (existingUpcomingEp == null) {
+    final getMatchesEp = group.endpoints
+        .cast<FFApiEndpoint?>()
+        .firstWhere((ep) => ep?.identifier.name == 'GetMatches', orElse: () => null);
+    group.endpoints.add(FFApiEndpoint(
+      identifier: FFIdentifier(
+        name: 'GetUpcomingMatches',
+        key: generateRandomAlphaNumericString(),
       ),
-    );
+      url: '/matches?upcoming=1&per_page=50',
+      callType: FFApiEndpoint_CallType.GET,
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      body: '',
+      variables: [
+        FFApiValue(
+          identifier: FFIdentifier(name: 'token', key: generateRandomAlphaNumericString()),
+          type: FFBaseDataType.String,
+        ),
+      ],
+      headers: ['Authorization: Bearer [bearerToken]'],
+      groupIdentifier: group.identifier.deepCopy(),
+      responseDataStructParam: getMatchesEp?.responseDataStructParam.deepCopy(),
+    ));
+  }
+
+  // 4. Replace onLoad: use GetUpcomingMatches so upcoming matches show on first load.
+  //    Also sets isLoading=false consistent with the original chain.
+  final authTokenId = project.appState.fields
+      .cast<FFAppStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'authToken', orElse: () => null)
+      ?.parameter.identifier;
+  if (authTokenId == null) return;
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetUpcomingMatches',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+      outputVariableName: 'matchesLoad',
+      nodeKey: 'Scaffold_xjabl8lh',
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdenPage',
+          updates: [
+            StateFieldUpdate.setFromVariable('matches', ctx.responseVar),
+            StateFieldUpdate.set('isLoading', 'false'),
+          ],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdenPage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+        Actions.snackBar('Kon wedstrijden niet laden.'),
+      ]),
+    ),
+  );
+
+  // 5. Toggle row: create if missing, wire up toggle + conditional data reload.
+  const toggleRowName = 'ShowAllMatchesRow';
+  if (findDescendants(wc.node, (n) => n.name == toggleRowName).isEmpty) {
+    final switchNode = UI.toggle(name: 'ShowAllMatchesToggle');
     final toggleRow = UI.row(
       name: toggleRowName,
       mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
@@ -373,6 +413,62 @@ void _addUpcomingFilter(FFProject project) {
     );
     insertBeforeKey(wc.node, 'ConditionalBuilder_f1ph1tgg', toggleRow);
   }
+
+  final switchNode = findDescendants(wc.node, (n) => n.name == 'ShowAllMatchesToggle').firstOrNull;
+  if (switchNode == null) return;
+
+  // Replace all toggle triggers: use ON_TOGGLE_ON / ON_TOGGLE_OFF for clean separate chains.
+  switchNode.triggerActions.removeWhere((t) => t.hasTrigger() && (
+    t.trigger.triggerType == FFActionTriggerType.ON_TOGGLE ||
+    t.trigger.triggerType == FFActionTriggerType.ON_TOGGLE_ON ||
+    t.trigger.triggerType == FFActionTriggerType.ON_TOGGLE_OFF
+  ));
+
+  // The toggle widget's node key — needed for action-output nodeKeyRef.
+  const _toggleKey = 'Switch_ugcso2gz';
+
+  // Toggle ON → show all matches (GetMatches without upcoming filter).
+  Actions.addTriggerChain(
+    switchNode,
+    FFActionTriggerType.ON_TOGGLE_ON,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMatches',
+      groupName: 'VoetbalPlannerAPI',
+      variables: {'page': '1'},
+      dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+      outputVariableName: 'allMatchesResult',
+      nodeKey: _toggleKey,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdenPage',
+          updates: [StateFieldUpdate.setFromVariable('matches', ctx.responseVar)],
+        ),
+      ]),
+    ),
+  );
+
+  // Toggle OFF → show upcoming matches only (GetUpcomingMatches).
+  Actions.addTriggerChain(
+    switchNode,
+    FFActionTriggerType.ON_TOGGLE_OFF,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetUpcomingMatches',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+      outputVariableName: 'upcomingMatchesResult',
+      nodeKey: _toggleKey,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdenPage',
+          updates: [StateFieldUpdate.setFromVariable('matches', ctx.responseVar)],
+        ),
+      ]),
+    ),
+  );
 }
 
 // ─── NavBar + chat page AppBars ──────────────────────────────────────────────
@@ -380,7 +476,7 @@ void _addUpcomingFilter(FFProject project) {
 // Adds an AppBar to TeamChatPage and DirectChatPage so users can navigate back.
 // Idempotent: skipped when an appBar slot is already registered.
 void _addChatPageAppBars(FFProject project) {
-  _ensureChatAppBar(project, 'TeamChatPage', 'teamName');
+  // TeamChatPage AppBar is managed by _resetTeamChatAppBar (NavBar page — no back button).
   _ensureChatAppBar(project, 'DirectChatPage', 'memberName');
 }
 
@@ -411,6 +507,30 @@ void _ensureChatAppBar(FFProject project, String pageName, String titleParamName
   );
 }
 
+// Force-resets TeamChatPage's AppBar every push: NavBar page needs no back button,
+// and title should come from AppState (not a page param).
+void _resetTeamChatAppBar(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+
+  final existing = getPropertyChild(wc.node, 'appBar');
+  if (existing != null) removeByKey(wc.node, existing.key);
+  wc.node.childPropertyMap.remove('appBar');
+
+  final clubNameId = _findAppStateFieldId(project, 'clubName');
+  final titleNode = UI.text('Teamchat', name: 'TeamChatTitle');
+  if (clubNameId != null) {
+    titleNode.props.text.textValue =
+        FFStringValue(variable: varFromAppState(clubNameId.deepCopy()));
+  }
+
+  final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: false);
+  wc.node.children.add(appBarNode);
+  wc.node.childPropertyMap['appBar'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: appBarNode.key)],
+  );
+}
+
 // Enables the global NavBar and registers the 4 main pages.
 // Idempotent: addNavBarPage silently skips duplicates.
 void _setupNavBar(FFProject project) {
@@ -418,6 +538,7 @@ void _setupNavBar(FFProject project) {
   addNavBarPage(project, pageName: 'WedstrijdenPage', iconName: 'sports');
   addNavBarPage(project, pageName: 'RijschemaPage',   iconName: 'directions_car');
   addNavBarPage(project, pageName: 'BardienPage',     iconName: 'sports_bar');
+  addNavBarPage(project, pageName: 'TeamChatPage',    iconName: 'chat');
   addNavBarPage(project, pageName: 'ProfielPage',     iconName: 'person');
 }
 
@@ -533,32 +654,14 @@ Future<bool> authenticateBiometric() async {
 }
 
 void _addBiometricButton(App app) {
-  app.editPage('LoginPage', (page) {
-    final loginButton = page.findByKey('Button_bg6zh5x9');
-    page.ensureInsertedAfter(
-      loginButton,
-      Button(
-        'Inloggen met biometrie',
-        name: 'BiometricLoginButton',
-        icon: 'fingerprint',
-        width: double.infinity,
-        color: Colors.secondaryBackground,
-        textColor: Colors.primaryText,
-        borderRadius: 8,
-        onTap: [
-          CallCustomAction.named(
-            'AuthenticateBiometric',
-            returnType: bool_,
-            outputAs: 'biometricResult',
-          ),
-          If(
-            ActionOutput('biometricResult'),
-            then: Navigate('WedstrijdenPage', replaceRoute: true),
-            orElse: Snackbar('Biometrische verificatie mislukt'),
-          ),
-        ],
-      ),
-    );
+  // Biometric button removed — each login flow is now tested independently via
+  // "Inloggen beheerders" (credentials) and "Inloggen leden" (magic link).
+  app.raw((project) {
+    final wc = findPage(project, name: 'LoginPage');
+    if (wc == null) return;
+    for (final n in findDescendants(wc.node, (n) => n.name == 'BiometricLoginButton')) {
+      removeByKey(wc.node, n.key);
+    }
   });
 }
 
@@ -686,6 +789,16 @@ void _ensureAppStateField(
   );
 }
 
+FFIdentifier? _findAppStateFieldId(FFProject project, String name) {
+  final field = project.appState.fields
+      .cast<FFAppStateField?>()
+      .firstWhere(
+        (f) => f?.parameter.identifier.name == name,
+        orElse: () => null,
+      );
+  return field?.parameter.identifier;
+}
+
 // ─── TeamChatPage ─────────────────────────────────────────────────────────────
 
 void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
@@ -695,7 +808,7 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
     route: 'team-chat',
     params: {
       'teamId': string.withDefault(''),
-      'teamName': string.withDefault('Team Chat'),
+      'teamName': string.withDefault('Teamchat'),
     },
     state: {
       'chatMessages': listOf(teamChats),
@@ -930,7 +1043,7 @@ void _addChatButton(App app) {
     page.ensureInsertedBefore(
       page.findByKey('ConditionalBuilder_f1ph1tgg'),
       Button(
-        'Team Chat',
+        'Teamchat',
         name: 'OpenTeamChatButton',
         icon: 'chat',
         width: double.infinity,
@@ -1074,15 +1187,10 @@ void _addTeamChatFilters(FFProject project) {
   final wc = findPage(project, name: 'TeamChatPage');
   if (wc == null) return;
 
-  // Locate teamId page param identifier.
-  FFIdentifier? teamIdParamId;
-  for (final param in wc.params.values) {
-    if (param.hasIdentifier() && param.identifier.name == 'teamId') {
-      teamIdParamId = param.identifier.deepCopy();
-      break;
-    }
-  }
-  if (teamIdParamId == null) return;
+  // Use AppState currentTeamId — TeamChatPage is now a NavBar page, accessed
+  // without navigation params. currentTeamId is set during login.
+  final currentTeamIdFieldId = _findAppStateFieldId(project, 'currentTeamId');
+  if (currentTeamIdFieldId == null) return;
 
   // Locate teamId collection field identifier.
   final teamIdField = findCollectionField(
@@ -1099,7 +1207,7 @@ void _addTeamChatFilters(FFProject project) {
         baseFilter: FFFirestoreFilter(
           collectionFieldIdentifier: teamIdField.identifier.deepCopy(),
           relation: FFFirestoreFilter_Relation.EQUAL_TO,
-          variable: varFromPageParam(teamIdParamId),
+          variable: varFromAppState(currentTeamIdFieldId.deepCopy()),
         ),
       ),
     ],
@@ -1293,86 +1401,379 @@ void _ensurePageStateField(FFWidgetClass wc, String name, FFBaseDataType type) {
 // to be absorbed by the scroll wrapper.
 void _makeLoginPageScrollable(FFProject project) {}
 
+// Route placeholder replaced at push time with the actual WedstrijdenPage route.
+const _loginWithCredentialsCodeTemplate = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
+
+Future<bool> loginWithCredentials(BuildContext context, String? email, String? password) async {
+  final emailVal = email ?? '';
+  final passwordVal = password ?? '';
+
+  // Capture messenger BEFORE any await — context may be unmounted after HTTP.
+  final messenger = ScaffoldMessenger.of(context);
+
+  debugPrint('[Login] email=$emailVal password=${passwordVal.isEmpty ? "empty" : "set"}');
+
+  void showError(String msg) {
+    debugPrint('[Login] $msg');
+    FFAppState().update(() { FFAppState().loginError = msg; });
+    messenger.showSnackBar(SnackBar(
+      content: Text(msg),
+      duration: const Duration(milliseconds: 6000),
+    ));
+  }
+
+  if (emailVal.isEmpty || passwordVal.isEmpty) {
+    showError('email=${emailVal.isEmpty ? "LEEG" : "ok"} ww=${passwordVal.isEmpty ? "LEEG" : "ok"}');
+    return false;
+  }
+
+  try {
+    // application/x-www-form-urlencoded is a CORS "simple request" — no preflight OPTIONS.
+    // Accept: application/json tells Laravel to return JSON errors instead of redirecting.
+    final response = await http.post(
+      Uri.parse('https://voetbalplanner.nubix.nl/api/v1/auth/login'),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      },
+      body: 'email=${Uri.encodeQueryComponent(emailVal)}'
+          '&password=${Uri.encodeQueryComponent(passwordVal)}',
+    );
+
+    debugPrint('[Login] status=${response.statusCode} body=${response.body}');
+
+    if (response.statusCode != 200) {
+      final snippet = response.body.length > 80 ? response.body.substring(0, 80) : response.body;
+      showError('HTTP ${response.statusCode}: $snippet');
+      return false;
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>?;
+    if (body == null || body['success'] != true) {
+      showError('bad response: ${response.body.substring(0, response.body.length.clamp(0, 80))}');
+      return false;
+    }
+
+    final data = (body['data'] as Map<String, dynamic>?) ?? {};
+    final token = (data['token'] as String?) ?? '';
+    if (token.isEmpty) {
+      showError('no token in response');
+      return false;
+    }
+
+    final user = (data['user'] as Map<String, dynamic>?) ?? {};
+    final club = (user['club'] as Map<String, dynamic>?) ?? {};
+    final managedTeams = (user['managed_teams'] as List<dynamic>?) ?? [];
+    final firstTeam = managedTeams.isNotEmpty
+        ? (managedTeams.first as Map<String, dynamic>?) ?? {}
+        : <String, dynamic>{};
+    final firstTeamId = (firstTeam['id']?.toString()) ?? '';
+
+    FFAppState().update(() {
+      FFAppState().loginError = '';
+      FFAppState().authToken = token;
+      FFAppState().userName = (user['name'] as String?) ?? '';
+      FFAppState().userEmail = (user['email'] as String?) ?? '';
+      FFAppState().clubName = (club['name'] as String?) ?? '';
+      FFAppState().currentTeamId = firstTeamId;
+    });
+
+    // Sign in anonymously so FlutterFlow's Firebase Auth route guard (loggedIn)
+    // passes. Without this, the router redirects every page back to LoginPage.
+    try {
+      await FirebaseAuth.instance.signInAnonymously();
+      debugPrint('[Login] anonymous firebase sign-in OK');
+    } catch (e) {
+      debugPrint('[Login] anonymous firebase sign-in failed: $e');
+    }
+
+    debugPrint('[Login] success, token stored, returning true');
+    return true;
+  } catch (e) {
+    debugPrint('[Login] exception: $e');
+    showError('fout: $e');
+    return false;
+  }
+}
+''';
+
+String _buildLoginCode(String wedstrijdenRoute) =>
+    _loginWithCredentialsCodeTemplate.replaceAll('__WEDSTRIJDEN_ROUTE__', wedstrijdenRoute);
+
+// Appends an AppState update action to the tail of the TextField's
+// ON_TEXTFIELD_CHANGE chain. AppState survives widget rebuilds, unlike
+// WIDGET_STATE (TextEditingController) which resets on any setState() call.
+void _wireTextFieldToAppState(
+  FFNode pageNode,
+  String textFieldKey,
+  FFIdentifier appStateFieldId,
+) {
+  final textField = findByKey(pageNode, textFieldKey);
+  if (textField == null) return;
+  for (final ta in textField.triggerActions) {
+    if (!ta.hasTrigger()) continue;
+    if (ta.trigger.triggerType != FFActionTriggerType.ON_TEXTFIELD_CHANGE) continue;
+    if (!ta.hasRootAction()) continue;
+
+    // Walk the full chain and bail if this AppState field is already wired.
+    var node = ta.rootAction;
+    while (true) {
+      if (node.hasAction() && node.action.hasLocalStateUpdate()) {
+        final lsu = node.action.localStateUpdate;
+        if (lsu.stateVariableType == FFStateVariableType.APP_STATE) {
+          if (lsu.updates.any((u) => u.fieldIdentifier.name == appStateFieldId.name)) {
+            return;
+          }
+        }
+      }
+      if (!node.hasFollowUpAction()) break;
+      node = node.followUpAction;
+    }
+
+    // `node` is the tail — append the AppState update.
+    node.followUpAction = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        localStateUpdate: FFLocalStateUpdate(
+          updates: [
+            FFLocalStateFieldUpdate(
+              fieldIdentifier: appStateFieldId.deepCopy(),
+              setValue: FFValue(variable: varFromTextFieldValue(textFieldKey)),
+            ),
+          ],
+          updateType: FFLocalStateUpdate_UpdateType.WIDGET,
+          stateVariableType: FFStateVariableType.APP_STATE,
+        ),
+      ),
+    );
+    return;
+  }
+}
+
 void _fixLoginButtonBindings(FFProject project) {
-  final endpoint = findApiEndpoint(project, name: 'Login', groupName: 'VoetbalPlannerAPI');
-  if (endpoint == null) return;
-
-  final emailEndpointVar = endpoint.variables.cast<FFApiValue?>()
-      .firstWhere((v) => v?.identifier.name == 'email', orElse: () => null);
-  final passwordEndpointVar = endpoint.variables.cast<FFApiValue?>()
-      .firstWhere((v) => v?.identifier.name == 'password', orElse: () => null);
-  if (emailEndpointVar == null || passwordEndpointVar == null) return;
-
   final wc = findPage(project, name: 'LoginPage');
   if (wc == null) return;
+
+  // Keep AppState fields (harmless, used elsewhere).
+  _ensureAppStateField(project, 'loginEmail', FFBaseDataType.String);
+  _ensureAppStateField(project, 'loginPassword', FFBaseDataType.String);
+  _ensureAppStateField(project, 'loginError', FFBaseDataType.String);
+
+  // Resolve WedstrijdenPage route so the custom action can navigate via GoRouter.
+  final wedstrijdenWc = findPage(project, name: 'WedstrijdenPage');
+  if (wedstrijdenWc == null) return;
+
+  var _routePath = wedstrijdenWc.hasPageRouteSettings()
+      ? wedstrijdenWc.pageRouteSettings.routePath
+      : '';
+  if (_routePath.isEmpty) _routePath = '/wedstrijdenPage';
+  if (!_routePath.startsWith('/')) _routePath = '/$_routePath';
+  final _loginCode = _buildLoginCode(_routePath);
+
+  // LoginWithCredentials takes email and password as direct arguments.
+  // Stable keys required: FFFunctionCallValues.arguments is keyed by
+  // parameter identifier.key — action definition and call site must match.
+  const _emailArgKey = 'login_cred_email';
+  const _passwordArgKey = 'login_cred_password';
+  final _loginArgs = [
+    FFParameter(
+      identifier: FFIdentifier(name: 'email', key: _emailArgKey),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ),
+    FFParameter(
+      identifier: FFIdentifier(name: 'password', key: _passwordArgKey),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ),
+  ];
+
+  if (findCustomAction(project, name: 'LoginWithCredentials') == null) {
+    addCustomAction(
+      project,
+      name: 'LoginWithCredentials',
+      description:
+          'Logt in met email en wachtwoord. Retourneert true bij succes, false bij mislukte login.',
+      arguments: _loginArgs,
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+      ),
+      includeContext: true,
+      code: _loginCode,
+    );
+  } else {
+    // Always sync code, arguments and includeContext so they remain consistent across pushes.
+    updateCustomAction(
+      project,
+      name: 'LoginWithCredentials',
+      code: _loginCode,
+      arguments: _loginArgs,
+      includeContext: true,
+    );
+  }
+
+  final loginAction = findCustomAction(project, name: 'LoginWithCredentials');
+  if (loginAction == null) return;
 
   final loginButton = findByKey(wc.node, 'Button_bg6zh5x9');
   if (loginButton == null) return;
 
-  // Email TextField: first non-password TextField that isn't MagicLinkEmailField.
-  // Do NOT filter by keyboardType — the field may use default keyboard type.
-  final emailTextFields = findDescendants(
-    wc.node,
-    (n) =>
-        n.props.hasTextField() &&
-        !n.props.textField.passwordField &&
-        n.name != 'MagicLinkEmailField',
-  );
-  final passwordTextFields = findDescendants(
-    wc.node,
-    (n) => n.props.hasTextField() && n.props.textField.passwordField,
-  );
-  if (emailTextFields.isEmpty || passwordTextFields.isEmpty) return;
+  // Keys used across the action chain.
+  final actionNodeKey = generateRandomAlphaNumericString();
+  final actionKey = generateRandomAlphaNumericString();
 
-  final emailFieldKey    = emailTextFields.first.key;
-  final passwordFieldKey = passwordTextFields.first.key;
+  FFAppStateField? _findField(String name) => project.appState.fields
+      .cast<FFAppStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == name, orElse: () => null);
 
-  for (final ta in loginButton.triggerActions) {
-    if (!ta.hasTrigger()) continue;
-    if (ta.trigger.triggerType != FFActionTriggerType.ON_TAP) continue;
-    if (!ta.hasRootAction()) continue;
-    _repairLoginApiCallBindings(
-      ta.rootAction,
-      emailEndpointVar.identifier,
-      passwordEndpointVar.identifier,
-      emailFieldKey,
-      passwordFieldKey,
-    );
-    break;
-  }
+  final loginEmailField    = _findField('loginEmail');
+  final loginPasswordField = _findField('loginPassword');
+
+  // Arguments read from AppState (updated by onChange and pre-sync action below).
+  final emailArgVar = loginEmailField != null
+      ? varFromAppState(loginEmailField.parameter.identifier.deepCopy())
+      : varFromTextFieldValue('TextField_73irroiw');
+  final passwordArgVar = loginPasswordField != null
+      ? varFromAppState(loginPasswordField.parameter.identifier.deepCopy())
+      : varFromTextFieldValue('TextField_v1ycg741');
+
+  final argValues = FFFunctionCallValues();
+  argValues.arguments[_emailArgKey] = FFFunctionCallValues_FFArgument(
+    value: FFValue(variable: emailArgVar),
+  );
+  argValues.arguments[_passwordArgKey] = FFFunctionCallValues_FFArgument(
+    value: FFValue(variable: passwordArgVar),
+  );
+
+  // Navigation via FlutterFlow's own Actions.navigate as a direct followUpAction.
+  // Error display is handled inside the custom action via ScaffoldMessenger.
+  // Note: followUpAction always fires (even on failed login) — acceptable for now
+  // while testing that FF navigation works; conditionality can be added once confirmed.
+  final customActionNode = FFActionNode(
+    key: actionNodeKey,
+    action: FFAction(
+      key: actionKey,
+      customAction: FFCustomActionCall(
+        customActionIdentifier: loginAction.identifier.deepCopy(),
+        argumentValues: argValues,
+      ),
+    ),
+    followUpAction: FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(
+        project,
+        pageName: 'WedstrijdenPage',
+        replaceRoute: true,
+      ),
+    ),
+  );
+
+  // Pre-sync: at button-press time, copy the current TextField values into
+  // AppState before the custom action reads them. This captures browser
+  // autofill which does not fire onChange (so AppState would otherwise be
+  // stale). localStateUpdate with WIDGET_STATE reads the TextEditingController
+  // directly, picking up autofilled values.
+  final syncUpdates = <FFLocalStateFieldUpdate>[
+    if (loginEmailField != null)
+      FFLocalStateFieldUpdate(
+        fieldIdentifier: loginEmailField.parameter.identifier.deepCopy(),
+        setValue: FFValue(variable: varFromTextFieldValue('TextField_73irroiw')),
+      ),
+    if (loginPasswordField != null)
+      FFLocalStateFieldUpdate(
+        fieldIdentifier: loginPasswordField.parameter.identifier.deepCopy(),
+        setValue: FFValue(variable: varFromTextFieldValue('TextField_v1ycg741')),
+      ),
+  ];
+
+  final chain = syncUpdates.isEmpty
+      ? customActionNode
+      : FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: FFAction(
+            key: generateRandomAlphaNumericString(),
+            localStateUpdate: FFLocalStateUpdate(
+              updates: syncUpdates,
+              updateType: FFLocalStateUpdate_UpdateType.WIDGET,
+              stateVariableType: FFStateVariableType.APP_STATE,
+            ),
+          ),
+          followUpAction: customActionNode,
+        );
+
+  loginButton.triggerActions.removeWhere(
+    (ta) => ta.hasTrigger() && ta.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+  loginButton.triggerActions.add(
+    FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: chain,
+    ),
+  );
+}
+
+// If rootAction is a non-API-call action (e.g. isLoading=true) whose immediate
+// followUpAction is the Login API call, promote the API call to root position.
+// This drops the pre-API-call setup action so no setState() fires before
+// WIDGET_STATE TextField values are read.
+void _ensureApiCallFirst(FFActionNode root) {
+  if (!root.hasAction()) return;
+  if (root.action.hasDatabase() && root.action.database.hasApiCall()) return;
+  if (!root.hasFollowUpAction()) return;
+
+  final next = root.followUpAction;
+  if (!next.hasAction()) return;
+  if (!next.action.hasDatabase()) return;
+  if (!next.action.database.hasApiCall()) return;
+
+  final promotedContent = next.deepCopy();
+  final savedKey = root.key;
+  root.clear();
+  root.key = savedKey;
+  root.mergeFromMessage(promotedContent);
 }
 
 void _repairLoginApiCallBindings(
   FFActionNode node,
   FFIdentifier emailVarId,
   FFIdentifier passwordVarId,
-  String emailFieldKey,
-  String passwordFieldKey,
+  FFIdentifier loginEmailAppStateId,
+  FFIdentifier loginPasswordAppStateId,
 ) {
   if (node.hasAction() &&
       node.action.hasDatabase() &&
       node.action.database.hasApiCall()) {
     final apiCall = node.action.database.apiCall;
 
-    void _repair(FFIdentifier varId, String fieldKey) {
+    void _repair(FFIdentifier varId, FFIdentifier appStateId) {
       final existing = apiCall.variables.cast<FFApiCallValue?>().firstWhere(
         (v) => v?.variableIdentifier.name == varId.name,
         orElse: () => null,
       );
+      final binding = varFromAppState(appStateId);
       if (existing == null) {
         apiCall.variables.add(FFApiCallValue(
           variableIdentifier: varId.deepCopy(),
-          variable: varFromTextFieldValue(fieldKey),
+          variable: binding,
         ));
       } else {
-        // Always overwrite — existing binding may point to wrong source/key
         existing.clearValue();
-        existing.variable = varFromTextFieldValue(fieldKey);
+        existing.variable = binding;
       }
     }
 
-    _repair(emailVarId, emailFieldKey);
-    _repair(passwordVarId, passwordFieldKey);
+    _repair(emailVarId, loginEmailAppStateId);
+    _repair(passwordVarId, loginPasswordAppStateId);
   }
 
   if (node.hasFollowUpAction()) {
@@ -1380,17 +1781,17 @@ void _repairLoginApiCallBindings(
       node.followUpAction,
       emailVarId,
       passwordVarId,
-      emailFieldKey,
-      passwordFieldKey,
+      loginEmailAppStateId,
+      loginPasswordAppStateId,
     );
   }
 }
 
 void _addLedenLoginSection(App app) {
   app.editPage('LoginPage', (page) {
-    final biometricButton = page.findByName('BiometricLoginButton');
+    final loginButton = page.findByKey('Button_bg6zh5x9');
     page.ensureInsertedAfter(
-      biometricButton,
+      loginButton,
       Column(
         name: 'LedenLoginSection',
         spacing: 12,
@@ -1432,6 +1833,25 @@ void _addLedenLoginSection(App app) {
       ),
     );
   });
+}
+
+// Updates button/label text to "Inloggen beheerders" / "Inloggen leden".
+// Called after _addLedenLoginSection so LedenLoginSection exists on first push.
+void _fixLoginPageLabels(FFProject project) {
+  final wc = findPage(project, name: 'LoginPage');
+  if (wc == null) return;
+
+  final loginButton = findByKey(wc.node, 'Button_bg6zh5x9');
+  if (loginButton != null && loginButton.props.hasButton()) {
+    loginButton.props.button.text.textValue =
+        FFStringValue(inputValue: 'Inloggen beheerders');
+  }
+
+  final labelNode = findDescendants(wc.node, (n) => n.name == 'LedenLoginLabel').firstOrNull;
+  if (labelNode != null && labelNode.props.hasText()) {
+    labelNode.props.text.textValue =
+        FFStringValue(inputValue: 'Inloggen leden');
+  }
 }
 
 void _buildMagicLinkVerifyPage(App app) {

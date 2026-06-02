@@ -14,8 +14,8 @@ enum UserRole: string
     public function label(): string
     {
         return match($this) {
-            self::SuperAdmin => 'Super Admin',
-            self::ClubAdmin => 'Club Admin',
+            self::SuperAdmin => 'Superbeheerder',
+            self::ClubAdmin => 'Clubbeheerder',
             self::Coach => 'Coach',
             self::Member => 'Lid',
         };
