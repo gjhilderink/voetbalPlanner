@@ -28,6 +28,9 @@ class UserResource extends JsonResource
                 'id'   => $t->id,
                 'name' => $t->name,
             ])->values(),
+            'team_id' => $this->managedTeams->first()?->id
+                ?? $this->member?->teams->first()?->id
+                ?? '',
             'is_active'     => $this->is_active,
             'created_at'    => $this->created_at?->toISOString(),
         ];

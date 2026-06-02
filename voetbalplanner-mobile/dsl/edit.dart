@@ -331,6 +331,9 @@ void _addUpcomingFilter(FFProject project) {
   final group = findApiGroup(project, name: 'VoetbalPlannerAPI');
   if (group == null) return;
 
+  final getMatchesEp = group.endpoints
+      .cast<FFApiEndpoint?>()
+      .firstWhere((ep) => ep?.identifier.name == 'GetMatches', orElse: () => null);
   final existingUpcomingEp = group.endpoints
       .cast<FFApiEndpoint?>()
       .firstWhere(
@@ -338,15 +341,12 @@ void _addUpcomingFilter(FFProject project) {
         orElse: () => null,
       );
   if (existingUpcomingEp == null) {
-    final getMatchesEp = group.endpoints
-        .cast<FFApiEndpoint?>()
-        .firstWhere((ep) => ep?.identifier.name == 'GetMatches', orElse: () => null);
     group.endpoints.add(FFApiEndpoint(
       identifier: FFIdentifier(
         name: 'GetUpcomingMatches',
         key: generateRandomAlphaNumericString(),
       ),
-      url: '/matches?upcoming=1&per_page=50',
+      url: '/matches?upcoming=1&per_page=50&team_id=[teamId]',
       callType: FFApiEndpoint_CallType.GET,
       bodyType: FFApiEndpoint_BodyType.NONE,
       body: '',
@@ -355,11 +355,23 @@ void _addUpcomingFilter(FFProject project) {
           identifier: FFIdentifier(name: 'token', key: generateRandomAlphaNumericString()),
           type: FFBaseDataType.String,
         ),
+        FFApiValue(
+          identifier: FFIdentifier(name: 'teamId', key: generateRandomAlphaNumericString()),
+          type: FFBaseDataType.String,
+        ),
       ],
       headers: ['Authorization: Bearer [bearerToken]'],
       groupIdentifier: group.identifier.deepCopy(),
       responseDataStructParam: getMatchesEp?.responseDataStructParam.deepCopy(),
     ));
+  } else {
+    existingUpcomingEp.url = '/matches?upcoming=1&per_page=50&team_id=[teamId]';
+    if (!existingUpcomingEp.variables.any((v) => v.identifier.name == 'teamId')) {
+      existingUpcomingEp.variables.add(FFApiValue(
+        identifier: FFIdentifier(name: 'teamId', key: generateRandomAlphaNumericString()),
+        type: FFBaseDataType.String,
+      ));
+    }
   }
 
   // 4. Replace onLoad: use GetUpcomingMatches so upcoming matches show on first load.
@@ -370,6 +382,8 @@ void _addUpcomingFilter(FFProject project) {
       ?.parameter.identifier;
   if (authTokenId == null) return;
 
+  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+
   wc.node.triggerActions.removeWhere(
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
   );
@@ -379,7 +393,10 @@ void _addUpcomingFilter(FFProject project) {
       project,
       endpointName: 'GetUpcomingMatches',
       groupName: 'VoetbalPlannerAPI',
-      dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+      },
       outputVariableName: 'matchesLoad',
       nodeKey: 'Scaffold_xjabl8lh',
       onSuccess: (ctx) => Actions.chain([
@@ -457,7 +474,7 @@ void _addUpcomingFilter(FFProject project) {
     ),
   );
 
-  // Toggle OFF → show upcoming matches only (GetUpcomingMatches).
+  // Toggle OFF → show upcoming matches only (GetUpcomingMatches), filtered by team.
   Actions.addTriggerChain(
     switchNode,
     FFActionTriggerType.ON_TOGGLE_OFF,
@@ -465,7 +482,10 @@ void _addUpcomingFilter(FFProject project) {
       project,
       endpointName: 'GetUpcomingMatches',
       groupName: 'VoetbalPlannerAPI',
-      dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+      },
       outputVariableName: 'upcomingMatchesResult',
       nodeKey: _toggleKey,
       onSuccess: (ctx) => Actions.chain([
@@ -1569,11 +1589,7 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
 
     final user = (data['user'] as Map<String, dynamic>?) ?? {};
     final club = (user['club'] as Map<String, dynamic>?) ?? {};
-    final managedTeams = (user['managed_teams'] as List<dynamic>?) ?? [];
-    final firstTeam = managedTeams.isNotEmpty
-        ? (managedTeams.first as Map<String, dynamic>?) ?? {}
-        : <String, dynamic>{};
-    final firstTeamId = (firstTeam['id']?.toString()) ?? '';
+    final firstTeamId = (user['team_id'] as String?) ?? '';
 
     FFAppState().update(() {
       FFAppState().loginError = '';

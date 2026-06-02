@@ -39,7 +39,7 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $user->load('club', 'managedTeams');
+        $user->load('club', 'managedTeams', 'member.teams');
         $token = $user->createToken('flutterflow-app')->plainTextToken;
 
         return response()->json([
@@ -66,7 +66,7 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        $user = $request->user()->load('club', 'managedTeams');
+        $user = $request->user()->load('club', 'managedTeams', 'member.teams');
 
         return response()->json([
             'success' => true,
@@ -182,7 +182,7 @@ class AuthController extends Controller
         // Mark token as used — single-use only.
         $record->update(['used_at' => now()]);
 
-        $user->load('club', 'managedTeams');
+        $user->load('club', 'managedTeams', 'member.teams');
 
         // Long-lived token: 90 days.
         $sanctumToken = $user->createToken(
