@@ -913,6 +913,18 @@ Future<void> unsubscribeFromTeamTopic(String? teamId) async {
   }
 }
 
+/// Marks an existing AppState field as persisted (survives app restarts).
+/// Uses deepCopy to avoid frozen-proto mutation errors.
+void _makeAppStateFieldPersisted(FFProject project, String name) {
+  final idx = project.appState.fields
+      .indexWhere((f) => f.parameter.identifier.name == name);
+  if (idx < 0) return;
+  if (project.appState.fields[idx].persisted) return;
+  final copy = project.appState.fields[idx].deepCopy();
+  copy.persisted = true;
+  project.appState.fields[idx] = copy;
+}
+
 /// Sets (or replaces) a container's background color using a deepCopy to avoid
 /// mutating frozen protobuf messages.
 void _setContainerColor(FFNode node, FFColorValue color) {
@@ -1504,14 +1516,21 @@ Future<String> verifyMagicLink(String? token) async {
     if (response.statusCode != 200) return '';
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     if (data['success'] != true) return '';
-    final userData = (data['data']?['user'] as Map<String, dynamic>?) ?? {};
-    final clubData = (userData['club'] as Map<String, dynamic>?) ?? {};
+    final responseData = (data['data'] as Map<String, dynamic>?) ?? {};
+    final sanctumToken = (responseData['token'] as String?) ?? '';
+    if (sanctumToken.isEmpty) return '';
+    final user = (responseData['user'] as Map<String, dynamic>?) ?? {};
+    final club = (user['club'] as Map<String, dynamic>?) ?? {};
     FFAppState().update(() {
-      FFAppState().primaryColor   = (clubData['primary_color']   as String?) ?? '#1e3a5f';
-      FFAppState().secondaryColor = (clubData['secondary_color'] as String?) ?? '#3b82f6';
-      FFAppState().accentColor    = (clubData['accent_color']    as String?) ?? '#10b981';
+      FFAppState().userName       = (user['name']   as String?) ?? '';
+      FFAppState().userEmail      = (user['email']  as String?) ?? '';
+      FFAppState().clubName       = (club['name']   as String?) ?? '';
+      FFAppState().currentTeamId  = (user['team_id'] as String?) ?? '';
+      FFAppState().primaryColor   = (club['primary_color']   as String?) ?? '#1e3a5f';
+      FFAppState().secondaryColor = (club['secondary_color'] as String?) ?? '#3b82f6';
+      FFAppState().accentColor    = (club['accent_color']    as String?) ?? '#10b981';
     });
-    return (data['data']?['token'] as String?) ?? '';
+    return sanctumToken;
   } catch (_) {
     return '';
   }
@@ -1737,6 +1756,11 @@ void _fixLoginButtonBindings(FFProject project) {
   _ensureAppStateField(project, 'primaryColor',   FFBaseDataType.String, persisted: true);
   _ensureAppStateField(project, 'secondaryColor', FFBaseDataType.String, persisted: true);
   _ensureAppStateField(project, 'accentColor',    FFBaseDataType.String, persisted: true);
+
+  // Ensure user-identity fields survive app restarts.
+  for (final field in ['authToken', 'userName', 'userEmail', 'clubName']) {
+    _makeAppStateFieldPersisted(project, field);
+  }
 
   // Resolve WedstrijdenPage route so the custom action can navigate via GoRouter.
   final wedstrijdenWc = findPage(project, name: 'WedstrijdenPage');
