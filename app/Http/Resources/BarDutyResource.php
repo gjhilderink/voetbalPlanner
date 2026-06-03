@@ -11,14 +11,19 @@ class BarDutyResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $myMemberId = $request->user()?->member?->id;
+
         return [
-            'id'       => $this->id,
-            'date'     => $this->date?->format('d-m-Y') ?? '',
-            'shift'    => $this->shift ?? '',
-            'status'   => $this->status ?? '',
-            'teamName' => $this->team?->name ?? '',
-            'members'  => $this->members?->pluck('name')->join(', ') ?? '',
-            'notes'    => $this->notes ?? '',
+            'id'           => $this->id,
+            'date'         => $this->date?->format('d-m-Y') ?? '',
+            'shift'        => $this->shift ?? '',
+            'status'       => $this->status ?? '',
+            'teamName'     => $this->team?->name ?? '',
+            'members'      => $this->members?->pluck('name')->join(', ') ?? '',
+            'notes'        => $this->notes ?? '',
+            'isAssignedToMe' => $myMemberId
+                ? (bool) $this->members?->contains('id', $myMemberId)
+                : false,
         ];
     }
 }

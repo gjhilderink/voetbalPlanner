@@ -45,9 +45,15 @@ class TeamController extends Controller
         ]);
     }
 
-    public function members(Team $team): JsonResponse
+    public function members(Request $request, Team $team): JsonResponse
     {
-        $members = $team->members()->where('members.is_active', true)->get();
+        $myMemberId = $request->user()?->member?->id;
+
+        $members = $team->members()
+            ->where('members.is_active', true)
+            ->when($myMemberId, fn($q) => $q->where('members.id', '!=', $myMemberId))
+            ->orderBy('members.name')
+            ->get();
 
         return response()->json([
             'success' => true,

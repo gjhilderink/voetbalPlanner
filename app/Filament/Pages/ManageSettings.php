@@ -50,6 +50,7 @@ class ManageSettings extends Page
         $clubId = $club?->id;
 
         $this->form->fill([
+            'registration_notification_email' => Setting::get('registration_notification_email', '', null),
             'mcp_enabled'         => filter_var(Setting::get('mcp_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
             'mcp_base_url'        => Setting::get('mcp_base_url', '', $clubId),
             'mcp_api_key'         => Setting::get('mcp_api_key', '', $clubId),
@@ -80,6 +81,18 @@ class ManageSettings extends Page
         return $schema
             ->statePath('data')
             ->components([
+                Section::make('Systeeminstellingen')
+                    ->description('Globale instellingen voor de hele applicatie (alleen zichtbaar voor super-admins).')
+                    ->visible(fn() => auth()->user()?->hasRole('super_admin') ?? false)
+                    ->schema([
+                        TextInput::make('registration_notification_email')
+                            ->label('E-mail voor clubaanvragen')
+                            ->email()
+                            ->maxLength(255)
+                            ->helperText('Naar dit adres wordt een melding gestuurd bij elke nieuwe clubaanvraag via de landingspagina.')
+                            ->columnSpanFull(),
+                    ]),
+
                 Section::make('Club informatie')
                     ->description('Basisinformatie over de club.')
                     ->schema([
@@ -261,6 +274,10 @@ class ManageSettings extends Page
     {
         $data   = $this->form->getState();
         $clubId = filament()->getTenant()?->id;
+
+        if (auth()->user()?->hasRole('super_admin')) {
+            Setting::set('registration_notification_email', $data['registration_notification_email'] ?? '', 'system', false, null);
+        }
 
         Setting::set('mcp_enabled', $data['mcp_enabled'] ? '1' : '0', 'mcp', false, $clubId);
         Setting::set('mcp_base_url', $data['mcp_base_url'], 'mcp', false, $clubId);

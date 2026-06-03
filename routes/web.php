@@ -1,11 +1,12 @@
 <?php
 
+use App\Http\Controllers\ClubRequestController;
 use App\Models\Club;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     if (!auth()->check()) {
-        return redirect('/admin/login');
+        return view('landing');
     }
 
     $user = auth()->user();
@@ -20,6 +21,10 @@ Route::get('/', function () {
         ? redirect('/admin/' . $club->slug)
         : redirect('/admin/login');
 });
+
+Route::get('/aanmelden', [ClubRequestController::class, 'create'])->name('club-request.create');
+Route::post('/aanmelden', [ClubRequestController::class, 'store'])->name('club-request.store');
+Route::get('/aanmelden/bedankt', [ClubRequestController::class, 'success'])->name('club-request.success');
 
 Route::get('/dashboard', fn() => redirect('/'));
 

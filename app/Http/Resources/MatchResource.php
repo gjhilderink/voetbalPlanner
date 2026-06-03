@@ -21,22 +21,34 @@ class MatchResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        $rawStatus = $this->status ?? '';
+        $rawStatus  = $this->status ?? '';
+        $myMemberId = $request->user()?->member?->id;
 
         return [
-            'id'            => $this->id,
-            'opponent'      => $this->opponent ?? '',
-            'location'      => $this->location ?? '',
-            'matchDatetime' => $this->match_datetime?->format('d-m-Y H:i') ?? '',
-            'arrivalTime'   => $this->arrival_time ?? '',
-            'isHome'        => (bool) $this->is_home,
-            'status'        => self::$statusLabels[strtolower($rawStatus)] ?? $rawStatus,
-            'scoreHome'     => $this->score_home ?? 0,
-            'scoreAway'     => $this->score_away ?? 0,
-            'teamName'      => $this->team?->name ?? '',
-            'coachName'     => $this->coach?->name ?? '',
-            'fruitHeroName' => $this->fruitHero?->name ?? '',
-            'notes'         => $this->notes ?? '',
+            'id'             => $this->id,
+            'opponent'       => $this->opponent ?? '',
+            'location'       => $this->location ?? '',
+            'matchDatetime'  => $this->match_datetime?->format('d-m-Y H:i') ?? '',
+            'arrivalTime'    => $this->arrival_time ?? '',
+            'isHome'         => (bool) $this->is_home,
+            'status'         => self::$statusLabels[strtolower($rawStatus)] ?? $rawStatus,
+            'scoreHome'      => $this->score_home ?? 0,
+            'scoreAway'      => $this->score_away ?? 0,
+            'teamName'       => $this->team?->name ?? '',
+            'coachName'      => $this->coach?->name ?? '',
+            'fruitHeroName'  => $this->fruitHero?->name ?? '',
+            'fruitHeroId'    => $this->fruit_hero_id ?? '',
+            'notes'          => $this->notes ?? '',
+            'isFruitHero'    => $myMemberId
+                ? $this->fruit_hero_id === $myMemberId
+                : false,
+            'isDriver'       => $myMemberId
+                ? (bool) $this->whenLoaded(
+                    'drivers',
+                    fn() => $this->drivers->contains('id', $myMemberId),
+                    false,
+                )
+                : false,
         ];
     }
 }

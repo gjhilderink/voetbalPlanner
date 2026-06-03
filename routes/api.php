@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\SwapRequestController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TeamController;
 use Illuminate\Support\Facades\Route;
@@ -88,6 +89,12 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('bar-duties', BarDutyController::class)
             ->only(['index', 'show', 'store', 'update', 'destroy']);
         Route::patch('bar-duties/{barDuty}/members', [BarDutyController::class, 'assignMembers']);
+
+        // Swap requests
+        Route::get('swap-requests/incoming', [SwapRequestController::class, 'incoming']);
+        Route::post('swap-requests', [SwapRequestController::class, 'store']);
+        Route::patch('swap-requests/{swapRequest}/accept', [SwapRequestController::class, 'accept']);
+        Route::patch('swap-requests/{swapRequest}/decline', [SwapRequestController::class, 'decline']);
 
         // Sync (admin only)
         Route::middleware('role:super_admin|club_admin')->prefix('sync')->group(function () {
