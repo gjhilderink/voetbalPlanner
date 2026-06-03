@@ -341,8 +341,8 @@ void buildEditFlow(App app) {
   app.raw((project) => _wireMatchSwap(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
   app.raw((project) {
-    _fixListViewItemNameByNodeName(project, 'WisselAanvraagPage',  'TeamMembersListView',  'teamMember');
-    _fixListViewItemNameByNodeName(project, 'WisselVerzoekenPage', 'SwapRequestsListView', 'request');
+    _fixListViewItemNameByNodeName(project, 'WisselAanvraagPage',  'TeamMembersListView',  'member');
+    _fixListViewItemNameByNodeName(project, 'WisselVerzoekenPage', 'SwapRequestsListView', 'swapReq');
   });
   // Wire swap pages: page loads + button actions (run after _addSwapEndpoints).
   app.raw((project) => _wireWisselAanvraagPageLoad(project));
