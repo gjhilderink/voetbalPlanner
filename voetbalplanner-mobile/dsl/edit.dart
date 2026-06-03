@@ -167,9 +167,6 @@ void buildEditFlow(App app) {
     // Wrap Scaffold body in a Column so widgets can be stacked above the list
     _restructureWedstrijdenPageBody(project);
 
-    // Tap on match list item → WedstrijdDetailPage
-    _addMatchNavigation(project);
-
     // Upcoming matches filter: showAllMatches state + toggle + visibility
     _addUpcomingFilter(project);
 
@@ -320,6 +317,14 @@ void buildEditFlow(App app) {
   _buildWisselAanvraagPage(app, swapMember);
   _buildWisselVerzoekenPage(app, swapRequest);
 
+  // WedstrijdDetailPage must exist before _addMatchNavigation can bind the tap action.
+  _buildWedstrijdDetailPage(app);
+  // Bind tap-on-match-card → WedstrijdDetailPage, and wire the page's onLoad API call.
+  app.raw((project) {
+    _addMatchNavigation(project);
+    _wireWedstrijdDetailPageLoad(project);
+  });
+
   // Add the swap button inside BarDutyCard (insertAfter the last text child).
   app.editComponent('BarDutyCard', (page) {
     page.ensureInsertedAfter(
@@ -337,7 +342,7 @@ void buildEditFlow(App app) {
 
   // Wire BardienPage: bind isAssignedToMe + onSwapAction on BarDutyCard instance.
   app.raw((project) => _wireBarDutySwap(project));
-  // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons.
+  // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons into MatchInfoColumn.
   app.raw((project) => _wireMatchSwap(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
   app.raw((project) {
@@ -2705,6 +2710,13 @@ void _addSwapEndpoints(FFProject project) {
   }
 
   addIfMissing(
+    name:                   'GetMatchDetail',
+    url:                    '/matches/[matchId]',
+    variables:              {'matchId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+    responseDataStructName: 'FootMatch',
+  );
+
+  addIfMissing(
     name:                     'GetTeamMembers',
     url:                      '/teams/[teamId]/members',
     variables:                {'teamId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
@@ -2995,15 +3007,104 @@ void _wireBarDutySwap(FFProject project) {
       );
 }
 
+// Builds WedstrijdDetailPage — must exist before _addMatchNavigation can bind the tap action.
+void _buildWedstrijdDetailPage(App app) {
+  app.ensurePage(
+    'WedstrijdDetailPage',
+    description: 'Wedstrijddetails: info en wissel-opties.',
+    route: 'wedstrijd-detail',
+    params: {
+      'matchId': string,
+    },
+    state: {
+      'isLoading': bool_.withDefault(true),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Wedstrijd details'),
+      body: Column(
+        children: [
+          ConditionalBuilder(
+            children: [
+              Column(
+                visible: State('isLoading'),
+                mainAxis: MainAxis.center,
+                children: [ProgressBar.circular(size: 40, thickness: 4)],
+              ),
+              Column(
+                name: 'MatchInfoColumn',
+                visible: Not(State('isLoading')),
+                crossAxis: CrossAxis.start,
+                padding: 16,
+                spacing: 16,
+                children: [
+                  Text('Wedstrijd info', style: Styles.titleMedium),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Wires the onLoad chain for WedstrijdDetailPage: calls GetMatchDetail on init.
+void _wireWedstrijdDetailPageLoad(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+
+  FFIdentifier? matchIdParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'matchId') {
+      matchIdParamId = param.identifier;
+      break;
+    }
+  }
+  if (matchIdParamId == null) return;
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMatchDetail',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'matchId': varFromPageParam(matchIdParamId.deepCopy()),
+      },
+      outputVariableName: 'matchLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+        Actions.snackBar('Kon wedstrijd niet laden.'),
+      ]),
+    ),
+  );
+}
+
 // Wire WedstrijdDetailPage: add Fruitheld and Rijden swap buttons.
-// They are inserted after the Notes section in the Info tab column.
+// They are inserted into MatchInfoColumn (the named column in the DSL-built page).
 void _wireMatchSwap(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdDetailPage');
   if (wc == null) return;
   if (project.getWidgetClassByName('WisselAanvraagPage') == null) return;
 
-  // Find the column that holds the info texts (contains "Fruitheld" label at index 8).
-  final infoColumn = findByKey(wc.node, 'Column_gj4yosa2');
+  // Find the column by name — DSL-built page uses 'MatchInfoColumn'.
+  final infoColumn = findDescendants(wc.node, (n) => n.name == 'MatchInfoColumn').firstOrNull;
   if (infoColumn == null) return;
 
   // Only add buttons once.
