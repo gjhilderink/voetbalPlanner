@@ -294,21 +294,54 @@ void _addMatchNavigation(FFProject project) {
 
   if (project.getWidgetClassByName('WedstrijdDetailPage') == null) return;
 
-  // Always re-apply so the matchId param binding stays current.
+  // Remove any ON_TAP trigger set on the outer wrapper — component instances
+  // don't fire triggers placed on their instance node; taps flow through the
+  // component's internal tree which calls back via the onTapAction param.
   itemTemplate.triggerActions.removeWhere(
-    (t) => t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
   );
 
-  Actions.onTap(
-    itemTemplate,
-    Actions.navigate(
-      project,
-      pageName: 'WedstrijdDetailPage',
-      params: {
-        'matchId': VariableParamValue(generatorVarField('ListView_erdckv6e', 'id')),
-      },
-    ),
+  // Resolve the MatchCard component class so we can find the onTapAction param.
+  final componentClassKey = itemTemplate.componentClassKeyRef.key;
+  final matchCardClass = project.widgetClasses[componentClassKey];
+  if (matchCardClass == null) return;
+
+  FFParameter? onTapParam;
+  for (final candidate in matchCardClass.params.values) {
+    if (candidate.hasIdentifier() &&
+        candidate.identifier.name == 'onTapAction') {
+      onTapParam = candidate;
+      break;
+    }
+  }
+  if (onTapParam == null) return;
+
+  // Build the navigate action node.
+  final navigateAction = Actions.navigate(
+    project,
+    pageName: 'WedstrijdDetailPage',
+    params: {
+      'matchId': VariableParamValue(generatorVarField('ListView_erdckv6e', 'id')),
+    },
   );
+  final navigateNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: navigateAction,
+  );
+
+  // Initialize parameterValues on the instance if not yet set.
+  if (!itemTemplate.hasParameterValues()) {
+    itemTemplate.parameterValues = FFPassedParameters(
+      widgetClassNodeKeyRef: FFNodeKeyReference(key: componentClassKey),
+    );
+  }
+
+  // Bind the navigate action to the onTapAction Action param.
+  itemTemplate.parameterValues.parameterPasses[onTapParam.identifier.key] =
+      FFParameterPass(
+        paramIdentifier: onTapParam.identifier.deepCopy(),
+        action: FFTriggerActions(rootAction: navigateNode),
+      );
 }
 
 // ─── Upcoming matches filter ──────────────────────────────────────────────────
