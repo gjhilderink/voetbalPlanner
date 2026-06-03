@@ -48,6 +48,31 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([Authenticate::class])
             ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                function (): string {
+                    $club = filament()->getTenant();
+                    if (! $club) return '';
+
+                    $vars = [];
+                    foreach ([
+                        'primary'   => $club->primary_color,
+                        'secondary' => $club->secondary_color,
+                        'accent'    => $club->accent_color,
+                    ] as $name => $hex) {
+                        if (! $hex) continue;
+                        try {
+                            foreach (Color::fromHex($hex) as $shade => $rgb) {
+                                $vars[] = "--c-{$name}-{$shade}:{$rgb}";
+                            }
+                        } catch (\Throwable) {}
+                    }
+
+                    return $vars
+                        ? '<style>:root{' . implode(';', $vars) . '}</style>'
+                        : '';
+                }
+            )
+            ->renderHook(
                 PanelsRenderHook::BODY_START,
                 fn(): string => Blade::render('@if(app(\Lab404\Impersonate\Services\ImpersonateManager::class)->isImpersonating())
                     <div class="flex items-center justify-between gap-4 bg-warning-500 px-6 py-2 text-sm font-medium text-white">

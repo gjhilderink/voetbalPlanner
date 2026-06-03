@@ -23,8 +23,9 @@ class UserResource extends JsonResource
                 'slug'            => $this->club->slug,
                 'logo_path'       => $this->club->logo_path,
                 'primary_color'   => $this->club->primary_color ?? '#1e3a5f',
-                'secondary_color' => $this->club->secondary_color ?? '#ffffff',
-            ] : ['id' => '', 'name' => '', 'slug' => '', 'logo_path' => null, 'primary_color' => '#1e3a5f', 'secondary_color' => '#ffffff'],
+                'secondary_color' => $this->club->secondary_color ?? '#3b82f6',
+                'accent_color'    => $this->club->accent_color ?? '#10b981',
+            ] : ['id' => '', 'name' => '', 'slug' => '', 'logo_path' => null, 'primary_color' => '#1e3a5f', 'secondary_color' => '#3b82f6', 'accent_color' => '#10b981'],
             'roles'         => $this->getRoleNames()->values(),
             'managed_teams' => $this->managedTeams->map(fn($t) => [
                 'id'   => $t->id,

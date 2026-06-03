@@ -532,8 +532,8 @@ void _addWelcomeGreeting(FFProject project) {
       width: double.infinity,
     );
     if (primaryColorId != null) {
-      greetingContainer.props.container.boxDecoration.colorValue =
-          colorFromStringVar(varFromAppState(primaryColorId.deepCopy()));
+      _setContainerColor(greetingContainer,
+          colorFromStringVar(varFromAppState(primaryColorId.deepCopy())));
     }
 
     final showAllRow = findDescendants(wc.node, (n) => n.name == 'ShowAllMatchesRow').firstOrNull;
@@ -542,8 +542,8 @@ void _addWelcomeGreeting(FFProject project) {
     }
   } else if (primaryColorId != null) {
     // Container already exists — keep color in sync.
-    existing.first.props.container.boxDecoration.colorValue =
-        colorFromStringVar(varFromAppState(primaryColorId.deepCopy()));
+    _setContainerColor(existing.first,
+        colorFromStringVar(varFromAppState(primaryColorId.deepCopy())));
   }
 }
 
@@ -552,11 +552,22 @@ void _addWelcomeGreeting(FFProject project) {
 void _setupProfielPage(FFProject project) {
   final wc = findPage(project, name: 'ProfielPage');
   if (wc == null) return;
-  if (findDescendants(wc.node, (n) => n.name == 'ProfielInfoCard').isNotEmpty) return;
 
-  final userNameId = _findAppStateFieldId(project, 'userName');
-  final userEmailId = _findAppStateFieldId(project, 'userEmail');
-  final clubNameId = _findAppStateFieldId(project, 'clubName');
+  final userNameId      = _findAppStateFieldId(project, 'userName');
+  final userEmailId     = _findAppStateFieldId(project, 'userEmail');
+  final clubNameId      = _findAppStateFieldId(project, 'clubName');
+  final secondaryColorId = _findAppStateFieldId(project, 'secondaryColor');
+
+  final existingCards = findDescendants(wc.node, (n) => n.name == 'ProfielInfoCard');
+
+  if (existingCards.isNotEmpty) {
+    // Card already exists — update secondary color.
+    if (secondaryColorId != null) {
+      _setContainerColor(existingCards.first,
+          colorFromStringVar(varFromAppState(secondaryColorId.deepCopy())));
+    }
+    return;
+  }
 
   FFNode _boundText(String name, FFIdentifier? fieldId, String fallback, UITextStyle style) {
     final node = UI.text(fallback, name: name, style: style);
@@ -574,12 +585,16 @@ void _setupProfielPage(FFProject project) {
       name: 'ProfielInfoContent',
       spacing: 8,
       children: [
-        _boundText('ProfielNaam', userNameId, 'Naam', UITextStyle.titleLarge),
+        _boundText('ProfielNaam',  userNameId,  'Naam',        UITextStyle.titleLarge),
         _boundText('ProfielEmail', userEmailId, 'E-mailadres', UITextStyle.bodyMedium),
-        _boundText('ProfielClub', clubNameId, 'Club', UITextStyle.bodyMedium),
+        _boundText('ProfielClub',  clubNameId,  'Club',        UITextStyle.bodyMedium),
       ],
     ),
   );
+  if (secondaryColorId != null) {
+    _setContainerColor(infoCard,
+        colorFromStringVar(varFromAppState(secondaryColorId.deepCopy())));
+  }
 
   final bodyChild = getPropertyChild(wc.node, 'body');
   if (bodyChild == null) {
@@ -896,6 +911,16 @@ Future<void> unsubscribeFromTeamTopic(String? teamId) async {
   } else {
     updateCustomAction(project, name: 'UnsubscribeFromTeamTopic', code: _unsubscribeCode);
   }
+}
+
+/// Sets (or replaces) a container's background color using a deepCopy to avoid
+/// mutating frozen protobuf messages.
+void _setContainerColor(FFNode node, FFColorValue color) {
+  final bd = node.props.container.hasBoxDecoration()
+      ? node.props.container.boxDecoration.deepCopy()
+      : FFBoxDecoration();
+  bd.colorValue = color;
+  node.props.container.boxDecoration = bd;
 }
 
 /// Adds a field to AppState if it doesn't already exist.
@@ -1481,9 +1506,10 @@ Future<String> verifyMagicLink(String? token) async {
     if (data['success'] != true) return '';
     final userData = (data['data']?['user'] as Map<String, dynamic>?) ?? {};
     final clubData = (userData['club'] as Map<String, dynamic>?) ?? {};
-    final primaryColor = (clubData['primary_color'] as String?) ?? '#1e3a5f';
     FFAppState().update(() {
-      FFAppState().primaryColor = primaryColor;
+      FFAppState().primaryColor   = (clubData['primary_color']   as String?) ?? '#1e3a5f';
+      FFAppState().secondaryColor = (clubData['secondary_color'] as String?) ?? '#3b82f6';
+      FFAppState().accentColor    = (clubData['accent_color']    as String?) ?? '#10b981';
     });
     return (data['data']?['token'] as String?) ?? '';
   } catch (_) {
@@ -1622,7 +1648,9 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().userEmail = (user['email'] as String?) ?? '';
       FFAppState().clubName = (club['name'] as String?) ?? '';
       FFAppState().currentTeamId = firstTeamId;
-      FFAppState().primaryColor = (club['primary_color'] as String?) ?? '#1e3a5f';
+      FFAppState().primaryColor   = (club['primary_color']   as String?) ?? '#1e3a5f';
+      FFAppState().secondaryColor = (club['secondary_color'] as String?) ?? '#3b82f6';
+      FFAppState().accentColor    = (club['accent_color']    as String?) ?? '#10b981';
     });
 
     // Sign in anonymously so FlutterFlow's Firebase Auth route guard (loggedIn)
@@ -1706,7 +1734,9 @@ void _fixLoginButtonBindings(FFProject project) {
   _ensureAppStateField(project, 'loginEmail', FFBaseDataType.String);
   _ensureAppStateField(project, 'loginPassword', FFBaseDataType.String);
   _ensureAppStateField(project, 'loginError', FFBaseDataType.String);
-  _ensureAppStateField(project, 'primaryColor', FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'primaryColor',   FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'secondaryColor', FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'accentColor',    FFBaseDataType.String, persisted: true);
 
   // Resolve WedstrijdenPage route so the custom action can navigate via GoRouter.
   final wedstrijdenWc = findPage(project, name: 'WedstrijdenPage');

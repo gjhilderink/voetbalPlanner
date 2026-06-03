@@ -67,7 +67,8 @@ class ManageSettings extends Page
             'club_website'        => $club?->website,
             'club_logo_path'      => $club?->logo_path,
             'primary_color'       => $club?->primary_color ?? '#1e3a5f',
-            'secondary_color'     => $club?->secondary_color ?? '#ffffff',
+            'secondary_color'     => $club?->secondary_color ?? '#3b82f6',
+            'accent_color'        => $club?->accent_color ?? '#10b981',
             'email_header_text'   => $club?->email_header_text,
             'email_intro_text'    => $club?->email_intro_text,
             'email_footer_text'   => $club?->email_footer_text,
@@ -134,11 +135,15 @@ class ManageSettings extends Page
                         ColorPicker::make('primary_color')
                             ->label('Primaire kleur')
                             ->hex()
-                            ->helperText('Hoofdkleur voor app-elementen en e-mails.'),
+                            ->helperText('Hoofdkleur — knoppen, menu-accenten, e-mailkop.'),
                         ColorPicker::make('secondary_color')
                             ->label('Secundaire kleur')
                             ->hex()
-                            ->helperText('Accentkleur voor app-elementen.'),
+                            ->helperText('Tweede kleur — kaartachtergronden, subtiele elementen.'),
+                        ColorPicker::make('accent_color')
+                            ->label('Accentkleur')
+                            ->hex()
+                            ->helperText('Derde kleur — highlights, badges, call-to-action.'),
                         TextInput::make('email_header_text')
                             ->label('E-mail koptekst')
                             ->placeholder(config('app.name'))
@@ -281,6 +286,7 @@ class ManageSettings extends Page
                 'logo_path'          => $data['club_logo_path'] ?? $club->logo_path,
                 'primary_color'      => $data['primary_color'] ?? $club->primary_color,
                 'secondary_color'    => $data['secondary_color'] ?? $club->secondary_color,
+                'accent_color'       => $data['accent_color'] ?? $club->accent_color,
                 'email_header_text'  => $data['email_header_text'] ?? null,
                 'email_intro_text'   => $data['email_intro_text'] ?? null,
                 'email_footer_text'  => $data['email_footer_text'] ?? null,
