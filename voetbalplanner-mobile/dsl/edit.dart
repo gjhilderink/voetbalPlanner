@@ -8,6 +8,8 @@ import 'package:flutterflow_ai/src/client/project_error.dart' show ProjectError;
 import 'package:flutterflow_ai/src/helpers/api_helpers.dart';
 import 'package:flutterflow_ai/src/helpers/collection_helpers.dart'
     show findCollectionField;
+import 'package:flutterflow_ai/src/helpers/data_type_helpers.dart'
+    show dataStructType;
 import 'package:flutterflow_ai/src/helpers/function_call_helpers.dart'
     show CodeExpressionArg, codeExpressionVar, colorFromStringVar, interpolateVar;
 import 'package:flutterflow_ai/src/helpers/param_value.dart'
@@ -254,6 +256,7 @@ void buildEditFlow(App app) {
     _addTeamChatFilters(project);
     _fixLoginPageLabels(project);
     _resetTeamChatAppBar(project);
+    _addDocumentatieAppBar(project);
   });
 
   // Chat navigation button on WedstrijdenPage
@@ -342,6 +345,14 @@ void buildEditFlow(App app) {
 
   // Wire BardienPage: bind isAssignedToMe + onSwapAction on BarDutyCard instance.
   app.raw((project) => _wireBarDutySwap(project));
+
+  // BardienDetailPage: new page for full bar duty info.
+  _buildBardienDetailPage(app);
+  app.raw((project) {
+    _wireBardienDetailPageLoad(project);
+    _addBardienNavigation(project);
+  });
+
   // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons into MatchInfoColumn.
   app.raw((project) => _wireMatchSwap(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
@@ -859,7 +870,7 @@ void _ensureChatAppBar(FFProject project, String pageName, String titleParamName
 }
 
 // Force-resets TeamChatPage's AppBar every push: NavBar page needs no back button.
-// Title comes from the teamName page param so the user sees which team they're chatting in.
+// Title comes from AppState.clubName so it works whether accessed via NavBar or Navigate.
 void _resetTeamChatAppBar(FFProject project) {
   final wc = findPage(project, name: 'TeamChatPage');
   if (wc == null) return;
@@ -868,19 +879,14 @@ void _resetTeamChatAppBar(FFProject project) {
   if (existing != null) removeByKey(wc.node, existing.key);
   wc.node.childPropertyMap.remove('appBar');
 
-  // Bind title to the teamName page param.
-  FFIdentifier? teamNameParamId;
-  for (final param in wc.params.values) {
-    if (param.hasIdentifier() && param.identifier.name == 'teamName') {
-      teamNameParamId = param.identifier.deepCopy();
-      break;
-    }
-  }
+  // Bind title to AppState.clubName — always set after login regardless of
+  // whether the page was opened via NavBar tab or a Navigate action.
+  final clubNameFieldId = _findAppStateFieldId(project, 'clubName');
 
   final titleNode = UI.text('Teamchat', name: 'TeamChatTitle');
-  if (teamNameParamId != null) {
+  if (clubNameFieldId != null) {
     titleNode.props.text.textValue =
-        FFStringValue(variable: varFromPageParam(teamNameParamId));
+        FFStringValue(variable: varFromAppState(clubNameFieldId.deepCopy()));
   }
 
   final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: false);
@@ -1450,27 +1456,48 @@ void _wireDocumentationPageLoad(FFProject project) {
   );
 }
 
+// Adds an AppBar with title and back button to DocumentatiePage every push.
+void _addDocumentatieAppBar(FFProject project) {
+  final wc = findPage(project, name: 'DocumentatiePage');
+  if (wc == null) return;
+  if (getPropertyChild(wc.node, 'appBar') != null) return;
+
+  final titleNode = UI.text('Handleiding', name: 'DocumentatieTitle');
+  final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: true);
+  wc.node.children.add(appBarNode);
+  wc.node.childPropertyMap['appBar'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: appBarNode.key)],
+  );
+}
+
 // Adds a "Handleiding" navigation button at the bottom of ProfielPage.
+// Re-wires the Navigate action on every push so the target is always fresh.
 void _addHandleidingButton(FFProject project) {
   final wc = findPage(project, name: 'ProfielPage');
   if (wc == null) return;
 
-  if (findDescendants(wc.node, (n) => n.name == 'HandleidingButton').isNotEmpty) return;
-
   final docsPage = project.getWidgetClassByName('DocumentatiePage');
   if (docsPage == null) return;
+
+  final navigateAction = Actions.navigate(project, pageName: 'DocumentatiePage');
+
+  // If button already exists: re-wire its tap action and return.
+  final existing = findDescendants(wc.node, (n) => n.name == 'HandleidingButton');
+  if (existing.isNotEmpty) {
+    final btn = existing.first;
+    btn.triggerActions.removeWhere(
+      (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+    );
+    Actions.onTap(btn, navigateAction);
+    return;
+  }
 
   final button = UI.button(
     'Handleiding bekijken',
     name: 'HandleidingButton',
   );
+  Actions.onTap(button, navigateAction);
 
-  Actions.onTap(
-    button,
-    Actions.navigate(project, pageName: 'DocumentatiePage'),
-  );
-
-  // Append to the bottom of the ProfielPage body column
   final bodyChild = getPropertyChild(wc.node, 'body');
   if (bodyChild != null && bodyChild.type == FFWidgetType.Column) {
     bodyChild.children.add(button);
@@ -2115,6 +2142,14 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
     // passes. Without this, the router redirects every page back to LoginPage.
     try {
       await FirebaseAuth.instance.signInAnonymously();
+      // Wait for the auth-state stream to propagate before returning.
+      // FlutterFlow's firebase_auth_manager reads currentUser from the stream;
+      // without this wait the NavBar IndexedStack can build while the stream
+      // still emits null, causing a null-check crash on the chat page.
+      await FirebaseAuth.instance
+          .authStateChanges()
+          .firstWhere((u) => u != null)
+          .timeout(const Duration(seconds: 3), onTimeout: () => null);
       debugPrint('[Login] anonymous firebase sign-in OK');
     } catch (e) {
       debugPrint('[Login] anonymous firebase sign-in failed: $e');
@@ -2757,6 +2792,13 @@ void _addSwapEndpoints(FFProject project) {
     method:    FFApiEndpoint_CallType.PATCH,
     variables: {'id': FFDataTypeV2(scalarType: FFBaseDataType.String)},
   );
+
+  addIfMissing(
+    name:                   'GetBarDutyDetail',
+    url:                    '/bar-duties/[dutyId]',
+    variables:              {'dutyId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+    responseDataStructName: 'BarDuty',
+  );
 }
 
 // SwapRequestCard component: shows requester, duty label, accept + decline buttons.
@@ -3007,6 +3049,167 @@ void _wireBarDutySwap(FFProject project) {
       );
 }
 
+// ─── BardienDetailPage ────────────────────────────────────────────────────────
+
+void _buildBardienDetailPage(App app) {
+  app.ensurePage(
+    'BardienDetailPage',
+    description: 'Bardienst details: dienst info, bezetting en wissel-opties.',
+    route: 'bardienst-detail',
+    params: {
+      'dutyId': string,
+    },
+    state: {
+      'isLoading': bool_.withDefault(true),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Bardienst details'),
+      body: Column(
+        children: [
+          ConditionalBuilder(
+            children: [
+              Column(
+                visible: State('isLoading'),
+                mainAxis: MainAxis.center,
+                children: [ProgressBar.circular(size: 40, thickness: 4)],
+              ),
+              Column(
+                name: 'DutyInfoColumn',
+                visible: Not(State('isLoading')),
+                crossAxis: CrossAxis.start,
+                padding: 16,
+                spacing: 16,
+                children: [
+                  Text('Bardienst info', style: Styles.titleMedium),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _wireBardienDetailPageLoad(FFProject project) {
+  final wc = findPage(project, name: 'BardienDetailPage');
+  if (wc == null) return;
+
+  FFIdentifier? dutyIdParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'dutyId') {
+      dutyIdParamId = param.identifier;
+      break;
+    }
+  }
+  if (dutyIdParamId == null) return;
+
+  // Ensure duty state field (DataStruct<BarDuty>) exists on the page.
+  final barDutyStruct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'BarDuty', orElse: () => null);
+  if (barDutyStruct != null) {
+    final hasDutyField = wc.classModel.stateFields
+        .any((f) => f.parameter.identifier.name == 'duty');
+    if (!hasDutyField) {
+      wc.classModel.stateFields.add(
+        FFWidgetClassStateField(
+          parameter: FFParameter(
+            identifier: FFIdentifier(
+              name: 'duty',
+              key: generateRandomAlphaNumericString(),
+            ),
+            dataType: dataStructType(barDutyStruct.identifier),
+          ),
+        ),
+      );
+    }
+  }
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetBarDutyDetail',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'dutyId': varFromPageParam(dutyIdParamId.deepCopy()),
+      },
+      outputVariableName: 'dutyLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'BardienDetailPage',
+          updates: [
+            StateFieldUpdate.setFromVariable('duty', ctx.responseVar),
+            StateFieldUpdate.set('isLoading', 'false'),
+          ],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'BardienDetailPage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+        Actions.snackBar('Kon bardienst niet laden.'),
+      ]),
+    ),
+  );
+}
+
+void _addBardienNavigation(FFProject project) {
+  final wc = findPage(project, name: 'BardienPage');
+  if (wc == null) return;
+  if (project.getWidgetClassByName('BardienDetailPage') == null) return;
+
+  final listView = findByKey(wc.node, 'ListView_tu54znnh');
+  if (listView == null || listView.children.isEmpty) return;
+  final itemTemplate = listView.children.first;
+
+  final componentClassKey = itemTemplate.componentClassKeyRef.key;
+  final barDutyCard = project.widgetClasses[componentClassKey];
+  if (barDutyCard == null) return;
+
+  FFParameter? onTapParam;
+  for (final p in barDutyCard.params.values) {
+    if (p.hasIdentifier() && p.identifier.name == 'onTapAction') {
+      onTapParam = p;
+      break;
+    }
+  }
+  if (onTapParam == null) return;
+
+  final navigateAction = Actions.navigate(
+    project,
+    pageName: 'BardienDetailPage',
+    params: {
+      'dutyId': VariableParamValue(generatorVarField('ListView_tu54znnh', 'id')),
+    },
+  );
+  final navigateNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: navigateAction,
+  );
+
+  if (!itemTemplate.hasParameterValues()) {
+    itemTemplate.parameterValues = FFPassedParameters(
+      widgetClassNodeKeyRef: FFNodeKeyReference(key: componentClassKey),
+    );
+  }
+
+  itemTemplate.parameterValues.parameterPasses[onTapParam.identifier.key] =
+      FFParameterPass(
+        paramIdentifier: onTapParam.identifier.deepCopy(),
+        action: FFTriggerActions(rootAction: navigateNode),
+      );
+}
+
 // Builds WedstrijdDetailPage — must exist before _addMatchNavigation can bind the tap action.
 void _buildWedstrijdDetailPage(App app) {
   app.ensurePage(
@@ -3081,7 +3284,10 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
         Actions.updatePageState(
           project,
           widgetClassName: 'WedstrijdDetailPage',
-          updates: [StateFieldUpdate.set('isLoading', 'false')],
+          updates: [
+            StateFieldUpdate.setFromVariable('match', ctx.responseVar),
+            StateFieldUpdate.set('isLoading', 'false'),
+          ],
         ),
       ]),
       onFailure: (ctx) => Actions.chain([

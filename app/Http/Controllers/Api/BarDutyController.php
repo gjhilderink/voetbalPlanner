@@ -49,11 +49,7 @@ class BarDutyController extends Controller
 
         $barDuty->load(['team', 'members']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => new BarDutyResource($barDuty),
-            'message' => '',
-        ]);
+        return response()->json(new BarDutyResource($barDuty));
     }
 
     public function store(Request $request): JsonResponse

@@ -5,11 +5,11 @@ import '../dsl/create.dart' as starter;
 
 void main() {
   test('starter DSL app compiles', () {
-    final app = buildApp(starter.buildStarterCreateFlow);
+    final app = buildApp(starter.buildVoetbalPlannerApp);
     final project = compileApp(app).project;
 
-    final starterPage = findPage(project, name: 'StarterPage');
-    expect(starterPage, isNotNull);
-    expect(starterPage!.node.type, FFWidgetType.Scaffold);
+    final loginPage = findPage(project, name: 'LoginPage');
+    expect(loginPage, isNotNull);
+    expect(loginPage!.node.type, FFWidgetType.Scaffold);
   });
 }
