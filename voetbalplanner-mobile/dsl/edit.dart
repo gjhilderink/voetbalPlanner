@@ -1639,8 +1639,10 @@ void _fixItemName(
   }
 }
 
-// Like _fixItemName but finds the ListView by widget name instead of key.
-// Used for DSL-created ListViews whose keys are randomly generated.
+// Like _fixItemName + _wrapListViewVisibility combined, for DSL-created
+// ListViews whose keys are randomly generated.
+// Fixes identifier.name AND moves visibility (+ expanded flag) to a wrapper
+// Container, which is required to get the local-variable codegen pattern.
 void _fixListViewItemNameByNodeName(
   FFProject project,
   String pageName,
@@ -1650,9 +1652,36 @@ void _fixListViewItemNameByNodeName(
   final wc = findPage(project, name: pageName);
   if (wc == null) return;
   final listView = findDescendants(wc.node, (n) => n.name == listViewNodeName).firstOrNull;
-  if (listView != null && listView.hasGeneratorVariable()) {
+  if (listView == null) return;
+
+  if (listView.hasGeneratorVariable()) {
     listView.generatorVariable.identifier.name = itemName;
   }
+
+  // Wrap in a Container and move visibility (+ expanded) to it, exactly like
+  // _wrapListViewVisibility. Idempotent: skips if no visibility is set.
+  if (!listView.props.hasVisibility()) return;
+
+  final boolVal = FFBooleanValue()
+    ..mergeFromMessage(listView.props.visibility.visibleValue);
+  listView.props.clearVisibility();
+
+  final wrapper = FFNode(
+    key: 'Container_${_randomSuffix()}',
+    type: FFWidgetType.Container,
+    name: 'ListViewWrapper',
+    props: FFWidgetProperties(container: FFContainer()),
+    children: [listView],
+  );
+  wrapper.props.ensureVisibility().visibleValue = boolVal;
+
+  // Move the Expanded flag so the wrapper fills the flex space, not the ListView.
+  if (listView.props.hasExpanded()) {
+    wrapper.props.expanded = listView.props.expanded;
+    listView.props.clearExpanded();
+  }
+
+  replaceByKey(wc.node, listView.key, wrapper);
 }
 
 void _wrapListViewVisibility(
