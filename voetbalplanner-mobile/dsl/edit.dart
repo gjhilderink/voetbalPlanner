@@ -111,6 +111,7 @@ void _buildEditFlowRemoveChatPage(App app) {
     _addUpcomingFilter(project);
     _addWelcomeGreeting(project);
     _setupProfielPage(project);
+    _setupBardienFilter(project);
     _addChatPageAppBars(project);
     _setupNavBar(project);
     _addMagicLinkInfrastructure(project);
@@ -177,6 +178,9 @@ void buildEditFlow(App app) {
 
     // Profile page: bind AppState fields (naam, e-mail, club)
     _setupProfielPage(project);
+
+    // Bardiensten: filter by member's team + update onLoad
+    _setupBardienFilter(project);
 
     // AppBar (+ back button) on chat sub-pages, global NavBar for main pages
     _addChatPageAppBars(project);
@@ -617,6 +621,80 @@ void _setupProfielPage(FFProject project) {
       keyRefs: [FFNodeKeyReference(key: column.key)],
     );
   }
+}
+
+// ─── BardienPage: filter by member's own team ────────────────────────────────
+
+void _setupBardienFilter(FFProject project) {
+  final group = findApiGroup(project, name: 'VoetbalPlannerAPI');
+  if (group == null) return;
+
+  final authTokenId = project.appState.fields
+      .cast<FFAppStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'authToken', orElse: () => null)
+      ?.parameter.identifier;
+  if (authTokenId == null) return;
+
+  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+
+  // 1. Ensure GetBarDuties endpoint has team_id variable + URL param.
+  final existingEp = group.endpoints
+      .cast<FFApiEndpoint?>()
+      .firstWhere((ep) => ep?.identifier.name == 'GetBarDuties', orElse: () => null);
+
+  if (existingEp != null) {
+    if (!existingEp.url.contains('team_id=')) {
+      existingEp.url = '${existingEp.url}&team_id=[teamId]';
+    }
+    if (!existingEp.variables.any((v) => v.identifier.name == 'teamId')) {
+      existingEp.variables.add(FFApiValue(
+        identifier: FFIdentifier(name: 'teamId', key: generateRandomAlphaNumericString()),
+        type: FFBaseDataType.String,
+      ));
+    }
+  }
+
+  // 2. Replace BardienPage onLoad to include teamId from AppState.
+  final wc = findPage(project, name: 'BardienPage');
+  if (wc == null) return;
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetBarDuties',
+      groupName: 'VoetbalPlannerAPI',
+      variables: {'page': '1'},
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+      },
+      outputVariableName: 'dutiesLoad',
+      nodeKey: 'Scaffold_ljui3hun',
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'BardienPage',
+          updates: [
+            StateFieldUpdate.setFromVariable('duties', ctx.responseVar),
+            StateFieldUpdate.set('isLoading', 'false'),
+          ],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'BardienPage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+        Actions.snackBar('Kon bardiensten niet laden.'),
+      ]),
+    ),
+  );
 }
 
 // ─── NavBar + chat page AppBars ──────────────────────────────────────────────

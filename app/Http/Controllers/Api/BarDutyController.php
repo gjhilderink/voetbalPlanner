@@ -21,7 +21,15 @@ class BarDutyController extends Controller
             ->where('club_id', $user->club_id)
             ->when(
                 !$user->hasAnyRole(['super_admin', 'club_admin', 'bar_commissie']),
-                fn($q) => $q->whereIn('team_id', $user->managedTeamIds()),
+                function ($q) use ($user) {
+                    // Coaches: filter to managed teams; regular members: filter to their own team(s)
+                    $teamIds = $user->managedTeamIds()
+                        ->merge($user->member?->teams()->pluck('teams.id') ?? collect())
+                        ->unique();
+                    $teamIds->isNotEmpty()
+                        ? $q->whereIn('team_id', $teamIds)
+                        : $q->whereRaw('0 = 1');
+                }
             )
             ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
             ->when($request->status, fn($q, $s) => $q->where('status', $s))
