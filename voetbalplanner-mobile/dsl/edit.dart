@@ -241,7 +241,7 @@ void buildEditFlow(App app) {
     FirestoreQuery(
       teamChats,
       limit: 100,
-      singleTimeQuery: false,
+      singleTimeQuery: true,
       outputAs: 'loadedMessages',
     ),
     SetState('chatMessages', ActionOutput('loadedMessages')),
