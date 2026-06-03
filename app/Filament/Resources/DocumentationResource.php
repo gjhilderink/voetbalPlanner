@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\DocumentationResource\Pages;
 use App\Models\Documentation;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -135,14 +136,16 @@ class DocumentationResource extends Resource
                     ->options(Documentation::$categoryLabels),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
+                Actions\EditAction::make()
                     ->visible(fn() => static::canCreate()),
-                Tables\Actions\DeleteAction::make()
+                Actions\DeleteAction::make()
                     ->visible(fn() => static::canCreate()),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()
-                    ->visible(fn() => static::canCreate()),
+                Actions\BulkActionGroup::make([
+                    Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canCreate()),
+                ]),
             ]);
     }
 
