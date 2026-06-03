@@ -13,7 +13,7 @@ class BarDutyResource extends JsonResource
     {
         return [
             'id'       => $this->id,
-            'date'     => $this->date?->format('Y-m-d') ?? '',
+            'date'     => $this->date?->format('d-m-Y') ?? '',
             'shift'    => $this->shift ?? '',
             'status'   => $this->status ?? '',
             'teamName' => $this->team?->name ?? '',
