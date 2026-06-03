@@ -10,6 +10,9 @@ composer install --no-dev --optimize-autoloader
 echo "2. Running migrations..."
 php artisan migrate --force
 
+echo "2b. Seeding documentation..."
+php artisan db:seed --class=DocumentationSeeder --force
+
 echo "3. Publishing Filament assets..."
 php artisan filament:assets
 
