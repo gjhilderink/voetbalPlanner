@@ -51,6 +51,7 @@ class ManageSettings extends Page
 
         $this->form->fill([
             'registration_notification_email' => Setting::get('registration_notification_email', '', null),
+            'registration_notification_subject' => Setting::get('registration_notification_subject', '', null),
             'mcp_enabled'         => filter_var(Setting::get('mcp_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
             'mcp_base_url'        => Setting::get('mcp_base_url', '', $clubId),
             'mcp_api_key'         => Setting::get('mcp_api_key', '', $clubId),
@@ -89,8 +90,12 @@ class ManageSettings extends Page
                             ->label('E-mail voor clubaanvragen')
                             ->email()
                             ->maxLength(255)
-                            ->helperText('Naar dit adres wordt een melding gestuurd bij elke nieuwe clubaanvraag via de landingspagina.')
-                            ->columnSpanFull(),
+                            ->helperText('Naar dit adres wordt een melding gestuurd bij elke nieuwe clubaanvraag via de landingspagina.'),
+                        TextInput::make('registration_notification_subject')
+                            ->label('Onderwerp van de notificatiemail')
+                            ->maxLength(255)
+                            ->placeholder('Nieuwe clubaanvraag: {club_naam}')
+                            ->helperText('Gebruik {club_naam} als variabele. Leeg = standaard onderwerp.'),
                     ]),
 
                 Section::make('Club informatie')
@@ -277,6 +282,7 @@ class ManageSettings extends Page
 
         if (auth()->user()?->hasRole('super_admin')) {
             Setting::set('registration_notification_email', $data['registration_notification_email'] ?? '', 'system', false, null);
+            Setting::set('registration_notification_subject', $data['registration_notification_subject'] ?? '', 'system', false, null);
         }
 
         Setting::set('mcp_enabled', $data['mcp_enabled'] ? '1' : '0', 'mcp', false, $clubId);

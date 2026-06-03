@@ -34,15 +34,18 @@ class ClubRequestController extends Controller
 
         $notifyEmail = Setting::get('registration_notification_email', null, null);
         if ($notifyEmail) {
+            $subjectTemplate = Setting::get('registration_notification_subject', '', null);
+            $subject = $subjectTemplate
+                ? str_replace('{club_naam}', $validated['club_name'], $subjectTemplate)
+                : "Nieuwe clubaanvraag: {$validated['club_name']}";
+
             Mail::raw(
                 "Nieuwe clubaanvraag ontvangen van: {$validated['club_name']}\n"
                 . "Contactpersoon: {$validated['contact_name']}\n"
                 . "E-mail: {$validated['email']}\n"
                 . "Telefoon: " . ($validated['phone'] ?? '—') . "\n\n"
                 . "Beheer aanvragen via het admin-paneel.",
-                fn($msg) => $msg
-                    ->to($notifyEmail)
-                    ->subject("Nieuwe clubaanvraag: {$validated['club_name']}")
+                fn($msg) => $msg->to($notifyEmail)->subject($subject)
             );
         }
 
