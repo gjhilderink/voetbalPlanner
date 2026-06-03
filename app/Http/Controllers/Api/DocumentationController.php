@@ -21,11 +21,8 @@ class DocumentationController extends Controller
                 'category' => $d->category,
                 'title'    => $d->title,
                 'body'     => $d->body,
-            ]);
+            ])->values();
 
-        return response()->json([
-            'success' => true,
-            'data'    => $sections,
-        ]);
+        return response()->json($sections);
     }
 }

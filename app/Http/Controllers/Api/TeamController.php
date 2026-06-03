@@ -55,10 +55,6 @@ class TeamController extends Controller
             ->orderBy('members.name')
             ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => MemberResource::collection($members),
-            'message' => '',
-        ]);
+        return response()->json(MemberResource::collection($members));
     }
 }
