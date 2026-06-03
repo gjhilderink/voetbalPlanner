@@ -11,7 +11,7 @@ import 'package:flutterflow_ai/src/helpers/collection_helpers.dart'
 import 'package:flutterflow_ai/src/helpers/function_call_helpers.dart'
     show CodeExpressionArg, codeExpressionVar, colorFromStringVar, interpolateVar;
 import 'package:flutterflow_ai/src/helpers/param_value.dart'
-    show VariableParamValue;
+    show StaticParamValue, VariableParamValue;
 import 'package:flutterflow_ai/src/helpers/state_update.dart'
     show StateFieldUpdate;
 import 'package:flutterflow_ai/src/helpers/tree_helpers.dart'
@@ -281,6 +281,69 @@ void buildEditFlow(App app) {
   _buildDocumentatiePage(app, documentSection);
   app.raw((project) => _wireDocumentationPageLoad(project));
   app.raw((project) => _addHandleidingButton(project));
+
+  // ─── Wissel (swap) feature ────────────────────────────────────────────────
+  // Must run after struct/page declarations above so existing names compile.
+  app.raw((project) => _addSwapStructFields(project));
+  app.raw((project) => _addSwapParamsToBarDutyCard(project));
+
+  late final StructHandle swapMember;
+  try {
+    swapMember = app.struct('SwapMember', {
+      'id':   string,
+      'name': string,
+    });
+  } catch (_) {
+    swapMember = app.existingStruct('SwapMember');
+  }
+
+  late final StructHandle swapRequest;
+  try {
+    swapRequest = app.struct('SwapRequest', {
+      'id':                string,
+      'type':              string,
+      'typeLabel':         string,
+      'targetId':          string,
+      'targetDescription': string,
+      'requesterName':     string,
+      'requesteeName':     string,
+      'status':            string,
+      'message':           string,
+      'date':              string,
+    });
+  } catch (_) {
+    swapRequest = app.existingStruct('SwapRequest');
+  }
+
+  app.raw((project) => _addSwapEndpoints(project));
+  _buildSwapRequestCard(app, swapRequest);
+  _buildWisselAanvraagPage(app, swapMember);
+  _buildWisselVerzoekenPage(app, swapRequest);
+
+  // Add the swap button inside BarDutyCard (insertAfter the last text child).
+  app.editComponent('BarDutyCard', (page) {
+    page.ensureInsertedAfter(
+      page.findByKey('Text_k81dicy1'),
+      Button(
+        'Wissel aanvragen',
+        name: 'WisselAanvraagButton',
+        visible: Param('isAssignedToMe'),
+        onTap: ParamAction('onSwapAction'),
+        width: double.infinity,
+        padding: 12,
+      ),
+    );
+  });
+
+  // Wire BardienPage: bind isAssignedToMe + onSwapAction on BarDutyCard instance.
+  app.raw((project) => _wireBarDutySwap(project));
+  // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons.
+  app.raw((project) => _wireMatchSwap(project));
+  // Wire swap pages: page loads + button actions (run after _addSwapEndpoints).
+  app.raw((project) => _wireWisselAanvraagPageLoad(project));
+  app.raw((project) => _wireWisselAanvraagButton(project));
+  app.raw((project) => _wireWisselVerzoekenPageLoad(project));
+  app.raw((project) => _wireWisselVerzoekenActions(project));
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
@@ -2501,6 +2564,651 @@ String _requireValue(List<String> args, int index, String flag) {
     exit(64);
   }
   return args[index];
+}
+
+// ─── Swap (wissel) feature ────────────────────────────────────────────────────
+
+// Add isAssignedToMe to BarDuty struct + isFruitHero / isDriver / fruitHeroId to FootMatch.
+void _addSwapStructFields(FFProject project) {
+  for (final entry in [
+    ('BarDuty',      [('isAssignedToMe', FFBaseDataType.Boolean)]),
+    ('FootMatch',    [
+      ('isFruitHero', FFBaseDataType.Boolean),
+      ('isDriver',    FFBaseDataType.Boolean),
+      ('fruitHeroId', FFBaseDataType.String),
+    ]),
+  ] as List<(String, List<(String, FFBaseDataType)>)>) {
+    final (structName, fieldDefs) = entry;
+    final struct = project.backend.dataSchemaConfig.dataStructs
+        .cast<FFDataStruct?>()
+        .firstWhere((s) => s?.identifier.name == structName, orElse: () => null);
+    if (struct == null) continue;
+    for (final (name, type) in fieldDefs) {
+      if (struct.fields.every((f) => f.identifier.name != name)) {
+        struct.fields.add(FFParameter(
+          identifier: FFIdentifier(
+            name: name,
+            key: generateRandomAlphaNumericString(),
+          ),
+          dataType: FFDataTypeV2(scalarType: type),
+        ));
+      }
+    }
+  }
+}
+
+// Add isAssignedToMe, onSwapAction params to BarDutyCard component.
+void _addSwapParamsToBarDutyCard(FFProject project) {
+  final wc = findComponent(project, name: 'BarDutyCard');
+  if (wc == null) return;
+
+  final newParams = [
+    ('isAssignedToMe',  FFBaseDataType.Boolean),
+    ('onSwapAction',    FFBaseDataType.Action),
+  ] as List<(String, FFBaseDataType)>;
+
+  for (final (name, type) in newParams) {
+    if (wc.params.values.any((p) => p.hasIdentifier() && p.identifier.name == name)) {
+      continue;
+    }
+    final id = FFIdentifier(name: name, key: generateRandomAlphaNumericString());
+    wc.params[id.key] = FFParameter(
+      identifier: id,
+      dataType: FFDataTypeV2(scalarType: type),
+    );
+  }
+}
+
+// Add GetTeamMembers, GetSwapRequests, CreateSwapRequest, Accept/Decline endpoints.
+void _addSwapEndpoints(FFProject project) {
+  final existing = <String>{};
+  for (final group in project.backend.apiConfig.apiGroups) {
+    for (final ep in group.endpoints) {
+      existing.add(ep.identifier.name);
+    }
+  }
+
+  void addIfMissing({
+    required String name,
+    required String url,
+    FFApiEndpoint_CallType method = FFApiEndpoint_CallType.GET,
+    FFApiEndpoint_BodyType bodyType = FFApiEndpoint_BodyType.NONE,
+    String? body,
+    Map<String, FFDataTypeV2>? variables,
+    String? responseDataStructName,
+    bool responseDataStructIsList = false,
+  }) {
+    if (existing.contains(name)) return;
+    addEndpointToGroup(
+      project,
+      groupName:                'VoetbalPlannerAPI',
+      name:                     name,
+      url:                      url,
+      method:                   method,
+      bodyType:                 bodyType,
+      body:                     body,
+      variables:                variables,
+      headers:                  ['Authorization: Bearer [bearerToken]'],
+      responseDataStructName:   responseDataStructName,
+      responseDataStructIsList: responseDataStructIsList,
+    );
+  }
+
+  addIfMissing(
+    name:                     'GetTeamMembers',
+    url:                      '/teams/[teamId]/members',
+    variables:                {'teamId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+    responseDataStructName:   'SwapMember',
+    responseDataStructIsList: true,
+  );
+
+  addIfMissing(
+    name:                     'GetSwapRequests',
+    url:                      '/swap-requests/incoming',
+    responseDataStructName:   'SwapRequest',
+    responseDataStructIsList: true,
+  );
+
+  addIfMissing(
+    name:     'CreateSwapRequest',
+    url:      '/swap-requests',
+    method:   FFApiEndpoint_CallType.POST,
+    bodyType: FFApiEndpoint_BodyType.JSON,
+    body:     '{"type":"[type]","target_id":"[target_id]","requestee_id":"[requestee_id]"}',
+    variables: {
+      'type':         FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'target_id':    FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'requestee_id': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+  );
+
+  addIfMissing(
+    name:      'AcceptSwapRequest',
+    url:       '/swap-requests/[id]/accept',
+    method:    FFApiEndpoint_CallType.PATCH,
+    variables: {'id': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+  );
+
+  addIfMissing(
+    name:      'DeclineSwapRequest',
+    url:       '/swap-requests/[id]/decline',
+    method:    FFApiEndpoint_CallType.PATCH,
+    variables: {'id': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+  );
+}
+
+// SwapRequestCard component: shows requester, duty label, accept + decline buttons.
+void _buildSwapRequestCard(App app, StructHandle swapRequest) {
+  try {
+    app.component(
+      'SwapRequestCard',
+      description: 'Toont een binnenkomend wissel-verzoek met accepteer- en weigerknop.',
+      params: {
+        'requesterName':     string,
+        'typeLabel':         string,
+        'targetDescription': string,
+        'date':              string,
+        'onAccept':          action,
+        'onDecline':         action,
+      },
+      body: Container(
+        padding: 16,
+        borderRadius: 12,
+        color: Colors.secondaryBackground,
+        child: Column(
+          crossAxis: CrossAxis.start,
+          spacing: 8,
+          children: [
+            Row(
+              mainAxis: MainAxis.spaceBetween,
+              children: [
+                Text(Param('typeLabel'), style: Styles.titleSmall),
+                Text(Param('date'), style: Styles.bodySmall),
+              ],
+            ),
+            Text(Param('targetDescription'), style: Styles.bodyMedium),
+            Text(
+              Param('requesterName'),
+              style: Styles.bodySmall,
+            ),
+            Row(
+              spacing: 8,
+              mainAxis: MainAxis.end,
+              children: [
+                Button(
+                  'Weigeren',
+                  onTap: ParamAction('onDecline'),
+                  variant: ButtonVariant.outlined,
+                ),
+                Button(
+                  'Accepteren',
+                  onTap: ParamAction('onAccept'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  } catch (_) {}
+}
+
+// WisselAanvraagPage: pick a team member and send the swap request.
+void _buildWisselAanvraagPage(
+  App app,
+  StructHandle swapMember,
+) {
+  app.ensurePage(
+    'WisselAanvraagPage',
+    description: 'Vraag een teamlid om een dienst over te nemen.',
+    route: 'wissel-aanvraag',
+    params: {
+      'dutyType':   string,
+      'targetId':   string,
+      'targetLabel': string.withDefault(''),
+    },
+    state: {
+      'teamMembers': listOf(swapMember),
+      'isLoading':   bool_.withDefault(true),
+      'isSending':   bool_.withDefault(false),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Wissel aanvragen'),
+      body: Column(
+        children: [
+          Container(
+            padding: 16,
+            child: Text(
+              PageParam('targetLabel'),
+              style: Styles.bodyMedium,
+            ),
+          ),
+          ConditionalBuilder(
+            children: [
+              Column(
+                visible: State('isLoading'),
+                mainAxis: MainAxis.center,
+                children: [
+                  ProgressBar.circular(size: 40, thickness: 4),
+                ],
+              ),
+              Expanded(
+                ListView(
+                  name: 'TeamMembersListView',
+                  source: State('teamMembers'),
+                  spacing: 8,
+                  padding: 16,
+                  itemBuilder: (member) => Container(
+                    padding: 16,
+                    borderRadius: 12,
+                    color: Colors.secondaryBackground,
+                    child: Row(
+                      mainAxis: MainAxis.spaceBetween,
+                      children: [
+                        Text(member['name'], style: Styles.bodyMedium),
+                        Button(
+                          'Vraag',
+                          name: 'VraagButton',
+                          visible: Not(State('isSending')),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                visible: Not(State('isLoading')),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// WisselVerzoekenPage: incoming swap requests with accept / decline.
+void _buildWisselVerzoekenPage(
+  App app,
+  StructHandle swapRequest,
+) {
+  final swapRequestCard = app.existingComponent(
+    'SwapRequestCard',
+    params: {
+      'requesterName':     string,
+      'typeLabel':         string,
+      'targetDescription': string,
+      'date':              string,
+      'onAccept':          action,
+      'onDecline':         action,
+    },
+  );
+
+  app.ensurePage(
+    'WisselVerzoekenPage',
+    description: 'Overzicht van binnenkomende wissel-verzoeken.',
+    route: 'wissel-verzoeken',
+    state: {
+      'requests':  listOf(swapRequest),
+      'isLoading': bool_.withDefault(true),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Wissel verzoeken'),
+      body: ConditionalBuilder(
+        children: [
+          Column(
+            visible: State('isLoading'),
+            mainAxis: MainAxis.center,
+            children: [ProgressBar.circular(size: 40, thickness: 4)],
+          ),
+          Expanded(
+            ListView(
+              name: 'SwapRequestsListView',
+              source: State('requests'),
+              spacing: 12,
+              padding: 16,
+              itemBuilder: (req) => swapRequestCard(
+                requesterName:     req['requesterName'],
+                typeLabel:         req['typeLabel'],
+                targetDescription: req['targetDescription'],
+                date:              req['date'],
+                onAccept:  [Snackbar('')],
+                onDecline: [Snackbar('')],
+              ),
+            ),
+            visible: Not(State('isLoading')),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Wire BardienPage: bind isAssignedToMe + onSwapAction on the BarDutyCard instance.
+void _wireBarDutySwap(FFProject project) {
+  final wc = findPage(project, name: 'BardienPage');
+  if (wc == null) return;
+  final listView = findByKey(wc.node, 'ListView_tu54znnh');
+  if (listView == null || listView.children.isEmpty) return;
+  final itemTemplate = listView.children.first; // Container_3x9tkqc6
+
+  final wisselPage = project.getWidgetClassByName('WisselAanvraagPage');
+  if (wisselPage == null) return;
+
+  // Resolve BarDutyCard component class and params.
+  final componentClassKey = itemTemplate.componentClassKeyRef.key;
+  final barDutyCard = project.widgetClasses[componentClassKey];
+  if (barDutyCard == null) return;
+
+  FFParameter? isAssignedParam;
+  FFParameter? onSwapParam;
+  for (final p in barDutyCard.params.values) {
+    if (!p.hasIdentifier()) continue;
+    switch (p.identifier.name) {
+      case 'isAssignedToMe': isAssignedParam = p;
+      case 'onSwapAction':   onSwapParam = p;
+    }
+  }
+  if (isAssignedParam == null || onSwapParam == null) return;
+
+  // Ensure parameterValues initialized.
+  if (!itemTemplate.hasParameterValues()) {
+    itemTemplate.parameterValues = FFPassedParameters(
+      widgetClassNodeKeyRef: FFNodeKeyReference(key: componentClassKey),
+    );
+  }
+
+  // Bind isAssignedToMe = duty['isAssignedToMe'] (generator variable).
+  itemTemplate.parameterValues.parameterPasses[isAssignedParam.identifier.key] =
+      FFParameterPass(
+        paramIdentifier: isAssignedParam.identifier.deepCopy(),
+        variable: generatorVarField('ListView_tu54znnh', 'isAssignedToMe'),
+      );
+
+  // Bind onSwapAction = Navigate to WisselAanvraagPage.
+  final navigateAction = Actions.navigate(
+    project,
+    pageName: 'WisselAanvraagPage',
+    params: {
+      'dutyType':   StaticParamValue('bardienst'),
+      'targetId':   VariableParamValue(generatorVarField('ListView_tu54znnh', 'id')),
+      'targetLabel': VariableParamValue(generatorVarField('ListView_tu54znnh', 'date')),
+    },
+  );
+  final navigateNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: navigateAction,
+  );
+  itemTemplate.parameterValues.parameterPasses[onSwapParam.identifier.key] =
+      FFParameterPass(
+        paramIdentifier: onSwapParam.identifier.deepCopy(),
+        action: FFTriggerActions(rootAction: navigateNode),
+      );
+}
+
+// Wire WedstrijdDetailPage: add Fruitheld and Rijden swap buttons.
+// They are inserted after the Notes section in the Info tab column.
+void _wireMatchSwap(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  if (project.getWidgetClassByName('WisselAanvraagPage') == null) return;
+
+  // Find the column that holds the info texts (contains "Fruitheld" label at index 8).
+  final infoColumn = findByKey(wc.node, 'Column_gj4yosa2');
+  if (infoColumn == null) return;
+
+  // Only add buttons once.
+  if (infoColumn.children.any((c) => c.name == 'FruitheldWisselButton' || c.name == 'RijdenWisselButton')) {
+    return;
+  }
+
+  // Find the WisselAanvraagPage key ref.
+  final wisselPage = project.getWidgetClassByName('WisselAanvraagPage')!;
+  final wisselKeyRef = FFNodeKeyReference(key: wisselPage.node.key);
+
+  // Use the matchId page param (passed when navigating to this page) as targetId.
+  FFIdentifier? matchIdParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'matchId') {
+      matchIdParamId = param.identifier;
+      break;
+    }
+  }
+  if (matchIdParamId == null) return;
+
+  // Helper to build a swap button node with a navigate action.
+  FFNode buildSwapButton({required String name, required String dutyType, required String labelParam}) {
+    final button = FFNode(
+      key: generateRandomAlphaNumericString(),
+      name: name,
+    );
+    final navigateAction = Actions.navigate(
+      project,
+      pageName: 'WisselAanvraagPage',
+      params: {
+        'dutyType':    StaticParamValue(dutyType),
+        'targetId':    VariableParamValue(varFromPageParam(matchIdParamId!.deepCopy())),
+        'targetLabel': StaticParamValue(labelParam),
+      },
+    );
+    Actions.onTap(button, navigateAction);
+    return button;
+  }
+
+  // Fruitheld swap button.
+  infoColumn.children.add(buildSwapButton(
+    name: 'FruitheldWisselButton',
+    dutyType: 'fruitheld',
+    labelParam: 'Fruitheld',
+  ));
+
+  // Rijden swap button.
+  infoColumn.children.add(buildSwapButton(
+    name: 'RijdenWisselButton',
+    dutyType: 'rijden',
+    labelParam: 'Rijden',
+  ));
+}
+
+// Wires the onLoad API call for WisselAanvraagPage: loads team members by currentTeamId.
+void _wireWisselAanvraagPageLoad(FFProject project) {
+  final wc = findPage(project, name: 'WisselAanvraagPage');
+  if (wc == null) return;
+
+  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  if (currentTeamIdId == null) return;
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetTeamMembers',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+      },
+      outputVariableName: 'membersLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WisselAanvraagPage',
+          updates: [
+            StateFieldUpdate.setFromVariable('teamMembers', ctx.responseVar),
+            StateFieldUpdate.set('isLoading', 'false'),
+          ],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WisselAanvraagPage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+        Actions.snackBar('Kon teamleden niet laden.'),
+      ]),
+    ),
+  );
+}
+
+// Wires the VraagButton in WisselAanvraagPage to POST CreateSwapRequest.
+void _wireWisselAanvraagButton(FFProject project) {
+  final wc = findPage(project, name: 'WisselAanvraagPage');
+  if (wc == null) return;
+
+  final listView = findDescendants(wc.node, (n) => n.name == 'TeamMembersListView').firstOrNull;
+  if (listView == null || listView.children.isEmpty) return;
+  final itemTemplate = listView.children.first;
+
+  final vraagButton = findDescendants(itemTemplate, (n) => n.name == 'VraagButton').firstOrNull;
+  if (vraagButton == null) return;
+
+  FFIdentifier? dutyTypeParamId;
+  FFIdentifier? targetIdParamId;
+  for (final param in wc.params.values) {
+    if (!param.hasIdentifier()) continue;
+    switch (param.identifier.name) {
+      case 'dutyType': dutyTypeParamId = param.identifier;
+      case 'targetId': targetIdParamId = param.identifier;
+    }
+  }
+  if (dutyTypeParamId == null || targetIdParamId == null) return;
+
+  vraagButton.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+  Actions.addTriggerChain(
+    vraagButton,
+    FFActionTriggerType.ON_TAP,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'CreateSwapRequest',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'type':         varFromPageParam(dutyTypeParamId.deepCopy()),
+        'target_id':    varFromPageParam(targetIdParamId.deepCopy()),
+        'requestee_id': generatorVarField(listView.key, 'id'),
+      },
+      outputVariableName: 'swapResult',
+      nodeKey: vraagButton.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.snackBar('Wissel aangevraagd!'),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Versturen mislukt, probeer opnieuw.'),
+      ]),
+    ),
+  );
+}
+
+// Wires the onLoad API call for WisselVerzoekenPage: loads incoming swap requests.
+void _wireWisselVerzoekenPageLoad(FFProject project) {
+  final wc = findPage(project, name: 'WisselVerzoekenPage');
+  if (wc == null) return;
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetSwapRequests',
+      groupName: 'VoetbalPlannerAPI',
+      outputVariableName: 'requestsLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WisselVerzoekenPage',
+          updates: [
+            StateFieldUpdate.setFromVariable('requests', ctx.responseVar),
+            StateFieldUpdate.set('isLoading', 'false'),
+          ],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WisselVerzoekenPage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+        Actions.snackBar('Kon verzoeken niet laden.'),
+      ]),
+    ),
+  );
+}
+
+// Wires onAccept and onDecline on SwapRequestCard instances in WisselVerzoekenPage.
+void _wireWisselVerzoekenActions(FFProject project) {
+  final wc = findPage(project, name: 'WisselVerzoekenPage');
+  if (wc == null) return;
+
+  final listView = findDescendants(wc.node, (n) => n.name == 'SwapRequestsListView').firstOrNull;
+  if (listView == null || listView.children.isEmpty) return;
+  final itemTemplate = listView.children.first;
+
+  final componentClassKey = itemTemplate.componentClassKeyRef.key;
+  final swapRequestCard = project.widgetClasses[componentClassKey];
+  if (swapRequestCard == null) return;
+
+  FFParameter? onAcceptParam;
+  FFParameter? onDeclineParam;
+  for (final p in swapRequestCard.params.values) {
+    if (!p.hasIdentifier()) continue;
+    switch (p.identifier.name) {
+      case 'onAccept':  onAcceptParam = p;
+      case 'onDecline': onDeclineParam = p;
+    }
+  }
+  if (onAcceptParam == null || onDeclineParam == null) return;
+
+  if (!itemTemplate.hasParameterValues()) {
+    itemTemplate.parameterValues = FFPassedParameters(
+      widgetClassNodeKeyRef: FFNodeKeyReference(key: componentClassKey),
+    );
+  }
+
+  itemTemplate.parameterValues.parameterPasses[onAcceptParam.identifier.key] =
+      FFParameterPass(
+        paramIdentifier: onAcceptParam.identifier.deepCopy(),
+        action: FFTriggerActions(
+          rootAction: Actions.apiCallNode(
+            project,
+            endpointName: 'AcceptSwapRequest',
+            groupName: 'VoetbalPlannerAPI',
+            dynamicVariables: {
+              'id': generatorVarField(listView.key, 'id'),
+            },
+            outputVariableName: 'acceptResult',
+            nodeKey: itemTemplate.key,
+            onSuccess: (ctx) => Actions.chain([Actions.snackBar('Wissel bevestigd!')]),
+            onFailure: (ctx) => Actions.chain([Actions.snackBar('Mislukt, probeer opnieuw.')]),
+          ),
+        ),
+      );
+
+  itemTemplate.parameterValues.parameterPasses[onDeclineParam.identifier.key] =
+      FFParameterPass(
+        paramIdentifier: onDeclineParam.identifier.deepCopy(),
+        action: FFTriggerActions(
+          rootAction: Actions.apiCallNode(
+            project,
+            endpointName: 'DeclineSwapRequest',
+            groupName: 'VoetbalPlannerAPI',
+            dynamicVariables: {
+              'id': generatorVarField(listView.key, 'id'),
+            },
+            outputVariableName: 'declineResult',
+            nodeKey: itemTemplate.key,
+            onSuccess: (ctx) => Actions.chain([Actions.snackBar('Wissel afgewezen.')]),
+            onFailure: (ctx) => Actions.chain([Actions.snackBar('Mislukt, probeer opnieuw.')]),
+          ),
+        ),
+      );
 }
 
 void _printUsage() {
