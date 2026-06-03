@@ -263,9 +263,23 @@ void buildEditFlow(App app) {
   // (ChatMenuSheet with DirectChatPage navigate deferred to next push)
   _addChatButton(app);
 
-  // Documentation page for members + handleiding button on ProfielPage
+  // Documentation page for members + handleiding button on ProfielPage.
+  // Struct must be declared before the raw endpoint and page so the type
+  // is available when _addDocumentationEndpoint references it by name.
+  late final StructHandle documentSection;
+  try {
+    documentSection = app.struct('DocumentSection', {
+      'id':       string,
+      'category': string,
+      'title':    string,
+      'body':     string,
+    });
+  } catch (_) {
+    documentSection = app.existingStruct('DocumentSection');
+  }
   app.raw((project) => _addDocumentationEndpoint(project));
-  _buildDocumentatiePage(app);
+  _buildDocumentatiePage(app, documentSection);
+  app.raw((project) => _wireDocumentationPageLoad(project));
   app.raw((project) => _addHandleidingButton(project));
 }
 
@@ -1224,46 +1238,28 @@ void _addDocumentationEndpoint(FFProject project) {
   final group = findApiGroup(project, name: groupName);
   if (group == null) return;
 
-  final baseUrl = group.baseUrl;
   addEndpointToGroup(
     project,
-    groupName:  groupName,
-    name:       endpointName,
-    url:        '$baseUrl/documentation',
-    method:     FFApiEndpoint_CallType.GET,
-    bodyType:   FFApiEndpoint_BodyType.NONE,
-    headers:    ['Authorization: Bearer [bearerToken]'],
+    groupName:                groupName,
+    name:                     endpointName,
+    url:                      '/documentation',
+    method:                   FFApiEndpoint_CallType.GET,
+    bodyType:                 FFApiEndpoint_BodyType.NONE,
+    headers:                  ['Authorization: Bearer [bearerToken]'],
+    responseDataStructName:   'DocumentSection',
+    responseDataStructIsList: true,
   );
 }
 
-void _buildDocumentatiePage(App app) {
-  // Lightweight endpoint handle — matches the 'GetDocumentation' endpoint
-  // already added to VoetbalPlannerAPI by _addDocumentationEndpoint.
-  final getDocsEp = Endpoint.get(
-    'GetDocumentation',
-    '/documentation',
-  );
-
+void _buildDocumentatiePage(App app, StructHandle documentSection) {
   app.ensurePage(
     'DocumentatiePage',
     description: 'Handleiding — uitleg over de app, het platform en de koppelingen.',
     route: 'documentatie',
     state: {
-      'sections': listOf(json),
+      'sections': listOf(documentSection),
       'isLoading': bool_.withDefault(true),
     },
-    onLoad: [
-      ApiCall(
-        getDocsEp,
-        outputAs: 'docsRes',
-        params: {'token': AppState('authToken')},
-        onSuccess: (res) => [
-          SetState('sections', res['data']),
-          SetState('isLoading', false),
-        ],
-        onFailure: [SetState('isLoading', false)],
-      ),
-    ],
     body: Column(
       children: [
         // Loading indicator
@@ -1302,6 +1298,48 @@ void _buildDocumentatiePage(App app) {
           ),
         ),
       ],
+    ),
+  );
+}
+
+// Wires the onLoad API call for DocumentatiePage using the VoetbalPlannerAPI group.
+// Must run after _addDocumentationEndpoint so the endpoint exists in the group.
+// Auth is handled by the group-level bearerToken shared variable — no per-endpoint token needed.
+void _wireDocumentationPageLoad(FFProject project) {
+  final wc = findPage(project, name: 'DocumentatiePage');
+  if (wc == null) return;
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  final scaffoldKey = wc.node.key;
+
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetDocumentation',
+      groupName: 'VoetbalPlannerAPI',
+      outputVariableName: 'docsLoad',
+      nodeKey: scaffoldKey,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'DocumentatiePage',
+          updates: [
+            StateFieldUpdate.setFromVariable('sections', ctx.responseVar),
+            StateFieldUpdate.set('isLoading', 'false'),
+          ],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'DocumentatiePage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+      ]),
     ),
   );
 }
