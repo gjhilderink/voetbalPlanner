@@ -339,6 +339,11 @@ void buildEditFlow(App app) {
   app.raw((project) => _wireBarDutySwap(project));
   // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons.
   app.raw((project) => _wireMatchSwap(project));
+  // Fix ListView generator variable names (same codegen bug as existing pages).
+  app.raw((project) {
+    _fixListViewItemNameByNodeName(project, 'WisselAanvraagPage',  'TeamMembersListView',  'teamMember');
+    _fixListViewItemNameByNodeName(project, 'WisselVerzoekenPage', 'SwapRequestsListView', 'request');
+  });
   // Wire swap pages: page loads + button actions (run after _addSwapEndpoints).
   app.raw((project) => _wireWisselAanvraagPageLoad(project));
   app.raw((project) => _wireWisselAanvraagButton(project));
@@ -1634,6 +1639,22 @@ void _fixItemName(
   }
 }
 
+// Like _fixItemName but finds the ListView by widget name instead of key.
+// Used for DSL-created ListViews whose keys are randomly generated.
+void _fixListViewItemNameByNodeName(
+  FFProject project,
+  String pageName,
+  String listViewNodeName,
+  String itemName,
+) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+  final listView = findDescendants(wc.node, (n) => n.name == listViewNodeName).firstOrNull;
+  if (listView != null && listView.hasGeneratorVariable()) {
+    listView.generatorVariable.identifier.name = itemName;
+  }
+}
+
 void _wrapListViewVisibility(
   FFProject project,
   String pageName,
@@ -2699,58 +2720,59 @@ void _addSwapEndpoints(FFProject project) {
 
 // SwapRequestCard component: shows requester, duty label, accept + decline buttons.
 void _buildSwapRequestCard(App app, StructHandle swapRequest) {
-  try {
-    app.component(
-      'SwapRequestCard',
-      description: 'Toont een binnenkomend wissel-verzoek met accepteer- en weigerknop.',
-      params: {
-        'requesterName':     string,
-        'typeLabel':         string,
-        'targetDescription': string,
-        'date':              string,
-        'onAccept':          action,
-        'onDecline':         action,
-      },
-      body: Container(
-        padding: 16,
-        borderRadius: 12,
-        color: Colors.secondaryBackground,
-        child: Column(
-          crossAxis: CrossAxis.start,
-          spacing: 8,
-          children: [
-            Row(
-              mainAxis: MainAxis.spaceBetween,
-              children: [
-                Text(Param('typeLabel'), style: Styles.titleSmall),
-                Text(Param('date'), style: Styles.bodySmall),
-              ],
-            ),
-            Text(Param('targetDescription'), style: Styles.bodyMedium),
-            Text(
-              Param('requesterName'),
-              style: Styles.bodySmall,
-            ),
-            Row(
-              spacing: 8,
-              mainAxis: MainAxis.end,
-              children: [
-                Button(
-                  'Weigeren',
-                  onTap: ParamAction('onDecline'),
-                  variant: ButtonVariant.outlined,
-                ),
-                Button(
-                  'Accepteren',
-                  onTap: ParamAction('onAccept'),
-                ),
-              ],
-            ),
-          ],
-        ),
+  // addComponent in project_helpers.dart is idempotent for components:
+  // if SwapRequestCard already exists it returns the existing key and the
+  // _compileComponents second-pass updates the body — no "already exists" error.
+  app.component(
+    'SwapRequestCard',
+    description: 'Toont een binnenkomend wissel-verzoek met accepteer- en weigerknop.',
+    params: {
+      'requesterName':     string,
+      'typeLabel':         string,
+      'targetDescription': string,
+      'date':              string,
+      'onAccept':          action,
+      'onDecline':         action,
+    },
+    body: Container(
+      padding: 16,
+      borderRadius: 12,
+      color: Colors.secondaryBackground,
+      child: Column(
+        crossAxis: CrossAxis.start,
+        spacing: 8,
+        children: [
+          Row(
+            mainAxis: MainAxis.spaceBetween,
+            children: [
+              Text(Param('typeLabel'), style: Styles.titleSmall),
+              Text(Param('date'), style: Styles.bodySmall),
+            ],
+          ),
+          Text(Param('targetDescription'), style: Styles.bodyMedium),
+          Text(
+            Param('requesterName'),
+            style: Styles.bodySmall,
+          ),
+          Row(
+            spacing: 8,
+            mainAxis: MainAxis.end,
+            children: [
+              Button(
+                'Weigeren',
+                onTap: ParamAction('onDecline'),
+                variant: ButtonVariant.outlined,
+              ),
+              Button(
+                'Accepteren',
+                onTap: ParamAction('onAccept'),
+              ),
+            ],
+          ),
+        ],
       ),
-    );
-  } catch (_) {}
+    ),
+  );
 }
 
 // WisselAanvraagPage: pick a team member and send the swap request.
