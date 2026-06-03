@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BarDutyController;
+use App\Http\Controllers\Api\DocumentationController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
 use App\Http\Controllers\Api\MatchController;
@@ -56,6 +57,9 @@ Route::prefix('v1')->group(function () {
         // Auth
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
+
+        // Documentation
+        Route::get('/documentation', [DocumentationController::class, 'index']);
 
         // Teams
         Route::get('/teams', [TeamController::class, 'index']);

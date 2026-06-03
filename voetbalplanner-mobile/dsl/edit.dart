@@ -262,6 +262,11 @@ void buildEditFlow(App app) {
   // Chat navigation button on WedstrijdenPage
   // (ChatMenuSheet with DirectChatPage navigate deferred to next push)
   _addChatButton(app);
+
+  // Documentation page for members + handleiding button on ProfielPage
+  app.raw((project) => _addDocumentationEndpoint(project));
+  _buildDocumentatiePage(app);
+  app.raw((project) => _addHandleidingButton(project));
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
@@ -733,8 +738,8 @@ void _ensureChatAppBar(FFProject project, String pageName, String titleParamName
   );
 }
 
-// Force-resets TeamChatPage's AppBar every push: NavBar page needs no back button,
-// and title should come from AppState (not a page param).
+// Force-resets TeamChatPage's AppBar every push: NavBar page needs no back button.
+// Title comes from the teamName page param so the user sees which team they're chatting in.
 void _resetTeamChatAppBar(FFProject project) {
   final wc = findPage(project, name: 'TeamChatPage');
   if (wc == null) return;
@@ -743,11 +748,19 @@ void _resetTeamChatAppBar(FFProject project) {
   if (existing != null) removeByKey(wc.node, existing.key);
   wc.node.childPropertyMap.remove('appBar');
 
-  final clubNameId = _findAppStateFieldId(project, 'clubName');
+  // Bind title to the teamName page param.
+  FFIdentifier? teamNameParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'teamName') {
+      teamNameParamId = param.identifier.deepCopy();
+      break;
+    }
+  }
+
   final titleNode = UI.text('Teamchat', name: 'TeamChatTitle');
-  if (clubNameId != null) {
+  if (teamNameParamId != null) {
     titleNode.props.text.textValue =
-        FFStringValue(variable: varFromAppState(clubNameId.deepCopy()));
+        FFStringValue(variable: varFromPageParam(teamNameParamId));
   }
 
   final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: false);
@@ -1080,33 +1093,70 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
             source: State('chatMessages'),
             padding: 12,
             spacing: 8,
-            itemBuilder: (_) => Container(
-              padding: 12,
-              borderRadius: 12,
-              color: Colors.secondaryBackground,
-              child: Column(
-                crossAxis: CrossAxis.start,
-                spacing: 4,
-                children: [
-                  Row(
-                    mainAxis: MainAxis.spaceBetween,
-                    children: [
-                      Text(
-                        ItemRef()['senderName'],
-                        style: Styles.labelMedium,
+            itemBuilder: (_) => Column(
+              crossAxis: CrossAxis.stretch,
+              children: [
+                // Others' message — left-aligned, sender name visible
+                Row(
+                  mainAxis: MainAxis.start,
+                  visible: Not(Equals(ItemRef()['senderId'], AppState('authToken'))),
+                  children: [
+                    Container(
+                      padding: 12,
+                      borderRadius: 12,
+                      color: Colors.secondaryBackground,
+                      child: Column(
+                        crossAxis: CrossAxis.start,
+                        spacing: 4,
+                        children: [
+                          Text(
+                            ItemRef()['senderName'],
+                            style: Styles.labelMedium,
+                            color: Colors.primary,
+                          ),
+                          Text(
+                            ItemRef()['text'],
+                            style: Styles.bodyMedium,
+                          ),
+                          Text(
+                            ItemRef()['createdAt'],
+                            style: Styles.bodySmall,
+                            color: Colors.secondaryText,
+                          ),
+                        ],
                       ),
-                      Text(
-                        ItemRef()['createdAt'],
-                        style: Styles.bodySmall,
+                    ),
+                  ],
+                ),
+                // Own message — right-aligned, no sender name
+                Row(
+                  mainAxis: MainAxis.end,
+                  visible: Equals(ItemRef()['senderId'], AppState('authToken')),
+                  children: [
+                    Container(
+                      padding: 12,
+                      borderRadius: 12,
+                      color: Colors.primary,
+                      child: Column(
+                        crossAxis: CrossAxis.start,
+                        spacing: 4,
+                        children: [
+                          Text(
+                            ItemRef()['text'],
+                            style: Styles.bodyMedium,
+                            color: Colors.primaryBackground,
+                          ),
+                          Text(
+                            ItemRef()['createdAt'],
+                            style: Styles.bodySmall,
+                            color: Colors.primaryBackground,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  Text(
-                    ItemRef()['text'],
-                    style: Styles.bodyMedium,
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -1161,6 +1211,128 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
       ],
     ),
   );
+}
+
+// ─── Documentatie ────────────────────────────────────────────────────────────
+
+void _addDocumentationEndpoint(FFProject project) {
+  const groupName    = 'VoetbalPlannerAPI';
+  const endpointName = 'GetDocumentation';
+
+  if (findApiEndpoint(project, name: endpointName, groupName: groupName) != null) return;
+
+  final group = findApiGroup(project, name: groupName);
+  if (group == null) return;
+
+  final baseUrl = group.baseUrl;
+  addEndpointToGroup(
+    project,
+    groupName:  groupName,
+    name:       endpointName,
+    url:        '$baseUrl/documentation',
+    method:     FFApiEndpoint_CallType.GET,
+    bodyType:   FFApiEndpoint_BodyType.NONE,
+    headers:    ['Authorization: Bearer [bearerToken]'],
+  );
+}
+
+void _buildDocumentatiePage(App app) {
+  // Lightweight endpoint handle — matches the 'GetDocumentation' endpoint
+  // already added to VoetbalPlannerAPI by _addDocumentationEndpoint.
+  final getDocsEp = Endpoint.get(
+    'GetDocumentation',
+    '/documentation',
+  );
+
+  app.ensurePage(
+    'DocumentatiePage',
+    description: 'Handleiding — uitleg over de app, het platform en de koppelingen.',
+    route: 'documentatie',
+    state: {
+      'sections': listOf(json),
+      'isLoading': bool_.withDefault(true),
+    },
+    onLoad: [
+      ApiCall(
+        getDocsEp,
+        outputAs: 'docsRes',
+        params: {'token': AppState('authToken')},
+        onSuccess: (res) => [
+          SetState('sections', res['data']),
+          SetState('isLoading', false),
+        ],
+        onFailure: [SetState('isLoading', false)],
+      ),
+    ],
+    body: Column(
+      children: [
+        // Loading indicator
+        Row(
+          mainAxis: MainAxis.center,
+          visible: State('isLoading'),
+          children: [ProgressBar.circular(size: 40, thickness: 4)],
+        ),
+        // Documentation list
+        Expanded(
+          ListView(
+            source: State('sections'),
+            padding: EdgeInsets.all(12),
+            spacing: 12,
+            visible: Not(State('isLoading')),
+            itemBuilder: (_) => Container(
+              padding: 16,
+              borderRadius: 10,
+              color: Colors.secondaryBackground,
+              child: Column(
+                crossAxis: CrossAxis.start,
+                spacing: 8,
+                children: [
+                  Text(
+                    ItemRef()['title'],
+                    style: Styles.titleSmall,
+                    color: Colors.primary,
+                  ),
+                  Text(
+                    ItemRef()['body'],
+                    style: Styles.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Adds a "Handleiding" navigation button at the bottom of ProfielPage.
+void _addHandleidingButton(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+
+  if (findDescendants(wc.node, (n) => n.name == 'HandleidingButton').isNotEmpty) return;
+
+  final docsPage = project.getWidgetClassByName('DocumentatiePage');
+  if (docsPage == null) return;
+
+  final button = UI.button(
+    'Handleiding bekijken',
+    name: 'HandleidingButton',
+  );
+
+  Actions.onTap(
+    button,
+    Actions.navigate(project, pageName: 'DocumentatiePage'),
+  );
+
+  // Append to the bottom of the ProfielPage body column
+  final bodyChild = getPropertyChild(wc.node, 'body');
+  if (bodyChild != null && bodyChild.type == FFWidgetType.Column) {
+    bodyChild.children.add(button);
+  } else {
+    wc.node.children.add(button);
+  }
 }
 
 // ─── DirectChatPage ───────────────────────────────────────────────────────────
