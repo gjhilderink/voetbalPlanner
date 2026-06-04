@@ -33,7 +33,8 @@ import 'package:flutterflow_ai/src/helpers/variable_helpers.dart';
 import 'package:flutterflow_ai/src/ui/actions.dart' show Actions;
 import 'package:flutterflow_ai/src/ui/ui.dart' show UI;
 import 'package:flutterflow_ai/src/ui/ui_types.dart'
-    show UIBoxFit, UIColor, UITextStyle, UIMainAxisAlignment, UICrossAxisAlignment, UIEdgeInsets;
+    show UIBoxFit, UIColor, UITextStyle, UIMainAxisAlignment, UICrossAxisAlignment, UIEdgeInsets,
+         DynamicSource;
 import 'package:voetbalplanner_mobile/flutterflow_project.dart' as ff;
 
 bool Function(ProjectError) get _validationFilter => (error) {
@@ -242,7 +243,9 @@ void buildEditFlow(App app) {
   // editPageOnLoad REPLACES the full onLoad on every push, which lets us keep the
   // collection reference fresh. FCM subscription uses editPageOnLoad because
   // CallCustomAction inside ensurePage onLoad would fail before app.raw() creates it.
+  // UpdateAppState clears the nav-bar badge (hasUnreadTeamChat) when the user opens chat.
   app.editPageOnLoad(ff.Pages.teamChatPage, [
+    UpdateAppState.set('hasUnreadTeamChat', false),
     FirestoreQuery(
       teamChats,
       limit: 100,
@@ -278,10 +281,14 @@ void buildEditFlow(App app) {
     _resetTeamChatAppBar(project);
     _addDocumentatieAppBar(project);
     _fixChatTimestamp(project);
+    _wireChatBadge(project);
+    // NOTE: _wireTeamMembersLoad is intentionally NOT here.
+    // It uses Actions.updatePageState('teamMembers') which validates the field
+    // at call time. teamMembers is added by editPageState (rawMutations) below,
+    // so _wireTeamMembersLoad must run AFTER editPageState. See below.
   });
 
   // Chat navigation button on WedstrijdenPage
-  // (ChatMenuSheet with DirectChatPage navigate deferred to next push)
   _addChatButton(app);
 
   // Documentation page for members + handleiding button on ProfielPage.
@@ -313,6 +320,17 @@ void buildEditFlow(App app) {
       'name': string,
     });
   } catch (_) {}
+
+  // teamMembers state field for the direct-chat member strip (swapMember struct now in scope).
+  app.editPageState(ff.Pages.teamChatPage, (state) {
+    state.ensureField('teamMembers', listOf(swapMember));
+  });
+  // Wire the GetTeamMembers API call AFTER editPageState has added the field.
+  // Actions.updatePageState validates 'teamMembers' at call time, so this raw
+  // block must be registered AFTER editPageState (rawMutations run in order).
+  app.raw((project) => _wireTeamMembersLoad(project));
+  // Horizontal member strip at the top of TeamChatPage (tap member → DirectChatPage).
+  _addDirectChatMemberStrip(app, swapMember);
 
   final swapRequest = ff.Structs.swapRequest;
   try {
@@ -1159,6 +1177,9 @@ void _addChatInfrastructure(FFProject project) {
     persisted: true,
   );
 
+  // Badge flag: true when there are unread team chat messages (cleared on page open).
+  _ensureAppStateField(project, 'hasUnreadTeamChat', FFBaseDataType.Boolean);
+
   // Subscribe to FCM topic for a team → receives push notifications for that team's chat.
   // Parameter is String? because FlutterFlow page params are generated as nullable.
   const _subscribeCode = r'''
@@ -1292,6 +1313,15 @@ FFIdentifier? _findAppStateFieldId(FFProject project, String name) {
         (f) => f?.parameter.identifier.name == name,
         orElse: () => null,
       );
+  return field?.parameter.identifier;
+}
+
+FFIdentifier? _findPageStateFieldId(FFProject project, String pageName, String fieldName) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return null;
+  final field = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == fieldName, orElse: () => null);
   return field?.parameter.identifier;
 }
 
@@ -1758,6 +1788,150 @@ void _addChatButton(App app) {
       ),
     );
   });
+}
+
+// ─── Direct-chat member strip ──────────────────────────────────────────────────
+
+// Inserts a horizontal scroll of team members at the top of TeamChatPage.
+// Tapping a member navigates to DirectChatPage with memberId + memberName.
+// Uses app.raw() because State('teamMembers') cannot be resolved by app.editPage()
+// at _compilePages time — teamMembers is only added by editPageState (rawMutations,
+// which runs AFTER _compilePages). Both run in rawMutations in registration order,
+// so the field is present when _addDirectChatMemberStripRaw executes.
+void _addDirectChatMemberStrip(App app, StructHandle swapMember) {
+  app.raw((project) => _addDirectChatMemberStripRaw(project));
+}
+
+void _addDirectChatMemberStripRaw(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+
+  // Idempotent: skip if the strip is already present.
+  if (findDescendants(wc.node, (n) => n.name == 'DirectChatMemberStrip').isNotEmpty) return;
+
+  // teamMembers must have been added by editPageState earlier in rawMutations.
+  final teamMembersId = _findPageStateFieldId(project, 'TeamChatPage', 'teamMembers');
+  if (teamMembersId == null) return;
+
+  // nodeKeyRef = page scaffold key is required for LOCAL_STATE variable resolution.
+  final teamMembersVar = varFromPageState(teamMembersId.deepCopy());
+  teamMembersVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  // ListView with DynamicSource — each item is one SwapMember from teamMembers state.
+  final memberList = UI.listView(
+    name: 'MemberStripList',
+    horizontal: true,
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12),
+    dynamicSource: DynamicSource(
+      variable: teamMembersVar,
+      itemName: 'member',
+    ),
+  );
+
+  // Navigate to DirectChatPage with member id + name from the list generator variable.
+  final navigateAction = Actions.navigate(
+    project,
+    pageName: 'DirectChatPage',
+    params: {
+      'memberId':   VariableParamValue(generatorVarField(memberList.key, 'id')),
+      'memberName': VariableParamValue(generatorVarField(memberList.key, 'name')),
+    },
+  );
+
+  // Member name text bound to generator variable 'name' field.
+  final nameText = UI.text('', name: 'MemberChipName', style: UITextStyle.bodySmall);
+  nameText.props.text.textValue =
+      FFStringValue(variable: generatorVarField(memberList.key, 'name'));
+
+  // Avatar placeholder (40×40 circle).
+  final avatar = UI.container(name: 'MemberAvatar', width: 40, height: 40, borderRadius: 20);
+
+  // Column: avatar above name, vertically centered.
+  final chipCol = UI.column(
+    name: 'MemberChipColumn',
+    mainAxisAlignment: UIMainAxisAlignment.center,
+    children: [avatar, nameText],
+  );
+
+  // Chip container (60px wide) — tap navigates to DirectChatPage.
+  final chip = UI.container(name: 'MemberChip', width: 60, borderRadius: 8, child: chipCol);
+  Actions.onTap(chip, navigateAction);
+
+  memberList.children.add(chip);
+
+  // Outer 88px-tall strip container.
+  final strip = UI.container(name: 'DirectChatMemberStrip', height: 88, child: memberList);
+
+  insertBeforeKey(wc.node, 'ListView_9sebksf4', strip);
+}
+
+// Sets the red badge on the TeamChatPage NavBar icon when hasUnreadTeamChat is true.
+
+// Idempotent: badge is overwritten each push.
+void _wireChatBadge(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+  final hasUnreadId = _findAppStateFieldId(project, 'hasUnreadTeamChat');
+  if (hasUnreadId == null) return;
+  final showVar = varFromAppState(hasUnreadId.deepCopy());
+  wc.node.props.badge = FFBadge(
+    showBadgeValue: FFBooleanValue(variable: showVar),
+    colorValue: FFColorValue(
+      inputValue: FFColor(themeColor: FFColor_ThemeColor.ERROR),
+    ),
+  );
+}
+
+// Wires GetTeamMembers API call on TeamChatPage load to populate the member strip.
+// Uses onPageLoadChain so the existing Firestore stream triggers are preserved.
+void _wireTeamMembersLoad(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  if (currentTeamIdId == null) return;
+
+  // Idempotent: skip if the GetTeamMembers call is already wired.
+  final alreadyWired = wc.node.triggerActions.any((t) {
+    if (!t.hasTrigger() || t.trigger.triggerType != FFActionTriggerType.ON_INIT_STATE) return false;
+    // Walk the action chain looking for a GetTeamMembers API call.
+    bool check(FFActionNode node) {
+      if (node.hasAction() &&
+          node.action.hasDatabase() &&
+          node.action.database.hasApiCall() &&
+          node.action.database.apiCall.hasEndpointIdentifier() &&
+          node.action.database.apiCall.endpointIdentifier.name == 'GetTeamMembers') {
+        return true;
+      }
+      if (node.hasFollowUpAction() && check(node.followUpAction)) return true;
+      return false;
+    }
+    return t.hasRootAction() && check(t.rootAction);
+  });
+  if (alreadyWired) return;
+
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetTeamMembers',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+      },
+      outputVariableName: 'chatMembersLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'TeamChatPage',
+          updates: [
+            StateFieldUpdate.setFromVariable('teamMembers', ctx.responseVar),
+          ],
+        ),
+      ]),
+    ),
+  );
 }
 
 // ─── ListView codegen fixes ───────────────────────────────────────────────────
