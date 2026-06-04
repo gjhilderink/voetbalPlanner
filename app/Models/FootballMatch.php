@@ -66,11 +66,11 @@ class FootballMatch extends Model
 
     public function lineup(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
-        return $this->hasOne(Lineup::class);
+        return $this->hasOne(Lineup::class, 'match_id');
     }
 
     public function goals(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(Goal::class);
+        return $this->hasMany(Goal::class, 'match_id');
     }
 }

@@ -31,7 +31,7 @@ class Goal extends Model
 
     public function match(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(FootballMatch::class);
+        return $this->belongsTo(FootballMatch::class, 'match_id');
     }
 
     public function scorer(): \Illuminate\Database\Eloquent\Relations\BelongsTo
