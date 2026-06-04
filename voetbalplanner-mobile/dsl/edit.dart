@@ -2810,6 +2810,16 @@ void _addSwapEndpoints(FFProject project) {
     variables:              {'matchId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
     responseDataStructName: 'FootMatch',
   );
+  // If the endpoint already existed (addIfMissing skipped), force-set the
+  // responseDataStructParam so the action can use DATA_STRUCT mode.
+  if (existing.contains('GetMatchDetail')) {
+    updateApiEndpoint(
+      project,
+      name:                   'GetMatchDetail',
+      groupName:              'VoetbalPlannerAPI',
+      responseDataStructName: 'FootMatch',
+    );
+  }
 
   addIfMissing(
     name:                     'GetTeamMembers',
