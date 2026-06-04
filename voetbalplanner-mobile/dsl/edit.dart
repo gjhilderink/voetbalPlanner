@@ -21,14 +21,19 @@ import 'package:flutterflow_ai/src/helpers/param_value.dart'
 import 'package:flutterflow_ai/src/helpers/state_update.dart'
     show StateFieldUpdate;
 import 'package:flutterflow_ai/src/helpers/tree_helpers.dart'
-    show findDescendants, removeByKey, insertBeforeKey, getPropertyChild;
+    show findDescendants, removeByKey, insertBeforeKey, getPropertyChild,
+         unwrap, findParentByKey;
+import 'package:flutterflow_ai/src/helpers/widget_helpers.dart'
+    show setConditionalVisibility;
 import 'package:flutterflow_ai/src/helpers/nav_bar_helpers.dart'
     show setNavBarEnabled, addNavBarPage;
+import 'package:flutterflow_ai/src/helpers/widget_class_param_helpers.dart'
+    show removePageParameter;
 import 'package:flutterflow_ai/src/helpers/variable_helpers.dart';
 import 'package:flutterflow_ai/src/ui/actions.dart' show Actions;
 import 'package:flutterflow_ai/src/ui/ui.dart' show UI;
 import 'package:flutterflow_ai/src/ui/ui_types.dart'
-    show UIColor, UITextStyle, UIMainAxisAlignment, UICrossAxisAlignment, UIEdgeInsets;
+    show UIBoxFit, UIColor, UITextStyle, UIMainAxisAlignment, UICrossAxisAlignment, UIEdgeInsets;
 import 'package:voetbalplanner_mobile/flutterflow_project.dart' as ff;
 
 bool Function(ProjectError) get _validationFilter => (error) {
@@ -254,6 +259,20 @@ void buildEditFlow(App app) {
   // Add teamId filter AFTER page() has written the fresh TeamChatPage.
   // Also fix login page labels here — after _addLedenLoginSection ran.
   app.raw((project) {
+    // Mark teamId/teamName params optional by setting proto defaultValue so the
+    // wiring-review treats them as WiringSeverity.warning (non-blocking) when
+    // the chat button navigates without params (params.isEmpty → NavBarPage shown).
+    final chatPage = findPage(project, name: 'TeamChatPage');
+    if (chatPage != null) {
+      const defaults = {'teamId': '', 'teamName': 'Teamchat'};
+      for (final param in chatPage.params.values) {
+        if (!param.hasIdentifier()) continue;
+        final def = defaults[param.identifier.name];
+        if (def != null && !param.hasDefaultValue()) {
+          param.defaultValue = FFParameterValue(serializedValue: def);
+        }
+      }
+    }
     _addTeamChatFilters(project);
     _fixLoginPageLabels(project);
     _resetTeamChatAppBar(project);
@@ -401,6 +420,7 @@ void buildEditFlow(App app) {
     _wireRijschemaDetailPageLoad(project);
     _wireRijschemaDetailPageUI(project);
     _wireRijschemaNavigation(project);
+    _wireRijschemaCardDriverRow(project);
   });
 
   // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons into MatchInfoColumn.
@@ -415,6 +435,20 @@ void buildEditFlow(App app) {
   app.raw((project) => _wireWisselAanvraagButton(project));
   app.raw((project) => _wireWisselVerzoekenPageLoad(project));
   app.raw((project) => _wireWisselVerzoekenActions(project));
+
+  // ─── Banner (marketing) feature ────────────────────────────────────────────
+  // Banner struct for the GetBanners API response.
+  try {
+    app.struct('Banner', {
+      'id':       string,
+      'imageUrl': string,
+      'linkUrl':  string,
+      'position': string,
+    });
+  } catch (_) {}
+  app.raw((project) => _addBannerEndpoint(project));
+  app.raw((project) => _addBannerToWedstrijdenPage(project));
+  app.raw((project) => _addBannerToBardienPage(project));
 
   // Apply club primary color to all AppBar backgrounds; set back button + title to white.
   // Runs last so the AppBar nodes already exist from all the preceding wiring steps.
@@ -945,7 +979,7 @@ void _ensureChatAppBar(FFProject project, String pageName, String titleParamName
 }
 
 // Force-resets TeamChatPage's AppBar every push: NavBar page needs no back button.
-// Title comes from AppState.clubName so it works whether accessed via NavBar or Navigate.
+// Title comes from AppState.clubName (set at login, persisted).
 void _resetTeamChatAppBar(FFProject project) {
   final wc = findPage(project, name: 'TeamChatPage');
   if (wc == null) return;
@@ -954,8 +988,8 @@ void _resetTeamChatAppBar(FFProject project) {
   if (existing != null) removeByKey(wc.node, existing.key);
   wc.node.childPropertyMap.remove('appBar');
 
-  // Bind title to AppState.currentTeamName — set at login, persisted across restarts.
-  final teamNameFieldId = _findAppStateFieldId(project, 'currentTeamName');
+  // Bind title to AppState.clubName — set at login, persisted across restarts.
+  final teamNameFieldId = _findAppStateFieldId(project, 'clubName');
 
   final titleNode = UI.text('Teamchat', name: 'TeamChatTitle');
   if (teamNameFieldId != null) {
@@ -1388,7 +1422,7 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
                           'text': State(ff.Pages.teamChatPage.state.messageText),
                           'senderId': AppState(ff.AppState.authToken),
                           'senderName': AppState(ff.AppState.userName),
-                          'teamId': Param('teamId'),
+                          'teamId': AppState(ff.AppState.currentTeamId),
                           'createdAt': Global(GlobalProperty.currentTimestamp),
                         },
                       ),
@@ -1716,13 +1750,9 @@ void _addChatButton(App app) {
         textColor: Colors.primaryBackground,
         borderRadius: 8,
         onTap: [
-          Navigate(
-            ff.Pages.teamChatPage,
-            params: {
-              'teamId': AppState(ff.AppState.currentTeamId),
-              'teamName': AppState(ff.AppState.clubName),
-            },
-          ),
+          // No params: router renders NavBarPage(initialPage:'TeamChatPage')
+          // which keeps the NavBar visible. teamId is read from AppState on load.
+          Navigate(ff.Pages.teamChatPage),
         ],
       ),
     );
@@ -2740,9 +2770,10 @@ void _addSwapStructFields(FFProject project) {
   for (final entry in [
     ('BarDuty',      [('isAssignedToMe', FFBaseDataType.Boolean)]),
     ('FootMatch',    [
-      ('isFruitHero', FFBaseDataType.Boolean),
-      ('isDriver',    FFBaseDataType.Boolean),
-      ('fruitHeroId', FFBaseDataType.String),
+      ('isFruitHero',  FFBaseDataType.Boolean),
+      ('isDriver',     FFBaseDataType.Boolean),
+      ('fruitHeroId',  FFBaseDataType.String),
+      ('driverNames',  FFBaseDataType.String),
     ]),
   ] as List<(String, List<(String, FFBaseDataType)>)>) {
     final (structName, fieldDefs) = entry;
@@ -3336,6 +3367,7 @@ void _wireRijschemaDetailPageLoad(FFProject project) {
 
   for (final name in const [
     'rijOpponent', 'rijDatetime', 'rijLocation', 'rijArrivalTime', 'rijNotes',
+    'rijIsHome', 'rijIsDriver', 'rijDriverNames',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -3360,6 +3392,9 @@ void _wireRijschemaDetailPageLoad(FFProject project) {
           'rijLocation':    r'$.location',
           'rijArrivalTime': r'$.arrivalTime',
           'rijNotes':       r'$.notes',
+          'rijIsHome':      r'$.isHome',
+          'rijIsDriver':    r'$.isDriver',
+          'rijDriverNames': r'$.driverNames',
         };
         final updates = <StateFieldUpdate>[StateFieldUpdate.set('isLoading', 'false')];
         for (final entry in fieldPaths.entries) {
@@ -3425,14 +3460,98 @@ void _wireRijschemaDetailPageUI(FFProject project) {
     );
   }
 
+  // "Thuis" / "Uit" row using a code expression on the "true"/"false" string.
+  FFNode? homeAwayRow() {
+    final isHomeVar = stateVar('rijIsHome');
+    if (isHomeVar == null) return null;
+    final displayVar = codeExpressionVar(
+      expression: "isHome == 'true' ? 'Thuis' : 'Uit'",
+      arguments: [
+        CodeExpressionArg(
+          name: 'isHome',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: isHomeVar),
+        ),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    );
+    final valueText = UI.text('-', name: 'RijInfoValue_rijIsHome', style: UITextStyle.bodyMedium);
+    valueText.props.text.textValue = FFStringValue(variable: displayVar);
+    return UI.container(
+      name: 'RijInfoRow_rijIsHome',
+      padding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
+      child: UI.column(
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 2,
+        children: [
+          UI.text('Thuis/Uit', style: UITextStyle.labelSmall, color: UIColor.secondaryText),
+          valueText,
+        ],
+      ),
+    );
+  }
+
+  // "Wissel aanvragen" button — only visible when this user is the driver.
+  FFNode? swapButton() {
+    final isDriverVar = stateVar('rijIsDriver');
+    if (isDriverVar == null) return null;
+    if (project.getWidgetClassByName('WisselAanvraagPage') == null) return null;
+
+    FFIdentifier? matchIdParamId;
+    for (final param in wc.params.values) {
+      if (param.hasIdentifier() && param.identifier.name == 'matchId') {
+        matchIdParamId = param.identifier;
+        break;
+      }
+    }
+    if (matchIdParamId == null) return null;
+
+    final isDriverBool = codeExpressionVar(
+      expression: "isDriver == 'true'",
+      arguments: [
+        CodeExpressionArg(
+          name: 'isDriver',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: isDriverVar),
+        ),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+    );
+
+    final btn = UI.button(
+      'Wissel aanvragen',
+      name: 'RijWisselButton',
+      width: double.infinity,
+    );
+    setConditionalVisibility(btn, variable: isDriverBool);
+    Actions.onTap(
+      btn,
+      Actions.navigate(
+        project,
+        pageName: 'WisselAanvraagPage',
+        params: {
+          'dutyType':    StaticParamValue('rijschema'),
+          'targetId':    VariableParamValue(varFromPageParam(matchIdParamId.deepCopy())),
+          'targetLabel': StaticParamValue('Rit wissel'),
+        },
+      ),
+    );
+    return btn;
+  }
+
+  final homeAway = homeAwayRow();
+  final swap = swapButton();
   infoColumn.children.clear();
   infoColumn.children.addAll([
     UI.text('Wedstrijd details', name: 'RijTitle', style: UITextStyle.titleMedium),
     infoRow('Tegenstander', 'rijOpponent'),
     infoRow('Datum & Tijd', 'rijDatetime'),
     infoRow('Locatie',      'rijLocation'),
+    if (homeAway != null) homeAway,
     infoRow('Verzamelen',   'rijArrivalTime'),
+    infoRow('Rijders',      'rijDriverNames'),
     infoRow('Notities',     'rijNotes'),
+    if (swap != null) swap,
   ]);
 }
 
@@ -3469,8 +3588,37 @@ void _wireRijschemaNavigation(FFProject project) {
   Actions.onTap(container, navigateAction);
 }
 
+// Adds a "Rijders" row (car icon + driverNames) to the RijschemaPage list card.
+// Runs idempotently: does nothing if the row already exists.
+void _wireRijschemaCardDriverRow(FFProject project) {
+  final wc = findPage(project, name: 'RijschemaPage');
+  if (wc == null) return;
+
+  final cardColumn = findByKey(wc.node, 'Column_cx7sodso');
+  if (cardColumn == null) return;
+  if (cardColumn.children.any((c) => c.name == 'RijCardDriverRow')) return;
+
+  final driverText = UI.text('-', name: 'RijCardDriverText', style: UITextStyle.bodySmall);
+  driverText.props.text.textValue = FFStringValue(
+    variable: generatorVarField('ListView_55kreos3', 'driverNames'),
+  );
+
+  cardColumn.children.add(
+    UI.row(
+      name: 'RijCardDriverRow',
+      spacing: 8,
+      children: [
+        UI.icon('directions_car', size: 14, color: UIColor.secondaryText),
+        driverText,
+      ],
+    ),
+  );
+}
+
 // Binds value text nodes on BardienDetailPage to individual string state fields.
 // Each field (dutyDate, dutyShift, …) was added by _wireBardienDetailPageLoad.
+// Also unwraps the ConditionalBuilder so DutyInfoColumn is a direct body child —
+// the CB caused codegen to render only the first child of its else branch.
 void _wireBardienDetailPageUI(FFProject project) {
   final wc = findPage(project, name: 'BardienDetailPage');
   if (wc == null) return;
@@ -3485,18 +3633,21 @@ void _wireBardienDetailPageUI(FFProject project) {
     return v;
   }
 
-  final allNamed = findDescendants(wc.node, (n) => n.name.isNotEmpty)
-      .map((n) => '${n.name}(${n.type.name})')
-      .join(', ');
-  stderr.writeln('[DEBUG BardienDetailPage] named nodes: $allNamed');
-  stderr.writeln('[DEBUG BardienDetailPage] state fields: '
-      '${wc.classModel.stateFields.map((f) => f.parameter.identifier.name).join(', ')}');
+  // Unwrap ConditionalBuilder_s0sf280z from Column_v4xwu1ha, promoting
+  // DutyInfoColumn (children[1]) to be a direct child of the outer body column.
+  final outerColumn = findByKey(wc.node, 'Column_v4xwu1ha');
+  final cb = findByKey(wc.node, 'ConditionalBuilder_s0sf280z');
+  if (outerColumn != null && cb != null &&
+      outerColumn.children.any((c) => c.key == cb.key)) {
+    unwrap(outerColumn, cb, childIndex: 1);
+  }
 
   final infoColumn = findDescendants(wc.node, (n) => n.name == 'DutyInfoColumn').firstOrNull;
-  if (infoColumn == null) {
-    stderr.writeln('[DEBUG BardienDetailPage] DutyInfoColumn NOT FOUND — cannot bind');
-    return;
-  }
+  if (infoColumn == null) return;
+
+  // Clear the visible: Not(isLoading) binding so DutyInfoColumn is always rendered.
+  // Without this, FlutterFlow codegen wraps it in a conditional; data rows stay hidden.
+  setConditionalVisibility(infoColumn, variable: null);
 
   FFNode infoRow(String label, String stateFieldName) {
     final valueText = UI.text('-', name: 'DutyInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
@@ -3512,14 +3663,9 @@ void _wireBardienDetailPageUI(FFProject project) {
     );
   }
 
-  final apiStatusNode = UI.text('api:?', name: 'BardienApiStatus', style: UITextStyle.bodySmall, color: UIColor.secondaryText);
-  final apiStatusVar = stateVar('apiStatus');
-  if (apiStatusVar != null) apiStatusNode.props.text.textValue = FFStringValue(variable: apiStatusVar);
-
   infoColumn.children.clear();
   infoColumn.children.addAll([
     UI.text('Bardienst details', name: 'DutyInfoTitle', style: UITextStyle.titleMedium),
-    apiStatusNode,
     infoRow('Datum', 'dutyDate'),
     infoRow('Dienst', 'dutyShift'),
     infoRow('Status', 'dutyStatus'),
@@ -3962,17 +4108,39 @@ void _bindWedstrijdDetailAppBarTitle(FFProject project) {
       break;
     }
   }
-  if (matchIdParamId == null) return;
-  titleNode.props.text.textValue = FFStringValue(
-    variable: varFromPageParam(matchIdParamId.deepCopy()),
-  );
+  // Use a static title — matchId is a raw UUID, not human-readable.
+  titleNode.props.text.textValue = FFStringValue(inputValue: 'Wedstrijd details');
 }
 
 // Binds value text nodes on WedstrijdDetailPage (Info tab) to individual string state fields.
 // Each field (matchOpponent, matchDatetime, …) was added by _wireWedstrijdDetailPageLoad.
+// Also unwraps the ConditionalBuilder so the TabBar is a direct Scaffold body child —
+// the CB caused codegen to render only the first child of its else branch.
 void _bindWedstrijdDetailInfoTexts(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdDetailPage');
   if (wc == null) return;
+
+  // Unwrap ConditionalBuilder_9yl0ufo3 from the Scaffold body, promoting
+  // TabBar_hy4ax11p (children[1]) to be a direct Scaffold body child.
+  final cbMatch = findByKey(wc.node, 'ConditionalBuilder_9yl0ufo3');
+  if (cbMatch != null) {
+    final parentResult = findParentByKey(wc.node, cbMatch.key);
+    if (parentResult != null) {
+      unwrap(parentResult.parent, parentResult.child, childIndex: 1);
+    }
+  }
+  // Clear the visible: Not(isLoading) binding on the TabBar so it always renders.
+  final tabBar = findByKey(wc.node, 'TabBar_hy4ax11p');
+  if (tabBar != null) {
+    setConditionalVisibility(tabBar, variable: null);
+    // Ensure tab labels are visible: primary text for selected, secondary for rest,
+    // primary theme color for the indicator underline.
+    final tabProto = tabBar.props.tabBar.deepCopy();
+    tabProto.labelColorValue = FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_TEXT));
+    tabProto.unselectedLabelColorValue = FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT));
+    tabProto.indicatorColorValue = FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY));
+    tabBar.props.tabBar = tabProto;
+  }
 
   FFVariable? stateVar(String stateFieldName) {
     final stateField = wc.classModel.stateFields
@@ -3984,18 +4152,9 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     return v;
   }
 
-  final allNamed = findDescendants(wc.node, (n) => n.name.isNotEmpty)
-      .map((n) => '${n.name}(${n.type.name})')
-      .join(', ');
-  stderr.writeln('[DEBUG WedstrijdDetailPage] named nodes: $allNamed');
-  stderr.writeln('[DEBUG WedstrijdDetailPage] state fields: '
-      '${wc.classModel.stateFields.map((f) => f.parameter.identifier.name).join(', ')}');
-
   final infoColumn = findDescendants(wc.node, (n) => n.name == 'MatchInfoColumn').firstOrNull;
   if (infoColumn == null) {
-    stderr.writeln('[DEBUG WedstrijdDetailPage] MatchInfoColumn not found — falling back to rebind by node name');
-    // Page has a TabBar; the value nodes were created by a prior push under different names.
-    // Map existing Text node name → string state field name.
+    // Page has a TabBar; bind value nodes by name.
     const fallback = {
       'MatchInfoValue_opponent':      'matchOpponent',
       'MatchInfoValue_matchDatetime': 'matchDatetime',
@@ -4204,6 +4363,200 @@ FFVariable _jsonBodyVar(dynamic ctx, String jsonPath, String nodeKey) {
   );
   v.nodeKeyRef = FFNodeKeyReference(key: nodeKey);
   return v;
+}
+
+// ─── Banner feature ───────────────────────────────────────────────────────────
+
+void _addBannerEndpoint(FFProject project) {
+  const groupName    = 'VoetbalPlannerAPI';
+  const endpointName = 'GetBanners';
+
+  if (findApiEndpoint(project, name: endpointName, groupName: groupName) != null) return;
+
+  addEndpointToGroup(
+    project,
+    groupName:                groupName,
+    name:                     endpointName,
+    url:                      '/banners?position=[position]',
+    method:                   FFApiEndpoint_CallType.GET,
+    bodyType:                 FFApiEndpoint_BodyType.NONE,
+    headers:                  ['Authorization: Bearer [bearerToken]'],
+    variables:                {'position': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+    responseDataStructName:   'Banner',
+    responseDataStructIsList: true,
+  );
+}
+
+// Adds bannerImageUrl/bannerLinkUrl state fields to WedstrijdenPage and inserts
+// a banner Image widget before WelcomeGreetingContainer. Wires the GetBanners
+// API call as an additive page-load trigger so the existing matches load is unaffected.
+void _addBannerToWedstrijdenPage(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdenPage');
+  if (wc == null) return;
+
+  _ensurePageStateField(wc, 'bannerImageUrl', FFBaseDataType.String);
+  _ensurePageStateField(wc, 'bannerLinkUrl',  FFBaseDataType.String);
+
+  // Insert (or re-insert) the BannerContainer before WelcomeGreetingContainer.
+  final existing = findDescendants(wc.node, (n) => n.name == 'WedstrijdenBannerContainer');
+  if (existing.isEmpty) {
+    final bannerNode = _buildBannerImageNode(
+      project,
+      wc,
+      containerName: 'WedstrijdenBannerContainer',
+      imageName: 'WedstrijdenBannerImage',
+      imageUrlFieldName: 'bannerImageUrl',
+    );
+    final welcomeContainer = findDescendants(
+      wc.node, (n) => n.name == 'WelcomeGreetingContainer',
+    ).firstOrNull;
+    if (welcomeContainer != null) {
+      insertBeforeKey(wc.node, welcomeContainer.key, bannerNode);
+    }
+  }
+
+  _wireBannerPageLoad(project, wc, 'WedstrijdenPage', 'wedstrijden');
+}
+
+// Wraps BardienPage body in a Column (same pattern as _restructureWedstrijdenPageBody),
+// then inserts a banner Image widget as the first child.
+void _addBannerToBardienPage(FFProject project) {
+  final wc = findPage(project, name: 'BardienPage');
+  if (wc == null) return;
+
+  _ensurePageStateField(wc, 'bannerImageUrl', FFBaseDataType.String);
+  _ensurePageStateField(wc, 'bannerLinkUrl',  FFBaseDataType.String);
+
+  // Wrap body in Column if not already done.
+  final bodyChild = getPropertyChild(wc.node, 'body');
+  if (bodyChild != null && bodyChild.type != FFWidgetType.Column) {
+    final bodyColumn = UI.column(name: 'BardienBodyColumn', mainAxisMin: false);
+    UI.expanded(bodyChild);
+    bodyColumn.children.add(bodyChild);
+    final idx = wc.node.children.indexWhere((n) => n.key == bodyChild.key);
+    if (idx >= 0) wc.node.children[idx] = bodyColumn;
+    wc.node.childPropertyMap['body'] = FFChildrenKeys(
+      keyRefs: [FFNodeKeyReference(key: bodyColumn.key)],
+    );
+  }
+
+  // Insert (or re-insert) banner as first child of the body Column.
+  final bodyCol = getPropertyChild(wc.node, 'body');
+  if (bodyCol == null) return;
+
+  final existing = findDescendants(wc.node, (n) => n.name == 'BardienBannerContainer');
+  if (existing.isEmpty) {
+    final bannerNode = _buildBannerImageNode(
+      project,
+      wc,
+      containerName: 'BardienBannerContainer',
+      imageName: 'BardienBannerImage',
+      imageUrlFieldName: 'bannerImageUrl',
+    );
+    bodyCol.children.insert(0, bannerNode);
+  }
+
+  _wireBannerPageLoad(project, wc, 'BardienPage', 'bardiensten');
+}
+
+// Builds a Container > Image node bound to a page state string field.
+// The container is conditionally visible when the imageUrl field is non-empty.
+FFNode _buildBannerImageNode(
+  FFProject project,
+  FFWidgetClass wc, {
+  required String containerName,
+  required String imageName,
+  required String imageUrlFieldName,
+}) {
+  // Find the state field identifier for the imageUrl string.
+  final stateField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere(
+        (f) => f?.parameter.identifier.name == imageUrlFieldName,
+        orElse: () => null,
+      );
+
+  final imageNode = UI.image(
+    '',
+    isNetwork: true,
+    width: double.infinity,
+    height: 120,
+    fit: UIBoxFit.cover,
+    name: imageName,
+  );
+
+  if (stateField != null) {
+    final urlVar = varFromPageState(stateField.parameter.identifier.deepCopy());
+    urlVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+    imageNode.props.image.pathValue = FFStringValue(variable: urlVar);
+
+    // Conditionally show the container only when bannerImageUrl is not empty.
+    final visibleBool = codeExpressionVar(
+      expression: "url.isNotEmpty",
+      arguments: [
+        CodeExpressionArg(
+          name: 'url',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: urlVar.deepCopy()),
+        ),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+    );
+    final container = UI.container(
+      name: containerName,
+      padding: UIEdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      width: double.infinity,
+      child: imageNode,
+    );
+    setConditionalVisibility(container, variable: visibleBool);
+    return container;
+  }
+
+  return UI.container(
+    name: containerName,
+    padding: UIEdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    width: double.infinity,
+    child: imageNode,
+  );
+}
+
+// Wires an additive page-load API call for GetBanners.
+// Does NOT remove existing ON_INIT_STATE triggers — additive only.
+void _wireBannerPageLoad(
+  FFProject project,
+  FFWidgetClass wc,
+  String widgetClassName,
+  String position,
+) {
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetBanners',
+      groupName: 'VoetbalPlannerAPI',
+      outputVariableName: 'bannersLoad',
+      nodeKey: wc.node.key,
+      variables: {'position': position},
+      onSuccess: (ctx) {
+        const fieldPaths = {
+          'bannerImageUrl': r'$[0].imageUrl',
+          'bannerLinkUrl':  r'$[0].linkUrl',
+        };
+        final updates = <StateFieldUpdate>[];
+        for (final entry in fieldPaths.entries) {
+          final v = _jsonBodyVar(ctx, entry.value, wc.node.key);
+          updates.add(StateFieldUpdate.setFromVariable(entry.key, v));
+        }
+        return Actions.chain([
+          Actions.updatePageState(
+            project,
+            widgetClassName: widgetClassName,
+            updates: updates,
+          ),
+        ]);
+      },
+    ),
+  );
 }
 
 void _printUsage() {
