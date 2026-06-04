@@ -343,6 +343,10 @@ void buildEditFlow(App app) {
   });
   app.raw((project) {
     _debugStructsAndEndpoints(project);
+    // Configure endpoints to parse response as data struct (enables DATA_STRUCT
+    // variable mode so accessDataStructField extracts individual fields correctly).
+    updateApiEndpoint(project, name: 'GetMatchDetail',   groupName: 'VoetbalPlannerAPI', responseDataStructName: 'FootMatch');
+    updateApiEndpoint(project, name: 'GetBarDutyDetail', groupName: 'VoetbalPlannerAPI', responseDataStructName: 'BarDuty');
     _wireWedstrijdDetailPageLoad(project);
     _bindWedstrijdDetailAppBarTitle(project);
     _bindWedstrijdDetailInfoTexts(project);
