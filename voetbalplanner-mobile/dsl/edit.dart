@@ -365,6 +365,7 @@ void buildEditFlow(App app) {
     _wireWedstrijdDetailPageLoad(project);
     _bindWedstrijdDetailAppBarTitle(project);
     _bindWedstrijdDetailInfoTexts(project);
+    _fixMatchInfoWidth(project);
   });
 
   // BarDutyCard: add barDutyId/barDutyDate params and navigate internally.
@@ -4231,6 +4232,40 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     infoRow('Fruitheid', 'matchFruitHeroName'),
     infoRow('Notities', 'matchNotes'),
   ]);
+}
+
+// Forces the Info tab content on WedstrijdDetailPage to be full-width.
+// The outer Column and inner Column default to crossAxisAlignment:start,
+// making the info rows narrow. Setting stretch + infinity width fixes it.
+void _fixMatchInfoWidth(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+
+  // Outer column wrapping the info tab content (Column_4kr3x84l).
+  final outerCol = findByKey(wc.node, 'Column_4kr3x84l');
+  if (outerCol != null) {
+    final col = outerCol.props.column.deepCopy();
+    col.crossAxisAlignment = FFCrossAxisAlignment.cross_axis_stretch;
+    outerCol.props.column = col;
+  }
+
+  // Unnamed container that wraps the inner info column (Container_9m0z4oza).
+  final wrapper = findByKey(wc.node, 'Container_9m0z4oza');
+  if (wrapper != null) {
+    final c = wrapper.props.container.deepCopy();
+    final dims = c.hasDimensions() ? c.dimensions.deepCopy() : FFDimensions();
+    dims.width = FFDim(pixelsValue: FFDoubleValue(inputValue: double.infinity));
+    c.dimensions = dims;
+    wrapper.props.container = c;
+  }
+
+  // Inner column that holds all MatchInfoRow_* children (Column_gj4yosa2).
+  final innerCol = findByKey(wc.node, 'Column_gj4yosa2');
+  if (innerCol != null) {
+    final col = innerCol.props.column.deepCopy();
+    col.crossAxisAlignment = FFCrossAxisAlignment.cross_axis_stretch;
+    innerCol.props.column = col;
+  }
 }
 
 // Builds a varFromPageState(match) + accessDataStructField(fieldName) for
