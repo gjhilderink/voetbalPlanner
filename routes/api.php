@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BarDutyController;
+use App\Http\Controllers\Api\BrandingController;
 use App\Http\Controllers\Api\DocumentationController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
@@ -61,6 +62,9 @@ Route::prefix('v1')->group(function () {
 
         // Documentation
         Route::get('/documentation', [DocumentationController::class, 'index']);
+
+        // Branding
+        Route::get('/branding', [BrandingController::class, 'show']);
 
         // Teams
         Route::get('/teams', [TeamController::class, 'index']);

@@ -8,8 +8,12 @@ import 'package:flutterflow_ai/src/client/project_error.dart' show ProjectError;
 import 'package:flutterflow_ai/src/helpers/api_helpers.dart';
 import 'package:flutterflow_ai/src/helpers/collection_helpers.dart'
     show findCollectionField;
+import 'package:flutterflow_ai/src/helpers/data_schema_helpers.dart'
+    show addDataStruct, structField;
 import 'package:flutterflow_ai/src/helpers/data_type_helpers.dart'
-    show dataStructType;
+    show dataStructType, stringType;
+import 'package:flutterflow_ai/src/helpers/ensure_helpers.dart'
+    show ensureDataStruct;
 import 'package:flutterflow_ai/src/helpers/function_call_helpers.dart'
     show CodeExpressionArg, codeExpressionVar, colorFromStringVar, interpolateVar;
 import 'package:flutterflow_ai/src/helpers/param_value.dart'
@@ -390,6 +394,14 @@ void buildEditFlow(App app) {
     _addBardienNavigation(project);
   });
 
+  // RijschemaDetailPage: new page for driving assignment details.
+  _buildRijschemaDetailPage(app);
+  app.raw((project) {
+    _wireRijschemaDetailPageLoad(project);
+    _wireRijschemaDetailPageUI(project);
+    _wireRijschemaNavigation(project);
+  });
+
   // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons into MatchInfoColumn.
   app.raw((project) => _wireMatchSwap(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
@@ -402,6 +414,10 @@ void buildEditFlow(App app) {
   app.raw((project) => _wireWisselAanvraagButton(project));
   app.raw((project) => _wireWisselVerzoekenPageLoad(project));
   app.raw((project) => _wireWisselVerzoekenActions(project));
+
+  // Apply club primary color to all AppBar backgrounds; set back button + title to white.
+  // Runs last so the AppBar nodes already exist from all the preceding wiring steps.
+  app.raw((project) => _applyBrandingToAllAppBars(project));
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
@@ -2771,6 +2787,23 @@ void _addSwapParamsToBarDutyCard(FFProject project) {
 
 // Add GetTeamMembers, GetSwapRequests, CreateSwapRequest, Accept/Decline endpoints.
 void _addSwapEndpoints(FFProject project) {
+  // Ensure ClubBranding struct exists (used by GetBranding endpoint).
+  if (!project.backend.dataSchemaConfig.dataStructs
+      .any((s) => s.identifier.name == 'ClubBranding')) {
+    addDataStruct(
+      project,
+      name: 'ClubBranding',
+      description: 'Clubkleuren en naam voor dynamische branding in de app.',
+      fields: [
+        structField('primaryColor',   stringType, description: 'Primaire clubkleur als hex string'),
+        structField('secondaryColor', stringType, description: 'Secundaire clubkleur als hex string'),
+        structField('accentColor',    stringType, description: 'Accentkleur als hex string'),
+        structField('clubName',       stringType, description: 'Naam van de club'),
+        structField('logoPath',       stringType, description: 'Pad naar het clublogo'),
+      ],
+    );
+  }
+
   final existing = <String>{};
   for (final group in project.backend.apiConfig.apiGroups) {
     for (final ep in group.endpoints) {
@@ -2869,6 +2902,28 @@ void _addSwapEndpoints(FFProject project) {
     variables:              {'dutyId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
     responseDataStructName: 'BarDuty',
   );
+  if (existing.contains('GetBarDutyDetail')) {
+    updateApiEndpoint(
+      project,
+      name:                   'GetBarDutyDetail',
+      groupName:              'VoetbalPlannerAPI',
+      responseDataStructName: 'BarDuty',
+    );
+  }
+
+  addIfMissing(
+    name:                   'GetBranding',
+    url:                    '/branding',
+    responseDataStructName: 'ClubBranding',
+  );
+  if (existing.contains('GetBranding')) {
+    updateApiEndpoint(
+      project,
+      name:                   'GetBranding',
+      groupName:              'VoetbalPlannerAPI',
+      responseDataStructName: 'ClubBranding',
+    );
+  }
 }
 
 // SwapRequestCard component: shows requester, duty label, accept + decline buttons.
@@ -3174,26 +3229,10 @@ void _wireBardienDetailPageLoad(FFProject project) {
   }
   if (dutyIdParamId == null) return;
 
-  // Ensure duty state field (DataStruct<BarDuty>) exists on the page.
-  final barDutyStruct = project.backend.dataSchemaConfig.dataStructs
-      .cast<FFDataStruct?>()
-      .firstWhere((s) => s?.identifier.name == 'BarDuty', orElse: () => null);
-  if (barDutyStruct != null) {
-    final hasDutyField = wc.classModel.stateFields
-        .any((f) => f.parameter.identifier.name == 'duty');
-    if (!hasDutyField) {
-      wc.classModel.stateFields.add(
-        FFWidgetClassStateField(
-          parameter: FFParameter(
-            identifier: FFIdentifier(
-              name: 'duty',
-              key: generateRandomAlphaNumericString(),
-            ),
-            dataType: dataStructType(barDutyStruct.identifier),
-          ),
-        ),
-      );
-    }
+  for (final name in const [
+    'dutyDate', 'dutyShift', 'dutyStatus', 'dutyTeamName', 'dutyMembers', 'dutyNotes',
+  ]) {
+    _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
 
   wc.node.triggerActions.removeWhere(
@@ -3211,16 +3250,35 @@ void _wireBardienDetailPageLoad(FFProject project) {
       },
       outputVariableName: 'dutyLoad',
       nodeKey: wc.node.key,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.updatePageState(
-          project,
-          widgetClassName: 'BardienDetailPage',
-          updates: [
-            StateFieldUpdate.setFromVariable('duty', ctx.responseVar),
-            StateFieldUpdate.set('isLoading', 'false'),
-          ],
-        ),
-      ]),
+      onSuccess: (ctx) {
+        const fieldMap = {
+          'dutyDate':     'date',
+          'dutyShift':    'shift',
+          'dutyStatus':   'status',
+          'dutyTeamName': 'teamName',
+          'dutyMembers':  'members',
+          'dutyNotes':    'notes',
+        };
+        final updates = <StateFieldUpdate>[StateFieldUpdate.set('isLoading', 'false')];
+        for (final entry in fieldMap.entries) {
+          final structFieldId = _findStructFieldId(project, 'BarDuty', entry.value);
+          if (structFieldId == null) continue;
+          final v = ctx.responseVar.deepCopy()
+            ..operations.add(FFVariableOperation(
+              accessDataStructField: FFAccessDataStructField(
+                fieldIdentifier: structFieldId.deepCopy(),
+              ),
+            ));
+          updates.add(StateFieldUpdate.setFromVariable(entry.key, v));
+        }
+        return Actions.chain([
+          Actions.updatePageState(
+            project,
+            widgetClassName: 'BardienDetailPage',
+            updates: updates,
+          ),
+        ]);
+      },
       onFailure: (ctx) => Actions.chain([
         Actions.updatePageState(
           project,
@@ -3237,42 +3295,127 @@ void _wireBardienDetailPageLoad(FFProject project) {
 // _wireBarDutySwap binds the variable. Nothing to do here.
 void _addBardienNavigation(FFProject project) {}
 
-// Populates DutyInfoColumn on BardienDetailPage with data-bound field rows.
-void _wireBardienDetailPageUI(FFProject project) {
-  final wc = findPage(project, name: 'BardienDetailPage');
+// ─── RijschemaDetailPage ──────────────────────────────────────────────────────
+
+void _buildRijschemaDetailPage(App app) {
+  app.ensurePage(
+    'RijschemaDetailPage',
+    description: 'Rijschema detail: wedstrijdinformatie voor de chauffeur.',
+    route: 'rijschema-detail',
+    params: {'matchId': string},
+    state: {'isLoading': bool_.withDefault(true)},
+    body: Scaffold(
+      appBar: AppBar(title: 'Rit details'),
+      body: Column(
+        crossAxis: CrossAxis.start,
+        padding: 16,
+        spacing: 12,
+        name: 'RijInfoColumn',
+        children: [
+          Text('Wedstrijd info', style: Styles.titleMedium),
+        ],
+      ),
+    ),
+  );
+}
+
+void _wireRijschemaDetailPageLoad(FFProject project) {
+  final wc = findPage(project, name: 'RijschemaDetailPage');
   if (wc == null) return;
 
-  final infoColumn = findDescendants(wc.node, (n) => n.name == 'DutyInfoColumn').firstOrNull;
-  if (infoColumn == null) return;
+  FFIdentifier? matchIdParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'matchId') {
+      matchIdParamId = param.identifier;
+      break;
+    }
+  }
+  if (matchIdParamId == null) return;
 
-  // Idempotent: only add once.
-  if (infoColumn.children.any((c) => c.name == 'DutyDate')) return;
+  for (final name in const [
+    'rijOpponent', 'rijDatetime', 'rijLocation', 'rijArrivalTime', 'rijNotes',
+  ]) {
+    _ensurePageStateField(wc, name, FFBaseDataType.String);
+  }
 
-  final dutyField = wc.classModel.stateFields
-      .cast<FFWidgetClassStateField?>()
-      .firstWhere((f) => f?.parameter.identifier.name == 'duty', orElse: () => null)
-      ?.parameter.identifier;
-  if (dutyField == null) return;
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
 
-  // Helper: get a string sub-field of the duty struct state.
-  // nodeKeyRef is required so the validator can resolve the state field to this page.
-  FFVariable dutyFieldVar(String fieldName) {
-    final v = varFromPageState(dutyField.deepCopy());
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMatchDetail',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {'matchId': varFromPageParam(matchIdParamId.deepCopy())},
+      outputVariableName: 'rijLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) {
+        const fieldMap = {
+          'rijOpponent':    'opponent',
+          'rijDatetime':    'matchDatetime',
+          'rijLocation':    'location',
+          'rijArrivalTime': 'arrivalTime',
+          'rijNotes':       'notes',
+        };
+        final updates = <StateFieldUpdate>[StateFieldUpdate.set('isLoading', 'false')];
+        for (final entry in fieldMap.entries) {
+          final structFieldId = _findStructFieldId(project, 'FootMatch', entry.value);
+          if (structFieldId == null) continue;
+          final v = ctx.responseVar.deepCopy()
+            ..operations.add(FFVariableOperation(
+              accessDataStructField: FFAccessDataStructField(
+                fieldIdentifier: structFieldId.deepCopy(),
+              ),
+            ));
+          updates.add(StateFieldUpdate.setFromVariable(entry.key, v));
+        }
+        return Actions.chain([
+          Actions.updatePageState(
+            project,
+            widgetClassName: 'RijschemaDetailPage',
+            updates: updates,
+          ),
+        ]);
+      },
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'RijschemaDetailPage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+        Actions.snackBar('Kon ritdetails niet laden.'),
+      ]),
+    ),
+  );
+}
+
+// Populates RijInfoColumn with data-bound label+value rows.
+// Always rebuilds the column so bindings are fresh on every push.
+void _wireRijschemaDetailPageUI(FFProject project) {
+  final wc = findPage(project, name: 'RijschemaDetailPage');
+  if (wc == null) return;
+
+  FFVariable? stateVar(String stateFieldName) {
+    final stateField = wc.classModel.stateFields
+        .cast<FFWidgetClassStateField?>()
+        .firstWhere((f) => f?.parameter.identifier.name == stateFieldName, orElse: () => null);
+    if (stateField == null) return null;
+    final v = varFromPageState(stateField.parameter.identifier.deepCopy());
     v.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
-    v.operations.add(FFVariableOperation(
-      accessDataStructField: FFAccessDataStructField(
-        fieldIdentifier: FFIdentifier(name: fieldName),
-      ),
-    ));
     return v;
   }
 
-  // Helper: create a card row with a bold label above a value.
-  FFNode infoRow(String label, String fieldName, {required String name}) {
-    final valueText = UI.text('-', name: '${name}Value', style: UITextStyle.bodyMedium);
-    valueText.props.text.textValue = FFStringValue(variable: dutyFieldVar(fieldName));
+  final infoColumn = findDescendants(wc.node, (n) => n.name == 'RijInfoColumn').firstOrNull;
+  if (infoColumn == null) return;
+
+  FFNode infoRow(String label, String stateFieldName) {
+    final valueText = UI.text('-', name: 'RijInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
+    final v = stateVar(stateFieldName);
+    if (v != null) valueText.props.text.textValue = FFStringValue(variable: v);
     return UI.container(
-      name: name,
+      name: 'RijInfoRow_$stateFieldName',
       padding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
       child: UI.column(
         crossAxisAlignment: UICrossAxisAlignment.start,
@@ -3287,14 +3430,73 @@ void _wireBardienDetailPageUI(FFProject project) {
 
   infoColumn.children.clear();
   infoColumn.children.addAll([
-    UI.text('Bardienst details', name: 'DutyTitle', style: UITextStyle.titleMedium),
-    infoRow('Datum',      'date',     name: 'DutyDate'),
-    infoRow('Dienst',     'shift',    name: 'DutyShift'),
-    infoRow('Status',     'status',   name: 'DutyStatus'),
-    infoRow('Team',       'teamName', name: 'DutyTeam'),
-    infoRow('Deelnemers', 'members',  name: 'DutyMembers'),
-    infoRow('Notities',   'notes',    name: 'DutyNotes'),
+    UI.text('Wedstrijd details', name: 'RijTitle', style: UITextStyle.titleMedium),
+    infoRow('Tegenstander', 'rijOpponent'),
+    infoRow('Datum & Tijd', 'rijDatetime'),
+    infoRow('Locatie',      'rijLocation'),
+    infoRow('Verzamelen',   'rijArrivalTime'),
+    infoRow('Notities',     'rijNotes'),
   ]);
+}
+
+// Adds ON_TAP navigation to the RijschemaPage ListView item card.
+void _wireRijschemaNavigation(FFProject project) {
+  final wc = findPage(project, name: 'RijschemaPage');
+  if (wc == null) return;
+  if (project.getWidgetClassByName('RijschemaDetailPage') == null) return;
+
+  final container = findByKey(wc.node, 'Container_od2z9b8b');
+  if (container == null) return;
+
+  // Skip if already wired (action exists).
+  final hasTap = container.triggerActions.any(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+  if (hasTap) return;
+
+  final idFieldId = _findStructFieldId(project, 'FootMatch', 'id');
+  final matchIdVar = idFieldId != null
+      ? (varFromGeneratorVariable('ListView_55kreos3')
+          ..operations.add(FFVariableOperation(
+            accessDataStructField: FFAccessDataStructField(
+              fieldIdentifier: idFieldId.deepCopy(),
+            ),
+          )))
+      : generatorVarField('ListView_55kreos3', 'id');
+
+  final navigateAction = Actions.navigate(
+    project,
+    pageName: 'RijschemaDetailPage',
+    params: {'matchId': VariableParamValue(matchIdVar)},
+  );
+  Actions.onTap(container, navigateAction);
+}
+
+// Binds value text nodes on BardienDetailPage to individual string state fields.
+// Each field (dutyDate, dutyShift, …) was added by _wireBardienDetailPageLoad.
+void _wireBardienDetailPageUI(FFProject project) {
+  final wc = findPage(project, name: 'BardienDetailPage');
+  if (wc == null) return;
+
+  const bindings = {
+    'DutyDateValue':    'dutyDate',
+    'DutyShiftValue':   'dutyShift',
+    'DutyStatusValue':  'dutyStatus',
+    'DutyTeamValue':    'dutyTeamName',
+    'DutyMembersValue': 'dutyMembers',
+    'DutyNotesValue':   'dutyNotes',
+  };
+  for (final entry in bindings.entries) {
+    final node = findDescendants(wc.node, (n) => n.name == entry.key).firstOrNull;
+    if (node == null) continue;
+    final stateField = wc.classModel.stateFields
+        .cast<FFWidgetClassStateField?>()
+        .firstWhere((f) => f?.parameter.identifier.name == entry.value, orElse: () => null);
+    if (stateField == null) continue;
+    final v = varFromPageState(stateField.parameter.identifier.deepCopy());
+    v.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+    node.props.text.textValue = FFStringValue(variable: v);
+  }
 }
 
 // Fix the timestamp format in TeamChatPage: show 'HH:mm' instead of full datetime.
@@ -3380,6 +3582,16 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
   }
   if (matchIdParamId == null) return;
 
+  // Ensure individual string state fields for each displayed value.
+  // setFromVariable for a single DataStruct state field does not generate
+  // working code in FlutterFlow; storing individual strings is reliable.
+  for (final name in const [
+    'matchOpponent', 'matchDatetime', 'matchLocation',
+    'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchNotes',
+  ]) {
+    _ensurePageStateField(wc, name, FFBaseDataType.String);
+  }
+
   wc.node.triggerActions.removeWhere(
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
   );
@@ -3395,56 +3607,45 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
       },
       outputVariableName: 'matchLoad',
       nodeKey: wc.node.key,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.updatePageState(
-          project,
-          widgetClassName: 'WedstrijdDetailPage',
-          updates: [
-            StateFieldUpdate.setFromVariable('match', ctx.responseVar),
-            StateFieldUpdate.set('isLoading', 'false'),
-          ],
-        ),
-      ]),
-      onFailure: (ctx) {
-        FFVariable apiVar(FFApiResponseField_ResponseField field) {
-          final v = FFVariable(
-            source: FFVariableSource.ACTION_OUTPUTS,
-            baseVariable: FFBaseVariable(
-              actionOutput: FFActionOutputVariable(
-                actionKeyRef: FFActionKeyReference(key: ctx.actionKey),
-                outputVariableIdentifier: FFIdentifier(name: ctx.outputVarName),
+      onSuccess: (ctx) {
+        // Map state field name → FootMatch struct field name.
+        const fieldMap = {
+          'matchOpponent':      'opponent',
+          'matchDatetime':      'matchDatetime',
+          'matchLocation':      'location',
+          'matchArrivalTime':   'arrivalTime',
+          'matchCoachName':     'coachName',
+          'matchFruitHeroName': 'fruitHeroName',
+          'matchNotes':         'notes',
+        };
+        final updates = <StateFieldUpdate>[StateFieldUpdate.set('isLoading', 'false')];
+        for (final entry in fieldMap.entries) {
+          final structFieldId = _findStructFieldId(project, 'FootMatch', entry.value);
+          if (structFieldId == null) continue;
+          final v = ctx.responseVar.deepCopy()
+            ..operations.add(FFVariableOperation(
+              accessDataStructField: FFAccessDataStructField(
+                fieldIdentifier: structFieldId.deepCopy(),
               ),
-            ),
-            operations: [
-              FFVariableOperation(
-                apiResponseField: FFApiResponseField(responseField: field),
-              ),
-            ],
-          )..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
-          return v;
+            ));
+          updates.add(StateFieldUpdate.setFromVariable(entry.key, v));
         }
-
-        final statusCodeVar = apiVar(FFApiResponseField_ResponseField.STATUS_CODE);
-        final rawBodyVar = apiVar(FFApiResponseField_ResponseField.RAW_BODY_TEXT);
-        final msgValue = interpolateVar(['HTTP ', statusCodeVar, ': ', rawBodyVar]);
-
-        final debugSnackBar = FFAction(
-          key: generateRandomAlphaNumericString(),
-          snackBar: FFSnackBarAction(
-            textMessage: FFValue(variable: msgValue.variable),
-            durationMillis: 8000,
-          ),
-        );
-
         return Actions.chain([
           Actions.updatePageState(
             project,
             widgetClassName: 'WedstrijdDetailPage',
-            updates: [StateFieldUpdate.set('isLoading', 'false')],
+            updates: updates,
           ),
-          debugSnackBar,
         ]);
       },
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+        Actions.snackBar('Kon wedstrijddetails niet laden.'),
+      ]),
     ),
   );
 }
@@ -3737,25 +3938,30 @@ void _bindWedstrijdDetailAppBarTitle(FFProject project) {
   );
 }
 
-// Binds the value Text widgets in the Info tab to their FootMatch struct fields.
-// These are inside the MatchInfoColumn which is only visible when isLoading=false,
-// so accessing match fields here is safe (match is populated by then).
+// Binds value text nodes on WedstrijdDetailPage (Info tab) to individual string state fields.
+// Each field (matchOpponent, matchDatetime, …) was added by _wireWedstrijdDetailPageLoad.
 void _bindWedstrijdDetailInfoTexts(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdDetailPage');
   if (wc == null) return;
+
   const bindings = {
-    'Text_kyb5moto': 'matchDatetime',
-    'Text_1f7rejvq': 'location',
-    'Text_moo3x5ta': 'arrivalTime',
-    'Text_bn789lg4': 'coachName',
-    'Text_amq4gsob': 'fruitHeroName',
-    'Text_ewlhgil5': 'notes',
+    'MatchInfoValue_opponent':      'matchOpponent',
+    'MatchInfoValue_matchDatetime': 'matchDatetime',
+    'MatchInfoValue_location':      'matchLocation',
+    'MatchInfoValue_arrivalTime':   'matchArrivalTime',
+    'MatchInfoValue_coachName':     'matchCoachName',
+    'MatchInfoValue_fruitHeroName': 'matchFruitHeroName',
+    'MatchInfoValue_notes':         'matchNotes',
   };
   for (final entry in bindings.entries) {
-    final node = findByKey(wc.node, entry.key);
+    final node = findDescendants(wc.node, (n) => n.name == entry.key).firstOrNull;
     if (node == null) continue;
-    final v = _matchStateFieldVar(project, wc, entry.value, node.key);
-    if (v == null) continue;
+    final stateField = wc.classModel.stateFields
+        .cast<FFWidgetClassStateField?>()
+        .firstWhere((f) => f?.parameter.identifier.name == entry.value, orElse: () => null);
+    if (stateField == null) continue;
+    final v = varFromPageState(stateField.parameter.identifier.deepCopy());
+    v.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
     node.props.text.textValue = FFStringValue(variable: v);
   }
 }
@@ -3787,6 +3993,44 @@ FFVariable? _matchStateFieldVar(
   ));
   v.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
   return v;
+}
+
+// Applies the club's primary color (from app state) to every AppBar background
+// and sets the back button + title text color to white for maximum contrast.
+// Runs idempotently: overwrites on every push so color changes in the portal
+// take effect after the next DSL push.
+void _applyBrandingToAllAppBars(FFProject project) {
+  final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
+  if (primaryColorId == null) return;
+
+  final brandingBg = colorFromStringVar(varFromAppState(primaryColorId.deepCopy()));
+  // White uses SECONDARY_BACKGROUND theme token (#FFFFFF in the current theme).
+  final whiteColor = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_BACKGROUND),
+  );
+
+  for (final pageName in const [
+    'WedstrijdDetailPage', 'BardienDetailPage', 'RijschemaDetailPage',
+    'DirectChatPage', 'DocumentatiePage', 'TeamChatPage',
+  ]) {
+    final wc = findPage(project, name: pageName);
+    if (wc == null) continue;
+    final appBarNode = getPropertyChild(wc.node, 'appBar');
+    if (appBarNode == null) continue;
+
+    final proto = appBarNode.props.appBar.deepCopy();
+    proto.backgroundColorValue = brandingBg.deepCopy();
+    proto.backButtonColorValue = whiteColor.deepCopy();
+    appBarNode.props.appBar = proto;
+
+    // Title text → white so it contrasts against the dark primary background.
+    final titleNode = getPropertyChild(appBarNode, 'title');
+    if (titleNode != null && titleNode.props.hasText()) {
+      final textProto = titleNode.props.text.deepCopy();
+      textProto.colorValue = whiteColor.deepCopy();
+      titleNode.props.text = textProto;
+    }
+  }
 }
 
 /// Returns the field identifier (name + key) for a named field on a named struct,
