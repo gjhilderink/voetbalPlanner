@@ -4425,6 +4425,10 @@ void _addBannerToWedstrijdenPage(FFProject project) {
     if (welcomeContainer != null) {
       insertBeforeKey(wc.node, welcomeContainer.key, bannerNode);
     }
+  } else {
+    // Re-apply visibility so expression changes (e.g. null-safety fix) take effect
+    // on already-existing containers from a prior push.
+    _applyBannerContainerVisibility(wc, existing.first, 'bannerImageUrl');
   }
 
   _wireBannerPageLoad(project, wc, 'WedstrijdenPage', 'wedstrijden');
@@ -4466,9 +4470,47 @@ void _addBannerToBardienPage(FFProject project) {
       imageUrlFieldName: 'bannerImageUrl',
     );
     bodyCol.children.insert(0, bannerNode);
+  } else {
+    // Re-apply visibility so expression changes (e.g. null-safety fix) take effect
+    // on already-existing containers from a prior push.
+    _applyBannerContainerVisibility(wc, existing.first, 'bannerImageUrl');
   }
 
   _wireBannerPageLoad(project, wc, 'BardienPage', 'bardiensten');
+}
+
+// Re-applies null-safe conditional visibility on any banner container node.
+// Separating this from _buildBannerImageNode lets the page functions call it
+// on both newly-created AND already-existing containers so that expression
+// updates propagate on every push, not just the first one.
+void _applyBannerContainerVisibility(
+  FFWidgetClass wc,
+  FFNode containerNode,
+  String imageUrlFieldName,
+) {
+  final stateField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere(
+        (f) => f?.parameter.identifier.name == imageUrlFieldName,
+        orElse: () => null,
+      );
+  if (stateField == null) return;
+
+  final urlVar = varFromPageState(stateField.parameter.identifier.deepCopy());
+  urlVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final visibleBool = codeExpressionVar(
+    expression: "(url ?? '').isNotEmpty",
+    arguments: [
+      CodeExpressionArg(
+        name: 'url',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: urlVar.deepCopy()),
+      ),
+    ],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+  );
+  setConditionalVisibility(containerNode, variable: visibleBool);
 }
 
 // Builds a Container > Image node bound to a page state string field.
