@@ -343,10 +343,6 @@ void buildEditFlow(App app) {
   });
   app.raw((project) {
     _debugStructsAndEndpoints(project);
-    // Configure endpoints to parse response as data struct (enables DATA_STRUCT
-    // variable mode so accessDataStructField extracts individual fields correctly).
-    updateApiEndpoint(project, name: 'GetMatchDetail',   groupName: 'VoetbalPlannerAPI', responseDataStructName: 'FootMatch');
-    updateApiEndpoint(project, name: 'GetBarDutyDetail', groupName: 'VoetbalPlannerAPI', responseDataStructName: 'BarDuty');
     _wireWedstrijdDetailPageLoad(project);
     _bindWedstrijdDetailAppBarTitle(project);
     _bindWedstrijdDetailInfoTexts(project);
@@ -3257,27 +3253,21 @@ void _wireBardienDetailPageLoad(FFProject project) {
       outputVariableName: 'dutyLoad',
       nodeKey: wc.node.key,
       onSuccess: (ctx) {
-        const fieldMap = {
-          'dutyDate':     'date',
-          'dutyShift':    'shift',
-          'dutyStatus':   'status',
-          'dutyTeamName': 'teamName',
-          'dutyMembers':  'members',
-          'dutyNotes':    'notes',
+        // Map state field name → JSON path in the API response body.
+        const fieldPaths = {
+          'dutyDate':     r'$.date',
+          'dutyShift':    r'$.shift',
+          'dutyStatus':   r'$.status',
+          'dutyTeamName': r'$.teamName',
+          'dutyMembers':  r'$.members',
+          'dutyNotes':    r'$.notes',
         };
         final updates = <StateFieldUpdate>[
           StateFieldUpdate.set('isLoading', 'false'),
           StateFieldUpdate.set('apiStatus', 'OK'),
         ];
-        for (final entry in fieldMap.entries) {
-          final structFieldId = _findStructFieldId(project, 'BarDuty', entry.value);
-          if (structFieldId == null) continue;
-          final v = ctx.responseVar.deepCopy()
-            ..operations.add(FFVariableOperation(
-              accessDataStructField: FFAccessDataStructField(
-                fieldIdentifier: structFieldId.deepCopy(),
-              ),
-            ));
+        for (final entry in fieldPaths.entries) {
+          final v = _jsonBodyVar(ctx, entry.value, wc.node.key);
           updates.add(StateFieldUpdate.setFromVariable(entry.key, v));
         }
         return Actions.chain([
@@ -3364,24 +3354,19 @@ void _wireRijschemaDetailPageLoad(FFProject project) {
       outputVariableName: 'rijLoad',
       nodeKey: wc.node.key,
       onSuccess: (ctx) {
-        const fieldMap = {
-          'rijOpponent':    'opponent',
-          'rijDatetime':    'matchDatetime',
-          'rijLocation':    'location',
-          'rijArrivalTime': 'arrivalTime',
-          'rijNotes':       'notes',
+        const fieldPaths = {
+          'rijOpponent':    r'$.opponent',
+          'rijDatetime':    r'$.matchDatetime',
+          'rijLocation':    r'$.location',
+          'rijArrivalTime': r'$.arrivalTime',
+          'rijNotes':       r'$.notes',
         };
         final updates = <StateFieldUpdate>[StateFieldUpdate.set('isLoading', 'false')];
-        for (final entry in fieldMap.entries) {
-          final structFieldId = _findStructFieldId(project, 'FootMatch', entry.value);
-          if (structFieldId == null) continue;
-          final v = ctx.responseVar.deepCopy()
-            ..operations.add(FFVariableOperation(
-              accessDataStructField: FFAccessDataStructField(
-                fieldIdentifier: structFieldId.deepCopy(),
-              ),
-            ));
-          updates.add(StateFieldUpdate.setFromVariable(entry.key, v));
+        for (final entry in fieldPaths.entries) {
+          updates.add(StateFieldUpdate.setFromVariable(
+            entry.key,
+            _jsonBodyVar(ctx, entry.value, wc.node.key),
+          ));
         }
         return Actions.chain([
           Actions.updatePageState(
@@ -3654,29 +3639,22 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
       outputVariableName: 'matchLoad',
       nodeKey: wc.node.key,
       onSuccess: (ctx) {
-        // Map state field name → FootMatch struct field name.
-        const fieldMap = {
-          'matchOpponent':      'opponent',
-          'matchDatetime':      'matchDatetime',
-          'matchLocation':      'location',
-          'matchArrivalTime':   'arrivalTime',
-          'matchCoachName':     'coachName',
-          'matchFruitHeroName': 'fruitHeroName',
-          'matchNotes':         'notes',
+        // Map state field name → JSON path in the API response body.
+        const fieldPaths = {
+          'matchOpponent':      r'$.opponent',
+          'matchDatetime':      r'$.matchDatetime',
+          'matchLocation':      r'$.location',
+          'matchArrivalTime':   r'$.arrivalTime',
+          'matchCoachName':     r'$.coachName',
+          'matchFruitHeroName': r'$.fruitHeroName',
+          'matchNotes':         r'$.notes',
         };
         final updates = <StateFieldUpdate>[
           StateFieldUpdate.set('isLoading', 'false'),
           StateFieldUpdate.set('apiStatus', 'OK'),
         ];
-        for (final entry in fieldMap.entries) {
-          final structFieldId = _findStructFieldId(project, 'FootMatch', entry.value);
-          if (structFieldId == null) continue;
-          final v = ctx.responseVar.deepCopy()
-            ..operations.add(FFVariableOperation(
-              accessDataStructField: FFAccessDataStructField(
-                fieldIdentifier: structFieldId.deepCopy(),
-              ),
-            ));
+        for (final entry in fieldPaths.entries) {
+          final v = _jsonBodyVar(ctx, entry.value, wc.node.key);
           updates.add(StateFieldUpdate.setFromVariable(entry.key, v));
         }
         return Actions.chain([
@@ -4193,6 +4171,39 @@ void _removeComponentParamIfExists(FFProject project, String componentName, Stri
       .where((e) => e.value.hasIdentifier() && e.value.identifier.name == paramName)
       .firstOrNull?.key;
   if (key != null) component.params.remove(key);
+}
+
+/// Builds an FFVariable that reads a JSON path from an API call's response body.
+/// Use instead of accessDataStructField when the endpoint has no response data struct.
+FFVariable _jsonBodyVar(dynamic ctx, String jsonPath, String nodeKey) {
+  final actionKey = (ctx as dynamic).actionKey as String;
+  final outputVarName = (ctx as dynamic).outputVarName as String;
+  final v = FFVariable(
+    source: FFVariableSource.ACTION_OUTPUTS,
+    baseVariable: FFBaseVariable(
+      actionOutput: FFActionOutputVariable(
+        actionKeyRef: FFActionKeyReference(key: actionKey),
+        outputVariableIdentifier: FFIdentifier(name: outputVarName),
+      ),
+    ),
+    operations: [
+      FFVariableOperation(
+        apiResponseField: FFApiResponseField(
+          responseField: FFApiResponseField_ResponseField.JSON_BODY,
+        ),
+      ),
+      FFVariableOperation(
+        jsonPathOperation: FFJsonPathOperation(
+          jsonPath: jsonPath,
+          returnParameter: FFParameter(
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          ),
+        ),
+      ),
+    ],
+  );
+  v.nodeKeyRef = FFNodeKeyReference(key: nodeKey);
+  return v;
 }
 
 void _printUsage() {
