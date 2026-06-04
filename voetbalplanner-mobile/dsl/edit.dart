@@ -342,6 +342,7 @@ void buildEditFlow(App app) {
     );
   });
   app.raw((project) {
+    _debugStructsAndEndpoints(project);
     _wireWedstrijdDetailPageLoad(project);
     _bindWedstrijdDetailAppBarTitle(project);
     _bindWedstrijdDetailInfoTexts(project);
@@ -3488,8 +3489,18 @@ void _wireBardienDetailPageUI(FFProject project) {
     return v;
   }
 
+  final allNamed = findDescendants(wc.node, (n) => n.name.isNotEmpty)
+      .map((n) => '${n.name}(${n.type.name})')
+      .join(', ');
+  stderr.writeln('[DEBUG BardienDetailPage] named nodes: $allNamed');
+  stderr.writeln('[DEBUG BardienDetailPage] state fields: '
+      '${wc.classModel.stateFields.map((f) => f.parameter.identifier.name).join(', ')}');
+
   final infoColumn = findDescendants(wc.node, (n) => n.name == 'DutyInfoColumn').firstOrNull;
-  if (infoColumn == null) return;
+  if (infoColumn == null) {
+    stderr.writeln('[DEBUG BardienDetailPage] DutyInfoColumn NOT FOUND — cannot bind');
+    return;
+  }
 
   FFNode infoRow(String label, String stateFieldName) {
     final valueText = UI.text('-', name: 'DutyInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
@@ -3972,8 +3983,45 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     return v;
   }
 
+  final allNamed = findDescendants(wc.node, (n) => n.name.isNotEmpty)
+      .map((n) => '${n.name}(${n.type.name})')
+      .join(', ');
+  stderr.writeln('[DEBUG WedstrijdDetailPage] named nodes: $allNamed');
+  stderr.writeln('[DEBUG WedstrijdDetailPage] state fields: '
+      '${wc.classModel.stateFields.map((f) => f.parameter.identifier.name).join(', ')}');
+
   final infoColumn = findDescendants(wc.node, (n) => n.name == 'MatchInfoColumn').firstOrNull;
-  if (infoColumn == null) return;
+  if (infoColumn == null) {
+    stderr.writeln('[DEBUG WedstrijdDetailPage] MatchInfoColumn not found — falling back to rebind by node name');
+    // Page has a TabBar; the value nodes were created by a prior push under different names.
+    // Map existing Text node name → string state field name.
+    const fallback = {
+      'MatchInfoValue_opponent':      'matchOpponent',
+      'MatchInfoValue_matchDatetime': 'matchDatetime',
+      'MatchInfoValue_location':      'matchLocation',
+      'MatchInfoValue_arrivalTime':   'matchArrivalTime',
+      'MatchInfoValue_coachName':     'matchCoachName',
+      'MatchInfoValue_fruitHeroName': 'matchFruitHeroName',
+      'MatchInfoValue_notes':         'matchNotes',
+    };
+    var bound = 0;
+    for (final entry in fallback.entries) {
+      final node = findDescendants(wc.node, (n) => n.name == entry.key).firstOrNull;
+      if (node == null) {
+        stderr.writeln('[DEBUG WedstrijdDetailPage] fallback node ${entry.key} NOT FOUND');
+        continue;
+      }
+      final v = stateVar(entry.value);
+      if (v == null) {
+        stderr.writeln('[DEBUG WedstrijdDetailPage] state field ${entry.value} NOT FOUND');
+        continue;
+      }
+      node.props.text.textValue = FFStringValue(variable: v);
+      bound++;
+    }
+    stderr.writeln('[DEBUG WedstrijdDetailPage] fallback bound $bound nodes');
+    return;
+  }
 
   FFNode infoRow(String label, String stateFieldName) {
     final valueText = UI.text('-', name: 'MatchInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
@@ -4065,6 +4113,24 @@ void _applyBrandingToAllAppBars(FFProject project) {
       final textProto = titleNode.props.text.deepCopy();
       textProto.colorValue = whiteColor.deepCopy();
       titleNode.props.text = textProto;
+    }
+  }
+}
+
+void _debugStructsAndEndpoints(FFProject project) {
+  final endpoints = project.backend.apiConfig.apiGroups
+      .expand((g) => g.endpoints)
+      .map((e) => e.identifier.name)
+      .toList();
+  stderr.writeln('[DEBUG] API endpoints: ${endpoints.join(", ")}');
+  for (final structName in ['FootMatch', 'BarDuty', 'ClubBranding']) {
+    final s = project.backend.dataSchemaConfig.dataStructs
+        .cast<FFDataStruct?>()
+        .firstWhere((x) => x?.identifier.name == structName, orElse: () => null);
+    if (s == null) {
+      stderr.writeln('[DEBUG] $structName struct: NOT FOUND');
+    } else {
+      stderr.writeln('[DEBUG] $structName fields: ${s.fields.map((f) => f.identifier.name).join(", ")}');
     }
   }
 }
