@@ -24,7 +24,8 @@ import 'package:flutterflow_ai/src/helpers/variable_helpers.dart';
 import 'package:flutterflow_ai/src/ui/actions.dart' show Actions;
 import 'package:flutterflow_ai/src/ui/ui.dart' show UI;
 import 'package:flutterflow_ai/src/ui/ui_types.dart'
-    show UIColor, UITextStyle, UIMainAxisAlignment, UIEdgeInsets;
+    show UIColor, UITextStyle, UIMainAxisAlignment, UICrossAxisAlignment, UIEdgeInsets;
+import 'package:voetbalplanner_mobile/flutterflow_project.dart' as ff;
 
 bool Function(ProjectError) get _validationFilter => (error) {
   if (error.type == 'firestoreSetup') return false;
@@ -193,10 +194,10 @@ void buildEditFlow(App app) {
   _addBiometricButton(app);
   _addLedenLoginSection(app);
 
-  // Chat: Firestore collections (idempotent try/catch)
-  late final FirestoreCollectionHandle teamChats;
+  // Chat: Firestore collections — use typed SDK handles; attempt creation for new projects.
+  final teamChats = ff.Collections.teamChats;
   try {
-    teamChats = app.collection(
+    app.collection(
       'teamChats',
       description: 'Real-time team chat messages per elftal.',
       fields: {
@@ -207,13 +208,11 @@ void buildEditFlow(App app) {
         'createdAt': dateTime,
       },
     );
-  } catch (_) {
-    teamChats = app.existingCollection('teamChats');
-  }
+  } catch (_) {}
 
-  late final FirestoreCollectionHandle directMessages;
+  final directMessages = ff.Collections.directMessages;
   try {
-    directMessages = app.collection(
+    app.collection(
       'directMessages',
       description: '1-op-1 directe berichten tussen twee teamleden.',
       fields: {
@@ -224,9 +223,7 @@ void buildEditFlow(App app) {
         'createdAt': dateTime,
       },
     );
-  } catch (_) {
-    directMessages = app.existingCollection('directMessages');
-  }
+  } catch (_) {}
 
   // Chat pages
   _buildTeamChatPage(app, teamChats);
@@ -236,17 +233,17 @@ void buildEditFlow(App app) {
   // editPageOnLoad REPLACES the full onLoad on every push, which lets us keep the
   // collection reference fresh. FCM subscription uses editPageOnLoad because
   // CallCustomAction inside ensurePage onLoad would fail before app.raw() creates it.
-  app.editPageOnLoad('TeamChatPage', [
+  app.editPageOnLoad(ff.Pages.teamChatPage, [
     FirestoreQuery(
       teamChats,
       limit: 100,
       singleTimeQuery: true,
       outputAs: 'loadedMessages',
     ),
-    SetState('chatMessages', ActionOutput('loadedMessages')),
+    SetState(ff.Pages.teamChatPage.state.chatMessages, ActionOutput('loadedMessages')),
     CallCustomAction.named(
       'SubscribeToTeamTopic',
-      arguments: {'teamId': AppState('currentTeamId')},
+      arguments: {'teamId': AppState(ff.AppState.currentTeamId)},
     ),
   ]);
 
@@ -257,6 +254,7 @@ void buildEditFlow(App app) {
     _fixLoginPageLabels(project);
     _resetTeamChatAppBar(project);
     _addDocumentatieAppBar(project);
+    _fixChatTimestamp(project);
   });
 
   // Chat navigation button on WedstrijdenPage
@@ -266,17 +264,15 @@ void buildEditFlow(App app) {
   // Documentation page for members + handleiding button on ProfielPage.
   // Struct must be declared before the raw endpoint and page so the type
   // is available when _addDocumentationEndpoint references it by name.
-  late final StructHandle documentSection;
+  final documentSection = ff.Structs.documentSection;
   try {
-    documentSection = app.struct('DocumentSection', {
+    app.struct('DocumentSection', {
       'id':       string,
       'category': string,
       'title':    string,
       'body':     string,
     });
-  } catch (_) {
-    documentSection = app.existingStruct('DocumentSection');
-  }
+  } catch (_) {}
   app.raw((project) => _addDocumentationEndpoint(project));
   _buildDocumentatiePage(app, documentSection);
   app.raw((project) => _wireDocumentationPageLoad(project));
@@ -287,19 +283,17 @@ void buildEditFlow(App app) {
   app.raw((project) => _addSwapStructFields(project));
   app.raw((project) => _addSwapParamsToBarDutyCard(project));
 
-  late final StructHandle swapMember;
+  final swapMember = ff.Structs.swapMember;
   try {
-    swapMember = app.struct('SwapMember', {
+    app.struct('SwapMember', {
       'id':   string,
       'name': string,
     });
-  } catch (_) {
-    swapMember = app.existingStruct('SwapMember');
-  }
+  } catch (_) {}
 
-  late final StructHandle swapRequest;
+  final swapRequest = ff.Structs.swapRequest;
   try {
-    swapRequest = app.struct('SwapRequest', {
+    app.struct('SwapRequest', {
       'id':                string,
       'type':              string,
       'typeLabel':         string,
@@ -311,34 +305,77 @@ void buildEditFlow(App app) {
       'message':           string,
       'date':              string,
     });
-  } catch (_) {
-    swapRequest = app.existingStruct('SwapRequest');
-  }
+  } catch (_) {}
 
   app.raw((project) => _addSwapEndpoints(project));
   _buildSwapRequestCard(app, swapRequest);
   _buildWisselAanvraagPage(app, swapMember);
   _buildWisselVerzoekenPage(app, swapRequest);
 
-  // WedstrijdDetailPage must exist before _addMatchNavigation can bind the tap action.
-  _buildWedstrijdDetailPage(app);
-  // Bind tap-on-match-card → WedstrijdDetailPage, and wire the page's onLoad API call.
-  app.raw((project) {
-    _addMatchNavigation(project);
-    _wireWedstrijdDetailPageLoad(project);
+  // MatchCard: add matchId param and navigate internally.
+  app.editComponentParams(ff.Components.matchCard, (params) {
+    params.ensureParam('matchId', string.withDefault(''), description: 'Match ID for navigation');
+  });
+  // Remove unused action params idempotently (removeParam throws if already gone).
+  app.raw((project) => _removeComponentParamIfExists(project, 'MatchCard', 'onTapAction'));
+  app.editComponent(ff.Components.matchCard, (c) {
+    c.ensureActions(
+      c.findByKey('Container_oa8ojh9i'),
+      triggerType: FFActionTriggerType.ON_TAP,
+      actions: [Navigate(ff.Pages.wedstrijdDetailPage, params: {'matchId': Param(ff.Components.matchCard.params.matchId)})],
+    );
   });
 
-  // Add the swap button inside BarDutyCard (insertAfter the last text child).
-  app.editComponent('BarDutyCard', (page) {
-    page.ensureInsertedAfter(
-      page.findByKey('Text_k81dicy1'),
+  // WedstrijdDetailPage must exist before match navigation can be set up.
+  _buildWedstrijdDetailPage(app);
+  // Bind matchId on the MatchCard instance via the DSL compile path (setComponentParam
+  // compiles ItemRef()['id'] through the proper generator context).
+  app.editPage(ff.Pages.wedstrijdenPage, (page) {
+    page.setComponentParam(
+      page.findByKey('Container_f1p12fqf'),
+      'matchId',
+      ItemRef()['id'],
+    );
+  });
+  app.raw((project) {
+    _wireWedstrijdDetailPageLoad(project);
+    // Bind AppBar title to the matchId page param — diagnostic: UUID visible in title
+    // confirms the binding is working; empty title means binding is broken.
+    _bindWedstrijdDetailAppBarTitle(project);
+  });
+
+  // BarDutyCard: add barDutyId/barDutyDate params and navigate internally.
+  app.editComponentParams(ff.Components.barDutyCard, (params) {
+    params.ensureParam('barDutyId', string.withDefault(''), description: 'Bar duty ID for navigation');
+    params.ensureParam('barDutyDate', string.withDefault(''), description: 'Bar duty date for swap request label');
+  });
+  // Remove unused action params idempotently.
+  app.raw((project) {
+    _removeComponentParamIfExists(project, 'BarDutyCard', 'onTapAction');
+    _removeComponentParamIfExists(project, 'BarDutyCard', 'onSwapAction');
+  });
+  app.editComponent(ff.Components.barDutyCard, (c) {
+    c.ensureActions(
+      c.findByKey('Container_itc21arg'),
+      triggerType: FFActionTriggerType.ON_TAP,
+      actions: [Navigate(ff.Pages.bardienDetailPage, params: {'dutyId': Param(ff.Components.barDutyCard.params.barDutyId)})],
+    );
+    c.ensureInsertedAfter(
+      c.findByKey('Text_k81dicy1'),
       Button(
         'Wissel aanvragen',
         name: 'WisselAanvraagButton',
-        visible: Param('isAssignedToMe'),
-        onTap: ParamAction('onSwapAction'),
+        visible: Param(ff.Components.barDutyCard.params.isAssignedToMe),
+        onTap: Navigate(
+          ff.Pages.wisselAanvraagPage,
+          params: {
+            'dutyType': 'bardienst',
+            'targetId': Param(ff.Components.barDutyCard.params.barDutyId),
+            'targetLabel': Param(ff.Components.barDutyCard.params.barDutyDate),
+          },
+        ),
         width: double.infinity,
-        padding: 12,
+        padding: 16,
       ),
     );
   });
@@ -350,6 +387,7 @@ void buildEditFlow(App app) {
   _buildBardienDetailPage(app);
   app.raw((project) {
     _wireBardienDetailPageLoad(project);
+    _wireBardienDetailPageUI(project);
     _addBardienNavigation(project);
   });
 
@@ -369,6 +407,8 @@ void buildEditFlow(App app) {
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
 
+// Binds matchId variable on the MatchCard instance so the component's internal
+// Navigate action receives the correct match ID from the list generator.
 void _addMatchNavigation(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdenPage');
   if (wc == null) return;
@@ -376,55 +416,39 @@ void _addMatchNavigation(FFProject project) {
   if (listView == null || listView.children.isEmpty) return;
   final itemTemplate = listView.children.first;
 
-  if (project.getWidgetClassByName('WedstrijdDetailPage') == null) return;
-
-  // Remove any ON_TAP trigger set on the outer wrapper — component instances
-  // don't fire triggers placed on their instance node; taps flow through the
-  // component's internal tree which calls back via the onTapAction param.
-  itemTemplate.triggerActions.removeWhere(
-    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
-  );
-
-  // Resolve the MatchCard component class so we can find the onTapAction param.
   final componentClassKey = itemTemplate.componentClassKeyRef.key;
   final matchCardClass = project.widgetClasses[componentClassKey];
   if (matchCardClass == null) return;
 
-  FFParameter? onTapParam;
+  FFParameter? matchIdParam;
   for (final candidate in matchCardClass.params.values) {
-    if (candidate.hasIdentifier() &&
-        candidate.identifier.name == 'onTapAction') {
-      onTapParam = candidate;
+    if (candidate.hasIdentifier() && candidate.identifier.name == 'matchId') {
+      matchIdParam = candidate;
       break;
     }
   }
-  if (onTapParam == null) return;
+  if (matchIdParam == null) return;
 
-  // Build the navigate action node.
-  final navigateAction = Actions.navigate(
-    project,
-    pageName: 'WedstrijdDetailPage',
-    params: {
-      'matchId': VariableParamValue(generatorVarField('ListView_erdckv6e', 'id')),
-    },
-  );
-  final navigateNode = FFActionNode(
-    key: generateRandomAlphaNumericString(),
-    action: navigateAction,
-  );
-
-  // Initialize parameterValues on the instance if not yet set.
   if (!itemTemplate.hasParameterValues()) {
     itemTemplate.parameterValues = FFPassedParameters(
       widgetClassNodeKeyRef: FFNodeKeyReference(key: componentClassKey),
     );
   }
 
-  // Bind the navigate action to the onTapAction Action param.
-  itemTemplate.parameterValues.parameterPasses[onTapParam.identifier.key] =
+  // Use a properly-keyed field identifier so FlutterFlow codegen can resolve
+  // the field access (name-only FFIdentifier is not reliably resolved server-side).
+  final idFieldId = _findStructFieldId(project, 'FootMatch', 'id');
+  itemTemplate.parameterValues.parameterPasses[matchIdParam.identifier.key] =
       FFParameterPass(
-        paramIdentifier: onTapParam.identifier.deepCopy(),
-        action: FFTriggerActions(rootAction: navigateNode),
+        paramIdentifier: matchIdParam.identifier.deepCopy(),
+        variable: idFieldId != null
+            ? (varFromGeneratorVariable('ListView_erdckv6e')
+                ..operations.add(FFVariableOperation(
+                  accessDataStructField: FFAccessDataStructField(
+                    fieldIdentifier: idFieldId.deepCopy(),
+                  ),
+                )))
+            : generatorVarField('ListView_erdckv6e', 'id'),
       );
 }
 
@@ -646,44 +670,79 @@ void _addWelcomeGreeting(FFProject project) {
   if (wc == null) return;
 
   final userNameId = _findAppStateFieldId(project, 'userName');
-  final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
+  final clubNameId = _findAppStateFieldId(project, 'clubName');
 
   final existing = findDescendants(wc.node, (n) => n.name == 'WelcomeGreetingContainer');
+  if (existing.isNotEmpty) {
+    final container = existing.first;
+    // Remove any previously set background color so the container is white/transparent.
+    if (container.props.container.hasBoxDecoration()) {
+      container.props.container.boxDecoration.clearColorValue();
+    }
+    _rebuildWelcomeGreetingContent(container, userNameId, clubNameId);
+    return;
+  }
 
-  if (existing.isEmpty) {
-    if (userNameId == null) return;
+  if (userNameId == null) return;
 
+  final greetingContainer = UI.container(
+    name: 'WelcomeGreetingContainer',
+    child: UI.column(
+      name: 'WelcomeGreetingColumn',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 4,
+      children: [],
+    ),
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    width: double.infinity,
+  );
+  // No background color — inherits white page background.
+
+  _rebuildWelcomeGreetingContent(greetingContainer, userNameId, clubNameId);
+
+  final showAllRow = findDescendants(wc.node, (n) => n.name == 'ShowAllMatchesRow').firstOrNull;
+  if (showAllRow != null) {
+    insertBeforeKey(wc.node, showAllRow.key, greetingContainer);
+  }
+}
+
+void _rebuildWelcomeGreetingContent(
+  FFNode container,
+  FFIdentifier? userNameId,
+  FFIdentifier? clubNameId,
+) {
+  // Find or create the inner column.
+  FFNode col = container.children.isNotEmpty
+      ? container.children.first
+      : UI.column(name: 'WelcomeGreetingColumn', crossAxisAlignment: UICrossAxisAlignment.start, spacing: 4, children: []);
+  if (container.children.isEmpty) container.children.add(col);
+
+  col.children.clear();
+
+  // Club name sub-label.
+  if (clubNameId != null) {
+    final clubText = UI.text(
+      '',
+      name: 'WelcomeClubText',
+      style: UITextStyle.bodySmall,
+    );
+    clubText.props.text.textValue = FFStringValue(variable: varFromAppState(clubNameId.deepCopy()));
+    col.children.add(clubText);
+  }
+
+  // Greeting line.
+  if (userNameId != null) {
     final greetingText = UI.text(
       'Welkom!',
       name: 'WelcomeGreetingText',
       style: UITextStyle.titleMedium,
-      color: UIColor.white,
     );
     greetingText.props.text.textValue = interpolateVar([
       'Welkom, ',
       varFromAppState(userNameId.deepCopy()),
       '!',
     ]);
-
-    final greetingContainer = UI.container(
-      name: 'WelcomeGreetingContainer',
-      child: greetingText,
-      padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      width: double.infinity,
-    );
-    if (primaryColorId != null) {
-      _setContainerColor(greetingContainer,
-          colorFromStringVar(varFromAppState(primaryColorId.deepCopy())));
-    }
-
-    final showAllRow = findDescendants(wc.node, (n) => n.name == 'ShowAllMatchesRow').firstOrNull;
-    if (showAllRow != null) {
-      insertBeforeKey(wc.node, showAllRow.key, greetingContainer);
-    }
-  } else if (primaryColorId != null) {
-    // Container already exists — keep color in sync.
-    _setContainerColor(existing.first,
-        colorFromStringVar(varFromAppState(primaryColorId.deepCopy())));
+    col.children.add(greetingText);
   }
 }
 
@@ -879,14 +938,13 @@ void _resetTeamChatAppBar(FFProject project) {
   if (existing != null) removeByKey(wc.node, existing.key);
   wc.node.childPropertyMap.remove('appBar');
 
-  // Bind title to AppState.clubName — always set after login regardless of
-  // whether the page was opened via NavBar tab or a Navigate action.
-  final clubNameFieldId = _findAppStateFieldId(project, 'clubName');
+  // Bind title to AppState.currentTeamName — set at login, persisted across restarts.
+  final teamNameFieldId = _findAppStateFieldId(project, 'currentTeamName');
 
   final titleNode = UI.text('Teamchat', name: 'TeamChatTitle');
-  if (clubNameFieldId != null) {
+  if (teamNameFieldId != null) {
     titleNode.props.text.textValue =
-        FFStringValue(variable: varFromAppState(clubNameFieldId.deepCopy()));
+        FFStringValue(variable: varFromAppState(teamNameFieldId.deepCopy()));
   }
 
   final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: false);
@@ -1209,14 +1267,14 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
         singleTimeQuery: false,
         outputAs: 'loadedMessages',
       ),
-      SetState('chatMessages', ActionOutput('loadedMessages')),
+      SetState(ff.Pages.teamChatPage.state.chatMessages, ActionOutput('loadedMessages')),
     ],
     body: Column(
       children: [
         // Messages list
         Expanded(
           ListView(
-            source: State('chatMessages'),
+            source: State(ff.Pages.teamChatPage.state.chatMessages),
             padding: 12,
             spacing: 8,
             itemBuilder: (_) => Column(
@@ -1225,7 +1283,7 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
                 // Others' message — left-aligned, sender name visible
                 Row(
                   mainAxis: MainAxis.start,
-                  visible: Not(Equals(ItemRef()['senderId'], AppState('authToken'))),
+                  visible: Not(Equals(ItemRef()['senderId'], AppState(ff.AppState.authToken))),
                   children: [
                     Container(
                       padding: 12,
@@ -1257,7 +1315,7 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
                 // Own message — right-aligned, no sender name
                 Row(
                   mainAxis: MainAxis.end,
-                  visible: Equals(ItemRef()['senderId'], AppState('authToken')),
+                  visible: Equals(ItemRef()['senderId'], AppState(ff.AppState.authToken)),
                   children: [
                     Container(
                       padding: 12,
@@ -1298,7 +1356,7 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
                   hint: 'Bericht typen...',
                   name: 'MessageField',
                   maxLines: 3,
-                  onChanged: [SetState('messageText', TextValue())],
+                  onChanged: [SetState(ff.Pages.teamChatPage.state.messageText, TextValue())],
                 ),
               ),
               IconButton(
@@ -1306,19 +1364,19 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
                 color: Colors.primary,
                 onTap: [
                   If(
-                    Not(Equals(State('messageText'), '')),
+                    Not(Equals(State(ff.Pages.teamChatPage.state.messageText), '')),
                     then: [
                       FirestoreCreate(
                         teamChats,
                         fields: {
-                          'text': State('messageText'),
-                          'senderId': AppState('authToken'),
-                          'senderName': AppState('userName'),
+                          'text': State(ff.Pages.teamChatPage.state.messageText),
+                          'senderId': AppState(ff.AppState.authToken),
+                          'senderName': AppState(ff.AppState.userName),
                           'teamId': Param('teamId'),
                           'createdAt': Global(GlobalProperty.currentTimestamp),
                         },
                       ),
-                      SetState.clear('messageText'),
+                      SetState.clear(ff.Pages.teamChatPage.state.messageText),
                       // Refresh message list after sending
                       FirestoreQuery(
                         teamChats,
@@ -1326,7 +1384,7 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
                         singleTimeQuery: true,
                         outputAs: 'refreshed',
                       ),
-                      SetState('chatMessages', ActionOutput('refreshed')),
+                      SetState(ff.Pages.teamChatPage.state.chatMessages, ActionOutput('refreshed')),
                     ],
                   ),
                 ],
@@ -1377,16 +1435,16 @@ void _buildDocumentatiePage(App app, StructHandle documentSection) {
         // Loading indicator
         Row(
           mainAxis: MainAxis.center,
-          visible: State('isLoading'),
+          visible: State(ff.Pages.documentatiePage.state.isLoading),
           children: [ProgressBar.circular(size: 40, thickness: 4)],
         ),
         // Documentation list
         Expanded(
           ListView(
-            source: State('sections'),
+            source: State(ff.Pages.documentatiePage.state.sections),
             padding: EdgeInsets.all(12),
             spacing: 12,
-            visible: Not(State('isLoading')),
+            visible: Not(State(ff.Pages.documentatiePage.state.isLoading)),
             itemBuilder: (_) => Container(
               padding: 16,
               borderRadius: 10,
@@ -1528,14 +1586,14 @@ void _buildDirectChatPage(App app, FirestoreCollectionHandle directMessages) {
         singleTimeQuery: false,
         outputAs: 'loadedMessages',
       ),
-      SetState('chatMessages', ActionOutput('loadedMessages')),
+      SetState(ff.Pages.directChatPage.state.chatMessages, ActionOutput('loadedMessages')),
     ],
     body: Column(
       children: [
         // Messages list
         Expanded(
           ListView(
-            source: State('chatMessages'),
+            source: State(ff.Pages.directChatPage.state.chatMessages),
             padding: 12,
             spacing: 8,
             itemBuilder: (_) => Container(
@@ -1580,7 +1638,7 @@ void _buildDirectChatPage(App app, FirestoreCollectionHandle directMessages) {
                   hint: 'Bericht typen...',
                   name: 'DirectMessageField',
                   maxLines: 3,
-                  onChanged: [SetState('messageText', TextValue())],
+                  onChanged: [SetState(ff.Pages.directChatPage.state.messageText, TextValue())],
                 ),
               ),
               IconButton(
@@ -1588,26 +1646,26 @@ void _buildDirectChatPage(App app, FirestoreCollectionHandle directMessages) {
                 color: Colors.primary,
                 onTap: [
                   If(
-                    Not(Equals(State('messageText'), '')),
+                    Not(Equals(State(ff.Pages.directChatPage.state.messageText), '')),
                     then: [
                       FirestoreCreate(
                         directMessages,
                         fields: {
-                          'text': State('messageText'),
-                          'senderId': AppState('authToken'),
-                          'senderName': AppState('userName'),
+                          'text': State(ff.Pages.directChatPage.state.messageText),
+                          'senderId': AppState(ff.AppState.authToken),
+                          'senderName': AppState(ff.AppState.userName),
                           'receiverId': Param('memberId'),
                           'createdAt': Global(GlobalProperty.currentTimestamp),
                         },
                       ),
-                      SetState.clear('messageText'),
+                      SetState.clear(ff.Pages.directChatPage.state.messageText),
                       FirestoreQuery(
                         directMessages,
                         limit: 100,
                         singleTimeQuery: true,
                         outputAs: 'refreshed',
                       ),
-                      SetState('chatMessages', ActionOutput('refreshed')),
+                      SetState(ff.Pages.directChatPage.state.chatMessages, ActionOutput('refreshed')),
                     ],
                   ),
                 ],
@@ -1628,7 +1686,7 @@ void _buildDirectChatPage(App app, FirestoreCollectionHandle directMessages) {
 // time. Run the DSL once to create DirectChatPage, then enable the bottom-sheet
 // menu on the next push.
 void _addChatButton(App app) {
-  app.editPage('WedstrijdenPage', (page) {
+  app.editPage(ff.Pages.wedstrijdenPage, (page) {
     // Insert chat button above the ConditionalBuilder that wraps the match list.
     // Using the key directly is stable; finding by name would land inside the conditional.
     page.ensureInsertedBefore(
@@ -1643,10 +1701,10 @@ void _addChatButton(App app) {
         borderRadius: 8,
         onTap: [
           Navigate(
-            'TeamChatPage',
+            ff.Pages.teamChatPage,
             params: {
-              'teamId': AppState('currentTeamId'),
-              'teamName': AppState('clubName'),
+              'teamId': AppState(ff.AppState.currentTeamId),
+              'teamName': AppState(ff.AppState.clubName),
             },
           ),
         ],
@@ -1991,7 +2049,8 @@ Future<String> verifyMagicLink(String? token) async {
       FFAppState().userName       = (user['name']   as String?) ?? '';
       FFAppState().userEmail      = (user['email']  as String?) ?? '';
       FFAppState().clubName       = (club['name']   as String?) ?? '';
-      FFAppState().currentTeamId  = (user['team_id'] as String?) ?? '';
+      FFAppState().currentTeamId   = (user['team_id']   as String?) ?? '';
+      FFAppState().currentTeamName = (user['team_name'] as String?) ?? '';
       FFAppState().primaryColor   = (club['primary_color']   as String?) ?? '#1e3a5f';
       FFAppState().secondaryColor = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor    = (club['accent_color']    as String?) ?? '#10b981';
@@ -2132,7 +2191,8 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().userName = (user['name'] as String?) ?? '';
       FFAppState().userEmail = (user['email'] as String?) ?? '';
       FFAppState().clubName = (club['name'] as String?) ?? '';
-      FFAppState().currentTeamId = firstTeamId;
+      FFAppState().currentTeamId   = firstTeamId;
+      FFAppState().currentTeamName = (user['team_name'] as String?) ?? '';
       FFAppState().primaryColor   = (club['primary_color']   as String?) ?? '#1e3a5f';
       FFAppState().secondaryColor = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor    = (club['accent_color']    as String?) ?? '#10b981';
@@ -2227,12 +2287,13 @@ void _fixLoginButtonBindings(FFProject project) {
   _ensureAppStateField(project, 'loginEmail', FFBaseDataType.String);
   _ensureAppStateField(project, 'loginPassword', FFBaseDataType.String);
   _ensureAppStateField(project, 'loginError', FFBaseDataType.String);
-  _ensureAppStateField(project, 'primaryColor',   FFBaseDataType.String, persisted: true);
-  _ensureAppStateField(project, 'secondaryColor', FFBaseDataType.String, persisted: true);
-  _ensureAppStateField(project, 'accentColor',    FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'primaryColor',    FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'secondaryColor',  FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'accentColor',     FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'currentTeamName', FFBaseDataType.String, persisted: true);
 
   // Ensure user-identity fields survive app restarts.
-  for (final field in ['authToken', 'userName', 'userEmail', 'clubName']) {
+  for (final field in ['authToken', 'userName', 'userEmail', 'clubName', 'currentTeamName']) {
     _makeAppStateFieldPersisted(project, field);
   }
 
@@ -2453,7 +2514,7 @@ void _repairLoginApiCallBindings(
 }
 
 void _addLedenLoginSection(App app) {
-  app.editPage('LoginPage', (page) {
+  app.editPage(ff.Pages.loginPage, (page) {
     final loginButton = page.findByKey('Button_bg6zh5x9');
     page.ensureInsertedAfter(
       loginButton,
@@ -2470,7 +2531,7 @@ void _addLedenLoginSection(App app) {
           TextField(
             hint: 'E-mailadres',
             name: 'MagicLinkEmailField',
-            onChanged: [SetState('magicLinkEmail', TextValue())],
+            onChanged: [SetState(ff.Pages.loginPage.state.magicLinkEmail, TextValue())],
           ),
           Button(
             'Stuur inloglink',
@@ -2484,7 +2545,7 @@ void _addLedenLoginSection(App app) {
               CallCustomAction.named(
                 'SendMagicLink',
                 returnType: bool_,
-                arguments: {'email': State('magicLinkEmail')},
+                arguments: {'email': State(ff.Pages.loginPage.state.magicLinkEmail)},
                 outputAs: 'magicLinkSendResult',
               ),
               If(
@@ -2544,7 +2605,7 @@ void _buildMagicLinkVerifyPage(App app) {
     ),
   );
 
-  app.editPageOnLoad('MagicLinkVerifyPage', [
+  app.editPageOnLoad(ff.Pages.magicLinkVerifyPage, [
     CallCustomAction.named(
       'VerifyMagicLink',
       returnType: string,
@@ -2554,12 +2615,12 @@ void _buildMagicLinkVerifyPage(App app) {
     If(
       Not(Equals(ActionOutput('sanctumToken'), '')),
       then: [
-        UpdateAppState.set('authToken', ActionOutput('sanctumToken')),
-        Navigate('WedstrijdenPage', replaceRoute: true),
+        UpdateAppState.set(ff.AppState.authToken, ActionOutput('sanctumToken')),
+        Navigate(ff.Pages.wedstrijdenPage, replaceRoute: true),
       ],
       orElse: [
         Snackbar('Deze inloglink is ongeldig of verlopen.'),
-        Navigate('LoginPage', replaceRoute: true),
+        Navigate(ff.Pages.loginPage, replaceRoute: true),
       ],
     ),
   ]);
@@ -2828,13 +2889,13 @@ void _buildSwapRequestCard(App app, StructHandle swapRequest) {
           Row(
             mainAxis: MainAxis.spaceBetween,
             children: [
-              Text(Param('typeLabel'), style: Styles.titleSmall),
-              Text(Param('date'), style: Styles.bodySmall),
+              Text(Param(ff.Components.swapRequestCard.params.typeLabel), style: Styles.titleSmall),
+              Text(Param(ff.Components.swapRequestCard.params.date), style: Styles.bodySmall),
             ],
           ),
-          Text(Param('targetDescription'), style: Styles.bodyMedium),
+          Text(Param(ff.Components.swapRequestCard.params.targetDescription), style: Styles.bodyMedium),
           Text(
-            Param('requesterName'),
+            Param(ff.Components.swapRequestCard.params.requesterName),
             style: Styles.bodySmall,
           ),
           Row(
@@ -2891,7 +2952,7 @@ void _buildWisselAanvraagPage(
           ConditionalBuilder(
             children: [
               Column(
-                visible: State('isLoading'),
+                visible: State(ff.Pages.wisselAanvraagPage.state.isLoading),
                 mainAxis: MainAxis.center,
                 children: [
                   ProgressBar.circular(size: 40, thickness: 4),
@@ -2900,7 +2961,7 @@ void _buildWisselAanvraagPage(
               Expanded(
                 ListView(
                   name: 'TeamMembersListView',
-                  source: State('teamMembers'),
+                  source: State(ff.Pages.wisselAanvraagPage.state.teamMembers),
                   spacing: 8,
                   padding: 16,
                   itemBuilder: (member) => Container(
@@ -2914,13 +2975,13 @@ void _buildWisselAanvraagPage(
                         Button(
                           'Vraag',
                           name: 'VraagButton',
-                          visible: Not(State('isSending')),
+                          visible: Not(State(ff.Pages.wisselAanvraagPage.state.isSending)),
                         ),
                       ],
                     ),
                   ),
                 ),
-                visible: Not(State('isLoading')),
+                visible: Not(State(ff.Pages.wisselAanvraagPage.state.isLoading)),
               ),
             ],
           ),
@@ -2935,17 +2996,7 @@ void _buildWisselVerzoekenPage(
   App app,
   StructHandle swapRequest,
 ) {
-  final swapRequestCard = app.existingComponent(
-    'SwapRequestCard',
-    params: {
-      'requesterName':     string,
-      'typeLabel':         string,
-      'targetDescription': string,
-      'date':              string,
-      'onAccept':          action,
-      'onDecline':         action,
-    },
-  );
+  final swapRequestCard = ff.Components.swapRequestCard;
 
   app.ensurePage(
     'WisselVerzoekenPage',
@@ -2960,14 +3011,14 @@ void _buildWisselVerzoekenPage(
       body: ConditionalBuilder(
         children: [
           Column(
-            visible: State('isLoading'),
+            visible: State(ff.Pages.wisselVerzoekenPage.state.isLoading),
             mainAxis: MainAxis.center,
             children: [ProgressBar.circular(size: 40, thickness: 4)],
           ),
           Expanded(
             ListView(
               name: 'SwapRequestsListView',
-              source: State('requests'),
+              source: State(ff.Pages.wisselVerzoekenPage.state.requests),
               spacing: 12,
               padding: 16,
               itemBuilder: (req) => swapRequestCard(
@@ -2979,7 +3030,7 @@ void _buildWisselVerzoekenPage(
                 onDecline: [Snackbar('')],
               ),
             ),
-            visible: Not(State('isLoading')),
+            visible: Not(State(ff.Pages.wisselVerzoekenPage.state.isLoading)),
           ),
         ],
       ),
@@ -2987,66 +3038,76 @@ void _buildWisselVerzoekenPage(
   );
 }
 
-// Wire BardienPage: bind isAssignedToMe + onSwapAction on the BarDutyCard instance.
+// Binds isAssignedToMe, barDutyId, and barDutyDate variables on the BarDutyCard
+// instance so the component's internal Navigate actions receive correct data.
 void _wireBarDutySwap(FFProject project) {
   final wc = findPage(project, name: 'BardienPage');
   if (wc == null) return;
   final listView = findByKey(wc.node, 'ListView_tu54znnh');
   if (listView == null || listView.children.isEmpty) return;
-  final itemTemplate = listView.children.first; // Container_3x9tkqc6
+  final itemTemplate = listView.children.first;
 
-  final wisselPage = project.getWidgetClassByName('WisselAanvraagPage');
-  if (wisselPage == null) return;
-
-  // Resolve BarDutyCard component class and params.
   final componentClassKey = itemTemplate.componentClassKeyRef.key;
   final barDutyCard = project.widgetClasses[componentClassKey];
   if (barDutyCard == null) return;
 
-  FFParameter? isAssignedParam;
-  FFParameter? onSwapParam;
-  for (final p in barDutyCard.params.values) {
-    if (!p.hasIdentifier()) continue;
-    switch (p.identifier.name) {
-      case 'isAssignedToMe': isAssignedParam = p;
-      case 'onSwapAction':   onSwapParam = p;
-    }
-  }
-  if (isAssignedParam == null || onSwapParam == null) return;
-
-  // Ensure parameterValues initialized.
   if (!itemTemplate.hasParameterValues()) {
     itemTemplate.parameterValues = FFPassedParameters(
       widgetClassNodeKeyRef: FFNodeKeyReference(key: componentClassKey),
     );
   }
 
-  // Bind isAssignedToMe = duty['isAssignedToMe'] (generator variable).
-  itemTemplate.parameterValues.parameterPasses[isAssignedParam.identifier.key] =
-      FFParameterPass(
-        paramIdentifier: isAssignedParam.identifier.deepCopy(),
-        variable: generatorVarField('ListView_tu54znnh', 'isAssignedToMe'),
-      );
+  FFParameter? isAssignedParam;
+  FFParameter? barDutyIdParam;
+  FFParameter? barDutyDateParam;
+  for (final p in barDutyCard.params.values) {
+    if (!p.hasIdentifier()) continue;
+    switch (p.identifier.name) {
+      case 'isAssignedToMe': isAssignedParam = p;
+      case 'barDutyId':      barDutyIdParam = p;
+      case 'barDutyDate':    barDutyDateParam = p;
+    }
+  }
 
-  // Bind onSwapAction = Navigate to WisselAanvraagPage.
-  final navigateAction = Actions.navigate(
-    project,
-    pageName: 'WisselAanvraagPage',
-    params: {
-      'dutyType':   StaticParamValue('bardienst'),
-      'targetId':   VariableParamValue(generatorVarField('ListView_tu54znnh', 'id')),
-      'targetLabel': VariableParamValue(generatorVarField('ListView_tu54znnh', 'date')),
-    },
-  );
-  final navigateNode = FFActionNode(
-    key: generateRandomAlphaNumericString(),
-    action: navigateAction,
-  );
-  itemTemplate.parameterValues.parameterPasses[onSwapParam.identifier.key] =
-      FFParameterPass(
-        paramIdentifier: onSwapParam.identifier.deepCopy(),
-        action: FFTriggerActions(rootAction: navigateNode),
-      );
+  // Use properly-keyed field identifiers so FlutterFlow codegen can resolve
+  // field access; fall back to name-only if struct field is not found.
+  final isAssignedFieldId = _findStructFieldId(project, 'BarDuty', 'isAssignedToMe');
+  final dutyIdFieldId     = _findStructFieldId(project, 'BarDuty', 'id');
+  final dutyDateFieldId   = _findStructFieldId(project, 'BarDuty', 'date');
+
+  FFVariable _genVar(String listKey, String fieldName, FFIdentifier? fieldId) {
+    if (fieldId != null) {
+      return varFromGeneratorVariable(listKey)
+        ..operations.add(FFVariableOperation(
+          accessDataStructField: FFAccessDataStructField(
+            fieldIdentifier: fieldId.deepCopy(),
+          ),
+        ));
+    }
+    return generatorVarField(listKey, fieldName);
+  }
+
+  if (isAssignedParam != null) {
+    itemTemplate.parameterValues.parameterPasses[isAssignedParam.identifier.key] =
+        FFParameterPass(
+          paramIdentifier: isAssignedParam.identifier.deepCopy(),
+          variable: _genVar('ListView_tu54znnh', 'isAssignedToMe', isAssignedFieldId),
+        );
+  }
+  if (barDutyIdParam != null) {
+    itemTemplate.parameterValues.parameterPasses[barDutyIdParam.identifier.key] =
+        FFParameterPass(
+          paramIdentifier: barDutyIdParam.identifier.deepCopy(),
+          variable: _genVar('ListView_tu54znnh', 'id', dutyIdFieldId),
+        );
+  }
+  if (barDutyDateParam != null) {
+    itemTemplate.parameterValues.parameterPasses[barDutyDateParam.identifier.key] =
+        FFParameterPass(
+          paramIdentifier: barDutyDateParam.identifier.deepCopy(),
+          variable: _genVar('ListView_tu54znnh', 'date', dutyDateFieldId),
+        );
+  }
 }
 
 // ─── BardienDetailPage ────────────────────────────────────────────────────────
@@ -3069,13 +3130,13 @@ void _buildBardienDetailPage(App app) {
           ConditionalBuilder(
             children: [
               Column(
-                visible: State('isLoading'),
+                visible: State(ff.Pages.bardienDetailPage.state.isLoading),
                 mainAxis: MainAxis.center,
                 children: [ProgressBar.circular(size: 40, thickness: 4)],
               ),
               Column(
                 name: 'DutyInfoColumn',
-                visible: Not(State('isLoading')),
+                visible: Not(State(ff.Pages.bardienDetailPage.state.isLoading)),
                 crossAxis: CrossAxis.start,
                 padding: 16,
                 spacing: 16,
@@ -3163,51 +3224,96 @@ void _wireBardienDetailPageLoad(FFProject project) {
   );
 }
 
-void _addBardienNavigation(FFProject project) {
-  final wc = findPage(project, name: 'BardienPage');
+// Navigation is now handled inside BarDutyCard via its barDutyId param;
+// _wireBarDutySwap binds the variable. Nothing to do here.
+void _addBardienNavigation(FFProject project) {}
+
+// Populates DutyInfoColumn on BardienDetailPage with data-bound field rows.
+void _wireBardienDetailPageUI(FFProject project) {
+  final wc = findPage(project, name: 'BardienDetailPage');
   if (wc == null) return;
-  if (project.getWidgetClassByName('BardienDetailPage') == null) return;
 
-  final listView = findByKey(wc.node, 'ListView_tu54znnh');
-  if (listView == null || listView.children.isEmpty) return;
-  final itemTemplate = listView.children.first;
+  final infoColumn = findDescendants(wc.node, (n) => n.name == 'DutyInfoColumn').firstOrNull;
+  if (infoColumn == null) return;
 
-  final componentClassKey = itemTemplate.componentClassKeyRef.key;
-  final barDutyCard = project.widgetClasses[componentClassKey];
-  if (barDutyCard == null) return;
+  // Idempotent: only add once.
+  if (infoColumn.children.any((c) => c.name == 'DutyDate')) return;
 
-  FFParameter? onTapParam;
-  for (final p in barDutyCard.params.values) {
-    if (p.hasIdentifier() && p.identifier.name == 'onTapAction') {
-      onTapParam = p;
-      break;
-    }
+  final dutyField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'duty', orElse: () => null)
+      ?.parameter.identifier;
+  if (dutyField == null) return;
+
+  // Helper: get a string sub-field of the duty struct state.
+  // nodeKeyRef is required so the validator can resolve the state field to this page.
+  FFVariable dutyFieldVar(String fieldName) {
+    final v = varFromPageState(dutyField.deepCopy());
+    v.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+    v.operations.add(FFVariableOperation(
+      accessDataStructField: FFAccessDataStructField(
+        fieldIdentifier: FFIdentifier(name: fieldName),
+      ),
+    ));
+    return v;
   }
-  if (onTapParam == null) return;
 
-  final navigateAction = Actions.navigate(
-    project,
-    pageName: 'BardienDetailPage',
-    params: {
-      'dutyId': VariableParamValue(generatorVarField('ListView_tu54znnh', 'id')),
-    },
-  );
-  final navigateNode = FFActionNode(
-    key: generateRandomAlphaNumericString(),
-    action: navigateAction,
-  );
-
-  if (!itemTemplate.hasParameterValues()) {
-    itemTemplate.parameterValues = FFPassedParameters(
-      widgetClassNodeKeyRef: FFNodeKeyReference(key: componentClassKey),
+  // Helper: create a card row with a bold label above a value.
+  FFNode infoRow(String label, String fieldName, {required String name}) {
+    final valueText = UI.text('-', name: '${name}Value', style: UITextStyle.bodyMedium);
+    valueText.props.text.textValue = FFStringValue(variable: dutyFieldVar(fieldName));
+    return UI.container(
+      name: name,
+      padding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
+      child: UI.column(
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 2,
+        children: [
+          UI.text(label, style: UITextStyle.labelSmall, color: UIColor.secondaryText),
+          valueText,
+        ],
+      ),
     );
   }
 
-  itemTemplate.parameterValues.parameterPasses[onTapParam.identifier.key] =
-      FFParameterPass(
-        paramIdentifier: onTapParam.identifier.deepCopy(),
-        action: FFTriggerActions(rootAction: navigateNode),
-      );
+  infoColumn.children.clear();
+  infoColumn.children.addAll([
+    UI.text('Bardienst details', name: 'DutyTitle', style: UITextStyle.titleMedium),
+    infoRow('Datum',      'date',     name: 'DutyDate'),
+    infoRow('Dienst',     'shift',    name: 'DutyShift'),
+    infoRow('Status',     'status',   name: 'DutyStatus'),
+    infoRow('Team',       'teamName', name: 'DutyTeam'),
+    infoRow('Deelnemers', 'members',  name: 'DutyMembers'),
+    infoRow('Notities',   'notes',    name: 'DutyNotes'),
+  ]);
+}
+
+// Fix the timestamp format in TeamChatPage: show 'HH:mm' instead of full datetime.
+void _fixChatTimestamp(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+
+  // Find all text nodes whose name ends with 'Timestamp' or that bind createdAt.
+  // We look for nodes whose textValue variable has an 'accessDocumentField' operation
+  // for 'createdAt'. When found, add a dateTimeFormat operation after it.
+  final allTexts = findDescendants(wc.node, (n) => n.type == FFWidgetType.Text);
+  for (final text in allTexts) {
+    if (!text.props.hasText()) continue;
+    final tv = text.props.text.textValue;
+    if (!tv.hasVariable()) continue;
+    final v = tv.variable;
+    // Look for a variable that accesses createdAt on a Firestore document field.
+    final hasCreatedAtOp = v.operations.any((op) =>
+        op.hasAccessDocumentField() &&
+        op.accessDocumentField.fieldIdentifier.name == 'createdAt');
+    if (!hasCreatedAtOp) continue;
+    // Already has dateTimeFormat? Skip.
+    if (v.operations.any((op) => op.hasDateTimeFormat())) continue;
+    // Add 'H:mm' custom format (24-hour hour:minute, no leading zero for hour).
+    v.operations.add(FFVariableOperation(
+      dateTimeFormat: FFDateTimeFormat(format: 'Hm', isCustom: false),
+    ));
+  }
 }
 
 // Builds WedstrijdDetailPage — must exist before _addMatchNavigation can bind the tap action.
@@ -3229,13 +3335,13 @@ void _buildWedstrijdDetailPage(App app) {
           ConditionalBuilder(
             children: [
               Column(
-                visible: State('isLoading'),
+                visible: State(ff.Pages.wedstrijdDetailPage.state.isLoading),
                 mainAxis: MainAxis.center,
                 children: [ProgressBar.circular(size: 40, thickness: 4)],
               ),
               Column(
                 name: 'MatchInfoColumn',
-                visible: Not(State('isLoading')),
+                visible: Not(State(ff.Pages.wedstrijdDetailPage.state.isLoading)),
                 crossAxis: CrossAxis.start,
                 padding: 16,
                 spacing: 16,
@@ -3290,14 +3396,46 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           ],
         ),
       ]),
-      onFailure: (ctx) => Actions.chain([
-        Actions.updatePageState(
-          project,
-          widgetClassName: 'WedstrijdDetailPage',
-          updates: [StateFieldUpdate.set('isLoading', 'false')],
-        ),
-        Actions.snackBar('Kon wedstrijd niet laden.'),
-      ]),
+      onFailure: (ctx) {
+        FFVariable apiVar(FFApiResponseField_ResponseField field) {
+          final v = FFVariable(
+            source: FFVariableSource.ACTION_OUTPUTS,
+            baseVariable: FFBaseVariable(
+              actionOutput: FFActionOutputVariable(
+                actionKeyRef: FFActionKeyReference(key: ctx.actionKey),
+                outputVariableIdentifier: FFIdentifier(name: ctx.outputVarName),
+              ),
+            ),
+            operations: [
+              FFVariableOperation(
+                apiResponseField: FFApiResponseField(responseField: field),
+              ),
+            ],
+          )..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+          return v;
+        }
+
+        final statusCodeVar = apiVar(FFApiResponseField_ResponseField.STATUS_CODE);
+        final rawBodyVar = apiVar(FFApiResponseField_ResponseField.RAW_BODY_TEXT);
+        final msgValue = interpolateVar(['HTTP ', statusCodeVar, ': ', rawBodyVar]);
+
+        final debugSnackBar = FFAction(
+          key: generateRandomAlphaNumericString(),
+          snackBar: FFSnackBarAction(
+            textMessage: FFValue(variable: msgValue.variable),
+            durationMillis: 8000,
+          ),
+        );
+
+        return Actions.chain([
+          Actions.updatePageState(
+            project,
+            widgetClassName: 'WedstrijdDetailPage',
+            updates: [StateFieldUpdate.set('isLoading', 'false')],
+          ),
+          debugSnackBar,
+        ]);
+      },
     ),
   );
 }
@@ -3567,6 +3705,53 @@ void _wireWisselVerzoekenActions(FFProject project) {
           ),
         ),
       );
+}
+
+// Idempotent param removal — no-ops if the param is already gone.
+// Binds WedstrijdDetailPage's AppBar title to the matchId page param.
+// Diagnostic: if the title shows a UUID the binding is working; empty title = broken.
+void _bindWedstrijdDetailAppBarTitle(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final titleNode = findByKey(wc.node, 'Text_hbiz91w0');
+  if (titleNode == null) return;
+  FFIdentifier? matchIdParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'matchId') {
+      matchIdParamId = param.identifier;
+      break;
+    }
+  }
+  if (matchIdParamId == null) return;
+  titleNode.props.text.textValue = FFStringValue(
+    variable: varFromPageParam(matchIdParamId.deepCopy()),
+  );
+}
+
+/// Returns the field identifier (name + key) for a named field on a named struct,
+/// or null if the struct or field is not found. Use this instead of FFIdentifier(name: x)
+/// when building variable operations — the FlutterFlow codegen resolves by key, not name.
+FFIdentifier? _findStructFieldId(FFProject project, String structName, String fieldName) {
+  for (final struct in project.backend.dataSchemaConfig.dataStructs) {
+    if (struct.identifier.name == structName) {
+      for (final field in struct.fields) {
+        if (field.identifier.name == fieldName) {
+          return field.identifier;
+        }
+      }
+      break;
+    }
+  }
+  return null;
+}
+
+void _removeComponentParamIfExists(FFProject project, String componentName, String paramName) {
+  final component = project.getWidgetClassByName(componentName);
+  if (component == null) return;
+  final key = component.params.entries
+      .where((e) => e.value.hasIdentifier() && e.value.identifier.name == paramName)
+      .firstOrNull?.key;
+  if (key != null) component.params.remove(key);
 }
 
 void _printUsage() {
