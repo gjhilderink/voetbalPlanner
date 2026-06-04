@@ -3232,6 +3232,7 @@ void _wireBardienDetailPageLoad(FFProject project) {
 
   for (final name in const [
     'dutyDate', 'dutyShift', 'dutyStatus', 'dutyTeamName', 'dutyMembers', 'dutyNotes',
+    'apiStatus',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -3260,7 +3261,10 @@ void _wireBardienDetailPageLoad(FFProject project) {
           'dutyMembers':  'members',
           'dutyNotes':    'notes',
         };
-        final updates = <StateFieldUpdate>[StateFieldUpdate.set('isLoading', 'false')];
+        final updates = <StateFieldUpdate>[
+          StateFieldUpdate.set('isLoading', 'false'),
+          StateFieldUpdate.set('apiStatus', 'OK'),
+        ];
         for (final entry in fieldMap.entries) {
           final structFieldId = _findStructFieldId(project, 'BarDuty', entry.value);
           if (structFieldId == null) continue;
@@ -3284,7 +3288,10 @@ void _wireBardienDetailPageLoad(FFProject project) {
         Actions.updatePageState(
           project,
           widgetClassName: 'BardienDetailPage',
-          updates: [StateFieldUpdate.set('isLoading', 'false')],
+          updates: [
+            StateFieldUpdate.set('isLoading', 'false'),
+            StateFieldUpdate.set('apiStatus', 'FAILED'),
+          ],
         ),
         Actions.snackBar('Kon bardienst niet laden.'),
       ]),
@@ -3516,9 +3523,14 @@ void _wireBardienDetailPageUI(FFProject project) {
     );
   }
 
+  final apiStatusNode = UI.text('api:?', name: 'BardienApiStatus', style: UITextStyle.bodySmall, color: UIColor.secondaryText);
+  final apiStatusVar = stateVar('apiStatus');
+  if (apiStatusVar != null) apiStatusNode.props.text.textValue = FFStringValue(variable: apiStatusVar);
+
   infoColumn.children.clear();
   infoColumn.children.addAll([
     UI.text('Bardienst details', name: 'DutyInfoTitle', style: UITextStyle.titleMedium),
+    apiStatusNode,
     infoRow('Datum', 'dutyDate'),
     infoRow('Dienst', 'dutyShift'),
     infoRow('Status', 'dutyStatus'),
@@ -3617,6 +3629,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
   for (final name in const [
     'matchOpponent', 'matchDatetime', 'matchLocation',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchNotes',
+    'apiStatus',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -3647,7 +3660,10 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchFruitHeroName': 'fruitHeroName',
           'matchNotes':         'notes',
         };
-        final updates = <StateFieldUpdate>[StateFieldUpdate.set('isLoading', 'false')];
+        final updates = <StateFieldUpdate>[
+          StateFieldUpdate.set('isLoading', 'false'),
+          StateFieldUpdate.set('apiStatus', 'OK'),
+        ];
         for (final entry in fieldMap.entries) {
           final structFieldId = _findStructFieldId(project, 'FootMatch', entry.value);
           if (structFieldId == null) continue;
@@ -3671,7 +3687,10 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
         Actions.updatePageState(
           project,
           widgetClassName: 'WedstrijdDetailPage',
-          updates: [StateFieldUpdate.set('isLoading', 'false')],
+          updates: [
+            StateFieldUpdate.set('isLoading', 'false'),
+            StateFieldUpdate.set('apiStatus', 'FAILED'),
+          ],
         ),
         Actions.snackBar('Kon wedstrijddetails niet laden.'),
       ]),
@@ -4020,6 +4039,17 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
       bound++;
     }
     stderr.writeln('[DEBUG WedstrijdDetailPage] fallback bound $bound nodes');
+    // Find the inner column that owns the MatchInfoRow_* children and prepend status text.
+    final innerColumn = findDescendants(wc.node, (n) =>
+        n.children.any((c) => c.name == 'MatchInfoRow_opponent')).firstOrNull;
+    if (innerColumn != null) {
+      final apiStatusNode = UI.text('api:?', name: 'MatchApiStatus', style: UITextStyle.bodySmall, color: UIColor.secondaryText);
+      final apiStatusVar = stateVar('apiStatus');
+      if (apiStatusVar != null) apiStatusNode.props.text.textValue = FFStringValue(variable: apiStatusVar);
+      if (!innerColumn.children.any((c) => c.name == 'MatchApiStatus')) {
+        innerColumn.children.insert(0, apiStatusNode);
+      }
+    }
     return;
   }
 
