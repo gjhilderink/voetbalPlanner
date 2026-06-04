@@ -3478,25 +3478,43 @@ void _wireBardienDetailPageUI(FFProject project) {
   final wc = findPage(project, name: 'BardienDetailPage');
   if (wc == null) return;
 
-  const bindings = {
-    'DutyDateValue':    'dutyDate',
-    'DutyShiftValue':   'dutyShift',
-    'DutyStatusValue':  'dutyStatus',
-    'DutyTeamValue':    'dutyTeamName',
-    'DutyMembersValue': 'dutyMembers',
-    'DutyNotesValue':   'dutyNotes',
-  };
-  for (final entry in bindings.entries) {
-    final node = findDescendants(wc.node, (n) => n.name == entry.key).firstOrNull;
-    if (node == null) continue;
+  FFVariable? stateVar(String stateFieldName) {
     final stateField = wc.classModel.stateFields
         .cast<FFWidgetClassStateField?>()
-        .firstWhere((f) => f?.parameter.identifier.name == entry.value, orElse: () => null);
-    if (stateField == null) continue;
+        .firstWhere((f) => f?.parameter.identifier.name == stateFieldName, orElse: () => null);
+    if (stateField == null) return null;
     final v = varFromPageState(stateField.parameter.identifier.deepCopy());
     v.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
-    node.props.text.textValue = FFStringValue(variable: v);
+    return v;
   }
+
+  final infoColumn = findDescendants(wc.node, (n) => n.name == 'DutyInfoColumn').firstOrNull;
+  if (infoColumn == null) return;
+
+  FFNode infoRow(String label, String stateFieldName) {
+    final valueText = UI.text('-', name: 'DutyInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
+    final v = stateVar(stateFieldName);
+    if (v != null) valueText.props.text.textValue = FFStringValue(variable: v);
+    return UI.container(
+      name: 'DutyInfoRow_$stateFieldName',
+      padding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
+      child: UI.column(crossAxisAlignment: UICrossAxisAlignment.start, spacing: 2, children: [
+        UI.text(label, style: UITextStyle.labelSmall, color: UIColor.secondaryText),
+        valueText,
+      ]),
+    );
+  }
+
+  infoColumn.children.clear();
+  infoColumn.children.addAll([
+    UI.text('Bardienst details', name: 'DutyInfoTitle', style: UITextStyle.titleMedium),
+    infoRow('Datum', 'dutyDate'),
+    infoRow('Dienst', 'dutyShift'),
+    infoRow('Status', 'dutyStatus'),
+    infoRow('Team', 'dutyTeamName'),
+    infoRow('Leden', 'dutyMembers'),
+    infoRow('Notities', 'dutyNotes'),
+  ]);
 }
 
 // Fix the timestamp format in TeamChatPage: show 'HH:mm' instead of full datetime.
@@ -3944,26 +3962,44 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdDetailPage');
   if (wc == null) return;
 
-  const bindings = {
-    'MatchInfoValue_opponent':      'matchOpponent',
-    'MatchInfoValue_matchDatetime': 'matchDatetime',
-    'MatchInfoValue_location':      'matchLocation',
-    'MatchInfoValue_arrivalTime':   'matchArrivalTime',
-    'MatchInfoValue_coachName':     'matchCoachName',
-    'MatchInfoValue_fruitHeroName': 'matchFruitHeroName',
-    'MatchInfoValue_notes':         'matchNotes',
-  };
-  for (final entry in bindings.entries) {
-    final node = findDescendants(wc.node, (n) => n.name == entry.key).firstOrNull;
-    if (node == null) continue;
+  FFVariable? stateVar(String stateFieldName) {
     final stateField = wc.classModel.stateFields
         .cast<FFWidgetClassStateField?>()
-        .firstWhere((f) => f?.parameter.identifier.name == entry.value, orElse: () => null);
-    if (stateField == null) continue;
+        .firstWhere((f) => f?.parameter.identifier.name == stateFieldName, orElse: () => null);
+    if (stateField == null) return null;
     final v = varFromPageState(stateField.parameter.identifier.deepCopy());
     v.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
-    node.props.text.textValue = FFStringValue(variable: v);
+    return v;
   }
+
+  final infoColumn = findDescendants(wc.node, (n) => n.name == 'MatchInfoColumn').firstOrNull;
+  if (infoColumn == null) return;
+
+  FFNode infoRow(String label, String stateFieldName) {
+    final valueText = UI.text('-', name: 'MatchInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
+    final v = stateVar(stateFieldName);
+    if (v != null) valueText.props.text.textValue = FFStringValue(variable: v);
+    return UI.container(
+      name: 'MatchInfoRow_$stateFieldName',
+      padding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
+      child: UI.column(crossAxisAlignment: UICrossAxisAlignment.start, spacing: 2, children: [
+        UI.text(label, style: UITextStyle.labelSmall, color: UIColor.secondaryText),
+        valueText,
+      ]),
+    );
+  }
+
+  infoColumn.children.clear();
+  infoColumn.children.addAll([
+    UI.text('Wedstrijd details', name: 'MatchInfoTitle', style: UITextStyle.titleMedium),
+    infoRow('Tegenstander', 'matchOpponent'),
+    infoRow('Datum & Tijd', 'matchDatetime'),
+    infoRow('Locatie', 'matchLocation'),
+    infoRow('Verzamelen', 'matchArrivalTime'),
+    infoRow('Coach', 'matchCoachName'),
+    infoRow('Fruitheid', 'matchFruitHeroName'),
+    infoRow('Notities', 'matchNotes'),
+  ]);
 }
 
 // Builds a varFromPageState(match) + accessDataStructField(fieldName) for
