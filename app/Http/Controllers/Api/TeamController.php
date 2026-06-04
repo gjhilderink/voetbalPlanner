@@ -55,6 +55,8 @@ class TeamController extends Controller
             ->orderBy('members.name')
             ->get();
 
-        return response()->json(MemberResource::collection($members));
+        return response()->json(
+            $members->map(fn($m) => (new MemberResource($m))->resolve())->values()
+        );
     }
 }

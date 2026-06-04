@@ -3961,6 +3961,18 @@ void _wireWisselAanvraagButton(FFProject project) {
   vraagButton.triggerActions.removeWhere(
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
   );
+  // Use keyed struct field identifier for requestee_id so codegen reliably resolves it.
+  // Name-only FFIdentifier is not guaranteed to resolve server-side (see _addMatchNavigation).
+  final swapMemberIdFieldId = _findStructFieldId(project, 'SwapMember', 'id');
+  final requesteeIdVar = swapMemberIdFieldId != null
+      ? (varFromGeneratorVariable(listView.key)
+          ..operations.add(FFVariableOperation(
+            accessDataStructField: FFAccessDataStructField(
+              fieldIdentifier: swapMemberIdFieldId.deepCopy(),
+            ),
+          )))
+      : generatorVarField(listView.key, 'id');
+
   Actions.addTriggerChain(
     vraagButton,
     FFActionTriggerType.ON_TAP,
@@ -3971,7 +3983,7 @@ void _wireWisselAanvraagButton(FFProject project) {
       dynamicVariables: {
         'type':         varFromPageParam(dutyTypeParamId.deepCopy()),
         'target_id':    varFromPageParam(targetIdParamId.deepCopy()),
-        'requestee_id': generatorVarField(listView.key, 'id'),
+        'requestee_id': requesteeIdVar,
       },
       outputVariableName: 'swapResult',
       nodeKey: vraagButton.key,
@@ -4491,8 +4503,9 @@ FFNode _buildBannerImageNode(
     imageNode.props.image.pathValue = FFStringValue(variable: urlVar);
 
     // Conditionally show the container only when bannerImageUrl is not empty.
+    // Use null-safe expression: state fields added dynamically may be String? in codegen.
     final visibleBool = codeExpressionVar(
-      expression: "url.isNotEmpty",
+      expression: "(url ?? '').isNotEmpty",
       arguments: [
         CodeExpressionArg(
           name: 'url',
