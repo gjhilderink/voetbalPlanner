@@ -49,6 +49,11 @@ class MatchResource extends JsonResource
                     false,
                 )
                 : false,
+            'driverNames'    => $this->whenLoaded(
+                'drivers',
+                fn() => $this->drivers->pluck('name')->join(', '),
+                '',
+            ),
         ];
     }
 }

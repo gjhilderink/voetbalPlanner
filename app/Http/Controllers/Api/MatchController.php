@@ -15,7 +15,7 @@ class MatchController extends Controller
     public function index(Request $request): JsonResponse
     {
         $matches = FootballMatch::query()
-            ->with(['team', 'coach', 'fruitHero'])
+            ->with(['team', 'coach', 'fruitHero', 'drivers'])
             ->when($request->has('is_home'), fn($q) => $q->where('is_home', $request->boolean('is_home')))
             ->when($request->boolean('has_drivers'), fn($q) => $q->has('drivers'))
             ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
