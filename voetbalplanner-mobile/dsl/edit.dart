@@ -339,9 +339,8 @@ void buildEditFlow(App app) {
   });
   app.raw((project) {
     _wireWedstrijdDetailPageLoad(project);
-    // Bind AppBar title to the matchId page param — diagnostic: UUID visible in title
-    // confirms the binding is working; empty title means binding is broken.
     _bindWedstrijdDetailAppBarTitle(project);
+    _bindWedstrijdDetailInfoTexts(project);
   });
 
   // BarDutyCard: add barDutyId/barDutyDate params and navigate internally.
@@ -3707,25 +3706,65 @@ void _wireWisselVerzoekenActions(FFProject project) {
       );
 }
 
-// Idempotent param removal — no-ops if the param is already gone.
-// Binds WedstrijdDetailPage's AppBar title to the matchId page param.
-// Diagnostic: if the title shows a UUID the binding is working; empty title = broken.
+// Binds WedstrijdDetailPage's AppBar title to match.opponent from page state.
 void _bindWedstrijdDetailAppBarTitle(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdDetailPage');
   if (wc == null) return;
   final titleNode = findByKey(wc.node, 'Text_hbiz91w0');
   if (titleNode == null) return;
-  FFIdentifier? matchIdParamId;
-  for (final param in wc.params.values) {
-    if (param.hasIdentifier() && param.identifier.name == 'matchId') {
-      matchIdParamId = param.identifier;
+  final v = _matchStateFieldVar(project, wc, 'opponent', titleNode.key);
+  if (v == null) return;
+  titleNode.props.text.textValue = FFStringValue(variable: v);
+}
+
+// Binds the value Text widgets in the Info tab to their FootMatch struct fields.
+void _bindWedstrijdDetailInfoTexts(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  const bindings = {
+    'Text_kyb5moto': 'matchDatetime',
+    'Text_1f7rejvq': 'location',
+    'Text_moo3x5ta': 'arrivalTime',
+    'Text_bn789lg4': 'coachName',
+    'Text_amq4gsob': 'fruitHeroName',
+    'Text_ewlhgil5': 'notes',
+  };
+  for (final entry in bindings.entries) {
+    final node = findByKey(wc.node, entry.key);
+    if (node == null) continue;
+    final v = _matchStateFieldVar(project, wc, entry.value, node.key);
+    if (v == null) continue;
+    node.props.text.textValue = FFStringValue(variable: v);
+  }
+}
+
+// Builds a varFromPageState(match) + accessDataStructField(fieldName) for
+// WedstrijdDetailPage. nodeKeyRef is set to the page root key, not the
+// individual widget key, matching how the DSL compiler resolves State().
+FFVariable? _matchStateFieldVar(
+  FFProject project,
+  FFWidgetClass wc,
+  String fieldName,
+  String _unused,
+) {
+  FFIdentifier? matchStateFieldId;
+  for (final field in wc.classModel.stateFields) {
+    if (field.parameter.identifier.name == 'match') {
+      matchStateFieldId = field.parameter.identifier;
       break;
     }
   }
-  if (matchIdParamId == null) return;
-  titleNode.props.text.textValue = FFStringValue(
-    variable: varFromPageParam(matchIdParamId.deepCopy()),
-  );
+  if (matchStateFieldId == null) return null;
+  final structFieldId = _findStructFieldId(project, 'FootMatch', fieldName);
+  if (structFieldId == null) return null;
+  final v = varFromPageState(matchStateFieldId.deepCopy());
+  v.operations.add(FFVariableOperation(
+    accessDataStructField: FFAccessDataStructField(
+      fieldIdentifier: structFieldId.deepCopy(),
+    ),
+  ));
+  v.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  return v;
 }
 
 /// Returns the field identifier (name + key) for a named field on a named struct,
