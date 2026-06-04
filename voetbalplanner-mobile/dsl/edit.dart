@@ -3706,18 +3706,30 @@ void _wireWisselVerzoekenActions(FFProject project) {
       );
 }
 
-// Binds WedstrijdDetailPage's AppBar title to match.opponent from page state.
+// Binds WedstrijdDetailPage's AppBar title to the matchId page param.
+// match.opponent cannot be used here: the AppBar builds before the API call
+// completes and match is null, causing a null-check crash.
 void _bindWedstrijdDetailAppBarTitle(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdDetailPage');
   if (wc == null) return;
   final titleNode = findByKey(wc.node, 'Text_hbiz91w0');
   if (titleNode == null) return;
-  final v = _matchStateFieldVar(project, wc, 'opponent', titleNode.key);
-  if (v == null) return;
-  titleNode.props.text.textValue = FFStringValue(variable: v);
+  FFIdentifier? matchIdParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'matchId') {
+      matchIdParamId = param.identifier;
+      break;
+    }
+  }
+  if (matchIdParamId == null) return;
+  titleNode.props.text.textValue = FFStringValue(
+    variable: varFromPageParam(matchIdParamId.deepCopy()),
+  );
 }
 
 // Binds the value Text widgets in the Info tab to their FootMatch struct fields.
+// These are inside the MatchInfoColumn which is only visible when isLoading=false,
+// so accessing match fields here is safe (match is populated by then).
 void _bindWedstrijdDetailInfoTexts(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdDetailPage');
   if (wc == null) return;
