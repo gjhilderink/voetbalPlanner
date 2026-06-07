@@ -958,21 +958,11 @@ void _setupProfielPage(FFProject project) {
   final wc = findPage(project, name: 'ProfielPage');
   if (wc == null) return;
 
-  final userNameId      = _findAppStateFieldId(project, 'userName');
-  final userEmailId     = _findAppStateFieldId(project, 'userEmail');
-  final clubNameId      = _findAppStateFieldId(project, 'clubName');
-  final secondaryColorId = _findAppStateFieldId(project, 'secondaryColor');
-
-  final existingCards = findDescendants(wc.node, (n) => n.name == 'ProfielInfoCard');
-
-  if (existingCards.isNotEmpty) {
-    // Card already exists — update secondary color.
-    if (secondaryColorId != null) {
-      _setContainerColor(existingCards.first,
-          colorFromStringVar(varFromAppState(secondaryColorId.deepCopy())));
-    }
-    return;
-  }
+  final userNameId       = _findAppStateFieldId(project, 'userName');
+  final userEmailId      = _findAppStateFieldId(project, 'userEmail');
+  final clubNameId       = _findAppStateFieldId(project, 'clubName');
+  final currentTeamNameId = _findAppStateFieldId(project, 'currentTeamName');
+  final secondaryColorId  = _findAppStateFieldId(project, 'secondaryColor');
 
   FFNode _boundText(String name, FFIdentifier? fieldId, String fallback, UITextStyle style) {
     final node = UI.text(fallback, name: name, style: style);
@@ -980,6 +970,24 @@ void _setupProfielPage(FFProject project) {
       node.props.text.textValue = FFStringValue(variable: varFromAppState(fieldId.deepCopy()));
     }
     return node;
+  }
+
+  final existingCards = findDescendants(wc.node, (n) => n.name == 'ProfielInfoCard');
+
+  if (existingCards.isNotEmpty) {
+    // Card already exists — update secondary color and inject ProfielTeam if missing.
+    if (secondaryColorId != null) {
+      _setContainerColor(existingCards.first,
+          colorFromStringVar(varFromAppState(secondaryColorId.deepCopy())));
+    }
+    final infoContent = findDescendants(existingCards.first, (n) => n.name == 'ProfielInfoContent').firstOrNull;
+    if (infoContent != null && currentTeamNameId != null) {
+      final alreadyHasTeam = findDescendants(infoContent, (n) => n.name == 'ProfielTeam').isNotEmpty;
+      if (!alreadyHasTeam) {
+        infoContent.children.add(_boundText('ProfielTeam', currentTeamNameId, 'Elftal', UITextStyle.bodyMedium));
+      }
+    }
+    return;
   }
 
   final infoCard = UI.container(
@@ -990,9 +998,10 @@ void _setupProfielPage(FFProject project) {
       name: 'ProfielInfoContent',
       spacing: 8,
       children: [
-        _boundText('ProfielNaam',  userNameId,  'Naam',        UITextStyle.titleLarge),
-        _boundText('ProfielEmail', userEmailId, 'E-mailadres', UITextStyle.bodyMedium),
-        _boundText('ProfielClub',  clubNameId,  'Club',        UITextStyle.bodyMedium),
+        _boundText('ProfielNaam',  userNameId,       'Naam',        UITextStyle.titleLarge),
+        _boundText('ProfielEmail', userEmailId,      'E-mailadres', UITextStyle.bodyMedium),
+        _boundText('ProfielClub',  clubNameId,       'Club',        UITextStyle.bodyMedium),
+        _boundText('ProfielTeam',  currentTeamNameId, 'Elftal',     UITextStyle.bodyMedium),
       ],
     ),
   );
@@ -1212,19 +1221,14 @@ void _resetTeamChatAppBar(FFProject project) {
   if (existing != null) removeByKey(wc.node, existing.key);
   wc.node.childPropertyMap.remove('appBar');
 
-  // Bind title to the 'teamName' param (passed from ChatsPage).
-  FFIdentifier? teamNameParamId;
-  for (final param in wc.params.values) {
-    if (param.hasIdentifier() && param.identifier.name == 'teamName') {
-      teamNameParamId = param.identifier.deepCopy();
-      break;
-    }
-  }
+  // Bind title to the currentTeamName AppState field — TeamChatPage is a NavBar
+  // tab so the teamName page param is never passed by NavBar navigation.
+  final teamNameAppStateId = _findAppStateFieldId(project, 'currentTeamName');
 
   final titleNode = UI.text('Teamchat', name: 'TeamChatTitle', style: UITextStyle.titleLarge);
-  if (teamNameParamId != null) {
+  if (teamNameAppStateId != null) {
     titleNode.props.text.textValue =
-        FFStringValue(variable: varFromPageParam(teamNameParamId));
+        FFStringValue(variable: varFromAppState(teamNameAppStateId.deepCopy()));
   }
 
   final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: true);
