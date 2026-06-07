@@ -3,7 +3,7 @@ import 'package:flutterflow_ai/flutterflow_ai.dart';
 void buildExecuteExistingActionBlockPattern(App app) {
   app.editPage('StarterPage', (page) {
     page.ensureActions(
-      EditPatternTarget.singleExistingButton().toSelection(page),
+      EditPatternTarget.singleButton().toSelection(page),
       triggerType: FFActionTriggerType.ON_TAP,
       actions: [
         ExecuteActionBlock(

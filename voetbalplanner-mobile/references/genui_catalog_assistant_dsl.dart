@@ -161,8 +161,8 @@ App buildGenUiCatalogAssistant(App app) {
       child: Column(
         spacing: 8,
         children: [
-          Text(const Param('title'), name: 'ProductCalloutTitle'),
-          Text(const Param('priceLabel'), name: 'ProductCalloutPrice'),
+          Text(Param('title'), name: 'ProductCalloutTitle'),
+          Text(Param('priceLabel'), name: 'ProductCalloutPrice'),
         ],
       ),
     ),
@@ -201,8 +201,8 @@ App buildGenUiCatalogAssistant(App app) {
             CustomFunction(
               formatRecommendationHeadline,
               args: {
-                'title': const AppState('lastPreviewTitle'),
-                'priceLabel': const AppState('lastPreviewPriceLabel'),
+                'title': AppState('lastPreviewTitle'),
+                'priceLabel': AppState('lastPreviewPriceLabel'),
               },
             ),
             name: 'RecommendationHeadlineText',
@@ -238,11 +238,8 @@ App buildGenUiCatalogAssistant(App app) {
               ),
             ],
           ),
-          Text(const State('previewSource'), name: 'PreviewSourceText'),
-          Text(
-            const State('previewHandlerStatus'),
-            name: 'PreviewHandlerStatusText',
-          ),
+          Text(State('previewSource'), name: 'PreviewSourceText'),
+          Text(State('previewHandlerStatus'), name: 'PreviewHandlerStatusText'),
           Expanded(assistantChat),
         ],
       ),

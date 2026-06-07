@@ -1,8 +1,7 @@
 /// Edit reference: Bind existing Firestore data to existing UI.
 ///
 /// Demonstrates:
-/// - app.existingCollection() — reference an already-existing collection
-/// - app.existingComponent() — reference an already-existing component
+/// - Generated typed SDK handles for existing project collections/pages/widgets
 /// - app.editPageOnLoad() — attach page-load actions to existing pages
 /// - page.setComponentParam() — bind component instance params to expressions
 /// - app.ensurePage() — idempotent page creation for safe reruns
@@ -18,6 +17,10 @@
 /// - A 'MyTrips' page showing static TripCard instances
 /// - A 'HomePage' page
 /// - A 'SignInPage' page
+///
+/// In a real project-bound workspace, import `lib/flutterflow_project.dart as
+/// ff` and use `ff.Collections.*`, `ff.Components.*`, `ff.Pages.*`, and other
+/// generated typed handles.
 library;
 
 import 'package:flutterflow_ai/flutterflow_ai.dart';
@@ -108,16 +111,11 @@ void buildBaseProject(App app) {
 // ---------------------------------------------------------------------------
 
 void applyDataBindingPatch(App app) {
-  // -- Reference existing project resources (no creation, no collision) --
-  final trips = app.existingCollection('trips');
-  // ignore: unused_local_variable
-  final tripCard = app.existingComponent(
-    'TripCard',
-    params: {'title': string, 'status': string},
+  // In a generated workspace this would be `ff.Collections.trips`.
+  final trips = ProjectCollectionHandle(
+    name: 'trips',
+    fields: {'name': string, 'status': string, 'startDate': dateTime},
   );
-  // tripCard can be used in new layouts, e.g.:
-  //   ListView(source: State('tripsList'), itemBuilder: (item) =>
-  //     tripCard(title: item['name'], status: item['status']));
 
   // -- Add state fields for the data query results and filter --
   app.editPageState('MyTrips', (state) {

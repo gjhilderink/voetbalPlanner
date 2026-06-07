@@ -73,10 +73,13 @@ void buildBaseProject(App app) {
 // Edit flow — adds search + filter capabilities
 // ---------------------------------------------------------------------------
 
-void applySearchFilterPatch(App app) {
+void applySearchFilterPatch(
+  App app, {
+  required ProjectPageHandle itemListPage,
+}) {
   // KEY PATTERN: editPageState adds new local state fields to an existing page.
   // This is rerun-safe — if the field already exists, it's a no-op.
-  app.editPageState('ItemListPage', (state) {
+  app.editPageState(itemListPage, (state) {
     state.ensureField('searchQuery', string.withDefault(''));
     state.ensureField('activeFilter', string.withDefault('all'));
   });
@@ -85,7 +88,7 @@ void applySearchFilterPatch(App app) {
   // text field before an anchor widget. It wires onChanged to set the state
   // field and is rerun-safe (won't duplicate on re-application).
   app.ensureSearchBar(
-    page: 'ItemListPage',
+    page: itemListPage,
     before: EditPatternTarget.byName('ItemList'),
     stateField: 'searchQuery',
     name: 'SearchField',
@@ -94,7 +97,7 @@ void applySearchFilterPatch(App app) {
 
   // KEY PATTERN: editPage gives low-level access to the widget tree editor.
   // Use this when semantic patterns don't cover your use case.
-  app.editPage('ItemListPage', (page) {
+  app.editPage(itemListPage, (page) {
     // KEY PATTERN: ensureInsertedBefore places a widget before an anchor.
     // The anchor is resolved at compile time against the current tree.
     page.ensureInsertedBefore(
@@ -144,7 +147,7 @@ void applySearchFilterPatch(App app) {
     );
 
     // KEY PATTERN: update() patches properties on an existing widget in place.
-    page.update(page.findByName('PageTitle'), (patch) {
+    page.update(itemListPage.widgets.byText('PageTitle').single, (patch) {
       patch.text('Browse & Search');
     });
   });

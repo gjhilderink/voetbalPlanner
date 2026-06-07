@@ -159,7 +159,7 @@ App buildActionBlockShowcase(App app) {
       Snackbar(
         CustomFunction(
           formatFavorites,
-          args: {'count': const AppState('favoriteCount')},
+          args: {'count': AppState('favoriteCount')},
         ),
       ),
       Terminate(const ActionBlockParam('itemId')),
@@ -179,7 +179,7 @@ App buildActionBlockShowcase(App app) {
           Text(
             CustomFunction(
               formatFavorites,
-              args: {'count': const AppState('favoriteCount')},
+              args: {'count': AppState('favoriteCount')},
             ),
             name: 'FavoritesSummaryText',
           ),
@@ -196,7 +196,7 @@ App buildActionBlockShowcase(App app) {
               SetState('lastFavoritedId', const ActionOutput('favoritedId')),
             ],
           ),
-          Text(const State('lastFavoritedId'), name: 'LastFavoritedText'),
+          Text(State('lastFavoritedId'), name: 'LastFavoritedText'),
         ],
       ),
     ),
@@ -222,7 +222,7 @@ App buildActionBlockShowcase(App app) {
           Text(
             CustomFunction(
               formatFavorites,
-              args: {'count': const AppState('favoriteCount')},
+              args: {'count': AppState('favoriteCount')},
             ),
             name: 'CatalogSummaryText',
           ),
@@ -233,10 +233,7 @@ App buildActionBlockShowcase(App app) {
           Container(
             name: 'SavedOnlyBanner',
             visible: Equals(
-              const WidgetState(
-                'CatalogTabs',
-                WidgetStateProperty.currentIndex,
-              ),
+              WidgetState('CatalogTabs', WidgetStateProperty.currentIndex),
               1,
             ),
             child: Text('Saved tab selected'),
@@ -256,10 +253,7 @@ App buildActionBlockShowcase(App app) {
             ],
           ),
           favoriteChip(itemId: 'gamma', label: 'Favorite Gamma'),
-          Text(
-            const State('lastFavoritedId'),
-            name: 'CatalogLastFavoritedText',
-          ),
+          Text(State('lastFavoritedId'), name: 'CatalogLastFavoritedText'),
         ],
       ),
     ),

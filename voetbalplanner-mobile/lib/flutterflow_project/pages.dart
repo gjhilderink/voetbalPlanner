@@ -5,8 +5,12 @@ library;
 import 'package:flutterflow_ai/flutterflow_ai.dart' as ffai;
 import 'pages/bardien_detail_page.dart' show bardienDetailPageHandle;
 import 'pages/bardien_page.dart' show bardienPageHandle;
+import 'pages/chat_detail_page.dart' show chatDetailPageHandle;
+import 'pages/chats_page.dart' show chatsPageHandle;
+import 'pages/create_group_page.dart' show createGroupPageHandle;
 import 'pages/direct_chat_page.dart' show directChatPageHandle;
 import 'pages/documentatie_page.dart' show documentatiePageHandle;
+import 'pages/group_chat_page.dart' show groupChatPageHandle;
 import 'pages/home_page.dart' show homePageHandle;
 import 'pages/login_page.dart' show loginPageHandle;
 import 'pages/magic_link_verify_page.dart' show magicLinkVerifyPageHandle;
@@ -22,8 +26,12 @@ import 'pages/wissel_verzoeken_page.dart' show wisselVerzoekenPageHandle;
 abstract final class Pages {
   static final bardienDetailPage = bardienDetailPageHandle;
   static final bardienPage = bardienPageHandle;
+  static final chatDetailPage = chatDetailPageHandle;
+  static final chatsPage = chatsPageHandle;
+  static final createGroupPage = createGroupPageHandle;
   static final directChatPage = directChatPageHandle;
   static final documentatiePage = documentatiePageHandle;
+  static final groupChatPage = groupChatPageHandle;
   static final homePage = homePageHandle;
   static final loginPage = loginPageHandle;
   static final magicLinkVerifyPage = magicLinkVerifyPageHandle;
@@ -38,8 +46,12 @@ abstract final class Pages {
   static final all = <ffai.ProjectPageHandle>[
     bardienDetailPage,
     bardienPage,
+    chatDetailPage,
+    chatsPage,
+    createGroupPage,
     directChatPage,
     documentatiePage,
+    groupChatPage,
     homePage,
     loginPage,
     magicLinkVerifyPage,

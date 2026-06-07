@@ -13,6 +13,7 @@ final class MatchCardComponentHandle extends ffai.ProjectComponentHandle<MatchCa
         state: const MatchCardState(),
         widgets: MatchCardWidgets.tree,
         paramTypes: <String, ffai.DslType>{
+          "coachName": ffai.string,
           "location": ffai.string,
           "matchDate": ffai.string,
           "matchId": ffai.string,
@@ -24,6 +25,7 @@ final class MatchCardComponentHandle extends ffai.ProjectComponentHandle<MatchCa
   ffai.ComponentInstance call({
     String? name,
     Object? visible,
+    Object? coachName = ffai.kUnsetComponentArg,
     Object? location = ffai.kUnsetComponentArg,
     Object? matchDate = ffai.kUnsetComponentArg,
     Object? matchId = ffai.kUnsetComponentArg,
@@ -34,6 +36,7 @@ final class MatchCardComponentHandle extends ffai.ProjectComponentHandle<MatchCa
       name: name,
       visible: visible,
       paramArgs: <String, Object?>{
+        if (!ffai.isUnsetComponentArg(coachName)) "coachName": coachName,
         if (!ffai.isUnsetComponentArg(location)) "location": location,
         if (!ffai.isUnsetComponentArg(matchDate)) "matchDate": matchDate,
         if (!ffai.isUnsetComponentArg(matchId)) "matchId": matchId,
@@ -46,6 +49,12 @@ final class MatchCardComponentHandle extends ffai.ProjectComponentHandle<MatchCa
 
 final class MatchCardParams {
   const MatchCardParams();
+  ffai.ProjectParamHandle get coachName =>
+      const ffai.ProjectParamHandle(
+        name: "coachName",
+        key: "h8fnu50d",
+        typeName: "String",
+      );
   ffai.ProjectParamHandle get location =>
       const ffai.ProjectParamHandle(
         name: "location",
@@ -128,6 +137,26 @@ abstract final class MatchCardWidgets {
                       type: "Text",
                       path: "MatchCard.children[0].children[0].children[0].children[2]",
                       name: "Text",
+                    ),
+                    ffai.ProjectWidgetHandle(
+                      key: "Row_za13z6sa",
+                      type: "Row",
+                      path: "MatchCard.children[0].children[0].children[0].children[3]",
+                      name: "MatchCardCoachRow",
+                      children: <ffai.ProjectWidgetHandle>[
+                        ffai.ProjectWidgetHandle(
+                          key: "Icon_mvamxnbi",
+                          type: "Icon",
+                          path: "MatchCard.children[0].children[0].children[0].children[3].children[0]",
+                          name: "Icon",
+                        ),
+                        ffai.ProjectWidgetHandle(
+                          key: "Text_3tb3dt8k",
+                          type: "Text",
+                          path: "MatchCard.children[0].children[0].children[0].children[3].children[1]",
+                          name: "MatchCardCoachText",
+                        ),
+                      ],
                     ),
                   ],
                 ),

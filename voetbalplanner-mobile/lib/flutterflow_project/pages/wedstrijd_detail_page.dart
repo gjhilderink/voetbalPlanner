@@ -25,6 +25,12 @@ final class WedstrijdDetailPageParams {
 
 final class WedstrijdDetailPageState {
   const WedstrijdDetailPageState();
+  ffai.ProjectStateFieldHandle get apiStatus =>
+      const ffai.ProjectStateFieldHandle(
+        name: "apiStatus",
+        key: "jusrtlf3",
+        typeName: "String",
+      );
   ffai.ProjectStateFieldHandle get goals =>
       const ffai.ProjectStateFieldHandle(
         name: "goals",
@@ -117,6 +123,7 @@ abstract final class WedstrijdDetailPageWidgets {
                   type: "Text",
                   path: "WedstrijdDetailPage.appBar[0].title[0]",
                   name: "AppBar Title",
+                  text: "Wedstrijd details",
                 ),
               ],
             },
@@ -124,393 +131,377 @@ abstract final class WedstrijdDetailPageWidgets {
         ],
         "body": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "ConditionalBuilder_9yl0ufo3",
-            type: "ConditionalBuilder",
+            key: "TabBar_hy4ax11p",
+            type: "TabBar",
             path: "WedstrijdDetailPage.body[0]",
-            name: "ConditionalBuilder",
+            name: "MatchDetailTabs",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_8jnug61s",
-                type: "Column",
+                key: "Tab_go8ci1pk",
+                type: "Tab",
                 path: "WedstrijdDetailPage.body[0].children[0]",
-                name: "Column",
+                name: "Tab: Info",
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "PlaceholderWidget_up48flbe",
+                type: "PlaceholderWidget",
+                path: "WedstrijdDetailPage.body[0].children[1]",
+                name: "Tab Content: Info",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "ProgressBar_relutz0n",
-                    type: "ProgressBar",
-                    path: "WedstrijdDetailPage.body[0].children[0].children[0]",
-                    name: "ProgressBar",
+                    key: "Column_4kr3x84l",
+                    type: "Column",
+                    path: "WedstrijdDetailPage.body[0].children[1].children[0]",
+                    name: "Column",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Container_9m0z4oza",
+                        type: "Container",
+                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0]",
+                        name: "Container",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Column_gj4yosa2",
+                            type: "Column",
+                            path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0]",
+                            name: "Column",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_onilcm5a",
+                                type: "Text",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[0]",
+                                name: "MatchApiStatus",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_ckisddsx",
+                                type: "Container",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[1]",
+                                name: "MatchInfoRow_opponent",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_qfwkihpg",
+                                    type: "Column",
+                                    path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[1].children[0]",
+                                    name: "Column",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_ng2mqxs9",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[1].children[0].children[0]",
+                                        name: "Text",
+                                        text: "Tegenstander",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_4dqbxkyf",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[1].children[0].children[1]",
+                                        name: "MatchInfoValue_opponent",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_65gn1drl",
+                                type: "Container",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[2]",
+                                name: "MatchInfoRow_matchDatetime",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_y18v1nng",
+                                    type: "Column",
+                                    path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[2].children[0]",
+                                    name: "Column",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_szaayf8e",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[2].children[0].children[0]",
+                                        name: "Text",
+                                        text: "Datum & Tijd",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_pkyn973a",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[2].children[0].children[1]",
+                                        name: "MatchInfoValue_matchDatetime",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_zjluuq7m",
+                                type: "Container",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[3]",
+                                name: "MatchInfoRow_location",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_tger1t2f",
+                                    type: "Column",
+                                    path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[3].children[0]",
+                                    name: "Column",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_c1yzmziy",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[3].children[0].children[0]",
+                                        name: "Text",
+                                        text: "Locatie",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_diqqwxu9",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[3].children[0].children[1]",
+                                        name: "MatchInfoValue_location",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_8ym1ji4z",
+                                type: "Container",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[4]",
+                                name: "MatchInfoRow_arrivalTime",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_0oyvwg1m",
+                                    type: "Column",
+                                    path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[4].children[0]",
+                                    name: "Column",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_0yueq4ze",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[4].children[0].children[0]",
+                                        name: "Text",
+                                        text: "Verzamelen",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_tj2wdqk8",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[4].children[0].children[1]",
+                                        name: "MatchInfoValue_arrivalTime",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_e3emsvgx",
+                                type: "Container",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[5]",
+                                name: "MatchInfoRow_coachName",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_tnnl44e6",
+                                    type: "Column",
+                                    path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[5].children[0]",
+                                    name: "Column",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_vz2mazmv",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[5].children[0].children[0]",
+                                        name: "Text",
+                                        text: "Coach",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_qzchez57",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[5].children[0].children[1]",
+                                        name: "MatchInfoValue_coachName",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_cpj4m95k",
+                                type: "Container",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[6]",
+                                name: "MatchInfoRow_fruitHeroName",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_xc8tzx29",
+                                    type: "Column",
+                                    path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[6].children[0]",
+                                    name: "Column",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_cams3mxl",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[6].children[0].children[0]",
+                                        name: "Text",
+                                        text: "Fruitheld",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_5vco3b48",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[6].children[0].children[1]",
+                                        name: "MatchInfoValue_fruitHeroName",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_75kezc1z",
+                                type: "Container",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[7]",
+                                name: "MatchInfoRow_notes",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_kadsshbg",
+                                    type: "Column",
+                                    path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[7].children[0]",
+                                    name: "Column",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_gj95wvnm",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[7].children[0].children[0]",
+                                        name: "Text",
+                                        text: "Notities",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_bjjpulka",
+                                        type: "Text",
+                                        path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[7].children[0].children[1]",
+                                        name: "MatchInfoValue_notes",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "TabBar_hy4ax11p",
-                type: "TabBar",
-                path: "WedstrijdDetailPage.body[0].children[1]",
-                name: "MatchDetailTabs",
+                key: "Tab_h61gkbnz",
+                type: "Tab",
+                path: "WedstrijdDetailPage.body[0].children[2]",
+                name: "Tab: Opstelling",
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "PlaceholderWidget_zipyldwd",
+                type: "PlaceholderWidget",
+                path: "WedstrijdDetailPage.body[0].children[3]",
+                name: "Tab Content: Opstelling",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Tab_go8ci1pk",
-                    type: "Tab",
-                    path: "WedstrijdDetailPage.body[0].children[1].children[0]",
-                    name: "Tab: Info",
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "PlaceholderWidget_up48flbe",
-                    type: "PlaceholderWidget",
-                    path: "WedstrijdDetailPage.body[0].children[1].children[1]",
-                    name: "Tab Content: Info",
+                    key: "ListView_99mjno5z",
+                    type: "ListView",
+                    path: "WedstrijdDetailPage.body[0].children[3].children[0]",
+                    name: "ListView",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_4kr3x84l",
-                        type: "Column",
-                        path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0]",
-                        name: "Column",
+                        key: "Container_o0m5fjb8",
+                        type: "Container",
+                        path: "WedstrijdDetailPage.body[0].children[3].children[0].children[0]",
+                        name: "Container",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_9m0z4oza",
-                            type: "Container",
-                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0]",
-                            name: "Container",
+                            key: "Row_avhhrk6u",
+                            type: "Row",
+                            path: "WedstrijdDetailPage.body[0].children[3].children[0].children[0].children[0]",
+                            name: "Row",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_gj4yosa2",
-                                type: "Column",
-                                path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0]",
-                                name: "Column",
+                                key: "Container_4u6s5rp2",
+                                type: "Container",
+                                path: "WedstrijdDetailPage.body[0].children[3].children[0].children[0].children[0].children[0]",
+                                name: "Container",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_ckisddsx",
-                                    type: "Container",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[0]",
-                                    name: "MatchInfoRow_opponent",
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Column_qfwkihpg",
-                                        type: "Column",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[0].children[0]",
-                                        name: "Column",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_ng2mqxs9",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[0].children[0].children[0]",
-                                            name: "Text",
-                                            text: "Tegenstander",
-                                          ),
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_4dqbxkyf",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[0].children[0].children[1]",
-                                            name: "MatchInfoValue_opponent",
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Container_65gn1drl",
-                                    type: "Container",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[1]",
-                                    name: "MatchInfoRow_matchDatetime",
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Column_y18v1nng",
-                                        type: "Column",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[1].children[0]",
-                                        name: "Column",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_szaayf8e",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[1].children[0].children[0]",
-                                            name: "Text",
-                                            text: "Datum & Tijd",
-                                          ),
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_pkyn973a",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[1].children[0].children[1]",
-                                            name: "MatchInfoValue_matchDatetime",
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Container_zjluuq7m",
-                                    type: "Container",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[2]",
-                                    name: "MatchInfoRow_location",
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Column_tger1t2f",
-                                        type: "Column",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[2].children[0]",
-                                        name: "Column",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_c1yzmziy",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[2].children[0].children[0]",
-                                            name: "Text",
-                                            text: "Locatie",
-                                          ),
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_diqqwxu9",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[2].children[0].children[1]",
-                                            name: "MatchInfoValue_location",
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Container_8ym1ji4z",
-                                    type: "Container",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[3]",
-                                    name: "MatchInfoRow_arrivalTime",
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Column_0oyvwg1m",
-                                        type: "Column",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[3].children[0]",
-                                        name: "Column",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_0yueq4ze",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[3].children[0].children[0]",
-                                            name: "Text",
-                                            text: "Verzamelen",
-                                          ),
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_tj2wdqk8",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[3].children[0].children[1]",
-                                            name: "MatchInfoValue_arrivalTime",
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Container_e3emsvgx",
-                                    type: "Container",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[4]",
-                                    name: "MatchInfoRow_coachName",
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Column_tnnl44e6",
-                                        type: "Column",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[4].children[0]",
-                                        name: "Column",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_vz2mazmv",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[4].children[0].children[0]",
-                                            name: "Text",
-                                            text: "Coach",
-                                          ),
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_qzchez57",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[4].children[0].children[1]",
-                                            name: "MatchInfoValue_coachName",
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Container_cpj4m95k",
-                                    type: "Container",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[5]",
-                                    name: "MatchInfoRow_fruitHeroName",
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Column_xc8tzx29",
-                                        type: "Column",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[5].children[0]",
-                                        name: "Column",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_cams3mxl",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[5].children[0].children[0]",
-                                            name: "Text",
-                                            text: "Fruitheld",
-                                          ),
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_5vco3b48",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[5].children[0].children[1]",
-                                            name: "MatchInfoValue_fruitHeroName",
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Container_75kezc1z",
-                                    type: "Container",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[6]",
-                                    name: "MatchInfoRow_notes",
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Column_kadsshbg",
-                                        type: "Column",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[6].children[0]",
-                                        name: "Column",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_gj95wvnm",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[6].children[0].children[0]",
-                                            name: "Text",
-                                            text: "Notities",
-                                          ),
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_bjjpulka",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[1].children[1].children[0].children[0].children[0].children[6].children[0].children[1]",
-                                            name: "MatchInfoValue_notes",
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "Tab_h61gkbnz",
-                    type: "Tab",
-                    path: "WedstrijdDetailPage.body[0].children[1].children[2]",
-                    name: "Tab: Opstelling",
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "PlaceholderWidget_zipyldwd",
-                    type: "PlaceholderWidget",
-                    path: "WedstrijdDetailPage.body[0].children[1].children[3]",
-                    name: "Tab Content: Opstelling",
-                    children: <ffai.ProjectWidgetHandle>[
-                      ffai.ProjectWidgetHandle(
-                        key: "ListView_99mjno5z",
-                        type: "ListView",
-                        path: "WedstrijdDetailPage.body[0].children[1].children[3].children[0]",
-                        name: "ListView",
-                        children: <ffai.ProjectWidgetHandle>[
-                          ffai.ProjectWidgetHandle(
-                            key: "Container_o0m5fjb8",
-                            type: "Container",
-                            path: "WedstrijdDetailPage.body[0].children[1].children[3].children[0].children[0]",
-                            name: "Container",
-                            children: <ffai.ProjectWidgetHandle>[
-                              ffai.ProjectWidgetHandle(
-                                key: "Row_avhhrk6u",
-                                type: "Row",
-                                path: "WedstrijdDetailPage.body[0].children[1].children[3].children[0].children[0].children[0]",
-                                name: "Row",
-                                children: <ffai.ProjectWidgetHandle>[
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Container_4u6s5rp2",
-                                    type: "Container",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[3].children[0].children[0].children[0].children[0]",
-                                    name: "Container",
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Text_sm309ych",
-                                        type: "Text",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[3].children[0].children[0].children[0].children[0].children[0]",
-                                        name: "Text",
-                                      ),
-                                    ],
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Text_y7k06tjm",
+                                    key: "Text_sm309ych",
                                     type: "Text",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[3].children[0].children[0].children[0].children[1]",
+                                    path: "WedstrijdDetailPage.body[0].children[3].children[0].children[0].children[0].children[0].children[0]",
                                     name: "Text",
                                   ),
                                 ],
                               ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_y7k06tjm",
+                                type: "Text",
+                                path: "WedstrijdDetailPage.body[0].children[3].children[0].children[0].children[0].children[1]",
+                                name: "Text",
+                              ),
                             ],
                           ),
                         ],
                       ),
                     ],
                   ),
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "Tab_7s6fz3vm",
+                type: "Tab",
+                path: "WedstrijdDetailPage.body[0].children[4]",
+                name: "Tab: Doelpunten",
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "PlaceholderWidget_4f630a5s",
+                type: "PlaceholderWidget",
+                path: "WedstrijdDetailPage.body[0].children[5]",
+                name: "Tab Content: Doelpunten",
+                children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Tab_7s6fz3vm",
-                    type: "Tab",
-                    path: "WedstrijdDetailPage.body[0].children[1].children[4]",
-                    name: "Tab: Doelpunten",
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "PlaceholderWidget_4f630a5s",
-                    type: "PlaceholderWidget",
-                    path: "WedstrijdDetailPage.body[0].children[1].children[5]",
-                    name: "Tab Content: Doelpunten",
+                    key: "ListView_ueutzh5d",
+                    type: "ListView",
+                    path: "WedstrijdDetailPage.body[0].children[5].children[0]",
+                    name: "ListView",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "ListView_ueutzh5d",
-                        type: "ListView",
-                        path: "WedstrijdDetailPage.body[0].children[1].children[5].children[0]",
-                        name: "ListView",
+                        key: "Container_ze11re33",
+                        type: "Container",
+                        path: "WedstrijdDetailPage.body[0].children[5].children[0].children[0]",
+                        name: "Container",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_ze11re33",
-                            type: "Container",
-                            path: "WedstrijdDetailPage.body[0].children[1].children[5].children[0].children[0]",
-                            name: "Container",
+                            key: "Row_xazcvw5v",
+                            type: "Row",
+                            path: "WedstrijdDetailPage.body[0].children[5].children[0].children[0].children[0]",
+                            name: "Row",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_xazcvw5v",
-                                type: "Row",
-                                path: "WedstrijdDetailPage.body[0].children[1].children[5].children[0].children[0].children[0]",
-                                name: "Row",
+                                key: "Container_rtzbp13t",
+                                type: "Container",
+                                path: "WedstrijdDetailPage.body[0].children[5].children[0].children[0].children[0].children[0]",
+                                name: "Container",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_rtzbp13t",
-                                    type: "Container",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[5].children[0].children[0].children[0].children[0]",
-                                    name: "Container",
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Text_g1t8pdx9",
-                                        type: "Text",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[5].children[0].children[0].children[0].children[0].children[0]",
-                                        name: "Text",
-                                      ),
-                                    ],
+                                    key: "Text_g1t8pdx9",
+                                    type: "Text",
+                                    path: "WedstrijdDetailPage.body[0].children[5].children[0].children[0].children[0].children[0].children[0]",
+                                    name: "Text",
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Column_3lojk4ri",
+                                type: "Column",
+                                path: "WedstrijdDetailPage.body[0].children[5].children[0].children[0].children[0].children[1]",
+                                name: "Column",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_fjgfa2b6",
+                                    type: "Text",
+                                    path: "WedstrijdDetailPage.body[0].children[5].children[0].children[0].children[0].children[1].children[0]",
+                                    name: "Text",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_3lojk4ri",
-                                    type: "Column",
-                                    path: "WedstrijdDetailPage.body[0].children[1].children[5].children[0].children[0].children[0].children[1]",
-                                    name: "Column",
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Text_fjgfa2b6",
-                                        type: "Text",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[5].children[0].children[0].children[0].children[1].children[0]",
-                                        name: "Text",
-                                      ),
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Text_mnyenvdu",
-                                        type: "Text",
-                                        path: "WedstrijdDetailPage.body[0].children[1].children[5].children[0].children[0].children[0].children[1].children[1]",
-                                        name: "Text",
-                                      ),
-                                    ],
+                                    key: "Text_mnyenvdu",
+                                    type: "Text",
+                                    path: "WedstrijdDetailPage.body[0].children[5].children[0].children[0].children[0].children[1].children[1]",
+                                    name: "Text",
                                   ),
                                 ],
                               ),

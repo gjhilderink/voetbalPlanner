@@ -174,7 +174,7 @@ App buildCommerceShell(App app) {
                     ),
                     Button(
                       'Next Hero',
-                      onTap: const CarouselControl.next('HeroCarousel'),
+                      onTap: CarouselControl.next('HeroCarousel'),
                     ),
                   ],
                 ),
@@ -193,7 +193,7 @@ App buildCommerceShell(App app) {
                     ),
                     Button(
                       'Jump Deal',
-                      onTap: const PageViewControl.jumpTo('DealsPager', 1),
+                      onTap: PageViewControl.jumpTo('DealsPager', 1),
                     ),
                   ],
                 ),
@@ -202,7 +202,7 @@ App buildCommerceShell(App app) {
           ),
           Button(
             'Go To Deals Tab',
-            onTap: const TabBarControl.jumpTo('CatalogTabs', 1),
+            onTap: TabBarControl.jumpTo('CatalogTabs', 1),
           ),
           Button('Share Product', onTap: Share(State('shareUrl'))),
           Button(

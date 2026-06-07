@@ -23,6 +23,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const currentConversationId = ffai.ProjectAppStateFieldHandle(
+    name: "currentConversationId",
+    key: "u9wenb6q",
+    typeName: "String",
+    persisted: false,
+  );
   static const currentTeamId = ffai.ProjectAppStateFieldHandle(
     name: "currentTeamId",
     key: "6iy18ly3",
@@ -34,6 +40,12 @@ abstract final class AppState {
     key: "kl2lj16w",
     typeName: "String",
     persisted: true,
+  );
+  static const hasUnreadTeamChat = ffai.ProjectAppStateFieldHandle(
+    name: "hasUnreadTeamChat",
+    key: "2rwaia8f",
+    typeName: "Boolean",
+    persisted: false,
   );
   static const loginEmail = ffai.ProjectAppStateFieldHandle(
     name: "loginEmail",
@@ -50,6 +62,30 @@ abstract final class AppState {
   static const loginPassword = ffai.ProjectAppStateFieldHandle(
     name: "loginPassword",
     key: "weuwb718",
+    typeName: "String",
+    persisted: false,
+  );
+  static const pendingDirectUserId = ffai.ProjectAppStateFieldHandle(
+    name: "pendingDirectUserId",
+    key: "l1xairjb",
+    typeName: "String",
+    persisted: false,
+  );
+  static const pendingDirectUserName = ffai.ProjectAppStateFieldHandle(
+    name: "pendingDirectUserName",
+    key: "zvjbckch",
+    typeName: "String",
+    persisted: false,
+  );
+  static const pendingGroupName = ffai.ProjectAppStateFieldHandle(
+    name: "pendingGroupName",
+    key: "caw2nxp1",
+    typeName: "String",
+    persisted: false,
+  );
+  static const pendingMessageText = ffai.ProjectAppStateFieldHandle(
+    name: "pendingMessageText",
+    key: "hgnaaqhk",
     typeName: "String",
     persisted: false,
   );
@@ -87,11 +123,17 @@ abstract final class AppState {
     accentColor,
     authToken,
     clubName,
+    currentConversationId,
     currentTeamId,
     currentTeamName,
+    hasUnreadTeamChat,
     loginEmail,
     loginError,
     loginPassword,
+    pendingDirectUserId,
+    pendingDirectUserName,
+    pendingGroupName,
+    pendingMessageText,
     primaryColor,
     secondaryColor,
     userEmail,

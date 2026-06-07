@@ -78,7 +78,11 @@ void buildBaseProject(App app) {
 // Edit flow — restyle and enhance
 // ---------------------------------------------------------------------------
 
-void applyRestylePatch(App app) {
+void applyRestylePatch(
+  App app, {
+  required ProjectPageHandle dashboardPage,
+  required ProjectAppStateFieldHandle hasEntries,
+}) {
   // KEY PATTERN: themeColor works in edit too — changes project theme.
   //
   // SCOPE WARNING: `app.themeColor('primary', ...)` rewrites the project's
@@ -98,10 +102,10 @@ void applyRestylePatch(App app) {
   app.themeColor('error', 0xFFDC362E);
   app.primaryFont('Inter');
 
-  app.editPage('DashboardPage', (page) {
+  app.editPage(dashboardPage, (page) {
     // KEY PATTERN: update() patches multiple properties on a widget in place.
     // The patch builder provides typed methods for each property type.
-    page.update(page.findByName('HeroCard'), (patch) {
+    page.update(dashboardPage.widgets.byText('HeroCard').single, (patch) {
       // Change the card to have primary color, rounded corners, and padding.
       // (Using the theme slot here because this is a full restyle that
       // *also* rewrote the primary slot above.)
@@ -111,7 +115,7 @@ void applyRestylePatch(App app) {
     });
 
     // Restyle the button.
-    page.update(page.findByName('ActionButton'), (patch) {
+    page.update(dashboardPage.widgets.byText('ActionButton').single, (patch) {
       patch.text('Add Entry');
       patch.buttonVariant(ButtonVariant.filled);
       patch.icon('add', size: 20);
@@ -128,16 +132,16 @@ void applyRestylePatch(App app) {
     // });
 
     // Update the text field hint.
-    page.update(page.findByName('InputField'), (patch) {
+    page.update(dashboardPage.widgets.byText('InputField').single, (patch) {
       patch.textFieldHint('What would you like to add?');
       patch.textFieldLabel('New Entry');
     });
 
     // Update hero text.
-    page.update(page.findByName('HeroTitle'), (patch) {
+    page.update(dashboardPage.widgets.byText('HeroTitle').single, (patch) {
       patch.text('Your Dashboard');
     });
-    page.update(page.findByName('HeroSubtitle'), (patch) {
+    page.update(dashboardPage.widgets.byText('HeroSubtitle').single, (patch) {
       patch.text('Track and manage your entries');
     });
 
@@ -145,7 +149,7 @@ void applyRestylePatch(App app) {
     // same position in the tree. Useful when property patching isn't enough
     // and you need a different widget structure.
     page.ensureReplaced(
-      page.findByName('HeroSubtitle'),
+      dashboardPage.widgets.byText('HeroSubtitle').single,
       Text(
         'Track and manage your entries below',
         style: Styles.bodyMedium,
@@ -160,7 +164,7 @@ void applyRestylePatch(App app) {
   // KEY PATTERN: ensureRefreshAction adds a refresh trigger. When
   // insertIntoAppBar is true, it adds an icon button to the app bar.
   app.ensureRefreshAction(
-    page: 'DashboardPage',
+    page: dashboardPage,
     insertIntoAppBar: true,
     name: 'RefreshButton',
     icon: 'refresh',
@@ -170,9 +174,9 @@ void applyRestylePatch(App app) {
   // KEY PATTERN: ensureEmptyState wraps a list with conditional visibility
   // and inserts an empty state widget when the list has no items.
   app.ensureEmptyState(
-    page: 'DashboardPage',
-    content: EditPatternTarget.byName('ItemList'),
-    visibleWhen: AppState('hasEntries'),
+    page: dashboardPage,
+    content: EditPatternTarget.byText('ItemList'),
+    visibleWhen: AppState(hasEntries),
     emptyState: Container(
       padding: 32,
       alignment: Alignment.center,

@@ -152,22 +152,62 @@ abstract final class RijschemaPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_p64u9n36",
+                                key: "Row_anux6pg0",
                                 type: "Row",
                                 path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[2]",
-                                name: "Row",
+                                name: "RijCardLocationRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_3p86rmpu",
+                                    key: "Icon_wu1ozhxc",
                                     type: "Icon",
                                     path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[2].children[0]",
                                     name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_3m002r96",
+                                    key: "Text_rpin70fb",
                                     type: "Text",
                                     path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[2].children[1]",
-                                    name: "Text",
+                                    name: "RijCardLocationText",
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_71ed9sby",
+                                type: "Row",
+                                path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[3]",
+                                name: "RijCardDriverRow",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Icon_03bzqifs",
+                                    type: "Icon",
+                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[3].children[0]",
+                                    name: "Icon",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_uoxyrq93",
+                                    type: "Text",
+                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[3].children[1]",
+                                    name: "RijCardDriverText",
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_5ec42r9k",
+                                type: "Row",
+                                path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[4]",
+                                name: "RijCardCoachRow",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Icon_4p9eyfol",
+                                    type: "Icon",
+                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[4].children[0]",
+                                    name: "Icon",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_8uw5n8a1",
+                                    type: "Text",
+                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[4].children[1]",
+                                    name: "RijCardCoachText",
                                   ),
                                 ],
                               ),

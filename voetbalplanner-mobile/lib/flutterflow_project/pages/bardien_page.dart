@@ -19,6 +19,18 @@ final class BardienPageParams {
 
 final class BardienPageState {
   const BardienPageState();
+  ffai.ProjectStateFieldHandle get bannerImageUrl =>
+      const ffai.ProjectStateFieldHandle(
+        name: "bannerImageUrl",
+        key: "pkqow0lo",
+        typeName: "String",
+      );
+  ffai.ProjectStateFieldHandle get bannerLinkUrl =>
+      const ffai.ProjectStateFieldHandle(
+        name: "bannerLinkUrl",
+        key: "ixj51nzr",
+        typeName: "String",
+      );
   ffai.ProjectStateFieldHandle get duties =>
       const ffai.ProjectStateFieldHandle(
         name: "duties",
@@ -65,43 +77,65 @@ abstract final class BardienPageWidgets {
         ],
         "body": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "ConditionalBuilder_fwgqn2js",
-            type: "ConditionalBuilder",
+            key: "Column_mkqeztja",
+            type: "Column",
             path: "BardienPage.body[0]",
-            name: "ConditionalBuilder",
+            name: "BardienBodyColumn",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_s7z9432t",
-                type: "Column",
+                key: "Container_qmhd6ab1",
+                type: "Container",
                 path: "BardienPage.body[0].children[0]",
-                name: "Column",
+                name: "BardienBannerContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "ProgressBar_p9icj8fs",
-                    type: "ProgressBar",
+                    key: "Image_upif9iyg",
+                    type: "Image",
                     path: "BardienPage.body[0].children[0].children[0]",
-                    name: "ProgressBar",
+                    name: "BardienBannerImage",
                   ),
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_2u86md6h",
-                type: "Container",
+                key: "ConditionalBuilder_fwgqn2js",
+                type: "ConditionalBuilder",
                 path: "BardienPage.body[0].children[1]",
-                name: "ListViewWrapper",
+                name: "ConditionalBuilder",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "ListView_tu54znnh",
-                    type: "ListView",
+                    key: "Column_s7z9432t",
+                    type: "Column",
                     path: "BardienPage.body[0].children[1].children[0]",
-                    name: "ListView",
+                    name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_3x9tkqc6",
-                        type: "Container",
+                        key: "ProgressBar_p9icj8fs",
+                        type: "ProgressBar",
                         path: "BardienPage.body[0].children[1].children[0].children[0]",
-                        name: "BarDutyCard",
-                        componentName: "BarDutyCard",
+                        name: "ProgressBar",
+                      ),
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "Container_2u86md6h",
+                    type: "Container",
+                    path: "BardienPage.body[0].children[1].children[1]",
+                    name: "ListViewWrapper",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "ListView_tu54znnh",
+                        type: "ListView",
+                        path: "BardienPage.body[0].children[1].children[1].children[0]",
+                        name: "ListView",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_3x9tkqc6",
+                            type: "Container",
+                            path: "BardienPage.body[0].children[1].children[1].children[0].children[0]",
+                            name: "BarDutyCard",
+                            componentName: "BarDutyCard",
+                          ),
+                        ],
                       ),
                     ],
                   ),

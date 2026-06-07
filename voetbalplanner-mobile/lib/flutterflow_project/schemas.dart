@@ -11,6 +11,16 @@ abstract final class Enums {
 }
 
 abstract final class Structs {
+  static final banner = ffai.StructHandle(
+    "Banner",
+    <String, ffai.DslType>{
+      "id": ffai.string,
+      "imageUrl": ffai.string,
+      "linkUrl": ffai.string,
+      "position": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final barDuty = ffai.StructHandle(
     "BarDuty",
     <String, ffai.DslType>{
@@ -59,6 +69,7 @@ abstract final class Structs {
     <String, ffai.DslType>{
       "arrivalTime": ffai.string,
       "coachName": ffai.string,
+      "driverNames": ffai.string,
       "fruitHeroId": ffai.string,
       "fruitHeroName": ffai.string,
       "id": ffai.string,
@@ -152,6 +163,7 @@ abstract final class Structs {
     description: ffai.generatedProjectStructDescription,
   );
   static final all = <ffai.StructHandle>[
+    banner,
     barDuty,
     clubBranding,
     clubRef,
@@ -168,10 +180,30 @@ abstract final class Structs {
 }
 
 abstract final class Collections {
+  static final chatConversations = ffai.ProjectCollectionHandle<ChatConversationsFields>(
+    name: "chatConversations",
+    description: "Gesprekken: teamchat, 1-op-1 en staffgroepen.",
+    fields: ChatConversationsFields(),
+  );
+  static final chatGroups = ffai.ProjectCollectionHandle<ChatGroupsFields>(
+    name: "chatGroups",
+    description: "Aangemaakte chatgroepen per team (naast de vaste teamchat).",
+    fields: ChatGroupsFields(),
+  );
+  static final chatMessages = ffai.ProjectCollectionHandle<ChatMessagesFields>(
+    name: "chatMessages",
+    description: "Alle chatberichten (teamchat, direct, staffgroepen).",
+    fields: ChatMessagesFields(),
+  );
   static final directMessages = ffai.ProjectCollectionHandle<DirectMessagesFields>(
     name: "directMessages",
     description: "1-op-1 directe berichten tussen twee teamleden.",
     fields: DirectMessagesFields(),
+  );
+  static final groupMessages = ffai.ProjectCollectionHandle<GroupMessagesFields>(
+    name: "groupMessages",
+    description: "Berichten in een specifieke groepschat.",
+    fields: GroupMessagesFields(),
   );
   static final teamChats = ffai.ProjectCollectionHandle<TeamChatsFields>(
     name: "teamChats",
@@ -184,10 +216,245 @@ abstract final class Collections {
     fields: UsersFields(),
   );
   static final all = <ffai.ProjectCollectionHandle>[
+    chatConversations,
+    chatGroups,
+    chatMessages,
     directMessages,
+    groupMessages,
     teamChats,
     users,
   ];
+}
+
+final class ChatConversationsFields extends MapBase<String, ffai.DslType> {
+  final conversationId = ffai.ProjectCollectionFieldHandle(
+    name: "conversationId",
+    key: "i7v3vbdh",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final createdAt = ffai.ProjectCollectionFieldHandle(
+    name: "createdAt",
+    key: "q22vbqj9",
+    typeName: "DateTime",
+    type: ffai.dateTime,
+    description: "",
+  );
+  final lastMessage = ffai.ProjectCollectionFieldHandle(
+    name: "lastMessage",
+    key: "sro7ju15",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final lastMessageAt = ffai.ProjectCollectionFieldHandle(
+    name: "lastMessageAt",
+    key: "00ka5jcj",
+    typeName: "DateTime",
+    type: ffai.dateTime,
+    description: "",
+  );
+  final participantIds = ffai.ProjectCollectionFieldHandle(
+    name: "participantIds",
+    key: "fpogt8la",
+    typeName: "List<List<String>>",
+    type: ffai.listOf(ffai.listOf(ffai.string)),
+    description: "",
+  );
+  final teamId = ffai.ProjectCollectionFieldHandle(
+    name: "teamId",
+    key: "pi46pjqs",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final title = ffai.ProjectCollectionFieldHandle(
+    name: "title",
+    key: "u9nraq05",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final type = ffai.ProjectCollectionFieldHandle(
+    name: "type",
+    key: "ifqtxt48",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+
+  @override
+  Iterable<String> get keys => const <String>[
+    "conversationId",
+    "createdAt",
+    "lastMessage",
+    "lastMessageAt",
+    "participantIds",
+    "teamId",
+    "title",
+    "type",
+  ];
+
+  @override
+  ffai.DslType? operator [](Object? key) => switch (key) {
+    "conversationId" => conversationId,
+    "createdAt" => createdAt,
+    "lastMessage" => lastMessage,
+    "lastMessageAt" => lastMessageAt,
+    "participantIds" => participantIds,
+    "teamId" => teamId,
+    "title" => title,
+    "type" => type,
+    _ => null,
+  };
+
+  @override
+  void operator []=(String key, ffai.DslType value) =>
+      throw UnsupportedError('Generated project SDK fields are read-only.');
+
+  @override
+  void clear() => throw UnsupportedError('Generated project SDK fields are read-only.');
+
+  @override
+  ffai.DslType? remove(Object? key) =>
+      throw UnsupportedError('Generated project SDK fields are read-only.');
+}
+
+final class ChatGroupsFields extends MapBase<String, ffai.DslType> {
+  final createdAt = ffai.ProjectCollectionFieldHandle(
+    name: "createdAt",
+    key: "l3vfyn6u",
+    typeName: "DateTime",
+    type: ffai.dateTime,
+    description: "",
+  );
+  final createdBy = ffai.ProjectCollectionFieldHandle(
+    name: "createdBy",
+    key: "cfurpykf",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final members = ffai.ProjectCollectionFieldHandle(
+    name: "members",
+    key: "1bas9dmu",
+    typeName: "List<String>",
+    type: ffai.listOf(ffai.string),
+    description: "",
+  );
+  final name = ffai.ProjectCollectionFieldHandle(
+    name: "name",
+    key: "7c59axjc",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final teamId = ffai.ProjectCollectionFieldHandle(
+    name: "teamId",
+    key: "20xehu77",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+
+  @override
+  Iterable<String> get keys => const <String>[
+    "createdAt",
+    "createdBy",
+    "members",
+    "name",
+    "teamId",
+  ];
+
+  @override
+  ffai.DslType? operator [](Object? key) => switch (key) {
+    "createdAt" => createdAt,
+    "createdBy" => createdBy,
+    "members" => members,
+    "name" => name,
+    "teamId" => teamId,
+    _ => null,
+  };
+
+  @override
+  void operator []=(String key, ffai.DslType value) =>
+      throw UnsupportedError('Generated project SDK fields are read-only.');
+
+  @override
+  void clear() => throw UnsupportedError('Generated project SDK fields are read-only.');
+
+  @override
+  ffai.DslType? remove(Object? key) =>
+      throw UnsupportedError('Generated project SDK fields are read-only.');
+}
+
+final class ChatMessagesFields extends MapBase<String, ffai.DslType> {
+  final conversationId = ffai.ProjectCollectionFieldHandle(
+    name: "conversationId",
+    key: "1g3nm97b",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final createdAt = ffai.ProjectCollectionFieldHandle(
+    name: "createdAt",
+    key: "p94w5qdd",
+    typeName: "DateTime",
+    type: ffai.dateTime,
+    description: "",
+  );
+  final senderId = ffai.ProjectCollectionFieldHandle(
+    name: "senderId",
+    key: "9hloj348",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final senderName = ffai.ProjectCollectionFieldHandle(
+    name: "senderName",
+    key: "kyzfo8ov",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final text = ffai.ProjectCollectionFieldHandle(
+    name: "text",
+    key: "4ezq3smy",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+
+  @override
+  Iterable<String> get keys => const <String>[
+    "conversationId",
+    "createdAt",
+    "senderId",
+    "senderName",
+    "text",
+  ];
+
+  @override
+  ffai.DslType? operator [](Object? key) => switch (key) {
+    "conversationId" => conversationId,
+    "createdAt" => createdAt,
+    "senderId" => senderId,
+    "senderName" => senderName,
+    "text" => text,
+    _ => null,
+  };
+
+  @override
+  void operator []=(String key, ffai.DslType value) =>
+      throw UnsupportedError('Generated project SDK fields are read-only.');
+
+  @override
+  void clear() => throw UnsupportedError('Generated project SDK fields are read-only.');
+
+  @override
+  ffai.DslType? remove(Object? key) =>
+      throw UnsupportedError('Generated project SDK fields are read-only.');
 }
 
 final class DirectMessagesFields extends MapBase<String, ffai.DslType> {
@@ -240,6 +507,74 @@ final class DirectMessagesFields extends MapBase<String, ffai.DslType> {
   ffai.DslType? operator [](Object? key) => switch (key) {
     "createdAt" => createdAt,
     "receiverId" => receiverId,
+    "senderId" => senderId,
+    "senderName" => senderName,
+    "text" => text,
+    _ => null,
+  };
+
+  @override
+  void operator []=(String key, ffai.DslType value) =>
+      throw UnsupportedError('Generated project SDK fields are read-only.');
+
+  @override
+  void clear() => throw UnsupportedError('Generated project SDK fields are read-only.');
+
+  @override
+  ffai.DslType? remove(Object? key) =>
+      throw UnsupportedError('Generated project SDK fields are read-only.');
+}
+
+final class GroupMessagesFields extends MapBase<String, ffai.DslType> {
+  final createdAt = ffai.ProjectCollectionFieldHandle(
+    name: "createdAt",
+    key: "a4h76kji",
+    typeName: "DateTime",
+    type: ffai.dateTime,
+    description: "",
+  );
+  final groupId = ffai.ProjectCollectionFieldHandle(
+    name: "groupId",
+    key: "8bw4m0x2",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final senderId = ffai.ProjectCollectionFieldHandle(
+    name: "senderId",
+    key: "5nh0jzir",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final senderName = ffai.ProjectCollectionFieldHandle(
+    name: "senderName",
+    key: "opya0tqd",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final text = ffai.ProjectCollectionFieldHandle(
+    name: "text",
+    key: "l46qea8h",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+
+  @override
+  Iterable<String> get keys => const <String>[
+    "createdAt",
+    "groupId",
+    "senderId",
+    "senderName",
+    "text",
+  ];
+
+  @override
+  ffai.DslType? operator [](Object? key) => switch (key) {
+    "createdAt" => createdAt,
+    "groupId" => groupId,
     "senderId" => senderId,
     "senderName" => senderName,
     "text" => text,
@@ -413,8 +748,12 @@ abstract final class CustomCode {
   ];
   static const actions = <String>[
     "AuthenticateBiometric",
+    "CreateChatGroup",
+    "GetOrCreateDirectConversation",
+    "InitializeTeamConversation",
     "LoginWithCredentials",
     "SendMagicLink",
+    "SendMessage",
     "SubscribeToTeamTopic",
     "UnsubscribeFromTeamTopic",
     "VerifyMagicLink",

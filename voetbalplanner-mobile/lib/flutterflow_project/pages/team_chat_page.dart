@@ -43,6 +43,12 @@ final class TeamChatPageState {
         key: "f7a4l8m5",
         typeName: "String",
       );
+  ffai.ProjectStateFieldHandle get teamMembers =>
+      const ffai.ProjectStateFieldHandle(
+        name: "teamMembers",
+        key: "xd9y12tb",
+        typeName: "List<DataStruct<?>>",
+      );
 }
 
 abstract final class TeamChatPageWidgets {
@@ -54,18 +60,19 @@ abstract final class TeamChatPageWidgets {
       name: "TeamChatPage",
       triggers: const <String>[
         "ON_INIT_STATE",
+        "ON_INIT_STATE",
       ],
       slots: <String, List<ffai.ProjectWidgetHandle>>{
         "appBar": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "AppBar_u8dfoazf",
+            key: "AppBar_4cuje8ub",
             type: "AppBar",
             path: "TeamChatPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_nbxdkwa8",
+                  key: "Text_0icuqid9",
                   type: "Text",
                   path: "TeamChatPage.appBar[0].title[0]",
                   name: "TeamChatTitle",
@@ -82,39 +89,86 @@ abstract final class TeamChatPageWidgets {
             name: "Column",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
+                key: "Container_wyry120u",
+                type: "Container",
+                path: "TeamChatPage.body[0].children[0]",
+                name: "DirectChatMemberStrip",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "ListView_2giu0nit",
+                    type: "ListView",
+                    path: "TeamChatPage.body[0].children[0].children[0]",
+                    name: "MemberStripList",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Container_0sqf1tii",
+                        type: "Container",
+                        path: "TeamChatPage.body[0].children[0].children[0].children[0]",
+                        name: "MemberChip",
+                        triggers: const <String>[
+                          "ON_TAP",
+                        ],
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Column_uzijmyqr",
+                            type: "Column",
+                            path: "TeamChatPage.body[0].children[0].children[0].children[0].children[0]",
+                            name: "MemberChipColumn",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_uzqsoydv",
+                                type: "Container",
+                                path: "TeamChatPage.body[0].children[0].children[0].children[0].children[0].children[0]",
+                                name: "MemberAvatar",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_qnslfq2k",
+                                type: "Text",
+                                path: "TeamChatPage.body[0].children[0].children[0].children[0].children[0].children[1]",
+                                name: "MemberChipName",
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
                 key: "ListView_9sebksf4",
                 type: "ListView",
-                path: "TeamChatPage.body[0].children[0]",
+                path: "TeamChatPage.body[0].children[1]",
                 name: "ListView",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
                     key: "Container_00rk30lc",
                     type: "Container",
-                    path: "TeamChatPage.body[0].children[0].children[0]",
+                    path: "TeamChatPage.body[0].children[1].children[0]",
                     name: "Container",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
                         key: "Column_thoxlcla",
                         type: "Column",
-                        path: "TeamChatPage.body[0].children[0].children[0].children[0]",
+                        path: "TeamChatPage.body[0].children[1].children[0].children[0]",
                         name: "Column",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
                             key: "Row_c9r5vcfn",
                             type: "Row",
-                            path: "TeamChatPage.body[0].children[0].children[0].children[0].children[0]",
+                            path: "TeamChatPage.body[0].children[1].children[0].children[0].children[0]",
                             name: "Row",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
                                 key: "Text_7jv707xv",
                                 type: "Text",
-                                path: "TeamChatPage.body[0].children[0].children[0].children[0].children[0].children[0]",
+                                path: "TeamChatPage.body[0].children[1].children[0].children[0].children[0].children[0]",
                                 name: "Text",
                               ),
                               ffai.ProjectWidgetHandle(
                                 key: "Text_n47ngwi3",
                                 type: "Text",
-                                path: "TeamChatPage.body[0].children[0].children[0].children[0].children[0].children[1]",
+                                path: "TeamChatPage.body[0].children[1].children[0].children[0].children[0].children[1]",
                                 name: "Text",
                               ),
                             ],
@@ -122,7 +176,7 @@ abstract final class TeamChatPageWidgets {
                           ffai.ProjectWidgetHandle(
                             key: "Text_t5hhwvox",
                             type: "Text",
-                            path: "TeamChatPage.body[0].children[0].children[0].children[0].children[1]",
+                            path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1]",
                             name: "Text",
                           ),
                         ],
@@ -134,19 +188,19 @@ abstract final class TeamChatPageWidgets {
               ffai.ProjectWidgetHandle(
                 key: "Container_1sl46d0v",
                 type: "Container",
-                path: "TeamChatPage.body[0].children[1]",
+                path: "TeamChatPage.body[0].children[2]",
                 name: "Container",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
                     key: "Row_bimba3i0",
                     type: "Row",
-                    path: "TeamChatPage.body[0].children[1].children[0]",
+                    path: "TeamChatPage.body[0].children[2].children[0]",
                     name: "Row",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
                         key: "TextField_1fq4pveg",
                         type: "TextField",
-                        path: "TeamChatPage.body[0].children[1].children[0].children[0]",
+                        path: "TeamChatPage.body[0].children[2].children[0].children[0]",
                         name: "MessageField",
                         text: "Bericht typen...",
                         triggers: const <String>[
@@ -156,7 +210,7 @@ abstract final class TeamChatPageWidgets {
                       ffai.ProjectWidgetHandle(
                         key: "IconButton_l68mmxn6",
                         type: "IconButton",
-                        path: "TeamChatPage.body[0].children[1].children[0].children[1]",
+                        path: "TeamChatPage.body[0].children[2].children[0].children[1]",
                         name: "IconButton",
                         triggers: const <String>[
                           "ON_TAP",

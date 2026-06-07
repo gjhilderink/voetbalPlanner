@@ -291,19 +291,15 @@ class FormattedMoney extends StatelessWidget {
 ''',
   );
 
-  // If you're writing a *pure-edit* script that places an existing
-  // custom widget without redeclaring it, use `app.existingCustomWidget`
-  // instead of `app.customWidget`:
+  // If you're writing a *pure-edit* script that places an existing custom
+  // widget without redeclaring it, place `CustomWidget(widgetName: ...)`
+  // directly and use generated typed SDK handles for the surrounding page and
+  // widget targets:
   //
-  //   final receiptCard = app.existingCustomWidget(
-  //     'ReceiptCard',
-  //     parameters: {'total': double_, 'currency': string},
-  //   );
+  //   CustomWidget(widgetName: 'ReceiptCard', arguments: {'total': 42.0});
   //
-  // The compiler resolves it against `findCustomWidget(project, ...)` at
-  // compile time and validates call-site arg names against the
-  // `parameters:` map you pass. Omit `parameters:` to let the compiler
-  // infer them from the project proto.
+  // The compiler resolves parameters against `findCustomWidget(project, ...)`
+  // at compile time.
 
   // ---------- tree edit: mount the custom widget in an existing page ----
   //

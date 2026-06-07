@@ -77,27 +77,31 @@ final _task = StructHandle('Task', {
   'title': string,
   'description': string,
   'done': bool_,
-});
+}, description: generatedProjectStructDescription);
 
-void applyFormAndDetailPatch(App app) {
+void applyFormAndDetailPatch(
+  App app, {
+  required ProjectPageHandle tasksPage,
+  required ProjectAppStateFieldHandle tasks,
+}) {
   // -- Add form state to the existing page --
-  app.editPageState('TasksPage', (state) {
+  app.editPageState(tasksPage, (state) {
     state.ensureField('formTitle', string.withDefault(''));
     state.ensureField('formDescription', string.withDefault(''));
     state.ensureField('showForm', bool_.withDefault(false));
   });
 
   // -- Wire the existing Add button to toggle form visibility --
-  app.editPage('TasksPage', (page) {
+  app.editPage(tasksPage, (page) {
     page.ensureActions(
-      page.findByName('AddButton'),
+      tasksPage.widgets.byText('AddButton').single,
       triggerType: FFActionTriggerType.ON_TAP,
       actions: [SetState.toggle('showForm')],
     );
 
     // KEY PATTERN: ensureInsertedBefore adds the form above the button.
     page.ensureInsertedBefore(
-      page.findByName('AddButton'),
+      tasksPage.widgets.byText('AddButton').single,
       Container(
         name: 'NewTaskForm',
         borderColor: Colors.primary,
@@ -158,7 +162,7 @@ void applyFormAndDetailPatch(App app) {
       triggerType: FFActionTriggerType.ON_TAP,
       actions: [
         UpdateAppState.addToList(
-          'tasks',
+          tasks,
           Struct(_task, {
             'title': WidgetState('formTitleField', WidgetStateProperty.text),
             'description': WidgetState(
@@ -177,7 +181,7 @@ void applyFormAndDetailPatch(App app) {
 
     // KEY PATTERN: ensureActions with Navigate wires list item taps to a detail page.
     page.ensureActions(
-      page.findByName('TaskItem'),
+      tasksPage.widgets.byText('TaskItem').single,
       triggerType: FFActionTriggerType.ON_TAP,
       actions: [Navigate('TaskDetailPage')],
     );
@@ -185,7 +189,7 @@ void applyFormAndDetailPatch(App app) {
 
   // KEY PATTERN: ensureAppBarActions adds action buttons to the app bar.
   app.ensureAppBarActions(
-    page: 'TasksPage',
+    page: tasksPage,
     actions: [IconButton('search', name: 'AppBarSearch', size: 24)],
   );
 

@@ -7,7 +7,7 @@ void buildTriggerExistingEventPattern(
 }) {
   app.editPage('StarterPage', (page) {
     page.ensureActions(
-      EditPatternTarget.singleExistingButton().toSelection(page),
+      EditPatternTarget.singleButton().toSelection(page),
       triggerType: FFActionTriggerType.ON_TAP,
       actions: [
         AddLocalEventHandler(

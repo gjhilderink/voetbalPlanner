@@ -241,149 +241,136 @@ void buildEditFlow(App app) {
   _addBiometricButton(app);
   _addLedenLoginSection(app);
 
-  // Chat: Firestore collections — use typed SDK handles; attempt creation for new projects.
-  final teamChats = ff.Collections.teamChats;
+  // ── Chat: Firestore collections ───────────────────────────────────────────────
+  // New unified schema (replaces teamChats + directMessages + groupMessages + chatGroups).
+  //   chatConversations — thread metadata (type, title, lastMessage, participants)
+  //   chatMessages      — all messages across all conversation types
+  // Legacy collections kept in the project for data safety; no longer used by new pages.
   try {
     app.collection(
-      'teamChats',
-      description: 'Real-time team chat messages per elftal.',
+      'chatConversations',
+      description: 'Gesprekken: teamchat, 1-op-1 en staffgroepen.',
       fields: {
-        'text': string,
-        'senderId': string,
-        'senderName': string,
-        'teamId': string,
-        'createdAt': dateTime,
+        'conversationId': string,
+        'type':           string,
+        'teamId':         string,
+        'title':          string,
+        'participantIds': listOf(string),
+        'lastMessage':    string,
+        'lastMessageAt':  dateTime,
+        'createdAt':      dateTime,
       },
     );
   } catch (_) {}
 
-  final directMessages = ff.Collections.directMessages;
   try {
     app.collection(
-      'directMessages',
-      description: '1-op-1 directe berichten tussen twee teamleden.',
+      'chatMessages',
+      description: 'Alle chatberichten (teamchat, direct, staffgroepen).',
       fields: {
-        'text': string,
-        'senderId': string,
-        'senderName': string,
-        'receiverId': string,
-        'createdAt': dateTime,
+        'conversationId': string,
+        'text':           string,
+        'senderId':       string,
+        'senderName':     string,
+        'createdAt':      dateTime,
       },
     );
   } catch (_) {}
 
-  // chatGroups: collection already exists in the project (with members field from Push 1).
-  // Use the typed SDK handle directly — no app.collection() call needed.
-  final chatGroups = ff.Collections.chatGroups;
+  // Construct handles directly — works whether or not the typed SDK has been refreshed
+  // after the first push that creates these collections.
+  final chatConversations = FirestoreCollectionHandle(
+    'chatConversations',
+    {
+      'conversationId': string,
+      'type':           string,
+      'teamId':         string,
+      'title':          string,
+      'participantIds': listOf(string),
+      'lastMessage':    string,
+      'lastMessageAt':  dateTime,
+      'createdAt':      dateTime,
+    },
+    description: 'Gesprekken: teamchat, 1-op-1 en staffgroepen.',
+  );
+  final chatMessages = FirestoreCollectionHandle(
+    'chatMessages',
+    {
+      'conversationId': string,
+      'text':           string,
+      'senderId':       string,
+      'senderName':     string,
+      'createdAt':      dateTime,
+    },
+    description: 'Alle chatberichten (teamchat, direct, staffgroepen).',
+  );
 
-  final groupMessages = ff.Collections.groupMessages;
+  // ── Chat AppState fields ──────────────────────────────────────────────────────
+  // These must exist at DSL compile time because _buildChatDetailPage references
+  // them via UpdateAppState.set(). They are also added by _addChatInfrastructure
+  // (raw phase) as a fallback for subsequent pushes.
+  try { app.state('currentConversationId', string); } catch (_) {}
+  try { app.state('pendingMessageText', string); } catch (_) {}
+  try { app.state('pendingDirectUserId', string); } catch (_) {}
+  try { app.state('pendingDirectUserName', string); } catch (_) {}
+
+  // ── Chat custom actions ───────────────────────────────────────────────────────
+  // Declared at DSL level so CallCustomAction.named(...) in _buildChatDetailPage
+  // and app.editPageOnLoad resolve correctly at DSL compile time.
+  // _addChatInfrastructure (raw phase) later calls updateCustomAction to keep the
+  // code in sync on every push.
   try {
-    app.collection(
-      'groupMessages',
-      description: 'Berichten in een specifieke groepschat.',
-      fields: {
-        'text':       string,
-        'senderId':   string,
-        'senderName': string,
-        'groupId':    string,
-        'createdAt':  dateTime,
-      },
-    );
+    app.customAction('SendMessage', args: {}, code: _kSendMessageCode,
+        description: 'Send a chat message and update conversation last-message metadata.');
+  } catch (_) {}
+  try {
+    app.customAction('GetOrCreateDirectConversation', args: {}, code: _kGetOrCreateConvCode,
+        description: 'Find or create a direct (1-on-1) chatConversations document.');
+  } catch (_) {}
+  try {
+    app.customAction('InitializeTeamConversation', args: {}, code: _kInitTeamConvCode,
+        description: 'Ensure team chatConversation exists and cache its ID in AppState.');
   } catch (_) {}
 
-  // Chat pages
-  _buildTeamChatPage(app, teamChats);
-  _buildDirectChatPage(app, directMessages);
-  _buildGroupChatPage(app, groupMessages);
-  _buildCreateGroupPage(app, chatGroups);
-  // Replace the CreateGroupSubmitButton's ON_TAP action to include 'members'.
-  // ensurePage (used in _buildCreateGroupPage) is idempotent and doesn't update an
-  // existing page body, so we use editPage here to push the replacement every push.
-  //
-  // The FlutterFlow server validator rejects scalar String custom-action args but
-  // accepts List<String>. Workaround: stage groupName into AppState.pendingGroupName
-  // first, then call CreateChatGroup with only memberIds (List<String>). The custom
-  // action reads groupName/teamId/createdBy from FFAppState() internally.
-  app.editPage(ff.Pages.createGroupPage, (page) {
-    page.ensureActions(
-      ff.Pages.createGroupPage.widgets.byKey('Button_ojzg88rp').single,
-      triggerType: FFActionTriggerType.ON_TAP,
-      actions: [
-        If(
-          Not(Equals(State(ff.Pages.createGroupPage.state.groupName), '')),
-          then: [
-            UpdateAppState.set(
-              'pendingGroupName',
-              State(ff.Pages.createGroupPage.state.groupName),
-            ),
-            CallCustomAction.named(
-              'CreateChatGroup',
-              arguments: {
-                'memberIds': State(ff.Pages.createGroupPage.state.selectedMemberIds),
-              },
-            ),
-            NavigateBack(),
-          ],
-        ),
-      ],
-    );
+  // ── Chat pages ────────────────────────────────────────────────────────────────
+  // ChatDetailPage: universal chat (team / direct / staffgroep).
+  // Replaces the old TeamChatPage, DirectChatPage, GroupChatPage.
+  _buildChatDetailPage(app, chatMessages);
+
+  // Add 'conversations' state field to ChatsPage (idempotent — no-op if already present).
+  app.editPageState(ff.Pages.chatsPage, (state) {
+    state.ensureField('conversations', listOf(chatConversations));
   });
-  _buildMagicLinkVerifyPage(app);
 
-  // editPageOnLoad REPLACES the full onLoad on every push, which lets us keep the
-  // collection reference fresh. FCM subscription uses editPageOnLoad because
-  // CallCustomAction inside ensurePage onLoad would fail before app.raw() creates it.
-  // UpdateAppState clears the nav-bar badge (hasUnreadTeamChat) when the user opens chat.
-  app.editPageOnLoad(ff.Pages.teamChatPage, [
-    UpdateAppState.set(ff.AppState.hasUnreadTeamChat, false),
+  // Replace ChatsPage load chain: InitializeTeamConversation → query chatConversations
+  // → SetState. GetTeamMembers is appended afterwards by _wireChatsPageLoad (raw).
+  // editPageOnLoad replaces the trigger on every push so it is always up-to-date.
+  app.editPageOnLoad(ff.Pages.chatsPage, [
+    CallCustomAction.named('InitializeTeamConversation', arguments: {}),
     FirestoreQuery(
-      teamChats,
-      limit: 100,
-      singleTimeQuery: true,
-      outputAs: 'loadedMessages',
+      chatConversations,
+      limit: 50,
+      singleTimeQuery: false,
+      outputAs: 'loadedConversations',
     ),
-    SetState(ff.Pages.teamChatPage.state.chatMessages, ActionOutput('loadedMessages')),
-    CallCustomAction.named(
-      'SubscribeToTeamTopic',
-      arguments: {'teamId': AppState(ff.AppState.currentTeamId)},
-    ),
+    SetState('conversations', ActionOutput('loadedConversations')),
   ]);
 
-  // Add teamId filter AFTER page() has written the fresh TeamChatPage.
-  // Also fix login page labels here — after _addLedenLoginSection ran.
+  _buildMagicLinkVerifyPage(app);
+
+  // Fix login page labels + AppBars on new chat pages.
   app.raw((project) {
-    // Mark teamId/teamName params optional by setting proto defaultValue so the
-    // wiring-review treats them as WiringSeverity.warning (non-blocking) when
-    // the chat button navigates without params (params.isEmpty → NavBarPage shown).
-    final chatPage = findPage(project, name: 'TeamChatPage');
-    if (chatPage != null) {
-      const defaults = {'teamId': '', 'teamName': 'Teamchat'};
-      for (final param in chatPage.params.values) {
-        if (!param.hasIdentifier()) continue;
-        final def = defaults[param.identifier.name];
-        if (def != null && !param.hasDefaultValue()) {
-          param.defaultValue = FFParameterValue(serializedValue: def);
-        }
-      }
-    }
-    _addTeamChatFilters(project);
+    // Ensure GetStaffGroups API endpoint exists in the VoetbalPlannerAPI group.
+    _addGetStaffGroupsEndpoint(project);
     _fixLoginPageLabels(project);
-    _resetTeamChatAppBar(project);
     _addDocumentatieAppBar(project);
-    _fixChatTimestamp(project);
     _wireChatBadge(project);
-    // NOTE: _wireTeamMembersLoad is intentionally NOT here.
-    // It uses Actions.updatePageState('teamMembers') which validates the field
-    // at call time. teamMembers is added by editPageState (rawMutations) below,
-    // so _wireTeamMembersLoad must run AFTER editPageState. See below.
   });
 
-  // Chat navigation button on WedstrijdenPage
+  // Chat navigation button on WedstrijdenPage → ChatsPage.
   _addChatButton(app);
 
   // Documentation page for members + handleiding button on ProfielPage.
-  // Struct must be declared before the raw endpoint and page so the type
-  // is available when _addDocumentationEndpoint references it by name.
   final documentSection = ff.Structs.documentSection;
   try {
     app.struct('DocumentSection', {
@@ -399,7 +386,6 @@ void buildEditFlow(App app) {
   app.raw((project) => _addHandleidingButton(project));
 
   // ─── Wissel (swap) feature ────────────────────────────────────────────────
-  // Must run after struct/page declarations above so existing names compile.
   app.raw((project) => _addSwapStructFields(project));
   app.raw((project) => _addSwapParamsToBarDutyCard(project));
 
@@ -411,48 +397,19 @@ void buildEditFlow(App app) {
     });
   } catch (_) {}
 
-  // teamMembers state field for the direct-chat member strip (swapMember struct now in scope).
-  app.editPageState(ff.Pages.teamChatPage, (state) {
-    state.ensureField('teamMembers', listOf(swapMember));
-  });
-  // Wire the GetTeamMembers API call AFTER editPageState has added the field.
-  // Actions.updatePageState validates 'teamMembers' at call time, so this raw
-  // block must be registered AFTER editPageState (rawMutations run in order).
-  app.raw((project) => _wireTeamMembersLoad(project));
-  // Horizontal member strip at the top of TeamChatPage (tap member → DirectChatPage).
-  _addDirectChatMemberStrip(app, swapMember);
+  // ── ChatsPage hub ─────────────────────────────────────────────────────────
+  // Declared AFTER swapMember so teamMembers listOf(swapMember) compiles.
+  _buildChatsPage(app, chatConversations, swapMember);
 
-  // ChatsPage hub — declared AFTER swapMember so teamMembers listOf(swapMember) compiles.
-  _buildChatsPage(app, chatGroups, swapMember);
-
-  // Wire ChatsPage onLoad (GetTeamMembers) and dynamic content (groups ListView + member strip)
-  // via app.raw() so the fields are already present when these rawMutations run.
-  // NOTE: editPageOnLoad was removed for ChatsPage — it was adding a dead second ON_INIT_STATE
-  // trigger (instead of replacing the first), causing duplicate 'loadedGroups' output variable
-  // and a FlutterFlow validation error. All fixes are applied in-place to the first trigger below.
+  // Wire ChatsPage onLoad + dynamic content via app.raw() so all state fields
+  // are present when rawMutations execute.
   app.raw((project) {
     _removeDeadChatsPageTrigger(project);
-    _fixChatsPageGroupsRealtime(project);
     _wireChatsPageLoad(project);
-    _wireChatsPageGroupsList(project);
+    _wireChatsPageConversationsList(project);
     _wireChatsPageMemberStrip(project);
-    _wireChatsPageGroupsFilter(project);
-    _wireGroupChatFilters(project);
-  });
-
-  // CreateGroupPage: add team member selection state fields (swapMember now in scope).
-  app.editPageState(ff.Pages.createGroupPage, (state) {
-    state.ensureField('teamMembers', listOf(swapMember));
-    state.ensureField('selectedMemberIds', listOf(string));
-    state.ensureField('isLoadingMembers', bool_.withDefault(true));
-  });
-  // Wire CreateGroupPage: add members field to chatGroups schema, load team members on page
-  // load, and add member-selection UI. The 'members' field is included in FirestoreCreate
-  // inside _buildCreateGroupPage via the typed SDK handle (high-level DSL, no raw mutation).
-  app.raw((project) {
-    _addMembersFieldToChatGroups(project);
-    _wireCreateGroupPageLoad(project);
-    _wireCreateGroupMembersUI(project);
+    _wireConversationsFilter(project);
+    _wireChatDetailFilters(project);
   });
 
   final swapRequest = ff.Structs.swapRequest;
@@ -1112,16 +1069,10 @@ void _setupBardienFilter(FFProject project) {
 
 // ─── NavBar + chat page AppBars ──────────────────────────────────────────────
 
-// Adds an AppBar (with back button) to chat sub-pages.
-// TeamChatPage AppBar is managed by _resetTeamChatAppBar (force-resets every push).
-// ChatsPage is a NavBar page — its AppBar is set once here (idempotent).
-// Idempotent: skipped when an appBar slot is already registered.
+// Adds AppBars to chat pages. ChatDetailPage uses a dynamic title from its
+// 'title' param. ChatsPage is a NavBar tab — static title, no back button.
 void _addChatPageAppBars(FFProject project) {
-  _ensureChatAppBar(project, 'DirectChatPage', 'memberName');
-  // GroupChatPage: force-reset AppBar (back button + groupName as title).
-  _resetGroupChatPageAppBar(project);
-  _ensureChatAppBarStatic(project, 'CreateGroupPage', 'Nieuwe groep');
-  // ChatsPage: force-reset AppBar title (NavBar tab — no back button).
+  _ensureChatAppBar(project, 'ChatDetailPage', 'title');
   _resetChatsPageAppBar(project);
 }
 
@@ -1427,6 +1378,138 @@ void _addBiometricButton(App app) {
   });
 }
 
+// ─── Chat custom-action code strings ─────────────────────────────────────────
+// Defined at top-level so they can be referenced from both:
+//   • app.customAction(...) in buildEditFlow (DSL compile phase)
+//   • _addChatInfrastructure (raw phase, for update/idempotency)
+
+const _kSendMessageCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<void> sendMessage() async {
+  final conversationId = FFAppState().currentConversationId;
+  final text = FFAppState().pendingMessageText.trim();
+  if (conversationId.isEmpty || text.isEmpty) return;
+
+  final db = FirebaseFirestore.instance;
+  final batch = db.batch();
+
+  final msgRef = db.collection('chatMessages').doc();
+  batch.set(msgRef, {
+    'conversationId': conversationId,
+    'text': text,
+    'senderId': FFAppState().authToken,
+    'senderName': FFAppState().userName,
+    'createdAt': FieldValue.serverTimestamp(),
+  });
+
+  final convRef = db.collection('chatConversations').doc(conversationId);
+  batch.update(convRef, {
+    'lastMessage': text,
+    'lastMessageAt': FieldValue.serverTimestamp(),
+  });
+
+  await batch.commit();
+
+  FFAppState().update(() {
+    FFAppState().pendingMessageText = '';
+  });
+}
+''';
+
+const _kGetOrCreateConvCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<void> getOrCreateDirectConversation() async {
+  final myId    = FFAppState().authToken;
+  final otherId = FFAppState().pendingDirectUserId;
+  final otherName = FFAppState().pendingDirectUserName;
+  final teamId  = FFAppState().currentTeamId;
+
+  if (myId.isEmpty || otherId.isEmpty || teamId.isEmpty) return;
+
+  // Canonical ID: sorted user IDs + teamId for uniqueness across teams.
+  final ids = [myId, otherId]..sort();
+  final convId = '${teamId}_${ids[0]}_${ids[1]}';
+
+  final db = FirebaseFirestore.instance;
+  final docRef = db.collection('chatConversations').doc(convId);
+  final doc = await docRef.get();
+
+  if (!doc.exists) {
+    await docRef.set({
+      'conversationId': convId,
+      'type': 'direct',
+      'teamId': teamId,
+      'title': otherName,
+      'participantIds': [myId, otherId],
+      'lastMessage': '',
+      'lastMessageAt': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  FFAppState().update(() {
+    FFAppState().currentConversationId = convId;
+  });
+}
+''';
+
+const _kInitTeamConvCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<void> initializeTeamConversation() async {
+  final teamId = FFAppState().currentTeamId;
+  if (teamId.isEmpty) return;
+
+  final convId = 'team_$teamId';
+  final db = FirebaseFirestore.instance;
+  final docRef = db.collection('chatConversations').doc(convId);
+  final doc = await docRef.get();
+
+  if (!doc.exists) {
+    await docRef.set({
+      'conversationId': convId,
+      'type': 'team',
+      'teamId': teamId,
+      'title': FFAppState().currentTeamName,
+      'participantIds': [],
+      'lastMessage': '',
+      'lastMessageAt': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  FFAppState().update(() {
+    FFAppState().currentConversationId = convId;
+  });
+}
+''';
+
 // ─── Chat + push notifications ────────────────────────────────────────────────
 
 void _addChatInfrastructure(FFProject project) {
@@ -1450,9 +1533,14 @@ void _addChatInfrastructure(FFProject project) {
   // Badge flag: true when there are unread team chat messages (cleared on page open).
   _ensureAppStateField(project, 'hasUnreadTeamChat', FFBaseDataType.Boolean);
 
-  // Staging field used by CreateGroupPage button to pass groupName into the
-  // createChatGroup custom action (FlutterFlow validator rejects scalar String
-  // custom-action args but accepts List<String>, so we stage via AppState).
+  // AppState fields for chat navigation & message sending.
+  // scalar String args in custom-action calls fail the FF validator, so all
+  // contextual data is staged via AppState before calling custom actions.
+  _ensureAppStateField(project, 'currentConversationId', FFBaseDataType.String);
+  _ensureAppStateField(project, 'pendingMessageText', FFBaseDataType.String);
+  _ensureAppStateField(project, 'pendingDirectUserId', FFBaseDataType.String);
+  _ensureAppStateField(project, 'pendingDirectUserName', FFBaseDataType.String);
+  // Legacy field — kept to avoid breaking existing project data that may reference it.
   _ensureAppStateField(project, 'pendingGroupName', FFBaseDataType.String);
 
   // Subscribe to FCM topic for a team → receives push notifications for that team's chat.
@@ -1538,13 +1626,25 @@ Future<void> unsubscribeFromTeamTopic(String? teamId) async {
     updateCustomAction(project, name: 'UnsubscribeFromTeamTopic', code: _unsubscribeCode);
   }
 
-  // Create a chatGroups document including the members List<String>.
-  // FlutterFlow's createChatGroupsRecordData() helper omits List<String> fields,
-  // so we bypass it and write directly to Firestore here.
-  // Only List<String> args pass the FlutterFlow server validator for custom
-  // action calls. Scalar String args (groupName, teamId, createdBy) are read
-  // from FFAppState() instead — groupName is staged via pendingGroupName before
-  // the action is called.
+  // ── SendMessage ──────────────────────────────────────────────────────────────
+  // Writes a chatMessages document and updates chatConversations.lastMessage.
+  // All context read from FFAppState() to avoid FF validator issues with String
+  // custom-action args. Stage currentConversationId + pendingMessageText before
+  // calling this action.
+  updateCustomAction(project, name: 'SendMessage', code: _kSendMessageCode);
+
+  // ── GetOrCreateDirectConversation ────────────────────────────────────────────
+  // Finds or creates a chatConversations doc for a 1-on-1 conversation.
+  // Reads pendingDirectUserId + pendingDirectUserName from FFAppState().
+  // Stores the resulting conversationId in FFAppState().currentConversationId.
+  updateCustomAction(project, name: 'GetOrCreateDirectConversation', code: _kGetOrCreateConvCode);
+
+  // ── InitializeTeamConversation ───────────────────────────────────────────────
+  // Ensures the team chatConversation document exists and stores its ID in
+  // AppState.currentConversationId. Called on ChatsPage load.
+  updateCustomAction(project, name: 'InitializeTeamConversation', code: _kInitTeamConvCode);
+
+  // Legacy: kept so existing FlutterFlow project references don't break during migration.
   const _createChatGroupCode = r'''
 // Automatic FlutterFlow imports
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -1557,22 +1657,15 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> createChatGroup(List<String> memberIds) async {
-  final groupName = FFAppState().pendingGroupName;
-  if (groupName.isEmpty) return;
-  await FirebaseFirestore.instance.collection('chatGroups').add({
-    'name': groupName,
-    'teamId': FFAppState().currentTeamId,
-    'createdBy': FFAppState().userName,
-    'createdAt': FieldValue.serverTimestamp(),
-    'members': memberIds,
-  });
+  // Superseded by staff-group management in Laravel backend.
+  // Kept for backwards compatibility only — new groups are created via Laravel.
 }
 ''';
   if (findCustomAction(project, name: 'CreateChatGroup') == null) {
     addCustomAction(
       project,
       name: 'CreateChatGroup',
-      description: 'Create a chatGroups document including the members array.',
+      description: '(Legacy) Superseded by staff-group management in Laravel.',
       arguments: [
         FFParameter(
           identifier: FFIdentifier(name: 'memberIds'),
@@ -1651,43 +1744,45 @@ FFIdentifier? _findPageStateFieldId(FFProject project, String pageName, String f
   return field?.parameter.identifier;
 }
 
-// ─── TeamChatPage ─────────────────────────────────────────────────────────────
+// ─── ChatDetailPage (universeel: teamchat / direct / staffgroep) ─────────────
 
-void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
+void _buildChatDetailPage(App app, FirestoreCollectionHandle chatMessages) {
   app.ensurePage(
-    'TeamChatPage',
-    description: 'Real-time team chat. Leden van hetzelfde elftal kunnen hier berichten uitwisselen.',
-    route: 'team-chat',
+    'ChatDetailPage',
+    description: 'Universele chatpagina voor teamchat, direct en staffgroep-gesprekken.',
+    route: 'chat-detail',
     params: {
-      'teamId': string.withDefault(''),
-      'teamName': string.withDefault('Teamchat'),
+      'conversationId': string.withDefault(''),
+      'title': string.withDefault('Chat'),
     },
     state: {
-      'chatMessages': listOf(teamChats),
+      'chatMessages': listOf(chatMessages),
       'messageText': string,
     },
     onLoad: [
-      // Load messages (add teamId == Param('teamId') filter in FlutterFlow editor)
+      // Load messages filtered by conversationId (filter applied by _wireChatDetailFilters).
       FirestoreQuery(
-        teamChats,
+        chatMessages,
         limit: 100,
         singleTimeQuery: false,
         outputAs: 'loadedMessages',
       ),
-      SetState(ff.Pages.teamChatPage.state.chatMessages, ActionOutput('loadedMessages')),
+      SetState(ff.Pages.chatDetailPage.state.chatMessages, ActionOutput('loadedMessages')),
+      // Clear pending message text from previous conversation.
+      UpdateAppState.set(ff.AppState.pendingMessageText, ''),
     ],
     body: Column(
       children: [
-        // Messages list
+        // Messages list — realtime stream filtered by conversationId
         Expanded(
           ListView(
-            source: State(ff.Pages.teamChatPage.state.chatMessages),
+            source: State(ff.Pages.chatDetailPage.state.chatMessages),
             padding: 12,
             spacing: 8,
             itemBuilder: (_) => Column(
               crossAxis: CrossAxis.stretch,
               children: [
-                // Others' message — left-aligned, sender name visible
+                // Others' message — left bubble with sender name
                 Row(
                   mainAxis: MainAxis.start,
                   visible: Not(Equals(ItemRef()['senderId'], AppState(ff.AppState.authToken))),
@@ -1705,10 +1800,7 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
                             style: Styles.labelMedium,
                             color: Colors.primary,
                           ),
-                          Text(
-                            ItemRef()['text'],
-                            style: Styles.bodyMedium,
-                          ),
+                          Text(ItemRef()['text'],     style: Styles.bodyMedium),
                           Text(
                             ItemRef()['createdAt'],
                             style: Styles.bodySmall,
@@ -1719,7 +1811,7 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
                     ),
                   ],
                 ),
-                // Own message — right-aligned, no sender name
+                // Own message — right bubble
                 Row(
                   mainAxis: MainAxis.end,
                   visible: Equals(ItemRef()['senderId'], AppState(ff.AppState.authToken)),
@@ -1732,16 +1824,8 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
                         crossAxis: CrossAxis.start,
                         spacing: 4,
                         children: [
-                          Text(
-                            ItemRef()['text'],
-                            style: Styles.bodyMedium,
-                            color: Colors.primaryBackground,
-                          ),
-                          Text(
-                            ItemRef()['createdAt'],
-                            style: Styles.bodySmall,
-                            color: Colors.primaryBackground,
-                          ),
+                          Text(ItemRef()['text'],     style: Styles.bodyMedium, color: Colors.primaryBackground),
+                          Text(ItemRef()['createdAt'], style: Styles.bodySmall,  color: Colors.primaryBackground),
                         ],
                       ),
                     ),
@@ -1751,7 +1835,8 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
             ),
           ),
         ),
-        // Send area
+        // Send area — stages text in AppState, calls SendMessage custom action.
+        // Pattern avoids FF validator rejection of scalar String custom-action args.
         Container(
           padding: 12,
           color: Colors.primaryBackground,
@@ -1761,9 +1846,12 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
               Expanded(
                 TextField(
                   hint: 'Bericht typen...',
-                  name: 'MessageField',
+                  name: 'ChatMessageField',
                   maxLines: 3,
-                  onChanged: [SetState(ff.Pages.teamChatPage.state.messageText, TextValue())],
+                  onChanged: [
+                    SetState(ff.Pages.chatDetailPage.state.messageText, TextValue()),
+                    UpdateAppState.set(ff.AppState.pendingMessageText, TextValue()),
+                  ],
                 ),
               ),
               IconButton(
@@ -1771,27 +1859,11 @@ void _buildTeamChatPage(App app, FirestoreCollectionHandle teamChats) {
                 color: Colors.primary,
                 onTap: [
                   If(
-                    Not(Equals(State(ff.Pages.teamChatPage.state.messageText), '')),
+                    Not(Equals(State(ff.Pages.chatDetailPage.state.messageText), '')),
                     then: [
-                      FirestoreCreate(
-                        teamChats,
-                        fields: {
-                          'text': State(ff.Pages.teamChatPage.state.messageText),
-                          'senderId': AppState(ff.AppState.authToken),
-                          'senderName': AppState(ff.AppState.userName),
-                          'teamId': AppState(ff.AppState.currentTeamId),
-                          'createdAt': Global(GlobalProperty.currentTimestamp),
-                        },
-                      ),
-                      SetState.clear(ff.Pages.teamChatPage.state.messageText),
-                      // Refresh message list after sending
-                      FirestoreQuery(
-                        teamChats,
-                        limit: 100,
-                        singleTimeQuery: true,
-                        outputAs: 'refreshed',
-                      ),
-                      SetState(ff.Pages.teamChatPage.state.chatMessages, ActionOutput('refreshed')),
+                      // currentConversationId is set by navigation param wiring below.
+                      CallCustomAction.named('SendMessage', arguments: {}),
+                      SetState.clear(ff.Pages.chatDetailPage.state.messageText),
                     ],
                   ),
                 ],
@@ -2087,30 +2159,19 @@ void _buildDirectChatPage(App app, FirestoreCollectionHandle directMessages) {
 
 // ─── Chat navigation on WedstrijdenPage ──────────────────────────────────────
 
-// NOTE: ChatMenuSheet component (with "Individuele Chat" → DirectChatPage) is
-// intentionally deferred to a subsequent push. DirectChatPage must exist in the
-// fetched project before Navigate('DirectChatPage') can be resolved at compile
-// time. Run the DSL once to create DirectChatPage, then enable the bottom-sheet
-// menu on the next push.
 void _addChatButton(App app) {
   app.editPage(ff.Pages.wedstrijdenPage, (page) {
-    // Insert chat button above the ConditionalBuilder that wraps the match list.
-    // Using the key directly is stable; finding by name would land inside the conditional.
     page.ensureInsertedBefore(
       page.findByKey('ConditionalBuilder_f1ph1tgg'),
       Button(
-        'Teamchat',
+        'Chat',
         name: 'OpenTeamChatButton',
         icon: 'chat',
         width: double.infinity,
         color: Colors.secondary,
         textColor: Colors.primaryBackground,
         borderRadius: 8,
-        onTap: [
-          // No params: router renders NavBarPage(initialPage:'TeamChatPage')
-          // which keeps the NavBar visible. teamId is read from AppState on load.
-          Navigate(ff.Pages.teamChatPage),
-        ],
+        onTap: [Navigate(ff.Pages.chatsPage)],
       ),
     );
   });
@@ -4151,7 +4212,7 @@ void _wireRijschemaNavigation(FFProject project) {
   Actions.onTap(container, navigateAction);
 }
 
-// Adds a "Rijders" row and "Coach" row to the RijschemaPage list card.
+// Adds a "Locatie", "Rijders" and "Coach" row to the RijschemaPage list card.
 // Runs idempotently: does nothing if the rows already exist.
 void _wireRijschemaCardDriverRow(FFProject project) {
   final wc = findPage(project, name: 'RijschemaPage');
@@ -4159,6 +4220,26 @@ void _wireRijschemaCardDriverRow(FFProject project) {
 
   final cardColumn = findByKey(wc.node, 'Column_cx7sodso');
   if (cardColumn == null) return;
+
+  // Replace the pre-existing unnamed row (Row_p64u9n36) that was incorrectly
+  // bound to coachName with a proper location row.
+  if (!cardColumn.children.any((c) => c.name == 'RijCardLocationRow')) {
+    cardColumn.children.removeWhere((c) => c.key == 'Row_p64u9n36');
+    final locationText = UI.text('-', name: 'RijCardLocationText', style: UITextStyle.bodySmall);
+    locationText.props.text.textValue = FFStringValue(
+      variable: generatorVarField('ListView_55kreos3', 'location'),
+    );
+    cardColumn.children.insert(2,
+      UI.row(
+        name: 'RijCardLocationRow',
+        spacing: 8,
+        children: [
+          UI.icon('location_on', size: 14, color: UIColor.secondaryText),
+          locationText,
+        ],
+      ),
+    );
+  }
 
   if (!cardColumn.children.any((c) => c.name == 'RijCardDriverRow')) {
     final driverText = UI.text('-', name: 'RijCardDriverText', style: UITextStyle.bodySmall);
@@ -5153,7 +5234,7 @@ void _applyBannerContainerVisibility(
   urlVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
 
   final visibleBool = codeExpressionVar(
-    expression: "(url ?? '').isNotEmpty",
+    expression: "(url ?? '').isNotEmpty && url != 'null'",
     arguments: [
       CodeExpressionArg(
         name: 'url',
@@ -5200,7 +5281,7 @@ FFNode _buildBannerImageNode(
     // Conditionally show the container only when bannerImageUrl is not empty.
     // Use null-safe expression: state fields added dynamically may be String? in codegen.
     final visibleBool = codeExpressionVar(
-      expression: "(url ?? '').isNotEmpty",
+      expression: "(url ?? '').isNotEmpty && url != 'null'",
       arguments: [
         CodeExpressionArg(
           name: 'url',
@@ -5302,72 +5383,31 @@ void _wireBannerPageLoad(
 
 void _buildChatsPage(
   App app,
-  FirestoreCollectionHandle chatGroups,
+  FirestoreCollectionHandle chatConversations,
   StructHandle swapMember,
 ) {
   app.ensurePage(
     'ChatsPage',
-    description: 'Chat hub: teamchat, groepen en directe berichten.',
+    description: 'Chat hub: alle gesprekken (teamchat, direct en staffgroepen).',
     route: 'chats',
     state: {
-      'chatGroups':  listOf(chatGroups),
-      'teamMembers': listOf(swapMember),
-      'isLoading':   bool_.withDefault(false),
+      'conversations': listOf(chatConversations),
+      'teamMembers':   listOf(swapMember),
+      'isLoading':     bool_.withDefault(false),
     },
     body: Column(
       children: [
-        // ── Teamchat ──────────────────────────────────────────────────────────
+        // ── Gesprekken ────────────────────────────────────────────────────────
         Container(
           padding: 12,
-          child: Row(
-            mainAxis: MainAxis.spaceBetween,
-            children: [
-              Text('Teamchat', style: Styles.titleSmall),
-            ],
-          ),
+          child: Text('Gesprekken', style: Styles.titleSmall),
         ),
-        Container(
-          padding: EdgeInsets.only(left: 12, right: 12, bottom: 8),
-          child: Button(
-            'Teamchat',
-            name: 'TeamChatNavButton',
-            icon: 'group',
-            width: double.infinity,
-            color: Colors.secondaryBackground,
-            textColor: Colors.primaryText,
-            borderRadius: 8,
-            onTap: Navigate(
-              ff.Pages.teamChatPage,
-              params: {
-                'teamId':   AppState(ff.AppState.currentTeamId),
-                'teamName': AppState(ff.AppState.currentTeamName),
-              },
-            ),
-          ),
-        ),
-        // ── Groepen ────────────────────────────────────────────────────────────
-        Container(
-          padding: 12,
-          child: Row(
-            mainAxis: MainAxis.spaceBetween,
-            children: [
-              Text('Groepen', style: Styles.titleSmall),
-              IconButton(
-                'add',
-                name: 'NewGroupButton',
-                color: Colors.primary,
-                size: 20,
-                onTap: Navigate(ff.Pages.createGroupPage),
-              ),
-            ],
-          ),
-        ),
-        // Groups list placeholder — filled by _wireChatsPageGroupsList via app.raw()
+        // Conversations list placeholder — filled by _wireChatsPageConversationsList
         Container(name: 'ChatsGroupsListContainer'),
-        // ── Direct berichten ──────────────────────────────────────────────────
+        // ── Direct bericht sturen ─────────────────────────────────────────────
         Container(
           padding: 12,
-          child: Text('Direct', style: Styles.titleSmall),
+          child: Text('Direct bericht', style: Styles.titleSmall),
         ),
         // Member strip placeholder — filled by _wireChatsPageMemberStrip via app.raw()
         Container(name: 'ChatsDirectStripContainer'),
@@ -5454,7 +5494,8 @@ void _wireChatsPageGroupsList(FFProject project) {
 }
 
 // Adds a horizontal member strip to the ChatsDirectStripContainer on ChatsPage.
-// Same pattern as _addDirectChatMemberStripRaw (TeamChatPage), but for ChatsPage.
+// Tapping a member: stages pendingDirectUserId/Name in AppState → calls
+// GetOrCreateDirectConversation → navigates to ChatDetailPage.
 void _wireChatsPageMemberStrip(FFProject project) {
   final wc = findPage(project, name: 'ChatsPage');
   if (wc == null) return;
@@ -5468,6 +5509,14 @@ void _wireChatsPageMemberStrip(FFProject project) {
   final teamMembersId = _findPageStateFieldId(project, 'ChatsPage', 'teamMembers');
   if (teamMembersId == null) return;
 
+  final pendingUserIdId    = _findAppStateFieldId(project, 'pendingDirectUserId');
+  final pendingUserNameId  = _findAppStateFieldId(project, 'pendingDirectUserName');
+  final currentConvId      = _findAppStateFieldId(project, 'currentConversationId');
+  if (pendingUserIdId == null || pendingUserNameId == null || currentConvId == null) return;
+
+  final getOrCreate = findCustomAction(project, name: 'GetOrCreateDirectConversation');
+  if (getOrCreate == null) return;
+
   final teamMembersVar = varFromPageState(teamMembersId.deepCopy());
   teamMembersVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
 
@@ -5479,13 +5528,49 @@ void _wireChatsPageMemberStrip(FFProject project) {
     dynamicSource: DynamicSource(variable: teamMembersVar, itemName: 'member'),
   );
 
-  final navigateAction = Actions.navigate(
-    project,
-    pageName: 'DirectChatPage',
-    params: {
-      'memberId':   VariableParamValue(generatorVarField(memberList.key, 'id')),
-      'memberName': VariableParamValue(generatorVarField(memberList.key, 'name')),
-    },
+  // Tap chain:
+  //   1. UpdateAppState pendingDirectUserId = member.id
+  //   2. UpdateAppState pendingDirectUserName = member.name
+  //   3. CallCustomAction GetOrCreateDirectConversation
+  //   4. Navigate to ChatDetailPage
+  final tapChain = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      localStateUpdate: FFLocalStateUpdate(
+        updates: [
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: pendingUserIdId.deepCopy(),
+            setValue: FFValue(variable: generatorVarField(memberList.key, 'id')),
+          ),
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: pendingUserNameId.deepCopy(),
+            setValue: FFValue(variable: generatorVarField(memberList.key, 'name')),
+          ),
+        ],
+        stateVariableType: FFStateVariableType.APP_STATE,
+      ),
+    ),
+    followUpAction: FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: getOrCreate.identifier.deepCopy(),
+        ),
+      ),
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.navigate(
+          project,
+          pageName: 'ChatDetailPage',
+          params: {
+            'conversationId': VariableParamValue(varFromAppState(currentConvId.deepCopy())),
+            'title':          VariableParamValue(varFromAppState(pendingUserNameId.deepCopy())),
+          },
+        ),
+      ),
+    ),
   );
 
   final nameText = UI.text('', name: 'DirectMemberName', style: UITextStyle.bodySmall);
@@ -5500,22 +5585,25 @@ void _wireChatsPageMemberStrip(FFProject project) {
   );
 
   final chip = UI.container(name: 'DirectMemberChip', width: 60, borderRadius: 8, child: chipCol);
-  Actions.onTap(chip, navigateAction);
+  Actions.onTapChain(chip, tapChain);
   memberList.children.add(chip);
 
   final strip = UI.container(name: 'ChatsDirectStripInner', height: 88, child: memberList);
   container.children.add(strip);
 }
 
-// Wires ChatsPage onLoad: GetTeamMembers (for member strip) + chatGroups query
-// (filtered by teamId for the groups list).
+// Appends GetTeamMembers to the ChatsPage load chain.
+// The initial chain (InitializeTeamConversation + chatConversations query + SetState)
+// is set by app.editPageOnLoad() in buildEditFlow. This function appends the API call
+// for the member strip that sits below the conversations list.
 void _wireChatsPageLoad(FFProject project) {
   final wc = findPage(project, name: 'ChatsPage');
   if (wc == null) return;
 
+  final currentTeamIdFieldId = _findAppStateFieldId(project, 'currentTeamId');
+  if (currentTeamIdFieldId == null) return;
+
   // Idempotent: skip if GetTeamMembers is already in the FIRST ON_INIT_STATE trigger.
-  // FlutterFlow codegen only processes the first ON_INIT_STATE trigger; checking ALL
-  // triggers would falsely skip if GetTeamMembers landed in a dead subsequent trigger.
   final firstTriggerIdx = wc.node.triggerActions.indexWhere(
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
   );
@@ -5533,12 +5621,6 @@ void _wireChatsPageLoad(FFProject project) {
       checkForTeamMembers(wc.node.triggerActions[firstTriggerIdx].rootAction);
   if (alreadyWired) return;
 
-  final currentTeamIdFieldId = _findAppStateFieldId(project, 'currentTeamId');
-  if (currentTeamIdFieldId == null) return;
-
-  // Append GetTeamMembers to the existing page-load chain (editPageOnLoad already created
-  // the first ON_INIT_STATE trigger with the Firestore query; adding a second trigger via
-  // onPageLoadChain would create a dead duplicate that FlutterFlow codegen ignores).
   _appendToFirstPageLoadChain(
     wc.node,
     Actions.apiCallNode(
@@ -5557,6 +5639,251 @@ void _wireChatsPageLoad(FFProject project) {
           updates: [StateFieldUpdate.setFromVariable('teamMembers', ctx.responseVar)],
         ),
       ]),
+    ),
+  );
+}
+
+// ─── GET /api/staff-groups endpoint ──────────────────────────────────────────
+
+// Adds a GET /api/staff-groups endpoint to the VoetbalPlannerAPI group.
+// Staff groups are managed in Laravel (not in-app). This endpoint returns all
+// groups the current user belongs to so ChatsPage can show them.
+void _addGetStaffGroupsEndpoint(FFProject project) {
+  const groupName    = 'VoetbalPlannerAPI';
+  const endpointName = 'GetStaffGroups';
+
+  if (findApiEndpoint(project, name: endpointName, groupName: groupName) != null) return;
+
+  final group = findApiGroup(project, name: groupName);
+  if (group == null) return;
+
+  addEndpointToGroup(
+    project,
+    groupName: groupName,
+    name:      endpointName,
+    url:       '/staff-groups',
+    method:    FFApiEndpoint_CallType.GET,
+    bodyType:  FFApiEndpoint_BodyType.NONE,
+    headers:   ['Authorization: Bearer [bearerToken]'],
+  );
+}
+
+// ─── ChatsPage conversations list ────────────────────────────────────────────
+
+// Fills ChatsGroupsListContainer on ChatsPage with a ListView bound to the
+// 'conversations' state field (chatConversations documents).
+// Tapping a conversation navigates to ChatDetailPage with conversationId + title.
+void _wireChatsPageConversationsList(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  final container = findDescendants(wc.node, (n) => n.name == 'ChatsGroupsListContainer').firstOrNull;
+  if (container == null) return;
+
+  // Idempotent: skip if conversations list already added.
+  if (findDescendants(container, (n) => n.name == 'ChatsConversationsList').isNotEmpty) return;
+
+  final conversationsId = _findPageStateFieldId(project, 'ChatsPage', 'conversations');
+  if (conversationsId == null) return;
+
+  final conversationsVar = varFromPageState(conversationsId.deepCopy());
+  conversationsVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final convList = UI.listView(
+    name: 'ChatsConversationsList',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12),
+    dynamicSource: DynamicSource(variable: conversationsVar, itemName: 'conversation'),
+  );
+
+  // Navigate to ChatDetailPage with conversationId + title from the doc.
+  FFVariable _docField(String fieldName) {
+    final field = findCollectionField(project, collectionName: 'chatConversations', fieldName: fieldName);
+    if (field != null) {
+      return varFromGeneratorVariable(convList.key)
+        ..operations.add(FFVariableOperation(
+          accessDocumentField: FFAccessDocumentField(
+            fieldIdentifier: field.identifier.deepCopy(),
+          ),
+        ));
+    }
+    return generatorVarField(convList.key, fieldName);
+  }
+
+  final navigateAction = Actions.navigate(
+    project,
+    pageName: 'ChatDetailPage',
+    params: {
+      'conversationId': VariableParamValue(_docField('conversationId')),
+      'title':          VariableParamValue(_docField('title')),
+    },
+  );
+
+  final titleText = UI.text('', name: 'ConvTitle', style: UITextStyle.bodyMedium);
+  titleText.props.text.textValue = FFStringValue(variable: _docField('title'));
+
+  final lastMsgText = UI.text('', name: 'ConvLastMsg', style: UITextStyle.bodySmall);
+  lastMsgText.props.text.textValue = FFStringValue(variable: _docField('lastMessage'));
+
+  final textCol = UI.column(
+    name: 'ConvTextColumn',
+    mainAxisAlignment: UIMainAxisAlignment.center,
+    children: [titleText, lastMsgText],
+  );
+
+  final icon = UI.icon('forum', size: 24, color: UIColor.primary);
+
+  final convRow = UI.row(
+    name: 'ConvRow',
+    spacing: 12,
+    children: [
+      icon,
+      textCol,
+      UI.icon('chevron_right', size: 18, color: UIColor.secondaryText),
+    ],
+  );
+
+  final convCard = UI.container(
+    name: 'ConvCard',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.secondaryBackground,
+    child: convRow,
+  );
+  Actions.onTap(convCard, navigateAction);
+
+  convList.children.add(convCard);
+  container.children.add(convList);
+}
+
+// ─── Filter: chatConversations by teamId ──────────────────────────────────────
+
+// Applies a teamId == AppState.currentTeamId filter to all Firestore queries on
+// ChatsPage that target the chatConversations collection (and have no filter yet).
+void _wireConversationsFilter(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  final currentTeamIdFieldId = _findAppStateFieldId(project, 'currentTeamId');
+  if (currentTeamIdFieldId == null) return;
+
+  final teamIdField = findCollectionField(
+    project,
+    collectionName: 'chatConversations',
+    fieldName: 'teamId',
+  );
+  if (teamIdField == null) return;
+
+  final whereFilter = FFFirestoreWhere(
+    isAnd: true,
+    filters: [
+      FFFirestoreWhere_NestedFilter(
+        baseFilter: FFFirestoreFilter(
+          collectionFieldIdentifier: teamIdField.identifier.deepCopy(),
+          relation: FFFirestoreFilter_Relation.EQUAL_TO,
+          variable: varFromAppState(currentTeamIdFieldId.deepCopy()),
+        ),
+      ),
+    ],
+  );
+
+  final allNodes = [wc.node, ...findDescendants(wc.node, (_) => true)];
+  for (final node in allNodes) {
+    for (final trigger in node.triggerActions) {
+      if (trigger.hasRootAction()) {
+        _applyFilterToActionChain(trigger.rootAction, whereFilter);
+      }
+    }
+  }
+}
+
+// ─── Filter: chatMessages by conversationId on ChatDetailPage ────────────────
+
+// Applies a conversationId == Param('conversationId') filter to all Firestore queries
+// on ChatDetailPage and adds an onLoad action to cache the conversationId in AppState
+// (so SendMessage custom action can read it without a String custom-action arg).
+void _wireChatDetailFilters(FFProject project) {
+  final wc = findPage(project, name: 'ChatDetailPage');
+  if (wc == null) return;
+
+  // ── 1. Apply conversationId filter to chatMessages queries ──────────────────
+  FFIdentifier? convParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'conversationId') {
+      convParamId = param.identifier.deepCopy();
+      break;
+    }
+  }
+  if (convParamId == null) return;
+
+  final convIdField = findCollectionField(
+    project,
+    collectionName: 'chatMessages',
+    fieldName: 'conversationId',
+  );
+  if (convIdField == null) return;
+
+  final whereFilter = FFFirestoreWhere(
+    isAnd: true,
+    filters: [
+      FFFirestoreWhere_NestedFilter(
+        baseFilter: FFFirestoreFilter(
+          collectionFieldIdentifier: convIdField.identifier.deepCopy(),
+          relation: FFFirestoreFilter_Relation.EQUAL_TO,
+          variable: varFromPageParam(convParamId),
+        ),
+      ),
+    ],
+  );
+
+  final allNodes = [wc.node, ...findDescendants(wc.node, (_) => true)];
+  for (final node in allNodes) {
+    for (final trigger in node.triggerActions) {
+      if (trigger.hasRootAction()) {
+        _applyFilterToActionChain(trigger.rootAction, whereFilter);
+      }
+    }
+  }
+
+  // ── 2. Stage conversationId in AppState on page load ────────────────────────
+  // SendMessage reads FFAppState().currentConversationId; stage it from the page param.
+  final currentConvIdId = _findAppStateFieldId(project, 'currentConversationId');
+  if (currentConvIdId == null) return;
+
+  // Idempotent: skip if already in load chain.
+  bool checkForConvIdStage(FFActionNode node) {
+    if (node.hasAction() &&
+        node.action.hasLocalStateUpdate() &&
+        node.action.localStateUpdate.stateVariableType == FFStateVariableType.APP_STATE) {
+      final updates = node.action.localStateUpdate.updates;
+      if (updates.any((u) => u.fieldIdentifier.name == 'currentConversationId')) return true;
+    }
+    if (node.hasFollowUpAction()) return checkForConvIdStage(node.followUpAction);
+    return false;
+  }
+  final alreadyStaged = wc.node.triggerActions.any((t) =>
+    t.hasTrigger() &&
+    t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE &&
+    t.hasRootAction() &&
+    checkForConvIdStage(t.rootAction));
+  if (alreadyStaged) return;
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        localStateUpdate: FFLocalStateUpdate(
+          updates: [
+            FFLocalStateFieldUpdate(
+              fieldIdentifier: currentConvIdId.deepCopy(),
+              setValue: FFValue(variable: varFromPageParam(convParamId)),
+            ),
+          ],
+          stateVariableType: FFStateVariableType.APP_STATE,
+        ),
+      ),
     ),
   );
 }

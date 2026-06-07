@@ -176,8 +176,8 @@ App buildAppEventShowcase(App app) {
             CustomFunction(
               formatFavoriteSummary,
               args: {
-                'itemId': const AppState('lastFavoriteId'),
-                'source': const AppState('favoriteSource'),
+                'itemId': AppState('lastFavoriteId'),
+                'source': AppState('favoriteSource'),
               },
             ),
             name: 'FavoriteSummaryText',
@@ -259,9 +259,9 @@ App buildAppEventShowcase(App app) {
               Navigate(favoritesPage),
             ],
           ),
-          Text(const State('previewItemId'), name: 'PreviewItemText'),
-          Text(const State('previewSource'), name: 'PreviewSourceText'),
-          Text(const State('previewHandlerStatus'), name: 'PreviewStatusText'),
+          Text(State('previewItemId'), name: 'PreviewItemText'),
+          Text(State('previewSource'), name: 'PreviewSourceText'),
+          Text(State('previewHandlerStatus'), name: 'PreviewStatusText'),
         ],
       ),
     ),

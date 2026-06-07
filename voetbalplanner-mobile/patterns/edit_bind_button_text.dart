@@ -7,7 +7,7 @@ void buildBindButtonTextPattern(App app) {
 
   app.editPage('TaskListPage', (page) {
     page.bindText(
-      EditPatternTarget.singleExistingButton().toSelection(page),
+      EditPatternTarget.singleButton().toSelection(page),
       State('ctaLabel'),
     );
   });
