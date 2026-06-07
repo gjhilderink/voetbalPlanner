@@ -9,7 +9,9 @@ import 'package:flutterflow_ai/src/helpers/api_helpers.dart';
 import 'package:flutterflow_ai/src/helpers/collection_helpers.dart'
     show findCollection, findCollectionField, addCollectionField;
 import 'package:flutterflow_ai/src/helpers/data_schema_helpers.dart'
-    show addDataStruct, structField;
+    show addDataStruct, structField, findDataStruct;
+import 'package:flutterflow_ai/src/helpers/project_helpers.dart'
+    show addStateField;
 import 'package:flutterflow_ai/src/helpers/data_type_helpers.dart'
     show dataStructType, stringType;
 import 'package:flutterflow_ai/src/helpers/ensure_helpers.dart'
@@ -397,6 +399,25 @@ void buildEditFlow(App app) {
     });
   } catch (_) {}
 
+  // StaffGroupItem: create struct and get handle for editPageState below.
+  // StructHandle can be constructed by name even when the struct already exists —
+  // used as a type reference in app.editPageState without touching the proto.
+  final staffGroupItemHandle = StructHandle(
+    'StaffGroupItem',
+    {'id': string, 'name': string},
+    description: generatedProjectStructDescription,
+  );
+  try {
+    app.struct('StaffGroupItem', {'id': string, 'name': string});
+  } catch (_) {}
+
+  // Ensure 'staffGroups' state field exists on ChatsPage.
+  // Using app.editPageState (DSL compile phase) so the struct reference is
+  // properly resolved by the validator — raw-phase addStateField was rejected.
+  app.editPageState(ff.Pages.chatsPage, (state) {
+    state.ensureField('staffGroups', listOf(staffGroupItemHandle));
+  });
+
   // ── ChatsPage hub ─────────────────────────────────────────────────────────
   // Declared AFTER swapMember so teamMembers listOf(swapMember) compiles.
   _buildChatsPage(app, chatConversations, swapMember);
@@ -410,6 +431,16 @@ void buildEditFlow(App app) {
     _wireChatsPageMemberStrip(project);
     _wireConversationsFilter(project);
     _wireChatDetailFilters(project);
+    // Group creation wiring.
+    _addMembersFieldToChatGroups(project);
+    _wireCreateGroupPageLoad(project);
+    _wireCreateGroupMembersBinding(project);
+    _wireCreateGroupSubmitAction(project);
+    _wireChatsPageGroupsList(project);
+    _wireNewGroupButton(project);
+    // Staff groups (Laravel-managed) in chat — state field already ensured above.
+    _wireChatsPageStaffGroupsLoad(project);
+    _wireChatsPageStaffGroupsList(project);
   });
 
   final swapRequest = ff.Structs.swapRequest;
@@ -1510,6 +1541,44 @@ Future<void> initializeTeamConversation() async {
 }
 ''';
 
+const _kGetOrCreateStaffGroupConvCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<void> getOrCreateStaffGroupConversation() async {
+  final staffGroupId   = FFAppState().pendingStaffGroupId;
+  final staffGroupName = FFAppState().pendingStaffGroupName;
+  if (staffGroupId.isEmpty) return;
+
+  final conversationId = 'staffgroup_$staffGroupId';
+  final ref = FirebaseFirestore.instance
+      .collection('chatConversations')
+      .doc(conversationId);
+
+  final snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set({
+      'conversationId': conversationId,
+      'title': staffGroupName.isEmpty ? 'Staffgroep' : staffGroupName,
+      'type': 'staffgroup',
+      'lastMessage': '',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  FFAppState().update(() {
+    FFAppState().currentConversationId = conversationId;
+  });
+}
+''';
+
 // ─── Chat + push notifications ────────────────────────────────────────────────
 
 void _addChatInfrastructure(FFProject project) {
@@ -1542,6 +1611,9 @@ void _addChatInfrastructure(FFProject project) {
   _ensureAppStateField(project, 'pendingDirectUserName', FFBaseDataType.String);
   // Legacy field — kept to avoid breaking existing project data that may reference it.
   _ensureAppStateField(project, 'pendingGroupName', FFBaseDataType.String);
+  // Staff group staging fields — set before calling GetOrCreateStaffGroupConversation.
+  _ensureAppStateField(project, 'pendingStaffGroupId', FFBaseDataType.String);
+  _ensureAppStateField(project, 'pendingStaffGroupName', FFBaseDataType.String);
 
   // Subscribe to FCM topic for a team → receives push notifications for that team's chat.
   // Parameter is String? because FlutterFlow page params are generated as nullable.
@@ -1643,6 +1715,22 @@ Future<void> unsubscribeFromTeamTopic(String? teamId) async {
   // Ensures the team chatConversation document exists and stores its ID in
   // AppState.currentConversationId. Called on ChatsPage load.
   updateCustomAction(project, name: 'InitializeTeamConversation', code: _kInitTeamConvCode);
+
+  // ── GetOrCreateStaffGroupConversation ────────────────────────────────────────
+  // Finds or creates a chatConversations doc for a staff group conversation.
+  // Reads pendingStaffGroupId + pendingStaffGroupName from FFAppState().
+  // Stores the resulting conversationId in FFAppState().currentConversationId.
+  if (findCustomAction(project, name: 'GetOrCreateStaffGroupConversation') == null) {
+    addCustomAction(
+      project,
+      name: 'GetOrCreateStaffGroupConversation',
+      description: 'Vindt of maakt een chatConversations document voor een staffgroep gesprek.',
+      arguments: [],
+      code: _kGetOrCreateStaffGroupConvCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'GetOrCreateStaffGroupConversation', code: _kGetOrCreateStaffGroupConvCode);
+  }
 
   // Legacy: kept so existing FlutterFlow project references don't break during migration.
   const _createChatGroupCode = r'''
@@ -5652,20 +5740,31 @@ void _addGetStaffGroupsEndpoint(FFProject project) {
   const groupName    = 'VoetbalPlannerAPI';
   const endpointName = 'GetStaffGroups';
 
-  if (findApiEndpoint(project, name: endpointName, groupName: groupName) != null) return;
+  if (findApiEndpoint(project, name: endpointName, groupName: groupName) == null) {
+    final group = findApiGroup(project, name: groupName);
+    if (group == null) return;
 
-  final group = findApiGroup(project, name: groupName);
-  if (group == null) return;
-
-  addEndpointToGroup(
-    project,
-    groupName: groupName,
-    name:      endpointName,
-    url:       '/staff-groups',
-    method:    FFApiEndpoint_CallType.GET,
-    bodyType:  FFApiEndpoint_BodyType.NONE,
-    headers:   ['Authorization: Bearer [bearerToken]'],
-  );
+    addEndpointToGroup(
+      project,
+      groupName:                groupName,
+      name:                     endpointName,
+      url:                      '/staff-groups',
+      method:                   FFApiEndpoint_CallType.GET,
+      bodyType:                 FFApiEndpoint_BodyType.NONE,
+      headers:                  ['Authorization: Bearer [bearerToken]'],
+      responseDataStructName:   'StaffGroupItem',
+      responseDataStructIsList: true,
+    );
+  } else {
+    // Endpoint exists from a prior push without response struct — update it.
+    updateApiEndpoint(
+      project,
+      name:                     endpointName,
+      groupName:                groupName,
+      responseDataStructName:   'StaffGroupItem',
+      responseDataStructIsList: true,
+    );
+  }
 }
 
 // ─── ChatsPage conversations list ────────────────────────────────────────────
@@ -6377,6 +6476,273 @@ void _wireCreateGroupSubmitAction(FFProject project) {
     createNode.action = actionCopy;
     break;
   }
+}
+
+// Binds DynamicSource + text/action wiring to the EXISTING CreateGroupMemberList.
+// Called when _wireCreateGroupMembersUI was skipped because the list already exists
+// but has no generator variable bound (i.e. the list is not yet dynamic).
+void _wireCreateGroupMembersBinding(FFProject project) {
+  final wc = findPage(project, name: 'CreateGroupPage');
+  if (wc == null) return;
+
+  final list = findDescendants(wc.node, (n) => n.name == 'CreateGroupMemberList').firstOrNull;
+  if (list == null) return;
+
+  // Idempotent: skip if DynamicSource generator already set.
+  if (list.hasGeneratorVariable()) return;
+
+  final teamMembersId = _findPageStateFieldId(project, 'CreateGroupPage', 'teamMembers');
+  if (teamMembersId == null) return;
+
+  final selectedMemberIdsId = _findPageStateFieldId(project, 'CreateGroupPage', 'selectedMemberIds');
+  if (selectedMemberIdsId == null) return;
+
+  // Bind DynamicSource: iterate over teamMembers page state.
+  final teamMembersVar = varFromPageState(teamMembersId.deepCopy());
+  teamMembersVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  list.generatorVariable = DynamicSource(
+    variable: teamMembersVar,
+    itemName: 'cgMember',
+  ).toGeneratorVariable(list.key);
+
+  // Bind member name text.
+  final nameText = findDescendants(list, (n) => n.name == 'CreateGroupMemberName').firstOrNull;
+  if (nameText != null) {
+    nameText.props.text.textValue = FFStringValue(
+      variable: generatorVarField(list.key, 'name'),
+    );
+  }
+
+  // Wire AddMemberButton → add member ID to selectedMemberIds.
+  // Use generatorVarField (name-based) rather than accessDataStructField because
+  // the teamMembers state field has type List<DataStruct<?>> (unresolved struct type)
+  // and struct field identifier access would fail the validator.
+  final addBtn = findDescendants(list, (n) => n.name == 'AddMemberButton').firstOrNull;
+  if (addBtn != null) {
+    final alreadyWired = addBtn.triggerActions.any((t) =>
+      t.hasTrigger() &&
+      t.trigger.triggerType == FFActionTriggerType.ON_TAP &&
+      t.hasRootAction(),
+    );
+    if (!alreadyWired) {
+      final memberIdVar = generatorVarField(list.key, 'id');
+
+      Actions.addTriggerChain(
+        addBtn,
+        FFActionTriggerType.ON_TAP,
+        Actions.chain([
+          Actions.updatePageState(
+            project,
+            widgetClassName: 'CreateGroupPage',
+            updates: [StateFieldUpdate.addToListFromVariable('selectedMemberIds', memberIdVar)],
+          ),
+        ]),
+      );
+    }
+  }
+}
+
+// Wires the NewGroupButton (IconButton_kcjzqtd6) ON_TAP to navigate to CreateGroupPage.
+void _wireNewGroupButton(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  final btn = findByKey(wc.node, 'IconButton_kcjzqtd6');
+  if (btn == null) return;
+
+  // Idempotent: skip if already wired with a root action.
+  final alreadyWired = btn.triggerActions.any((t) =>
+    t.hasTrigger() &&
+    t.trigger.triggerType == FFActionTriggerType.ON_TAP &&
+    t.hasRootAction(),
+  );
+  if (alreadyWired) return;
+
+  Actions.addTriggerChain(
+    btn,
+    FFActionTriggerType.ON_TAP,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(project, pageName: 'CreateGroupPage', params: {}),
+    ),
+  );
+}
+
+// Adds 'staffGroups' state field (List<StaffGroupItem>) to ChatsPage if missing.
+void _wireChatsPageStaffGroupsState(FFProject project) {
+  final exists = _findPageStateFieldId(project, 'ChatsPage', 'staffGroups') != null;
+  if (exists) return;
+
+  final struct = findDataStruct(project, name: 'StaffGroupItem');
+  if (struct == null) return;
+
+  addStateField(
+    project,
+    widgetClassName: 'ChatsPage',
+    fieldName: 'staffGroups',
+    type: FFDataTypeV2(listType: dataStructType(struct.identifier.deepCopy())),
+  );
+}
+
+// Appends GetStaffGroups API call to the ChatsPage load chain.
+// onSuccess: set staffGroups page state from the response.
+void _wireChatsPageStaffGroupsLoad(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  // Idempotent: skip if GetStaffGroups already in any ON_INIT_STATE chain.
+  bool checkForStaffGroups(FFActionNode node) {
+    if (node.hasAction() &&
+        node.action.hasDatabase() &&
+        node.action.database.hasApiCall() &&
+        node.action.database.apiCall.hasEndpointIdentifier() &&
+        node.action.database.apiCall.endpointIdentifier.name == 'GetStaffGroups') return true;
+    if (node.hasFollowUpAction() && checkForStaffGroups(node.followUpAction)) return true;
+    return false;
+  }
+  final alreadyWired = wc.node.triggerActions.any((t) {
+    if (!t.hasTrigger() || t.trigger.triggerType != FFActionTriggerType.ON_INIT_STATE) return false;
+    return t.hasRootAction() && checkForStaffGroups(t.rootAction);
+  });
+  if (alreadyWired) return;
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetStaffGroups',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {},
+      outputVariableName: 'chatsStaffGroups',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'ChatsPage',
+          updates: [StateFieldUpdate.setFromVariable('staffGroups', ctx.responseVar)],
+        ),
+      ]),
+    ),
+  );
+}
+
+// Adds a "Staffgroepen" section to ChatsPage body — a ListView bound to the
+// 'staffGroups' state field. Tapping a staff group: stages pendingStaffGroupId/Name
+// → calls GetOrCreateStaffGroupConversation → navigates to ChatDetailPage.
+void _wireChatsPageStaffGroupsList(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  // Idempotent: skip if staff groups container already present.
+  if (findDescendants(wc.node, (n) => n.name == 'ChatsStaffGroupsContainer').isNotEmpty) return;
+
+  final staffGroupsId = _findPageStateFieldId(project, 'ChatsPage', 'staffGroups');
+  if (staffGroupsId == null) return;
+
+  final pendingGroupIdId   = _findAppStateFieldId(project, 'pendingStaffGroupId');
+  final pendingGroupNameId = _findAppStateFieldId(project, 'pendingStaffGroupName');
+  final currentConvId      = _findAppStateFieldId(project, 'currentConversationId');
+  if (pendingGroupIdId == null || pendingGroupNameId == null || currentConvId == null) return;
+
+  final getOrCreate = findCustomAction(project, name: 'GetOrCreateStaffGroupConversation');
+  if (getOrCreate == null) return;
+
+  final bodyCol = findByKey(wc.node, 'Column_97jfu72d');
+  if (bodyCol == null) return;
+
+  // Build staff groups ListView with DynamicSource.
+  final staffGroupsVar = varFromPageState(staffGroupsId.deepCopy());
+  staffGroupsVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final staffList = UI.listView(
+    name: 'ChatsStaffGroupsList',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12),
+    dynamicSource: DynamicSource(variable: staffGroupsVar, itemName: 'staffGroup'),
+  );
+
+  // Use generatorVarField (name-based) — avoids struct field ID resolution
+  // issues on the new StaffGroupItem struct in the same push.
+  final idVar   = generatorVarField(staffList.key, 'id');
+  final nameVar = generatorVarField(staffList.key, 'name');
+
+  // Tap chain: stage AppState → call GetOrCreateStaffGroupConversation → navigate.
+  final tapChain = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      localStateUpdate: FFLocalStateUpdate(
+        updates: [
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: pendingGroupIdId.deepCopy(),
+            setValue: FFValue(variable: idVar),
+          ),
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: pendingGroupNameId.deepCopy(),
+            setValue: FFValue(variable: nameVar),
+          ),
+        ],
+        stateVariableType: FFStateVariableType.APP_STATE,
+      ),
+    ),
+    followUpAction: FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: getOrCreate.identifier.deepCopy(),
+        ),
+      ),
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.navigate(
+          project,
+          pageName: 'ChatDetailPage',
+          params: {
+            'conversationId': VariableParamValue(varFromAppState(currentConvId.deepCopy())),
+            'title': VariableParamValue(nameVar),
+          },
+        ),
+      ),
+    ),
+  );
+
+  final nameText = UI.text('', name: 'StaffGroupChipName', style: UITextStyle.bodyMedium);
+  nameText.props.text.textValue = FFStringValue(variable: nameVar);
+
+  final chipRow = UI.row(
+    name: 'StaffGroupChipRow',
+    spacing: 12,
+    children: [
+      UI.icon('groups', size: 18, color: UIColor.primary),
+      nameText,
+      UI.icon('chevron_right', size: 18, color: UIColor.secondaryText),
+    ],
+  );
+
+  final chip = UI.container(
+    name: 'StaffGroupChip',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.secondaryBackground,
+    child: chipRow,
+  );
+  Actions.onTapChain(chip, tapChain);
+  staffList.children.add(chip);
+
+  final sectionLabelContainer = UI.container(
+    name: 'ChatsStaffGroupsLabelContainer',
+    padding: UIEdgeInsets.all(12),
+    child: UI.text('Staffgroepen', style: UITextStyle.titleSmall),
+  );
+  final staffContainer = UI.container(name: 'ChatsStaffGroupsContainer', child: staffList);
+
+  // Insert after ChatsGroupsListContainer.
+  final groupsIdx = bodyCol.children.indexWhere((c) => c.name == 'ChatsGroupsListContainer');
+  final insertIdx = groupsIdx >= 0 ? groupsIdx + 1 : bodyCol.children.length;
+  bodyCol.children.insert(insertIdx, staffContainer);
+  bodyCol.children.insert(insertIdx, sectionLabelContainer);
 }
 
 // ─── CreateGroupPage ──────────────────────────────────────────────────────────
