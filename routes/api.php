@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\StaffGroupController;
 use App\Http\Controllers\Api\SwapRequestController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TeamController;
@@ -97,6 +98,11 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('bar-duties', BarDutyController::class)
             ->only(['index', 'show', 'store', 'update', 'destroy']);
         Route::patch('bar-duties/{barDuty}/members', [BarDutyController::class, 'assignMembers']);
+
+        // Staff groups
+        Route::apiResource('staff-groups', StaffGroupController::class)
+            ->only(['index', 'show', 'store', 'update', 'destroy']);
+        Route::patch('staff-groups/{staffGroup}/members', [StaffGroupController::class, 'syncMembers']);
 
         // Swap requests
         Route::get('swap-requests/incoming', [SwapRequestController::class, 'incoming']);
