@@ -441,6 +441,7 @@ void buildEditFlow(App app) {
     // Staff groups (Laravel-managed) in chat — state field already ensured above.
     _wireChatsPageStaffGroupsLoad(project);
     _wireChatsPageStaffGroupsList(project);
+    _makeChatsPageBodyScrollable(project);
   });
 
   final swapRequest = ff.Structs.swapRequest;
@@ -1749,15 +1750,30 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> createChatGroup(List<String> memberIds) async {
-  // Superseded by staff-group management in Laravel backend.
-  // Kept for backwards compatibility only — new groups are created via Laravel.
+  final groupName = FFAppState().pendingGroupName;
+  final teamId    = FFAppState().currentTeamId;
+  final userName  = FFAppState().userName;
+
+  if (groupName.isEmpty) return;
+
+  await FirebaseFirestore.instance.collection('chatGroups').add({
+    'name':      groupName,
+    'teamId':    teamId,
+    'members':   memberIds,
+    'createdBy': userName,
+    'createdAt': FieldValue.serverTimestamp(),
+  });
+
+  FFAppState().update(() {
+    FFAppState().pendingGroupName = '';
+  });
 }
 ''';
   if (findCustomAction(project, name: 'CreateChatGroup') == null) {
     addCustomAction(
       project,
       name: 'CreateChatGroup',
-      description: '(Legacy) Superseded by staff-group management in Laravel.',
+      description: 'Maakt een chatGroups Firestore document aan voor de nieuwe groep.',
       arguments: [
         FFParameter(
           identifier: FFIdentifier(name: 'memberIds'),
@@ -6629,6 +6645,22 @@ void _wireChatsPageStaffGroupsLoad(FFProject project) {
       ]),
     ),
   );
+}
+
+// Ensures the ChatsPage body column is scrollable so all sections
+// (Staffgroepen, Direct) remain reachable on small screens.
+void _makeChatsPageBodyScrollable(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  final bodyCol = findByKey(wc.node, 'Column_97jfu72d');
+  if (bodyCol == null) return;
+
+  if (!bodyCol.props.column.scrollable) {
+    final colCopy = bodyCol.props.column.deepCopy();
+    colCopy.scrollable = true;
+    bodyCol.props.column = colCopy;
+  }
 }
 
 // Adds a "Staffgroepen" section to ChatsPage body — a ListView bound to the
