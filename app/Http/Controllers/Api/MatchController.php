@@ -15,7 +15,7 @@ class MatchController extends Controller
     public function index(Request $request): JsonResponse
     {
         $matches = FootballMatch::query()
-            ->with(['team', 'coach', 'fruitHero', 'drivers'])
+            ->with(['team', 'coach', 'coaches', 'fruitHero', 'drivers'])
             ->when($request->has('is_home'), fn($q) => $q->where('is_home', $request->boolean('is_home')))
             ->when($request->boolean('has_drivers'), fn($q) => $q->has('drivers'))
             ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
@@ -33,7 +33,7 @@ class MatchController extends Controller
 
     public function show(FootballMatch $match): JsonResponse
     {
-        $match->load(['team', 'coach', 'fruitHero', 'drivers', 'lineup.players.member', 'goals.scorer', 'goals.assist']);
+        $match->load(['team', 'coach', 'coaches', 'fruitHero', 'drivers', 'lineup.players.member', 'goals.scorer', 'goals.assist']);
 
         return response()->json((new MatchResource($match))->resolve());
     }
@@ -57,7 +57,7 @@ class MatchController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new MatchResource($match->fresh(['team', 'coach', 'fruitHero', 'drivers'])),
+            'data' => new MatchResource($match->fresh(['team', 'coach', 'coaches', 'fruitHero', 'drivers'])),
             'message' => 'Wedstrijd bijgewerkt.',
         ]);
     }

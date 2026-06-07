@@ -35,7 +35,13 @@ class MatchResource extends JsonResource
             'scoreHome'      => $this->score_home ?? 0,
             'scoreAway'      => $this->score_away ?? 0,
             'teamName'       => $this->team?->name ?? '',
-            'coachName'      => $this->coach?->name ?? '',
+            'coachName'      => $this->whenLoaded(
+                'coaches',
+                fn() => $this->coaches->isNotEmpty()
+                    ? $this->coaches->pluck('name')->join(', ')
+                    : ($this->coach?->name ?? ''),
+                $this->coach?->name ?? ''
+            ),
             'fruitHeroName'  => $this->fruitHero?->name ?? '',
             'fruitHeroId'    => $this->fruit_hero_id ?? '',
             'notes'          => $this->notes ?? '',
