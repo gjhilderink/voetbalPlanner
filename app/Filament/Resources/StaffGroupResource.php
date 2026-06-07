@@ -95,9 +95,9 @@ class StaffGroupResource extends Resource
                         modifyQueryUsing: function (Builder $query): Builder {
                             $tenant = filament()->getTenant();
                             if ($tenant) {
-                                $query->where('members.club_id', $tenant->id);
+                                $query->whereHas('teams', fn($t) => $t->where('club_id', $tenant->id));
                             }
-                            return $query->where('members.is_active', true)->orderBy('members.name');
+                            return $query->where('is_active', true)->orderBy('name');
                         },
                     )
                     ->columnSpanFull(),
