@@ -89,6 +89,18 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const pendingStaffGroupId = ffai.ProjectAppStateFieldHandle(
+    name: "pendingStaffGroupId",
+    key: "ad0vafpx",
+    typeName: "String",
+    persisted: false,
+  );
+  static const pendingStaffGroupName = ffai.ProjectAppStateFieldHandle(
+    name: "pendingStaffGroupName",
+    key: "xesdtnva",
+    typeName: "String",
+    persisted: false,
+  );
   static const primaryColor = ffai.ProjectAppStateFieldHandle(
     name: "primaryColor",
     key: "28f643xh",
@@ -134,6 +146,8 @@ abstract final class AppState {
     pendingDirectUserName,
     pendingGroupName,
     pendingMessageText,
+    pendingStaffGroupId,
+    pendingStaffGroupName,
     primaryColor,
     secondaryColor,
     userEmail,

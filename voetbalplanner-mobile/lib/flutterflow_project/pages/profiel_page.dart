@@ -85,6 +85,12 @@ abstract final class ProfielPageWidgets {
                         path: "ProfielPage.body[0].children[0].children[0].children[2]",
                         name: "ProfielClub",
                       ),
+                      ffai.ProjectWidgetHandle(
+                        key: "Text_z41baigr",
+                        type: "Text",
+                        path: "ProfielPage.body[0].children[0].children[0].children[3]",
+                        name: "ProfielTeam",
+                      ),
                     ],
                   ),
                 ],

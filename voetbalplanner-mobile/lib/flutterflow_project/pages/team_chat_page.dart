@@ -120,6 +120,14 @@ abstract final class TeamChatPageWidgets {
                                 type: "Container",
                                 path: "TeamChatPage.body[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "MemberAvatar",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Icon_bfoiy600",
+                                    type: "Icon",
+                                    path: "TeamChatPage.body[0].children[0].children[0].children[0].children[0].children[0].children[0]",
+                                    name: "Icon",
+                                  ),
+                                ],
                               ),
                               ffai.ProjectWidgetHandle(
                                 key: "Text_qnslfq2k",

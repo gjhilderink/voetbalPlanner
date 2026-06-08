@@ -37,6 +37,12 @@ final class ChatsPageState {
         key: "edf2k8n9",
         typeName: "Boolean",
       );
+  ffai.ProjectStateFieldHandle get staffGroups =>
+      const ffai.ProjectStateFieldHandle(
+        name: "staffGroups",
+        key: "w7rfpaj8",
+        typeName: "List<DataStruct<?>>",
+      );
   ffai.ProjectStateFieldHandle get teamMembers =>
       const ffai.ProjectStateFieldHandle(
         name: "teamMembers",
@@ -58,14 +64,14 @@ abstract final class ChatsPageWidgets {
       slots: <String, List<ffai.ProjectWidgetHandle>>{
         "appBar": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "AppBar_j9af8emk",
+            key: "AppBar_lkkhmzhn",
             type: "AppBar",
             path: "ChatsPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_ss34bs9u",
+                  key: "Text_0nt22wvc",
                   type: "Text",
                   path: "ChatsPage.appBar[0].title[0]",
                   name: "ChatsAppBarTitle",
@@ -268,15 +274,83 @@ abstract final class ChatsPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_yaz058k0",
+                key: "Container_vxdfjy4q",
                 type: "Container",
                 path: "ChatsPage.body[0].children[4]",
+                name: "ChatsStaffGroupsLabelContainer",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "Text_fj711qun",
+                    type: "Text",
+                    path: "ChatsPage.body[0].children[4].children[0]",
+                    name: "Text",
+                    text: "Staffgroepen",
+                  ),
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "Container_g9gafx02",
+                type: "Container",
+                path: "ChatsPage.body[0].children[5]",
+                name: "ChatsStaffGroupsContainer",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "ListView_wiyg7rvr",
+                    type: "ListView",
+                    path: "ChatsPage.body[0].children[5].children[0]",
+                    name: "ChatsStaffGroupsList",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Container_6jvwv4oa",
+                        type: "Container",
+                        path: "ChatsPage.body[0].children[5].children[0].children[0]",
+                        name: "StaffGroupChip",
+                        triggers: const <String>[
+                          "ON_TAP",
+                        ],
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Row_5frnim1o",
+                            type: "Row",
+                            path: "ChatsPage.body[0].children[5].children[0].children[0].children[0]",
+                            name: "StaffGroupChipRow",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Icon_fd5e9uwb",
+                                type: "Icon",
+                                path: "ChatsPage.body[0].children[5].children[0].children[0].children[0].children[0]",
+                                name: "Icon",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_xlmh89no",
+                                type: "Text",
+                                path: "ChatsPage.body[0].children[5].children[0].children[0].children[0].children[1]",
+                                name: "StaffGroupChipName",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Icon_cqukkitu",
+                                type: "Icon",
+                                path: "ChatsPage.body[0].children[5].children[0].children[0].children[0].children[2]",
+                                name: "Icon",
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "Container_yaz058k0",
+                type: "Container",
+                path: "ChatsPage.body[0].children[6]",
                 name: "Container",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
                     key: "Text_wzi6z5sp",
                     type: "Text",
-                    path: "ChatsPage.body[0].children[4].children[0]",
+                    path: "ChatsPage.body[0].children[6].children[0]",
                     name: "Text",
                     text: "Direct",
                   ),
@@ -285,25 +359,25 @@ abstract final class ChatsPageWidgets {
               ffai.ProjectWidgetHandle(
                 key: "Container_dey9904b",
                 type: "Container",
-                path: "ChatsPage.body[0].children[5]",
+                path: "ChatsPage.body[0].children[7]",
                 name: "ChatsDirectStripContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
                     key: "Container_nvzjz6ig",
                     type: "Container",
-                    path: "ChatsPage.body[0].children[5].children[0]",
+                    path: "ChatsPage.body[0].children[7].children[0]",
                     name: "ChatsDirectStripInner",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
                         key: "ListView_5hayp6iz",
                         type: "ListView",
-                        path: "ChatsPage.body[0].children[5].children[0].children[0]",
+                        path: "ChatsPage.body[0].children[7].children[0].children[0]",
                         name: "ChatsDirectMemberList",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
                             key: "Container_e1xjpq6g",
                             type: "Container",
-                            path: "ChatsPage.body[0].children[5].children[0].children[0].children[0]",
+                            path: "ChatsPage.body[0].children[7].children[0].children[0].children[0]",
                             name: "DirectMemberChip",
                             triggers: const <String>[
                               "ON_TAP",
@@ -312,19 +386,19 @@ abstract final class ChatsPageWidgets {
                               ffai.ProjectWidgetHandle(
                                 key: "Column_j4gr7bai",
                                 type: "Column",
-                                path: "ChatsPage.body[0].children[5].children[0].children[0].children[0].children[0]",
+                                path: "ChatsPage.body[0].children[7].children[0].children[0].children[0].children[0]",
                                 name: "DirectMemberColumn",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
                                     key: "Container_rektjkso",
                                     type: "Container",
-                                    path: "ChatsPage.body[0].children[5].children[0].children[0].children[0].children[0].children[0]",
+                                    path: "ChatsPage.body[0].children[7].children[0].children[0].children[0].children[0].children[0]",
                                     name: "DirectMemberAvatar",
                                   ),
                                   ffai.ProjectWidgetHandle(
                                     key: "Text_eb6nr7ds",
                                     type: "Text",
-                                    path: "ChatsPage.body[0].children[5].children[0].children[0].children[0].children[0].children[1]",
+                                    path: "ChatsPage.body[0].children[7].children[0].children[0].children[0].children[0].children[1]",
                                     name: "DirectMemberName",
                                   ),
                                 ],

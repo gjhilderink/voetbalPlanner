@@ -127,6 +127,14 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final staffGroupItem = ffai.StructHandle(
+    "StaffGroupItem",
+    <String, ffai.DslType>{
+      "id": ffai.string,
+      "name": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final swapMember = ffai.StructHandle(
     "SwapMember",
     <String, ffai.DslType>{
@@ -173,6 +181,7 @@ abstract final class Structs {
     loginData,
     loginResponse,
     matchGoal,
+    staffGroupItem,
     swapMember,
     swapRequest,
     userRef,
@@ -750,6 +759,7 @@ abstract final class CustomCode {
     "AuthenticateBiometric",
     "CreateChatGroup",
     "GetOrCreateDirectConversation",
+    "GetOrCreateStaffGroupConversation",
     "InitializeTeamConversation",
     "LoginWithCredentials",
     "SendMagicLink",

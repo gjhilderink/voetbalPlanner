@@ -307,6 +307,20 @@ void buildEditFlow(App app) {
     description: 'Alle chatberichten (teamchat, direct, staffgroepen).',
   );
 
+  // chatGroups collection handle — collection already exists in FF project.
+  // Use handle-only to avoid ensureCollection conflicts with the existing schema.
+  final chatGroups = FirestoreCollectionHandle(
+    'chatGroups',
+    {
+      'name':      string,
+      'teamId':    string,
+      'members':   listOf(string),
+      'createdBy': string,
+      'createdAt': dateTime,
+    },
+    description: 'Gebruikersaangemaakte chatgroepen per team.',
+  );
+
   // ── Chat AppState fields ──────────────────────────────────────────────────────
   // These must exist at DSL compile time because _buildChatDetailPage references
   // them via UpdateAppState.set(). They are also added by _addChatInfrastructure
@@ -339,13 +353,15 @@ void buildEditFlow(App app) {
   // Replaces the old TeamChatPage, DirectChatPage, GroupChatPage.
   _buildChatDetailPage(app, chatMessages);
 
-  // Add 'conversations' state field to ChatsPage (idempotent — no-op if already present).
+  // Add 'conversations' + 'chatGroups' state fields to ChatsPage (idempotent).
   app.editPageState(ff.Pages.chatsPage, (state) {
     state.ensureField('conversations', listOf(chatConversations));
+    state.ensureField('chatGroups',    listOf(chatGroups));
   });
 
   // Replace ChatsPage load chain: InitializeTeamConversation → query chatConversations
-  // → SetState. GetTeamMembers is appended afterwards by _wireChatsPageLoad (raw).
+  // → SetState → query chatGroups → SetState.
+  // GetTeamMembers is appended afterwards by _wireChatsPageLoad (raw).
   // editPageOnLoad replaces the trigger on every push so it is always up-to-date.
   app.editPageOnLoad(ff.Pages.chatsPage, [
     CallCustomAction.named('InitializeTeamConversation', arguments: {}),
@@ -356,6 +372,13 @@ void buildEditFlow(App app) {
       outputAs: 'loadedConversations',
     ),
     SetState('conversations', ActionOutput('loadedConversations')),
+    FirestoreQuery(
+      chatGroups,
+      limit: 100,
+      singleTimeQuery: false,
+      outputAs: 'loadedGroups',
+    ),
+    SetState('chatGroups', ActionOutput('loadedGroups')),
   ]);
 
   _buildMagicLinkVerifyPage(app);
@@ -429,6 +452,10 @@ void buildEditFlow(App app) {
     _wireChatsPageLoad(project);
     _wireChatsPageConversationsList(project);
     _wireChatsPageMemberStrip(project);
+    // Apply chatGroups filter BEFORE conversationsFilter so each query gets
+    // the right collection field identifier (both filter on teamId == currentTeamId,
+    // but the collectionFieldIdentifier must reference the correct collection schema).
+    _wireChatsPageGroupsFilter(project);
     _wireConversationsFilter(project);
     _wireChatDetailFilters(project);
     // Group creation wiring.
@@ -5552,8 +5579,8 @@ void _wireChatsPageGroupsList(FFProject project) {
   final container = findDescendants(wc.node, (n) => n.name == 'ChatsGroupsListContainer').firstOrNull;
   if (container == null) return;
 
-  // Idempotent: skip if list is already added.
-  if (container.children.isNotEmpty) return;
+  // Idempotent: skip only if the groups list is already present (not just any child).
+  if (findDescendants(container, (n) => n.name == 'ChatsGroupsList').isNotEmpty) return;
 
   final chatGroupsId = _findPageStateFieldId(project, 'ChatsPage', 'chatGroups');
   if (chatGroupsId == null) return;
