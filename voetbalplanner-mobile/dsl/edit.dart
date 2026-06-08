@@ -469,6 +469,7 @@ void buildEditFlow(App app) {
     _wireChatsPageStaffGroupsLoad(project);
     _wireChatsPageStaffGroupsList(project);
     _makeChatsPageBodyScrollable(project);
+    _fixGroupChipNameBinding(project);
     _fixChatsPageListViewShrinkWrap(project);
     _fixMemberChipStyle(project);
     _removeChatsDebugBanner(project);
@@ -5194,7 +5195,7 @@ void _applyBrandingToAllAppBars(FFProject project) {
     // Detail / sub-pages (back button + dynamic title)
     'WedstrijdDetailPage', 'BardienDetailPage', 'RijschemaDetailPage',
     'DirectChatPage', 'DocumentatiePage', 'TeamChatPage',
-    'ChatsPage', 'GroupChatPage', 'CreateGroupPage',
+    'ChatsPage', 'GroupChatPage', 'CreateGroupPage', 'ChatDetailPage',
     'WisselAanvraagPage',
   ]) {
     final wc = findPage(project, name: pageName);
@@ -7210,6 +7211,32 @@ void _fixDashboardListViewShrinkWrap(FFProject project) {
     lvCopy.shrinkWrapValue = FFBooleanValue(inputValue: true);
     node.props.listView = lvCopy;
   }
+}
+
+// Rebinds GroupChipName to use accessDocumentField with only the field name
+// (no schema key). Some FlutterFlow runtime environments can't resolve field
+// values via schema key; a name-only fieldIdentifier falls back to a direct
+// Firestore field path lookup and works across all environments.
+void _fixGroupChipNameBinding(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  final groupList = findDescendants(wc.node, (n) => n.name == 'ChatsGroupsList').firstOrNull;
+  if (groupList == null) return;
+
+  final nameNode = findDescendants(wc.node, (n) => n.name == 'GroupChipName').firstOrNull;
+  if (nameNode == null) return;
+
+  // Use name-only fieldIdentifier (no key) so test mode can resolve it.
+  final nameVar = varFromGeneratorVariable(groupList.key)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(name: 'name'),
+      ),
+    ));
+  final textProto = nameNode.props.text.deepCopy();
+  textProto.textValue = FFStringValue(variable: nameVar);
+  nameNode.props.text = textProto;
 }
 
 // Patch ChatsPage ListViews to shrinkWrap: true so they render inside the
