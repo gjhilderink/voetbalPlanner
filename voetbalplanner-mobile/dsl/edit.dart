@@ -470,6 +470,7 @@ void buildEditFlow(App app) {
     _wireChatsPageStaffGroupsList(project);
     _makeChatsPageBodyScrollable(project);
     _fixMemberChipStyle(project);
+    _addChatsDebugBanner(project);
   });
 
   final swapRequest = ff.Structs.swapRequest;
@@ -6724,6 +6725,28 @@ void _wireChatsPageStaffGroupsLoad(FFProject project) {
       ]),
     ),
   );
+}
+
+// TEMPORARY DIAGNOSTIC: adds a small text at the top of ChatsPage that shows
+// the currentTeamId AppState value. Remove once the filter issue is diagnosed.
+void _addChatsDebugBanner(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  if (findDescendants(wc.node, (n) => n.name == 'DebugTeamIdText').isNotEmpty) return;
+
+  final teamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  if (teamIdId == null) return;
+
+  final label = UI.text('teamId: ', name: 'DebugTeamIdText', style: UITextStyle.bodySmall);
+  label.props.text.textValue = interpolateVar([
+    'DEBUG teamId=',
+    varFromAppState(teamIdId.deepCopy()),
+  ]);
+
+  final bodyCol = findByKey(wc.node, 'Column_97jfu72d');
+  if (bodyCol == null) return;
+  bodyCol.children.insert(0, label);
 }
 
 // Ensures the ChatsPage body column is scrollable so all sections
