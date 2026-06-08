@@ -2696,16 +2696,19 @@ void _addTeamChatFilters(FFProject project) {
   }
 }
 
+// [collectionName]: if provided, only patch queries targeting that collection.
 void _applyFilterToActionChain(
   FFActionNode node,
-  FFFirestoreWhere whereFilter,
-) {
-  // Patch this node if it is a Firestore query without a filter.
+  FFFirestoreWhere whereFilter, {
+  String? collectionName,
+}) {
+  // Patch this node if it is a Firestore query without a filter (and matches the target collection).
   if (node.hasAction() &&
       node.action.hasDatabase() &&
       node.action.database.hasFirestoreQuery()) {
     final query = node.action.database.firestoreQuery;
-    if (!query.hasWhere()) {
+    if (!query.hasWhere() &&
+        (collectionName == null || query.collectionIdentifier.name == collectionName)) {
       query.where = whereFilter.deepCopy();
     }
   }
@@ -2714,23 +2717,23 @@ void _applyFilterToActionChain(
   if (node.hasConditionActions()) {
     for (final branch in node.conditionActions.trueActions) {
       if (branch.hasTrueAction()) {
-        _applyFilterToActionChain(branch.trueAction, whereFilter);
+        _applyFilterToActionChain(branch.trueAction, whereFilter, collectionName: collectionName);
       }
     }
     if (node.conditionActions.hasFalseAction()) {
-      _applyFilterToActionChain(node.conditionActions.falseAction, whereFilter);
+      _applyFilterToActionChain(node.conditionActions.falseAction, whereFilter, collectionName: collectionName);
     }
   }
   if (node.hasLoopAction() && node.loopAction.hasAction()) {
-    _applyFilterToActionChain(node.loopAction.action, whereFilter);
+    _applyFilterToActionChain(node.loopAction.action, whereFilter, collectionName: collectionName);
   }
   if (node.hasParallelActions()) {
     for (final branch in node.parallelActions.actions) {
-      _applyFilterToActionChain(branch, whereFilter);
+      _applyFilterToActionChain(branch, whereFilter, collectionName: collectionName);
     }
   }
   if (node.hasFollowUpAction()) {
-    _applyFilterToActionChain(node.followUpAction, whereFilter);
+    _applyFilterToActionChain(node.followUpAction, whereFilter, collectionName: collectionName);
   }
 }
 
@@ -5971,7 +5974,7 @@ void _wireConversationsFilter(FFProject project) {
   for (final node in allNodes) {
     for (final trigger in node.triggerActions) {
       if (trigger.hasRootAction()) {
-        _applyFilterToActionChain(trigger.rootAction, whereFilter);
+        _applyFilterToActionChain(trigger.rootAction, whereFilter, collectionName: 'chatConversations');
       }
     }
   }
@@ -6310,7 +6313,7 @@ void _wireChatsPageGroupsFilter(FFProject project) {
   for (final node in allNodes) {
     for (final trigger in node.triggerActions) {
       if (trigger.hasRootAction()) {
-        _applyFilterToActionChain(trigger.rootAction, whereFilter);
+        _applyFilterToActionChain(trigger.rootAction, whereFilter, collectionName: 'chatGroups');
       }
     }
   }
