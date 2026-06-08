@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>VoetbalPlanner — Slimme clubplanning</title>
-    <meta name="description" content="VoetbalPlanner helpt voetbalclubs hun wedstrijden, opstellingen, bardiensten en wisselverzoeken eenvoudig te beheren.">
+    <meta name="description" content="VoetbalPlanner helpt voetbalclubs hun wedstrijden, opstellingen, bardiensten, rijschema's, clubdocumentatie en communicatie eenvoudig te beheren via één app.">
 
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -44,7 +44,7 @@
             De slimme voetbalplanner<br class="hidden sm:block"> voor jouw club
         </h1>
         <p class="text-lg sm:text-xl text-green-100 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Beheer wedstrijden, opstellingen, bardiensten en wisselverzoeken vanuit één overzichtelijk platform. Gekoppeld met Sportlink, bereikbaar via de app.
+            Beheer wedstrijden, opstellingen, bardiensten, rijschema's en communicatie vanuit één overzichtelijk platform. Gekoppeld met Sportlink, bereikbaar via de app.
         </p>
 
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
@@ -127,7 +127,7 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">App voor leden</h3>
-                <p class="text-gray-500 text-sm leading-relaxed">Leden gebruiken de VoetbalPlanner-app op hun telefoon. Wedstrijden bekijken, bardiensten inzien en wisselverzoeken indienen.</p>
+                <p class="text-gray-500 text-sm leading-relaxed">Leden gebruiken de VoetbalPlanner-app op hun telefoon. Wedstrijden, bardiensten, rijschema, chat, documentatie en wisselverzoeken in één app.</p>
             </div>
 
             {{-- Feature 6 --}}
@@ -139,6 +139,39 @@
                 </div>
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Volledig clubbeheer</h3>
                 <p class="text-gray-500 text-sm leading-relaxed">Beheer meerdere teams, rollen en gebruikers vanuit één beheerpaneel. Elk team heeft zijn eigen ledenadministratie.</p>
+            </div>
+
+            {{-- Feature 7 --}}
+            <div class="bg-white rounded-2xl p-7 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center mb-5">
+                    <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">In-app communicatie</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Teamchat, groepsgesprekken, staffgroepen en directe berichten — alles binnen de app, geen externe WhatsApp-groepen meer nodig.</p>
+            </div>
+
+            {{-- Feature 8 --}}
+            <div class="bg-white rounded-2xl p-7 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div class="w-12 h-12 bg-sky-100 rounded-xl flex items-center justify-center mb-5">
+                    <svg class="w-6 h-6 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Rijschema</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Leden zien direct wie rijdt naar welke wedstrijd. Beheerders stellen het rijschema per wedstrijd in — minder losse appjes, meer overzicht.</p>
+            </div>
+
+            {{-- Feature 9 --}}
+            <div class="bg-white rounded-2xl p-7 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mb-5">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Clubdocumentatie</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Reglementen, spelershandleidingen en clubdocumenten altijd bij de hand via de app. Geen losse pdf's meer rondsturen.</p>
             </div>
         </div>
     </div>
