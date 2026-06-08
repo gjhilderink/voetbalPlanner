@@ -5179,7 +5179,7 @@ void _applyBrandingToAllAppBars(FFProject project) {
 
   for (final pageName in const [
     // Main NavBar pages (have their own AppBar with page title)
-    'WedstrijdenPage', 'BardienPage', 'RijschemaPage', 'ProfielPage',
+    'DashboardPage', 'WedstrijdenPage', 'BardienPage', 'RijschemaPage', 'ProfielPage',
     // Detail / sub-pages (back button + dynamic title)
     'WedstrijdDetailPage', 'BardienDetailPage', 'RijschemaDetailPage',
     'DirectChatPage', 'DocumentatiePage', 'TeamChatPage',
@@ -7180,25 +7180,9 @@ void _wireDashboardLoad(FFProject project) {
   while (tail.hasFollowUpAction()) tail = tail.followUpAction;
   tail.followUpAction = dutiesNode;
 
-  // Guard: only fire API calls when the user is logged in (authToken not empty).
-  // Without this guard, the Dashboard calls APIs immediately on app start in
-  // test mode (no auth token), which returns 401 Unauthenticated.
-  final authNotEmpty = codeExpressionVar(
-    expression: 'authToken.isNotEmpty',
-    arguments: [
-      CodeExpressionArg(
-        name: 'authToken',
-        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-        value: FFValue(variable: varFromAppState(authTokenId.deepCopy())),
-      ),
-    ],
-    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
-  );
-
-  Actions.onPageLoadChain(
-    wc.node,
-    Actions.conditional(condition: authNotEmpty, trueActions: matchesNode),
-  );
+  // Wire directly (no auth guard): DashboardPage requires authentication, so authToken
+  // is always present when this fires. onFailure handlers handle any 401 gracefully.
+  Actions.onPageLoadChain(wc.node, matchesNode);
 }
 
 void _forceDashboardNavBarItem(FFProject project) {
