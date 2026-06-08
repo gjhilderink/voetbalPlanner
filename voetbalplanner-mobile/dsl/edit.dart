@@ -442,6 +442,7 @@ void buildEditFlow(App app) {
     _wireChatsPageStaffGroupsLoad(project);
     _wireChatsPageStaffGroupsList(project);
     _makeChatsPageBodyScrollable(project);
+    _fixMemberChipStyle(project);
   });
 
   final swapRequest = ff.Structs.swapRequest;
@@ -1784,6 +1785,24 @@ Future<void> createChatGroup(List<String> memberIds) async {
     );
   } else {
     updateCustomAction(project, name: 'CreateChatGroup', code: _createChatGroupCode);
+  }
+
+  // Ensure the memberIds parameter has the stable key _kMemberIdsParamKey so
+  // _wireCreateGroupSubmitAction can reference it by key in actionParameters.
+  // (If addCustomAction set an empty key, this upgrades it idempotently.)
+  {
+    final caIdx = project.customCode.customActions
+        .indexWhere((ca) => ca.identifier.name == 'CreateChatGroup');
+    if (caIdx >= 0) {
+      final ca = project.customCode.customActions[caIdx];
+      final argIdx = ca.arguments
+          .indexWhere((a) => a.identifier.name == 'memberIds');
+      if (argIdx >= 0 && ca.arguments[argIdx].identifier.key != _kMemberIdsParamKey) {
+        final caCopy = ca.deepCopy();
+        caCopy.arguments[argIdx].identifier.key = _kMemberIdsParamKey;
+        project.customCode.customActions[caIdx] = caCopy;
+      }
+    }
   }
 }
 
@@ -6431,71 +6450,104 @@ void _wireCreateGroupMembersUI(FFProject project) {
   parent.children.insert(btnIndex, sectionLabel);
 }
 
-// Updates the CreateGroupSubmitButton's Firestore create action to include
-// the 'members' field (selectedMemberIds) alongside the existing fields.
+/// Stable key for the CreateChatGroup custom action's memberIds parameter.
+/// Written by _addChatInfrastructure and read by _wireCreateGroupSubmitAction.
+const _kMemberIdsParamKey = 'cgmembids1';
+
+// Replaces CreateGroupSubmitButton's ON_TAP chain so it reliably creates a
+// chatGroups document regardless of what was wired in a previous push.
+// Chain: stage AppState.pendingGroupName (from page state) →
+//        call CreateChatGroup(memberIds = selectedMemberIds) →
+//        navigate to ChatsPage.
 void _wireCreateGroupSubmitAction(FFProject project) {
   final wc = findPage(project, name: 'CreateGroupPage');
   if (wc == null) return;
 
-  final membersField = findCollectionField(project, collectionName: 'chatGroups', fieldName: 'members');
-  if (membersField == null) return;
-
-  final selectedMemberIdsId = _findPageStateFieldId(project, 'CreateGroupPage', 'selectedMemberIds');
-  if (selectedMemberIdsId == null) return;
-
   final submitBtn = findDescendants(wc.node, (n) => n.name == 'CreateGroupSubmitButton').firstOrNull;
   if (submitBtn == null) return;
 
-  // Walk an action chain (including followUpAction) looking for FirestoreCreate.
-  FFActionNode? _walkForCreate(FFActionNode node) {
-    if (node.hasAction() && node.action.hasDatabase() &&
-        node.action.database.hasCreateDocument()) return node;
-    if (node.hasFollowUpAction()) return _walkForCreate(node.followUpAction);
-    return null;
-  }
+  final groupNameId         = _findPageStateFieldId(project, 'CreateGroupPage', 'groupName');
+  final selectedMemberIdsId = _findPageStateFieldId(project, 'CreateGroupPage', 'selectedMemberIds');
+  final pendingGroupNameId  = _findAppStateFieldId(project, 'pendingGroupName');
+  if (groupNameId == null || selectedMemberIdsId == null || pendingGroupNameId == null) return;
 
-  // The submit button's ON_TAP chain is: If(condition) { FirestoreCreate, NavigateBack }
-  // FirestoreCreate lives in conditionActions.trueActions[0].trueAction — NOT in the
-  // top-level followUpAction chain, which is why the previous findCreateNode missed it.
-  FFActionNode? findCreateNode(FFActionNode root) {
-    // Direct FirestoreCreate (or via followUpAction at root level)
-    final direct = _walkForCreate(root);
-    if (direct != null) return direct;
-    // Inside a conditional's true actions (conditionActions lives on FFActionNode, not FFAction)
-    if (root.hasConditionActions()) {
-      for (final ta in root.conditionActions.trueActions) {
-        if (!ta.hasTrueAction()) continue;
-        final found = _walkForCreate(ta.trueAction);
-        if (found != null) return found;
+  final createChatGroup = findCustomAction(project, name: 'CreateChatGroup');
+  if (createChatGroup == null) return;
+
+  // Idempotent: already wired when ON_TAP calls CreateChatGroup with the stable key.
+  final alreadyWired = submitBtn.triggerActions.any((t) {
+    if (!t.hasTrigger() || t.trigger.triggerType != FFActionTriggerType.ON_TAP) return false;
+    if (!t.hasRootAction()) return false;
+    bool hasCA(FFActionNode n) {
+      if (n.hasAction() && n.action.hasCustomAction() &&
+          n.action.customAction.customActionIdentifier.name == 'CreateChatGroup' &&
+          n.action.customAction.hasArgumentValues() &&
+          n.action.customAction.argumentValues.arguments.containsKey(_kMemberIdsParamKey)) {
+        return true;
       }
+      if (n.hasFollowUpAction() && hasCA(n.followUpAction)) return true;
+      if (n.hasConditionActions()) {
+        for (final ta in n.conditionActions.trueActions) {
+          if (ta.hasTrueAction() && hasCA(ta.trueAction)) return true;
+        }
+      }
+      return false;
     }
-    return null;
-  }
+    return hasCA(t.rootAction);
+  });
+  if (alreadyWired) return;
 
-  for (final trigger in submitBtn.triggerActions) {
-    if (!trigger.hasTrigger() || trigger.trigger.triggerType != FFActionTriggerType.ON_TAP) continue;
-    if (!trigger.hasRootAction()) continue;
+  final groupNameVar = varFromPageState(groupNameId.deepCopy());
+  groupNameVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
 
-    final createNode = findCreateNode(trigger.rootAction);
-    if (createNode == null) continue;
+  final selectedMemberIdsVar = varFromPageState(selectedMemberIdsId.deepCopy());
+  selectedMemberIdsVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
 
-    // Idempotent: skip if members key already present.
-    // write.updates is keyed by field NAME (not UUID key), matching how _compileFirestoreFieldUpdates works.
-    if (createNode.action.database.createDocument.write.updates
-        .containsKey('members')) return;
+  // Build argumentValues for CreateChatGroup: memberIds = selectedMemberIds.
+  final argValues = FFFunctionCallValues();
+  argValues.arguments[_kMemberIdsParamKey] = FFFunctionCallValues_FFArgument(
+    value: FFValue(variable: selectedMemberIdsVar),
+  );
 
-    final selectedVar = varFromPageState(selectedMemberIdsId.deepCopy());
-    selectedVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  // Replace ALL existing ON_TAP triggers with the corrected chain.
+  submitBtn.triggerActions.removeWhere((t) =>
+    t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
 
-    final actionCopy = createNode.action.deepCopy();
-    actionCopy.database.createDocument.write.updates['members'] =
-        FFFieldUpdate(
-          fieldIdentifier: membersField.identifier.deepCopy(),
-          variable: selectedVar,
-        );
-    createNode.action = actionCopy;
-    break;
-  }
+  // Stage pendingGroupName → call CreateChatGroup(memberIds) → navigate to ChatsPage.
+  Actions.addTriggerChain(
+    submitBtn,
+    FFActionTriggerType.ON_TAP,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        localStateUpdate: FFLocalStateUpdate(
+          updates: [
+            FFLocalStateFieldUpdate(
+              fieldIdentifier: pendingGroupNameId.deepCopy(),
+              setValue: FFValue(variable: groupNameVar),
+            ),
+          ],
+          stateVariableType: FFStateVariableType.APP_STATE,
+        ),
+      ),
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: createChatGroup.identifier.deepCopy(),
+            argumentValues: argValues,
+          ),
+        ),
+        followUpAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.navigate(project, pageName: 'ChatsPage', params: {}),
+        ),
+      ),
+    ),
+  );
 }
 
 // Binds DynamicSource + text/action wiring to the EXISTING CreateGroupMemberList.
@@ -6660,6 +6712,32 @@ void _makeChatsPageBodyScrollable(FFProject project) {
     final colCopy = bodyCol.props.column.deepCopy();
     colCopy.scrollable = true;
     bodyCol.props.column = colCopy;
+  }
+}
+
+// Improves TeamChatPage member chip appearance:
+//   MemberChipName: body_small → body_medium (more readable)
+//   MemberAvatar: empty container → grey circle with person icon
+void _fixMemberChipStyle(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+
+  final nameText = findDescendants(wc.node, (n) => n.name == 'MemberChipName').firstOrNull;
+  if (nameText != null && nameText.props.hasText()) {
+    final copy = nameText.props.text.deepCopy();
+    copy.themeStyle = FFText_ThemeStyle.BODY_MEDIUM;
+    nameText.props.text = copy;
+  }
+
+  final avatar = findDescendants(wc.node, (n) => n.name == 'MemberAvatar').firstOrNull;
+  if (avatar != null) {
+    _setContainerColor(
+      avatar,
+      FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.ALTERNATE)),
+    );
+    if (avatar.children.isEmpty) {
+      avatar.children.add(UI.icon('person', size: 20, color: UIColor.primary));
+    }
   }
 }
 
