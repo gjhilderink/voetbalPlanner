@@ -769,12 +769,21 @@ void _addUpcomingFilter(FFProject project) {
           type: FFBaseDataType.String,
         ),
       ],
-      headers: ['Authorization: Bearer [bearerToken]'],
+      headers: ['Authorization: Bearer [token]'],
       groupIdentifier: group.identifier.deepCopy(),
       responseDataStructParam: getMatchesEp?.responseDataStructParam.deepCopy(),
     ));
   } else {
     existingUpcomingEp.url = '/matches?upcoming=1&per_page=50&team_id=[teamId]';
+    // Ensure correct auth header (fix: was [bearerToken], must be [token]).
+    existingUpcomingEp.headers.clear();
+    existingUpcomingEp.headers.add('Authorization: Bearer [token]');
+    if (!existingUpcomingEp.variables.any((v) => v.identifier.name == 'token')) {
+      existingUpcomingEp.variables.add(FFApiValue(
+        identifier: FFIdentifier(name: 'token', key: generateRandomAlphaNumericString()),
+        type: FFBaseDataType.String,
+      ));
+    }
     if (!existingUpcomingEp.variables.any((v) => v.identifier.name == 'teamId')) {
       existingUpcomingEp.variables.add(FFApiValue(
         identifier: FFIdentifier(name: 'teamId', key: generateRandomAlphaNumericString()),
