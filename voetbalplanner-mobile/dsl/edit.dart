@@ -7123,62 +7123,81 @@ void _wireDashboardLoad(FFProject project) {
   if (authTokenId == null) return;
 
   final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  final scaffoldKey = wc.node.key;
 
   wc.node.triggerActions.removeWhere(
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
   );
 
-  final scaffoldKey = wc.node.key;
+  // Build GetBarDuties node.
+  final dutiesNode = Actions.apiCallNode(
+    project,
+    endpointName: 'GetBarDuties',
+    groupName: 'VoetbalPlannerAPI',
+    variables: {'page': '1'},
+    dynamicVariables: {
+      'token': varFromAppState(authTokenId.deepCopy()),
+      if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+    },
+    outputVariableName: 'dashDuties',
+    nodeKey: scaffoldKey,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updatePageState(
+        project,
+        widgetClassName: 'DashboardPage',
+        updates: [StateFieldUpdate.setFromVariable('duties', ctx.responseVar)],
+      ),
+    ]),
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Kon bardiensten niet laden.'),
+    ]),
+  );
+
+  // Build GetUpcomingMatches node and chain dutiesNode after it.
+  final matchesNode = Actions.apiCallNode(
+    project,
+    endpointName: 'GetUpcomingMatches',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'token': varFromAppState(authTokenId.deepCopy()),
+      if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+    },
+    outputVariableName: 'dashMatches',
+    nodeKey: scaffoldKey,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updatePageState(
+        project,
+        widgetClassName: 'DashboardPage',
+        updates: [StateFieldUpdate.setFromVariable('matches', ctx.responseVar)],
+      ),
+    ]),
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Kon wedstrijden niet laden.'),
+    ]),
+  );
+  // Append duties after the matches chain's tail.
+  var tail = matchesNode;
+  while (tail.hasFollowUpAction()) tail = tail.followUpAction;
+  tail.followUpAction = dutiesNode;
+
+  // Guard: only fire API calls when the user is logged in (authToken not empty).
+  // Without this guard, the Dashboard calls APIs immediately on app start in
+  // test mode (no auth token), which returns 401 Unauthenticated.
+  final authNotEmpty = codeExpressionVar(
+    expression: 'authToken.isNotEmpty',
+    arguments: [
+      CodeExpressionArg(
+        name: 'authToken',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: varFromAppState(authTokenId.deepCopy())),
+      ),
+    ],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+  );
 
   Actions.onPageLoadChain(
     wc.node,
-    Actions.apiCallNode(
-      project,
-      endpointName: 'GetUpcomingMatches',
-      groupName: 'VoetbalPlannerAPI',
-      dynamicVariables: {
-        'token': varFromAppState(authTokenId.deepCopy()),
-        if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
-      },
-      outputVariableName: 'dashMatches',
-      nodeKey: scaffoldKey,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.updatePageState(
-          project,
-          widgetClassName: 'DashboardPage',
-          updates: [StateFieldUpdate.setFromVariable('matches', ctx.responseVar)],
-        ),
-      ]),
-      onFailure: (ctx) => Actions.chain([
-        Actions.snackBar('Kon wedstrijden niet laden.'),
-      ]),
-    ),
-  );
-
-  _appendToFirstPageLoadChain(
-    wc.node,
-    Actions.apiCallNode(
-      project,
-      endpointName: 'GetBarDuties',
-      groupName: 'VoetbalPlannerAPI',
-      variables: {'page': '1'},
-      dynamicVariables: {
-        'token': varFromAppState(authTokenId.deepCopy()),
-        if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
-      },
-      outputVariableName: 'dashDuties',
-      nodeKey: scaffoldKey,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.updatePageState(
-          project,
-          widgetClassName: 'DashboardPage',
-          updates: [StateFieldUpdate.setFromVariable('duties', ctx.responseVar)],
-        ),
-      ]),
-      onFailure: (ctx) => Actions.chain([
-        Actions.snackBar('Kon bardiensten niet laden.'),
-      ]),
-    ),
+    Actions.conditional(condition: authNotEmpty, trueActions: matchesNode),
   );
 }
 
