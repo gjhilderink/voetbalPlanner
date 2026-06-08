@@ -636,6 +636,7 @@ void buildEditFlow(App app) {
     _addDashboardAppBar(project);
     _buildDashboardContent(project);
     _wireDashboardLoad(project);
+    _fixDashboardListViewShrinkWrap(project);
   });
 
   // Apply club primary color to all AppBar backgrounds; set back button + title to white.
@@ -7192,6 +7193,22 @@ void _wireDashboardLoad(FFProject project) {
   // Wire directly (no auth guard): DashboardPage requires authentication, so authToken
   // is always present when this fires. onFailure handlers handle any 401 gracefully.
   Actions.onPageLoadChain(wc.node, matchesNode);
+}
+
+// Patch DashboardMatchesList and DashboardDutiesList to shrinkWrap: true.
+// Both ListViews live inside a scrollable Column (unbounded vertical space), so
+// without shrinkWrap the viewport has no height constraint and renders nothing.
+void _fixDashboardListViewShrinkWrap(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  for (final name in ['DashboardMatchesList', 'DashboardDutiesList']) {
+    final node = findDescendants(wc.node, (n) => n.name == name).firstOrNull;
+    if (node == null) continue;
+    if (node.props.listView.shrinkWrapValue.inputValue) continue;
+    final lvCopy = node.props.listView.deepCopy();
+    lvCopy.shrinkWrapValue = FFBooleanValue(inputValue: true);
+    node.props.listView = lvCopy;
+  }
 }
 
 void _forceDashboardNavBarItem(FFProject project) {
