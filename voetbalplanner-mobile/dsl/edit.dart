@@ -469,6 +469,7 @@ void buildEditFlow(App app) {
     _wireChatsPageStaffGroupsLoad(project);
     _wireChatsPageStaffGroupsList(project);
     _makeChatsPageBodyScrollable(project);
+    _fixChatsPageListViewShrinkWrap(project);
     _fixMemberChipStyle(project);
     _removeChatsDebugBanner(project);
   });
@@ -7202,6 +7203,21 @@ void _fixDashboardListViewShrinkWrap(FFProject project) {
   final wc = findPage(project, name: 'DashboardPage');
   if (wc == null) return;
   for (final name in ['DashboardMatchesList', 'DashboardDutiesList']) {
+    final node = findDescendants(wc.node, (n) => n.name == name).firstOrNull;
+    if (node == null) continue;
+    if (node.props.listView.shrinkWrapValue.inputValue) continue;
+    final lvCopy = node.props.listView.deepCopy();
+    lvCopy.shrinkWrapValue = FFBooleanValue(inputValue: true);
+    node.props.listView = lvCopy;
+  }
+}
+
+// Patch ChatsPage ListViews to shrinkWrap: true so they render inside the
+// min-size Column body without an unbounded height constraint.
+void _fixChatsPageListViewShrinkWrap(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+  for (final name in ['ChatsGroupsList', 'ChatsConversationsList', 'ChatsStaffGroupsList']) {
     final node = findDescendants(wc.node, (n) => n.name == name).firstOrNull;
     if (node == null) continue;
     if (node.props.listView.shrinkWrapValue.inputValue) continue;
