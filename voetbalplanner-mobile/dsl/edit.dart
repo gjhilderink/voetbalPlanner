@@ -368,14 +368,14 @@ void buildEditFlow(App app) {
     FirestoreQuery(
       chatConversations,
       limit: 50,
-      singleTimeQuery: false,
+      singleTimeQuery: true,
       outputAs: 'loadedConversations',
     ),
     SetState('conversations', ActionOutput('loadedConversations')),
     FirestoreQuery(
       chatGroups,
       limit: 100,
-      singleTimeQuery: false,
+      singleTimeQuery: true,
       outputAs: 'loadedGroups',
     ),
     SetState('chatGroups', ActionOutput('loadedGroups')),
@@ -470,7 +470,7 @@ void buildEditFlow(App app) {
     _wireChatsPageStaffGroupsList(project);
     _makeChatsPageBodyScrollable(project);
     _fixMemberChipStyle(project);
-    _addChatsDebugBanner(project);
+    _removeChatsDebugBanner(project);
   });
 
   final swapRequest = ff.Structs.swapRequest;
@@ -629,6 +629,15 @@ void buildEditFlow(App app) {
   app.raw((project) => _addBannerToWedstrijdenPage(project));
   app.raw((project) => _addBannerToBardienPage(project));
 
+  // ── Dashboard page ─────────────────────────────────────────────────────────────
+  // Shows upcoming wedstrijden + bardiensten on one screen; home icon in NavBar.
+  _buildDashboardPage(app, ff.Structs.footMatch, ff.Structs.barDuty);
+  app.raw((project) {
+    _addDashboardAppBar(project);
+    _buildDashboardContent(project);
+    _wireDashboardLoad(project);
+  });
+
   // Apply club primary color to all AppBar backgrounds; set back button + title to white.
   // Runs last so the AppBar nodes already exist from all the preceding wiring steps.
   app.raw((project) => _applyBrandingToAllAppBars(project));
@@ -636,8 +645,8 @@ void buildEditFlow(App app) {
   // Apply club primary color to all buttons: fill color + white text + generous padding.
   app.raw((project) => _applyBrandingToAllButtons(project));
 
-  // Force-set navBarItem.show = true on ChatsPage LAST — after editPageOnLoad and
-  // _wireChatsPageLoad, which both modify the scaffold and can overwrite navBarItem.
+  // Force NavBar items LAST — after all other raw mutations that touch the scaffold.
+  app.raw((project) => _forceDashboardNavBarItem(project));
   app.raw((project) => _forceChatsNavBarItem(project));
 }
 
@@ -1268,21 +1277,26 @@ void _resetTeamChatAppBar(FFProject project) {
   );
 }
 
-// Enables the global NavBar and registers the 5 main pages in canonical order.
+// Enables the global NavBar and registers the 6 main pages in canonical order.
 void _setupNavBar(FFProject project) {
   setNavBarEnabled(project, enabled: true);
   // Remove stale TeamChatPage if still present from the old layout.
   try { removeNavBarPage(project, pageName: 'TeamChatPage'); } catch (_) {}
-  // Ensure all 5 canonical pages are in the NavBar (idempotent appends, skip if present).
+  // Ensure all 6 canonical pages are in the NavBar (idempotent appends, skip if present).
+  addNavBarPage(project, pageName: 'DashboardPage',  iconName: 'home');
   addNavBarPage(project, pageName: 'WedstrijdenPage', iconName: 'sports');
   addNavBarPage(project, pageName: 'RijschemaPage',   iconName: 'directions_car');
   addNavBarPage(project, pageName: 'BardienPage',     iconName: 'sports_bar');
   addNavBarPage(project, pageName: 'ChatsPage',       iconName: 'chat');
   addNavBarPage(project, pageName: 'ProfielPage',     iconName: 'person');
-  // Fix ordering: ChatsPage must come before ProfielPage.
+  // Fix ordering: DashboardPage must be first; ChatsPage before ProfielPage.
   final pages = listNavBarPages(project);
-  final chatsIdx = pages.indexOf('ChatsPage');
+  final dashIdx    = pages.indexOf('DashboardPage');
+  final chatsIdx   = pages.indexOf('ChatsPage');
   final profielIdx = pages.indexOf('ProfielPage');
+  if (dashIdx > 0) {
+    reorderNavBarPage(project, pageName: 'DashboardPage', newIndex: 0);
+  }
   if (chatsIdx > profielIdx && chatsIdx >= 0 && profielIdx >= 0) {
     reorderNavBarPage(project, pageName: 'ChatsPage', newIndex: profielIdx);
   }
@@ -6727,26 +6741,12 @@ void _wireChatsPageStaffGroupsLoad(FFProject project) {
   );
 }
 
-// TEMPORARY DIAGNOSTIC: adds a small text at the top of ChatsPage that shows
-// the currentTeamId AppState value. Remove once the filter issue is diagnosed.
-void _addChatsDebugBanner(FFProject project) {
+void _removeChatsDebugBanner(FFProject project) {
   final wc = findPage(project, name: 'ChatsPage');
   if (wc == null) return;
-
-  if (findDescendants(wc.node, (n) => n.name == 'DebugTeamIdText').isNotEmpty) return;
-
-  final teamIdId = _findAppStateFieldId(project, 'currentTeamId');
-  if (teamIdId == null) return;
-
-  final label = UI.text('teamId: ', name: 'DebugTeamIdText', style: UITextStyle.bodySmall);
-  label.props.text.textValue = interpolateVar([
-    'DEBUG teamId=',
-    varFromAppState(teamIdId.deepCopy()),
-  ]);
-
-  final bodyCol = findByKey(wc.node, 'Column_97jfu72d');
-  if (bodyCol == null) return;
-  bodyCol.children.insert(0, label);
+  for (final n in findDescendants(wc.node, (n) => n.name == 'DebugTeamIdText')) {
+    removeByKey(wc.node, n.key);
+  }
 }
 
 // Ensures the ChatsPage body column is scrollable so all sections
@@ -6954,6 +6954,243 @@ void _buildCreateGroupPage(App app, FirestoreCollectionHandle chatGroups) {
       ],
     ),
   );
+}
+
+// ─── Dashboard page ────────────────────────────────────────────────────────────
+
+void _buildDashboardPage(App app, StructHandle footMatch, StructHandle barDuty) {
+  app.ensurePage(
+    'DashboardPage',
+    description: 'Dashboard met komende wedstrijden en bardiensten.',
+    route: 'dashboard',
+    state: {
+      'matches': listOf(footMatch),
+      'duties':  listOf(barDuty),
+    },
+    body: Column(
+      children: [
+        Container(
+          padding: 16,
+          child: Text('Komende activiteiten', style: Styles.titleMedium),
+        ),
+        Container(
+          padding: 12,
+          child: Text('Wedstrijden', style: Styles.titleSmall),
+        ),
+        Container(name: 'DashboardMatchesContainer'),
+        Container(
+          padding: 12,
+          child: Text('Bardiensten', style: Styles.titleSmall),
+        ),
+        Container(name: 'DashboardDutiesContainer'),
+      ],
+    ),
+  );
+}
+
+void _addDashboardAppBar(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  if (getPropertyChild(wc.node, 'appBar') != null) return;
+  final titleNode = UI.text('Dashboard', name: 'DashboardAppBarTitle', style: UITextStyle.titleLarge);
+  final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: false);
+  wc.node.children.add(appBarNode);
+  wc.node.childPropertyMap['appBar'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: appBarNode.key)],
+  );
+}
+
+void _buildDashboardContent(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  final bodyCol = getPropertyChild(wc.node, 'body');
+  if (bodyCol != null && bodyCol.type == FFWidgetType.Column && !bodyCol.props.column.scrollable) {
+    final colCopy = bodyCol.props.column.deepCopy();
+    colCopy.scrollable = true;
+    bodyCol.props.column = colCopy;
+  }
+
+  _buildDashboardMatchesList(project, wc);
+  _buildDashboardDutiesList(project, wc);
+}
+
+void _buildDashboardMatchesList(FFProject project, FFWidgetClass wc) {
+  final container = findDescendants(wc.node, (n) => n.name == 'DashboardMatchesContainer').firstOrNull;
+  if (container == null || container.children.isNotEmpty) return;
+
+  final matchesId = _findPageStateFieldId(project, 'DashboardPage', 'matches');
+  if (matchesId == null) return;
+
+  final matchesVar = varFromPageState(matchesId.deepCopy());
+  matchesVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final listView = UI.listView(
+    name: 'DashboardMatchesList',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    dynamicSource: DynamicSource(variable: matchesVar, itemName: 'match'),
+  );
+
+  final opponentText = UI.text('', name: 'DashboardMatchOpponent', style: UITextStyle.bodyMedium);
+  opponentText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'opponent'));
+
+  final dateText = UI.text('', name: 'DashboardMatchDate', style: UITextStyle.bodySmall);
+  dateText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'matchDatetime'));
+
+  final card = UI.container(
+    name: 'DashboardMatchCard',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.secondaryBackground,
+    child: UI.row(
+      name: 'DashboardMatchRow',
+      spacing: 12,
+      children: [
+        UI.icon('sports_soccer', size: 24, color: UIColor.primary),
+        UI.column(
+          name: 'DashboardMatchInfo',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 4,
+          children: [opponentText, dateText],
+        ),
+      ],
+    ),
+  );
+
+  listView.children.add(card);
+  container.children.add(listView);
+}
+
+void _buildDashboardDutiesList(FFProject project, FFWidgetClass wc) {
+  final container = findDescendants(wc.node, (n) => n.name == 'DashboardDutiesContainer').firstOrNull;
+  if (container == null || container.children.isNotEmpty) return;
+
+  final dutiesId = _findPageStateFieldId(project, 'DashboardPage', 'duties');
+  if (dutiesId == null) return;
+
+  final dutiesVar = varFromPageState(dutiesId.deepCopy());
+  dutiesVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final listView = UI.listView(
+    name: 'DashboardDutiesList',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    dynamicSource: DynamicSource(variable: dutiesVar, itemName: 'duty'),
+  );
+
+  final shiftText = UI.text('', name: 'DashboardDutyShift', style: UITextStyle.bodyMedium);
+  shiftText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'shift'));
+
+  final dateText = UI.text('', name: 'DashboardDutyDate', style: UITextStyle.bodySmall);
+  dateText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'date'));
+
+  final card = UI.container(
+    name: 'DashboardDutyCard',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.secondaryBackground,
+    child: UI.row(
+      name: 'DashboardDutyRow',
+      spacing: 12,
+      children: [
+        UI.icon('sports_bar', size: 24, color: UIColor.primary),
+        UI.column(
+          name: 'DashboardDutyInfo',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 4,
+          children: [shiftText, dateText],
+        ),
+      ],
+    ),
+  );
+
+  listView.children.add(card);
+  container.children.add(listView);
+}
+
+void _wireDashboardLoad(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  final authTokenId = project.appState.fields
+      .cast<FFAppStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'authToken', orElse: () => null)
+      ?.parameter.identifier;
+  if (authTokenId == null) return;
+
+  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  final scaffoldKey = wc.node.key;
+
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetUpcomingMatches',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+      },
+      outputVariableName: 'dashMatches',
+      nodeKey: scaffoldKey,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'DashboardPage',
+          updates: [StateFieldUpdate.setFromVariable('matches', ctx.responseVar)],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Kon wedstrijden niet laden.'),
+      ]),
+    ),
+  );
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetBarDuties',
+      groupName: 'VoetbalPlannerAPI',
+      variables: {'page': '1'},
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+      },
+      outputVariableName: 'dashDuties',
+      nodeKey: scaffoldKey,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'DashboardPage',
+          updates: [StateFieldUpdate.setFromVariable('duties', ctx.responseVar)],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Kon bardiensten niet laden.'),
+      ]),
+    ),
+  );
+}
+
+void _forceDashboardNavBarItem(FFProject project) {
+  final page = findPage(project, name: 'DashboardPage');
+  if (page == null) return;
+  final scaffCopy = page.node.props.scaffold.deepCopy();
+  final navBarItem = scaffCopy.ensureNavBarItem();
+  navBarItem.show = true;
+  navBarItem.navIcon = FFIcon(
+    iconDataValue: FFIconDataValue(
+      inputValue: FFIconData(name: 'home', family: 'MaterialIcons'),
+    ),
+  );
+  page.node.props.scaffold = scaffCopy;
 }
 
 void _printUsage() {
