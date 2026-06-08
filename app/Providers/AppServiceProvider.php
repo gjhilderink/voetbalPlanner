@@ -22,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        app()->setLocale('nl');
+
         // Some shared hosting servers ship libcurl without newer TLS constants.
         // Define them with their standard integer values so Guzzle doesn't crash.
         if (!defined('CURL_SSLVERSION_TLSv1_2')) {
