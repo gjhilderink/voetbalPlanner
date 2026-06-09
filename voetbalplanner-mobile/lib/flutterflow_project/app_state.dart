@@ -41,6 +41,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const groupMemberNames = ffai.ProjectAppStateFieldHandle(
+    name: "groupMemberNames",
+    key: "ppeud04v",
+    typeName: "List<String>",
+    persisted: false,
+  );
   static const hasUnreadTeamChat = ffai.ProjectAppStateFieldHandle(
     name: "hasUnreadTeamChat",
     key: "2rwaia8f",
@@ -138,6 +144,7 @@ abstract final class AppState {
     currentConversationId,
     currentTeamId,
     currentTeamName,
+    groupMemberNames,
     hasUnreadTeamChat,
     loginEmail,
     loginError,

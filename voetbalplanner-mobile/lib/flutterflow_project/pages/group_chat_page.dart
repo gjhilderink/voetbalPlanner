@@ -58,17 +58,31 @@ abstract final class GroupChatPageWidgets {
       slots: <String, List<ffai.ProjectWidgetHandle>>{
         "appBar": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "AppBar_prdtoqlx",
+            key: "AppBar_wu9uaw33",
             type: "AppBar",
             path: "GroupChatPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
+              "actions": <ffai.ProjectWidgetHandle>[
+                ffai.ProjectWidgetHandle(
+                  key: "IconButton_rhmn4f6n",
+                  type: "IconButton",
+                  path: "GroupChatPage.appBar[0].actions[0]",
+                  name: "DeleteGroupButton",
+                  triggers: const <String>[
+                    "ON_TAP",
+                  ],
+                ),
+              ],
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_8k44scc2",
+                  key: "Text_f20obpzt",
                   type: "Text",
                   path: "GroupChatPage.appBar[0].title[0]",
                   name: "AppBar Title",
+                  triggers: const <String>[
+                    "ON_TAP",
+                  ],
                 ),
               ],
             },

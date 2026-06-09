@@ -250,6 +250,13 @@ final class ChatConversationsFields extends MapBase<String, ffai.DslType> {
     type: ffai.dateTime,
     description: "",
   );
+  final hasUnread = ffai.ProjectCollectionFieldHandle(
+    name: "hasUnread",
+    key: "8g8o5otr",
+    typeName: "Boolean",
+    type: ffai.bool_,
+    description: "",
+  );
   final lastMessage = ffai.ProjectCollectionFieldHandle(
     name: "lastMessage",
     key: "sro7ju15",
@@ -292,29 +299,40 @@ final class ChatConversationsFields extends MapBase<String, ffai.DslType> {
     type: ffai.string,
     description: "",
   );
+  final unreadCount = ffai.ProjectCollectionFieldHandle(
+    name: "unreadCount",
+    key: "9cris3le",
+    typeName: "Integer",
+    type: ffai.int_,
+    description: "",
+  );
 
   @override
   Iterable<String> get keys => const <String>[
     "conversationId",
     "createdAt",
+    "hasUnread",
     "lastMessage",
     "lastMessageAt",
     "participantIds",
     "teamId",
     "title",
     "type",
+    "unreadCount",
   ];
 
   @override
   ffai.DslType? operator [](Object? key) => switch (key) {
     "conversationId" => conversationId,
     "createdAt" => createdAt,
+    "hasUnread" => hasUnread,
     "lastMessage" => lastMessage,
     "lastMessageAt" => lastMessageAt,
     "participantIds" => participantIds,
     "teamId" => teamId,
     "title" => title,
     "type" => type,
+    "unreadCount" => unreadCount,
     _ => null,
   };
 
@@ -345,6 +363,13 @@ final class ChatGroupsFields extends MapBase<String, ffai.DslType> {
     type: ffai.string,
     description: "",
   );
+  final memberNames = ffai.ProjectCollectionFieldHandle(
+    name: "memberNames",
+    key: "dzu6vnt5",
+    typeName: "List<String>",
+    type: ffai.listOf(ffai.string),
+    description: "",
+  );
   final members = ffai.ProjectCollectionFieldHandle(
     name: "members",
     key: "1bas9dmu",
@@ -371,6 +396,7 @@ final class ChatGroupsFields extends MapBase<String, ffai.DslType> {
   Iterable<String> get keys => const <String>[
     "createdAt",
     "createdBy",
+    "memberNames",
     "members",
     "name",
     "teamId",
@@ -380,6 +406,7 @@ final class ChatGroupsFields extends MapBase<String, ffai.DslType> {
   ffai.DslType? operator [](Object? key) => switch (key) {
     "createdAt" => createdAt,
     "createdBy" => createdBy,
+    "memberNames" => memberNames,
     "members" => members,
     "name" => name,
     "teamId" => teamId,
@@ -413,6 +440,13 @@ final class ChatMessagesFields extends MapBase<String, ffai.DslType> {
     type: ffai.dateTime,
     description: "",
   );
+  final isRead = ffai.ProjectCollectionFieldHandle(
+    name: "isRead",
+    key: "e862mzcg",
+    typeName: "Boolean",
+    type: ffai.bool_,
+    description: "",
+  );
   final senderId = ffai.ProjectCollectionFieldHandle(
     name: "senderId",
     key: "9hloj348",
@@ -439,6 +473,7 @@ final class ChatMessagesFields extends MapBase<String, ffai.DslType> {
   Iterable<String> get keys => const <String>[
     "conversationId",
     "createdAt",
+    "isRead",
     "senderId",
     "senderName",
     "text",
@@ -448,6 +483,7 @@ final class ChatMessagesFields extends MapBase<String, ffai.DslType> {
   ffai.DslType? operator [](Object? key) => switch (key) {
     "conversationId" => conversationId,
     "createdAt" => createdAt,
+    "isRead" => isRead,
     "senderId" => senderId,
     "senderName" => senderName,
     "text" => text,
@@ -756,12 +792,16 @@ abstract final class CustomCode {
     "hasStoredToken",
   ];
   static const actions = <String>[
+    "AddEventToCalendar",
     "AuthenticateBiometric",
     "CreateChatGroup",
+    "DeleteChatGroup",
     "GetOrCreateDirectConversation",
     "GetOrCreateStaffGroupConversation",
     "InitializeTeamConversation",
+    "LoadGroupMemberNames",
     "LoginWithCredentials",
+    "MarkConversationRead",
     "SendMagicLink",
     "SendMessage",
     "SubscribeToTeamTopic",

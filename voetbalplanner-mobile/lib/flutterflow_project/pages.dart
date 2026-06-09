@@ -12,6 +12,7 @@ import 'pages/dashboard_page.dart' show dashboardPageHandle;
 import 'pages/direct_chat_page.dart' show directChatPageHandle;
 import 'pages/documentatie_page.dart' show documentatiePageHandle;
 import 'pages/group_chat_page.dart' show groupChatPageHandle;
+import 'pages/group_members_page.dart' show groupMembersPageHandle;
 import 'pages/home_page.dart' show homePageHandle;
 import 'pages/login_page.dart' show loginPageHandle;
 import 'pages/magic_link_verify_page.dart' show magicLinkVerifyPageHandle;
@@ -34,6 +35,7 @@ abstract final class Pages {
   static final directChatPage = directChatPageHandle;
   static final documentatiePage = documentatiePageHandle;
   static final groupChatPage = groupChatPageHandle;
+  static final groupMembersPage = groupMembersPageHandle;
   static final homePage = homePageHandle;
   static final loginPage = loginPageHandle;
   static final magicLinkVerifyPage = magicLinkVerifyPageHandle;
@@ -55,6 +57,7 @@ abstract final class Pages {
     directChatPage,
     documentatiePage,
     groupChatPage,
+    groupMembersPage,
     homePage,
     loginPage,
     magicLinkVerifyPage,

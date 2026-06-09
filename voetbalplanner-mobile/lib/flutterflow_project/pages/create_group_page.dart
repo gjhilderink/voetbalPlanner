@@ -37,6 +37,12 @@ final class CreateGroupPageState {
         key: "5jvxbzn8",
         typeName: "List<String>",
       );
+  ffai.ProjectStateFieldHandle get selectedMemberNames =>
+      const ffai.ProjectStateFieldHandle(
+        name: "selectedMemberNames",
+        key: "uh2lg4mz",
+        typeName: "List<String>",
+      );
   ffai.ProjectStateFieldHandle get teamMembers =>
       const ffai.ProjectStateFieldHandle(
         name: "teamMembers",
@@ -124,10 +130,19 @@ abstract final class CreateGroupPageWidgets {
                             name: "CreateGroupMemberName",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "IconButton_5gxkttp1",
-                            type: "IconButton",
+                            key: "Icon_4cspkq86",
+                            type: "Icon",
                             path: "CreateGroupPage.body[0].children[2].children[0].children[0].children[1]",
-                            name: "AddMemberButton",
+                            name: "CreateGroupMemberCheckboxChecked",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Icon_iq22md6p",
+                            type: "Icon",
+                            path: "CreateGroupPage.body[0].children[2].children[0].children[0].children[2]",
+                            name: "CreateGroupMemberCheckboxUnchecked",
                             triggers: const <String>[
                               "ON_TAP",
                             ],

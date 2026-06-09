@@ -117,6 +117,17 @@ abstract final class WedstrijdDetailPageWidgets {
             path: "WedstrijdDetailPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
+              "actions": <ffai.ProjectWidgetHandle>[
+                ffai.ProjectWidgetHandle(
+                  key: "IconButton_o0g7g6e8",
+                  type: "IconButton",
+                  path: "WedstrijdDetailPage.appBar[0].actions[0]",
+                  name: "WedstrijdCalendarButton",
+                  triggers: const <String>[
+                    "ON_TAP",
+                  ],
+                ),
+              ],
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
                   key: "Text_hbiz91w0",
