@@ -503,6 +503,11 @@ void buildEditFlow(App app) {
     _rebuildChatMessageBubbles(project);
     // Bind TextField controller to page state so SetState.clear() visually clears it.
     _fixChatTextFieldController(project);
+    // Same fix for GroupChatPage: localStateValue=true removes the 2s debounce
+    // so messageText is always in sync when the send button fires.
+    _fixGroupChatTextField(project);
+    // Hide the current user's own chip in the direct-message member strip.
+    _fixDirectMemberSelfFilter(project);
     // Add "Bewaar in agenda" button to bardienst, wedstrijd and rijschema detail pages.
     _addCalendarButtons(project);
     _fixLoginKeyboard(project);
@@ -7024,6 +7029,64 @@ void _fixChatTextFieldController(FFProject project) {
   tf.props.textField.initialText = FFText(
     textValue: FFStringValue(variable: varFromPageState(msgTextId.deepCopy())
       ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
+  );
+}
+
+// Applies localStateValue=true to GroupMessageField in GroupChatPage.
+// This removes the 2000ms EasyDebounce on the TextField's onChange so that
+// _model.messageText is always in sync with what the user typed before the
+// send button fires its condition check. It also makes SetState(clear) visually
+// clear the TextField (bidirectional binding).
+void _fixGroupChatTextField(FFProject project) {
+  final wc = findPage(project, name: 'GroupChatPage');
+  if (wc == null) return;
+
+  final tf = findDescendants(wc.node, (n) => n.name == 'GroupMessageField').firstOrNull;
+  if (tf == null) return;
+
+  if (tf.props.textField.localStateValue) return; // idempotent
+
+  final msgTextId = _findPageStateFieldId(project, 'GroupChatPage', 'messageText');
+  if (msgTextId == null) return;
+
+  tf.props.ensureTextField().localStateValue = true;
+  tf.props.textField.initialText = FFText(
+    textValue: FFStringValue(variable: varFromPageState(msgTextId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
+  );
+}
+
+// Hides the current user's own chip in the ChatsPage direct-message member strip
+// so that the user cannot accidentally open a conversation with themselves.
+// Uses name comparison: member.name != FFAppState().userName.
+void _fixDirectMemberSelfFilter(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  final chip = findDescendants(wc.node, (n) => n.name == 'DirectMemberChip').firstOrNull;
+  if (chip == null) return;
+
+  // Idempotent: skip if a visibility condition is already set.
+  if (chip.props.hasVisibility() &&
+      chip.props.visibility.hasVisibleValue() &&
+      chip.props.visibility.visibleValue.hasVariable()) return;
+
+  final memberList = findDescendants(wc.node, (n) => n.name == 'ChatsDirectMemberList').firstOrNull;
+  if (memberList == null) return;
+
+  final userNameId = _findAppStateFieldId(project, 'userName');
+  if (userNameId == null) return;
+
+  final memberNameVar = generatorVarField(memberList.key, 'name');
+  final userNameVar   = varFromAppState(userNameId.deepCopy());
+
+  setConditionalVisibility(
+    chip,
+    variable: conditionVar(
+      memberNameVar,
+      FFCondition_Relation.NOT_EQUAL_TO,
+      userNameVar,
+    ).variable,
   );
 }
 
