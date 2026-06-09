@@ -282,6 +282,19 @@ void buildEditFlow(App app) {
     );
   } catch (_) {}
 
+  try {
+    app.collection(
+      'appUsers',
+      description: 'Geregistreerde app-gebruikers per team. Wordt bijgewerkt bij elke login.',
+      fields: {
+        'userId':   string,
+        'teamId':   string,
+        'userName': string,
+        'updatedAt': dateTime,
+      },
+    );
+  } catch (_) {}
+
   // Construct handles directly — works whether or not the typed SDK has been refreshed
   // after the first push that creates these collections.
   final chatConversations = FirestoreCollectionHandle(
@@ -420,6 +433,36 @@ void buildEditFlow(App app) {
       'name': string,
     });
   } catch (_) {}
+  // AppState intermediary for GetAppUsersAsMembers. Only declared if not yet present —
+  // skip if already exists to avoid payload-mismatch on re-push.
+  app.raw((project) {
+    final exists = project.appState.fields.any(
+      (f) => f.parameter.identifier.name == 'pendingTeamMembers',
+    );
+    if (exists) return;
+    final swapStruct = project.backend.dataSchemaConfig.dataStructs.firstWhere(
+      (s) => s.identifier.name == 'SwapMember',
+      orElse: () => throw StateError('SwapMember struct not found'),
+    );
+    project.appState.fields.add(
+      FFAppStateField(
+        parameter: FFParameter(
+          identifier: FFIdentifier(
+            name: 'pendingTeamMembers',
+            key: generateRandomAlphaNumericString(),
+          ),
+          dataType: FFDataTypeV2(
+            listType: FFDataTypeV2(
+              scalarType: FFBaseDataType.DataStruct,
+              subType: FFSubType(
+                dataStructIdentifier: swapStruct.identifier.deepCopy(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  });
 
   // StaffGroupItem: create struct and get handle for editPageState below.
   // StructHandle can be constructed by name even when the struct already exists —
@@ -493,6 +536,10 @@ void buildEditFlow(App app) {
     _resetGroupChatPageAppBar(project);
     // Fix GroupChatPage: senderId authToken→userEmail, bubble visibility, and send refresh wait.
     _fixGroupChatPage(project);
+    // Fix TeamChatPage: senderId authToken→userEmail, teamId widget.teamId→currentTeamId,
+    // refresh query WHERE, and text widget binding.
+    _fixTeamChatSendButton(project);
+    _fixTeamChatMessageTextBinding(project);
     // Add hasUnread + unreadCount fields to chatConversations, then show badges.
     _addUnreadFieldsToConversations(project);
     _addIsReadFieldToChatMessages(project);
@@ -506,12 +553,21 @@ void buildEditFlow(App app) {
     // Same fix for GroupChatPage: localStateValue=true removes the 2s debounce
     // so messageText is always in sync when the send button fires.
     _fixGroupChatTextField(project);
+    // Same fix for TeamChatPage.
+    _fixTeamChatTextField(project);
     // Hide the current user's own chip in the direct-message member strip.
     _fixDirectMemberSelfFilter(project);
     // Add "Bewaar in agenda" button to bardienst, wedstrijd and rijschema detail pages.
     _addCalendarButtons(project);
     _fixLoginKeyboard(project);
     _addLoginValidation(project);
+    // Register the GetAppUsersAsMembers custom action + keep login upserts
+    // so the appUsers collection is silently populated on every login.
+    // The chain replacement (_setupAppUsersRegistry) is intentionally NOT called
+    // here: the appUsers collection is still empty on first push — only after all
+    // team members have logged in once can we safely switch the member strip source.
+    _registerGetAppUsersAction(project);
+    _addChatEditDeleteFeature(project);
   });
 
   final swapRequest = ff.Structs.swapRequest;
@@ -3131,6 +3187,7 @@ import 'package:flutter/material.dart';
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<String> verifyMagicLink(String? token) async {
   if (token == null || token.isEmpty) return '';
@@ -3160,6 +3217,23 @@ Future<String> verifyMagicLink(String? token) async {
       FFAppState().secondaryColor = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor    = (club['accent_color']    as String?) ?? '#10b981';
     });
+    // Register this user so the direct-chat member strip shows only app users.
+    final _uId = FFAppState().userEmail.isNotEmpty
+        ? FFAppState().userEmail
+        : FFAppState().userName;
+    if (_uId.isNotEmpty && FFAppState().currentTeamId.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('appUsers')
+            .doc('${FFAppState().currentTeamId}_$_uId')
+            .set({
+          'userId':    _uId,
+          'teamId':    FFAppState().currentTeamId,
+          'userName':  FFAppState().userName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {}
+    }
     return sanctumToken;
   } catch (_) {
     return '';
@@ -3228,6 +3302,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<bool> loginWithCredentials(BuildContext context, String? email, String? password) async {
   final emailVal = email ?? '';
@@ -3304,6 +3379,24 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().secondaryColor = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor    = (club['accent_color']    as String?) ?? '#10b981';
     });
+
+    // Register this user so the direct-chat member strip shows only app users.
+    final _uId = FFAppState().userEmail.isNotEmpty
+        ? FFAppState().userEmail
+        : FFAppState().userName;
+    if (_uId.isNotEmpty && firstTeamId.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('appUsers')
+            .doc('${firstTeamId}_$_uId')
+            .set({
+          'userId':    _uId,
+          'teamId':    firstTeamId,
+          'userName':  FFAppState().userName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {}
+    }
 
     // Sign in anonymously so FlutterFlow's Firebase Auth route guard (loggedIn)
     // passes. Without this, the router redirects every page back to LoginPage.
@@ -7009,52 +7102,36 @@ void _rebuildChatMessageBubbles(FFProject project) {
   ownCol.children.add(metaRow);
 }
 
-// Sets localStateValue=true on ChatMessageField so that SetState.clear() on
-// the messageText page state also clears the displayed text in the TextField.
-// Also sets initialText to the messageText state variable for bidirectional binding.
-void _fixChatTextFieldController(FFProject project) {
-  final wc = findPage(project, name: 'ChatDetailPage');
+// Sets debounceTimeValue=0 on the chat TextField so that onChange fires
+// immediately without the default 2000ms EasyDebounce delay. This ensures
+// _model.messageText is always in sync when the send button's condition fires.
+// Also applies localStateValue=true so SetState.clear() visually clears the field.
+void _fixChatTextFieldDebounce(FFProject project, String pageName, String fieldName) {
+  final wc = findPage(project, name: pageName);
   if (wc == null) return;
-
-  final tf = findDescendants(wc.node, (n) => n.name == 'ChatMessageField').firstOrNull;
+  final tf = findDescendants(wc.node, (n) => n.name == fieldName).firstOrNull;
   if (tf == null) return;
-
-  // Idempotent: already configured.
-  if (tf.props.textField.localStateValue) return;
-
-  final msgTextId = _findPageStateFieldId(project, 'ChatDetailPage', 'messageText');
+  // debounceTimeValue = 0 → codegen emits Duration(milliseconds: 0) → instant update.
+  tf.props.ensureTextField().debounceTimeValue = FFDoubleValue(inputValue: 0.0);
+  // localStateValue = true → bidirectional binding; SetState.clear() also clears display.
+  tf.props.textField.localStateValue = true;
+  final msgTextId = _findPageStateFieldId(project, pageName, 'messageText');
   if (msgTextId == null) return;
-
-  tf.props.ensureTextField().localStateValue = true;
   tf.props.textField.initialText = FFText(
     textValue: FFStringValue(variable: varFromPageState(msgTextId.deepCopy())
       ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
   );
 }
 
-// Applies localStateValue=true to GroupMessageField in GroupChatPage.
-// This removes the 2000ms EasyDebounce on the TextField's onChange so that
-// _model.messageText is always in sync with what the user typed before the
-// send button fires its condition check. It also makes SetState(clear) visually
-// clear the TextField (bidirectional binding).
-void _fixGroupChatTextField(FFProject project) {
-  final wc = findPage(project, name: 'GroupChatPage');
-  if (wc == null) return;
+void _fixChatTextFieldController(FFProject project) =>
+    _fixChatTextFieldDebounce(project, 'ChatDetailPage', 'ChatMessageField');
 
-  final tf = findDescendants(wc.node, (n) => n.name == 'GroupMessageField').firstOrNull;
-  if (tf == null) return;
+void _fixGroupChatTextField(FFProject project) =>
+    _fixChatTextFieldDebounce(project, 'GroupChatPage', 'GroupMessageField');
 
-  if (tf.props.textField.localStateValue) return; // idempotent
-
-  final msgTextId = _findPageStateFieldId(project, 'GroupChatPage', 'messageText');
-  if (msgTextId == null) return;
-
-  tf.props.ensureTextField().localStateValue = true;
-  tf.props.textField.initialText = FFText(
-    textValue: FFStringValue(variable: varFromPageState(msgTextId.deepCopy())
-      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
-  );
-}
+// Applies the same debounce-free TextField fix to TeamChatPage.
+void _fixTeamChatTextField(FFProject project) =>
+    _fixChatTextFieldDebounce(project, 'TeamChatPage', 'MessageField');
 
 // Hides the current user's own chip in the ChatsPage direct-message member strip
 // so that the user cannot accidentally open a conversation with themselves.
@@ -8528,6 +8605,124 @@ void _fixGroupChatPage(FFProject project) {
   }
 }
 
+// ─── TeamChatPage send-button fixes ──────────────────────────────────────────
+// Fixes three issues in the TeamChatPage send button (mirror of _fixGroupChatPage):
+// 1. senderId in FirestoreCreate: authToken → userEmail
+// 2. teamId  in FirestoreCreate: widget.teamId (empty for NavBar) → currentTeamId AppState
+// 3. Refresh query WHERE clause: widget.teamId → currentTeamId AppState
+//    Also inserts a wait(300) before the refresh query for Firestore propagation.
+void _fixTeamChatSendButton(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+
+  final userEmailId    = _findAppStateFieldId(project, 'userEmail');
+  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  if (userEmailId == null || currentTeamIdId == null) return;
+
+  final sendBtn = findByKey(wc.node, 'IconButton_l68mmxn6');
+  if (sendBtn == null) return;
+
+  final tapIdx = sendBtn.triggerActions.indexWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+  if (tapIdx < 0) return;
+  final tap = sendBtn.triggerActions[tapIdx];
+  if (!tap.hasRootAction()) return;
+
+  final root = tap.rootAction;
+  if (!root.hasConditionActions()) return;
+  if (root.conditionActions.trueActions.isEmpty) return;
+  final trueEntry = root.conditionActions.trueActions.first;
+  if (!trueEntry.hasTrueAction()) return;
+
+  // Fix 1 & 2: senderId → userEmail, teamId → currentTeamId
+  final createNode = trueEntry.trueAction;
+  if (createNode.hasAction() &&
+      createNode.action.hasDatabase() &&
+      createNode.action.database.hasCreateDocument()) {
+    final create = createNode.action.database.createDocument;
+    if (create.hasWrite()) {
+      const kSenderIdKey = 'o5z3acsh';
+      const kTeamIdKey   = 'nx78p9te';
+      final senderEntry = create.write.updates[kSenderIdKey];
+      if (senderEntry != null) {
+        senderEntry.variable = varFromAppState(userEmailId.deepCopy());
+      }
+      final teamIdEntry = create.write.updates[kTeamIdKey];
+      if (teamIdEntry != null) {
+        teamIdEntry.variable = varFromAppState(currentTeamIdId.deepCopy());
+      }
+    }
+  }
+
+  // Fix 3: replace the refresh query's WHERE with currentTeamId, add wait(300).
+  final teamIdField = findCollectionField(
+    project, collectionName: 'teamChats', fieldName: 'teamId');
+  if (teamIdField == null) return;
+
+  FFActionNode prev = trueEntry.trueAction;
+  while (prev.hasFollowUpAction()) {
+    final curr = prev.followUpAction;
+    if (curr.hasAction() &&
+        curr.action.hasDatabase() &&
+        curr.action.database.hasFirestoreQuery() &&
+        curr.action.database.firestoreQuery.singleTimeQuery) {
+      // Fix WHERE clause to use currentTeamId AppState.
+      curr.action.database.firestoreQuery.where = FFFirestoreWhere(
+        isAnd: true,
+        filters: [
+          FFFirestoreWhere_NestedFilter(
+            baseFilter: FFFirestoreFilter(
+              collectionFieldIdentifier: teamIdField.identifier.deepCopy(),
+              relation: FFFirestoreFilter_Relation.EQUAL_TO,
+              variable: varFromAppState(currentTeamIdId.deepCopy()),
+            ),
+          ),
+        ],
+      );
+      // Idempotent wait: if prev is already a wait node, skip.
+      if (prev.hasAction() &&
+          !prev.action.hasDatabase() &&
+          !prev.action.hasLocalStateUpdate() &&
+          !prev.action.hasCustomAction() &&
+          !prev.action.hasNavigate()) {
+        return;
+      }
+      prev.followUpAction = FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.wait(300),
+        followUpAction: curr,
+      );
+      return;
+    }
+    prev = curr;
+  }
+}
+
+// Ensures Text_t5hhwvox (message text widget in team chat list item) is explicitly
+// bound to the teamChats.text field from the list's generator variable.
+void _fixTeamChatMessageTextBinding(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+
+  const listKey = 'ListView_9sebksf4';
+  const textKey = 'c6cfne01';
+
+  final textNode = findByKey(wc.node, 'Text_t5hhwvox');
+  if (textNode == null) return;
+
+  final textVar = varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: textKey, name: 'text'),
+      ),
+    ));
+
+  final txtCopy = textNode.props.text.deepCopy();
+  txtCopy.textValue = FFStringValue(variable: textVar);
+  textNode.props.text = txtCopy;
+}
+
 
 // ─── Calendar / agenda buttons ────────────────────────────────────────────────
 
@@ -8891,6 +9086,414 @@ void _addLoginValidation(FFProject project) {
     btnKey: 'Button_s0q1isbo',
     condition: _notEmpty('magicLinkEmail'),
     errorMessage: 'Vul een e-mailadres in',
+  );
+}
+
+// ─── appUsers registry ────────────────────────────────────────────────────────
+// Only registers the custom action. The actual chain switch is in
+// _setupAppUsersRegistry (kept for later, not called from buildEditFlow).
+void _registerGetAppUsersAction(FFProject project) {
+  if (findCustomAction(project, name: 'GetAppUsersAsMembers') == null) {
+    addCustomAction(
+      project,
+      name: 'GetAppUsersAsMembers',
+      description: 'Laadt geregistreerde app-gebruikers van het huidige team uit Firestore en slaat ze op in pendingTeamMembers.',
+      arguments: [],
+      code: _kGetAppUsersMembersCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'GetAppUsersAsMembers', code: _kGetAppUsersMembersCode);
+  }
+}
+
+
+
+// GetAppUsersAsMembers: reads the appUsers Firestore collection for the current
+// team and writes the result into AppState.pendingTeamMembers.
+const _kGetAppUsersMembersCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<void> getAppUsersAsMembers() async {
+  final teamId = FFAppState().currentTeamId;
+  if (teamId.isEmpty) return;
+
+  try {
+    final snap = await FirebaseFirestore.instance
+        .collection('appUsers')
+        .where('teamId', isEqualTo: teamId)
+        .get();
+
+    final members = snap.docs
+        .map((d) {
+          final data = d.data();
+          return SwapMemberStruct(
+            id:   (data['userId']   as String?) ?? '',
+            name: (data['userName'] as String?) ?? '',
+          );
+        })
+        .where((m) => m.id.isNotEmpty && m.name.isNotEmpty)
+        .toList();
+
+    FFAppState().update(() {
+      FFAppState().pendingTeamMembers = members;
+    });
+  } catch (e) {
+    debugPrint('[GetAppUsersAsMembers] error: $e');
+  }
+}
+''';
+
+// Registers the GetAppUsersAsMembers custom action and rewires the ChatsPage
+// ON_INIT_STATE chain so the direct-chat member strip is populated from Firestore
+// (appUsers) instead of the backend GetTeamMembers API.
+//
+// Before (set by _wireChatsPageLoad):
+//   … → [API: GetTeamMembers] → [SetState(teamMembers)] → [API: GetStaffGroups] → …
+//
+// After:
+//   … → [CustomAction: GetAppUsersAsMembers] → [SetState(teamMembers)] → [API: GetStaffGroups] → …
+void _setupAppUsersRegistry(FFProject project) {
+  // 1. Register (or update) the custom action.
+  if (findCustomAction(project, name: 'GetAppUsersAsMembers') == null) {
+    addCustomAction(
+      project,
+      name: 'GetAppUsersAsMembers',
+      description: 'Laadt geregistreerde app-gebruikers van het huidige team uit Firestore en slaat ze op in pendingTeamMembers.',
+      arguments: [],
+      code: _kGetAppUsersMembersCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'GetAppUsersAsMembers', code: _kGetAppUsersMembersCode);
+  }
+
+  // 2. Find ChatsPage and its first ON_INIT_STATE trigger.
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  final triggerIdx = wc.node.triggerActions.indexWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+  if (triggerIdx < 0) return;
+  final trigger = wc.node.triggerActions[triggerIdx];
+  if (!trigger.hasRootAction()) return;
+
+  // 3. Walk the chain to find the GetTeamMembers node.
+  //    We need a reference to its *parent* so we can splice it out.
+  FFActionNode? parent;
+  FFActionNode? getTeamMembersNode;
+
+  void walk(FFActionNode node, FFActionNode? p) {
+    if (getTeamMembersNode != null) return;
+    if (node.hasAction() &&
+        node.action.hasDatabase() &&
+        node.action.database.hasApiCall() &&
+        node.action.database.apiCall.hasEndpointIdentifier() &&
+        node.action.database.apiCall.endpointIdentifier.name == 'GetTeamMembers') {
+      parent = p;
+      getTeamMembersNode = node;
+      return;
+    }
+    if (node.hasFollowUpAction()) walk(node.followUpAction, node);
+  }
+  walk(trigger.rootAction, null);
+
+  if (getTeamMembersNode == null) return; // already replaced or not wired
+
+  // 4. Find the pendingTeamMembers AppState field id.
+  final pendingId = _findAppStateFieldId(project, 'pendingTeamMembers');
+  if (pendingId == null) return;
+
+  final getAppUsersAction = findCustomAction(project, name: 'GetAppUsersAsMembers');
+  if (getAppUsersAction == null) return;
+
+  // 5. Build SetState(teamMembers = pendingTeamMembers) preserving the existing
+  //    followUpAction chain that was attached to GetTeamMembers' onSuccess.
+  //    The old GetTeamMembers node had an onSuccess → SetState(teamMembers).
+  //    We now call GetAppUsersAsMembers (void, writes pendingTeamMembers), then
+  //    immediately SetState(teamMembers = pendingTeamMembers), then continue with
+  //    whatever was after GetTeamMembers.
+  final oldFollowUp = getTeamMembersNode!.hasFollowUpAction()
+      ? getTeamMembersNode!.followUpAction
+      : null;
+
+  // The old chain was: [GetTeamMembers onSuccess→SetState(teamMembers)] → followUp
+  // Collect the real follow-up after the SetState(teamMembers) node.
+  //
+  // Because GetTeamMembers was built by _wireChatsPageLoad with an onSuccess block,
+  // the condition/followUp wrapping may vary.  Walk the old node's followUp chain
+  // to find the GetStaffGroups node if present.
+  FFActionNode? staffGroupsNode;
+  if (oldFollowUp != null) {
+    void findStaff(FFActionNode n) {
+      if (n.hasAction() &&
+          n.action.hasDatabase() &&
+          n.action.database.hasApiCall() &&
+          n.action.database.apiCall.endpointIdentifier.name == 'GetStaffGroups') {
+        staffGroupsNode = n;
+        return;
+      }
+      if (n.hasFollowUpAction()) findStaff(n.followUpAction);
+    }
+    findStaff(oldFollowUp);
+  }
+
+  // 6. Build the replacement node:
+  //    [GetAppUsersAsMembers] → [SetState(teamMembers)] → [GetStaffGroups chain if present]
+  final setStateNode = Actions.updatePageState(
+    project,
+    widgetClassName: 'ChatsPage',
+    updates: [
+      StateFieldUpdate.setFromVariable(
+        'teamMembers',
+        varFromAppState(pendingId.deepCopy()),
+      ),
+    ],
+  );
+
+  // Wrap SetState in an FFActionNode; attach GetStaffGroups as followUp if present.
+  final setStateActionNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: setStateNode,
+    followUpAction: staffGroupsNode?.deepCopy(),
+  );
+
+  final replacementNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      customAction: FFCustomActionCall(
+        customActionIdentifier: getAppUsersAction.identifier.deepCopy(),
+      ),
+    ),
+    followUpAction: setStateActionNode,
+  );
+
+  // 7. Splice the replacement into the chain where GetTeamMembers was.
+  if (parent == null) {
+    // GetTeamMembers was the root action — replace it directly.
+    trigger.rootAction = replacementNode;
+  } else {
+    parent!.followUpAction = replacementNode;
+  }
+}
+
+// ─── Chat: edit / delete own messages ────────────────────────────────────────
+
+void _addChatEditDeleteFeature(FFProject project) {
+  _ensureAppStateField(project, 'editingChatDocPath', FFBaseDataType.String);
+  // Remove stale custom actions from previous iterations.
+  if (findCustomAction(project, name: 'UpdateChatMessage') != null) {
+    removeCustomAction(project, name: 'UpdateChatMessage');
+  }
+  if (findCustomAction(project, name: 'StartChatEdit') != null) {
+    removeCustomAction(project, name: 'StartChatEdit');
+  }
+  _addEditDeleteToChatDetailPage(project);
+  _addEditDeleteToGroupChatPage(project);
+  _addEditDeleteToTeamChatPage(project);
+}
+
+// Returns the generator variable's DocumentReference.
+FFVariable _docRefVar(String listKey) => varFromGeneratorVariable(listKey)
+  ..operations.add(FFVariableOperation(
+    accessDocumentField: FFAccessDocumentField(
+      documentProperty: FFAccessDocumentField_DocumentProperty.REFERENCE,
+    ),
+  ));
+
+// Appends an OwnActionsRow to a message bubble column with edit, save, cancel,
+// and delete buttons. Edit/delete are visible when not editing; save/cancel are
+// visible only for the specific message being edited (matched by text content).
+// All save/update operations are performed inline inside the ListView so the
+// generator variable's DocumentReference is always in scope.
+void _addOwnActionsRow(
+  FFNode ownCol,
+  FFProject project,
+  String pageName,
+  String scaffoldKey,
+  String listKey,
+  String textFieldKey,
+  { FFVariable? visibilityVar }
+) {
+  ownCol.children.removeWhere((n) => n.name == 'OwnActionsRow');
+
+  FFVariable textVar() => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: textFieldKey, name: 'text'),
+      ),
+    ));
+
+  final editingDocPathId = _findAppStateFieldId(project, 'editingChatDocPath');
+  final msgTextId        = _findPageStateFieldId(project, pageName, 'messageText');
+
+  // Condition: not currently editing any message.
+  FFVariable notEditingCond() => conditionVar(
+    varFromAppState(editingDocPathId!.deepCopy()),
+    FFCondition_Relation.EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable;
+
+  // Condition: currently editing THIS message (text matches stored identifier).
+  FFVariable editingThisCond() => conditionVar(
+    textVar(),
+    FFCondition_Relation.EQUAL_TO,
+    varFromAppState(editingDocPathId!.deepCopy()),
+  ).variable;
+
+  // ── Delete button (visible when not editing) ───────────────────────────────
+  final deleteBtn = UI.iconButton('delete', color: UIColor.secondaryText, name: 'OwnDeleteBtn');
+  if (editingDocPathId != null) setConditionalVisibility(deleteBtn, variable: notEditingCond());
+  final deleteChain = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      alertDialog: FFAlertDialogAction(
+        confirmDialog: FFConfirmDialogAction(
+          title:       FFValue(inputValue: FFParameterValue(serializedValue: 'Bericht verwijderen')),
+          message:     FFValue(inputValue: FFParameterValue(serializedValue: 'Weet je zeker dat je dit bericht wilt verwijderen?')),
+          confirmText: FFValue(inputValue: FFParameterValue(serializedValue: 'Verwijderen')),
+          dismissText: FFValue(inputValue: FFParameterValue(serializedValue: 'Annuleren')),
+        ),
+      ),
+    ),
+    followUpAction: FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.firestoreDelete(reference: _docRefVar(listKey)),
+    ),
+  );
+  Actions.addTriggerChain(deleteBtn, FFActionTriggerType.ON_TAP, deleteChain);
+
+  // ── Edit button (visible when not editing) ────────────────────────────────
+  final editBtn = UI.iconButton('edit', color: UIColor.secondaryText, name: 'OwnEditBtn');
+  if (editingDocPathId != null) setConditionalVisibility(editBtn, variable: notEditingCond());
+  // Store message text as identifier in AppState, pre-fill messageText for editing.
+  final List<FFAction> editActions = [];
+  if (editingDocPathId != null) {
+    editActions.add(Actions.updateAppState(project, updates: [
+      StateFieldUpdate.setFromVariable('editingChatDocPath', textVar()),
+    ]));
+  }
+  if (msgTextId != null) {
+    editActions.add(Actions.updatePageState(project, widgetClassName: pageName, updates: [
+      StateFieldUpdate.setFromVariable('messageText', textVar()),
+    ]));
+  }
+  if (editActions.isNotEmpty) {
+    Actions.addTriggerChain(editBtn, FFActionTriggerType.ON_TAP, Actions.chain(editActions));
+  }
+
+  // ── Save button (visible when editing THIS message) ───────────────────────
+  // Uses generator variable REFERENCE directly — inside ListView so always valid.
+  final saveBtn = UI.iconButton('check', color: UIColor.secondaryText, name: 'OwnSaveBtn');
+  if (editingDocPathId != null) setConditionalVisibility(saveBtn, variable: editingThisCond());
+  if (msgTextId != null) {
+    final msgTextVar = varFromPageState(msgTextId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+    final List<FFAction> saveActions = [
+      Actions.firestoreUpdate(
+        reference: _docRefVar(listKey),
+        fieldUpdates: {
+          textFieldKey: FFFieldUpdate(
+            fieldIdentifier: FFIdentifier(key: textFieldKey, name: 'text'),
+            variable: msgTextVar,
+          ),
+        },
+      ),
+      if (editingDocPathId != null)
+        Actions.updateAppState(project, updates: [StateFieldUpdate.clear('editingChatDocPath')]),
+      Actions.updatePageState(project, widgetClassName: pageName,
+          updates: [StateFieldUpdate.clear('messageText')]),
+    ];
+    Actions.addTriggerChain(saveBtn, FFActionTriggerType.ON_TAP, Actions.chain(saveActions));
+  }
+
+  // ── Cancel button (visible when editing THIS message) ─────────────────────
+  final cancelBtn = UI.iconButton('close', color: UIColor.secondaryText, name: 'OwnCancelBtn');
+  if (editingDocPathId != null) setConditionalVisibility(cancelBtn, variable: editingThisCond());
+  final List<FFAction> cancelActions = [];
+  if (editingDocPathId != null) {
+    cancelActions.add(Actions.updateAppState(project, updates: [
+      StateFieldUpdate.clear('editingChatDocPath'),
+    ]));
+  }
+  if (msgTextId != null) {
+    cancelActions.add(Actions.updatePageState(project, widgetClassName: pageName,
+        updates: [StateFieldUpdate.clear('messageText')]));
+  }
+  if (cancelActions.isNotEmpty) {
+    Actions.addTriggerChain(cancelBtn, FFActionTriggerType.ON_TAP, Actions.chain(cancelActions));
+  }
+
+  // ── Row ────────────────────────────────────────────────────────────────────
+  final actionsRow = UI.row(
+    name: 'OwnActionsRow',
+    mainAxisAlignment: UIMainAxisAlignment.end,
+    spacing: 4,
+    children: [editBtn, saveBtn, cancelBtn, deleteBtn],
+  );
+  if (visibilityVar != null) setConditionalVisibility(actionsRow, variable: visibilityVar);
+  ownCol.children.add(actionsRow);
+}
+
+void _addEditDeleteToChatDetailPage(FFProject project) {
+  final wc = findPage(project, name: 'ChatDetailPage');
+  if (wc == null) return;
+  final ownCol = findByKey(wc.node, 'Column_6e4g1gje');
+  if (ownCol == null) return;
+  _addOwnActionsRow(
+    ownCol, project, 'ChatDetailPage', 'Scaffold_pvzwjd3v', 'ListView_ws05qhut', '4ezq3smy',
+  );
+}
+
+void _addEditDeleteToGroupChatPage(FFProject project) {
+  final wc = findPage(project, name: 'GroupChatPage');
+  if (wc == null) return;
+  final ownCol = findByKey(wc.node, 'Column_qsknd353');
+  if (ownCol == null) return;
+  _addOwnActionsRow(
+    ownCol, project, 'GroupChatPage', 'Scaffold_rr8bdjs8', 'ListView_6t0r29c1', 'l46qea8h',
+  );
+}
+
+void _addEditDeleteToTeamChatPage(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+  final col = findByKey(wc.node, 'Column_thoxlcla');
+  if (col == null) return;
+
+  // Compare senderName == userName so the OwnActionsRow is visible for ALL own
+  // messages regardless of whether senderId was stored as authToken (old) or
+  // userEmail (new, after _fixTeamChatSendButton).
+  final userNameId = _findAppStateFieldId(project, 'userName');
+  if (userNameId == null) return;
+
+  const listKey       = 'ListView_9sebksf4';
+  const senderNameKey = '766twey2';
+
+  final senderNameVar = varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: senderNameKey, name: 'senderName'),
+      ),
+    ));
+  final visibilityVar = conditionVar(
+    senderNameVar,
+    FFCondition_Relation.EQUAL_TO,
+    varFromAppState(userNameId.deepCopy()),
+  ).variable;
+
+  _addOwnActionsRow(
+    col, project, 'TeamChatPage', 'Scaffold_tc1ashmu', listKey, 'c6cfne01',
+    visibilityVar: visibilityVar,
   );
 }
 
