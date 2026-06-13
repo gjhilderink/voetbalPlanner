@@ -421,6 +421,7 @@ void buildEditFlow(App app) {
   _buildDocumentatiePage(app, documentSection);
   app.raw((project) => _wireDocumentationPageLoad(project));
   app.raw((project) => _addHandleidingButton(project));
+  app.raw((project) => _addGuardianButton(project));
 
   // ─── Wissel (swap) feature ────────────────────────────────────────────────
   app.raw((project) => _addSwapStructFields(project));
@@ -2739,6 +2740,30 @@ void _addHandleidingButton(FFProject project) {
     name: 'HandleidingButton',
   );
   Actions.onTap(button, navigateAction);
+
+  final bodyChild = getPropertyChild(wc.node, 'body');
+  if (bodyChild != null && bodyChild.type == FFWidgetType.Column) {
+    bodyChild.children.add(button);
+  } else {
+    wc.node.children.add(button);
+  }
+}
+
+// Voegt "Ouder / Verzorger" knop toe aan ProfielPage, onder de Handleiding-knop.
+// Navigeert naar GuardianPage. Idempotent.
+void _addGuardianButton(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+
+  if (findPage(project, name: 'GuardianPage') == null) return;
+
+  if (findDescendants(wc.node, (n) => n.name == 'GuardianButton').isNotEmpty) return;
+
+  final button = UI.button(
+    'Ouder / Verzorger',
+    name: 'GuardianButton',
+  );
+  Actions.onTap(button, Actions.navigate(project, pageName: 'GuardianPage'));
 
   final bodyChild = getPropertyChild(wc.node, 'body');
   if (bodyChild != null && bodyChild.type == FFWidgetType.Column) {

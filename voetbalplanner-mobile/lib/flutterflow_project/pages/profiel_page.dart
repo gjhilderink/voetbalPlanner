@@ -91,6 +91,12 @@ abstract final class ProfielPageWidgets {
                         path: "ProfielPage.body[0].children[0].children[0].children[3]",
                         name: "ProfielTeam",
                       ),
+                      ffai.ProjectWidgetHandle(
+                        key: "Text_a10968o4",
+                        type: "Text",
+                        path: "ProfielPage.body[0].children[0].children[0].children[4]",
+                        name: "ProfielRelatiecode",
+                      ),
                     ],
                   ),
                 ],
@@ -112,11 +118,20 @@ abstract final class ProfielPageWidgets {
                         type: "Container",
                         path: "ProfielPage.body[0].children[1].children[0].children[0]",
                         name: "Avatar",
+                        triggers: const <String>[
+                          "ON_TAP",
+                        ],
                         children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "0va3ltxw",
+                            type: "CircleImage",
+                            path: "ProfielPage.body[0].children[1].children[0].children[0].children[0]",
+                            name: "ProfielPhoto",
+                          ),
                           ffai.ProjectWidgetHandle(
                             key: "Text_f8f2y09d",
                             type: "Text",
-                            path: "ProfielPage.body[0].children[1].children[0].children[0].children[0]",
+                            path: "ProfielPage.body[0].children[1].children[0].children[0].children[1]",
                             name: "Avatar Text",
                           ),
                         ],
@@ -167,6 +182,16 @@ abstract final class ProfielPageWidgets {
                 path: "ProfielPage.body[0].children[3]",
                 name: "HandleidingButton",
                 text: "Handleiding bekijken",
+                triggers: const <String>[
+                  "ON_TAP",
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "Button_1bb8p118",
+                type: "Button",
+                path: "ProfielPage.body[0].children[4]",
+                name: "GuardianButton",
+                text: "Ouder / Verzorger",
                 triggers: const <String>[
                   "ON_TAP",
                 ],
