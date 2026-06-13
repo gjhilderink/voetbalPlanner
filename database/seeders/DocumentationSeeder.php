@@ -49,6 +49,12 @@ class DocumentationSeeder extends Seeder
                 'title'      => 'Profiel',
                 'body'       => "Op de profielpagina zie je jouw persoonlijke gegevens: naam, e-mailadres en club.\n\nVia de uitlogknop kun je uitloggen. Je bent dan afgemeld totdat je opnieuw een magic link aanvraagt.\n\nOp de profielpagina vind je ook de link naar deze handleiding.",
             ],
+            [
+                'category'   => 'app',
+                'sort_order' => 7,
+                'title'      => 'Ouder / Verzorger Toegang',
+                'body'       => "Via ouder/verzorger-toegang kunnen ouders of verzorgers de teamgegevens van hun kind(eren) inzien in de app.\n\n**Koppeling aanvragen (ouder/verzorger)**\n1. Ga naar Ouder / Verzorger via het menu of profielpagina.\n2. Tik op het + icoontje bij \"Mijn kinderen\".\n3. Vul in het formulier het lidnummer, de achternaam en de geboortedatum van het kind in.\n4. Tik op \"Koppeling aanvragen\".\n\nHet kind ontvangt een melding in de app en moet de koppeling bevestigen. Het verzoek verloopt automatisch na 14 dagen als het kind niet reageert.\n\n**Verzoek bevestigen of weigeren (kind/lid)**\nAls er een openstaand verzoek is, zie je dit direct na het inloggen:\n- Tik op \"Accepteren\" om de ouder/verzorger toegang te geven.\n- Tik op \"Weigeren\" om het verzoek af te wijzen.\n\nNa acceptatie kan de ouder/verzorger via de app de wedstrijden, bardiensten en teamchat van het kind bekijken.\n\n**Koppeling intrekken**\nBoth het kind én de ouder/verzorger kunnen de koppeling zelf intrekken via de Ouder / Verzorger pagina. Een beheerder kan dit ook namens hen doen.\n\n**Beveiliging**\nVoor het aanvragen van een koppeling zijn drie gegevens vereist: lidnummer, achternaam én geboortedatum. Dit voorkomt dat willekeurige leden gevonden kunnen worden.",
+            ],
 
             // ── Het Platform ─────────────────────────────────────────────────
             [
@@ -89,6 +95,12 @@ class DocumentationSeeder extends Seeder
             ],
             [
                 'category'   => 'platform',
+                'sort_order' => 15,
+                'title'      => 'Ouder / Verzorger Koppelingen Beheren',
+                'body'       => "Beheerders kunnen ouder/verzorger-koppelingen inzien en beheren.\n\nKoppelingen verlopen automatisch:\n- Een verzoek dat niet binnen 14 dagen door het kind is bevestigd, krijgt automatisch de status \"Geweigerd\" (via dagelijkse cron: php artisan guardian:expire).\n\nStatussen:\n- In afwachting: verzoek is verzonden, kind heeft nog niet gereageerd\n- Goedgekeurd: kind heeft de koppeling bevestigd; ouder heeft toegang\n- Geweigerd: kind heeft geweigerd of verzoek is verlopen\n- Ingetrokken: koppeling is beëindigd door kind, ouder of beheerder\n\nKoppeling intrekken als beheerder:\nGebruik de API-route DELETE /api/v1/guardian/{id}/revoke met een geldig admin-token. Beheerders met de rol super_admin of club_admin mogen elke koppeling binnen hun club intrekken.\n\nBeveiliging:\n- Drie-veld verificatie voorkomt dat willekeurige leden gevonden kunnen worden\n- Rate limiting: maximaal 5 verzoeken per minuut per account\n- Club-scoping: een ouder kan alleen leden zoeken binnen de eigen club",
+            ],
+            [
+                'category'   => 'platform',
                 'sort_order' => 16,
                 'title'      => 'Documentatie Beheren',
                 'body'       => "Via Documentatie in het platform beheer je de handleiding die leden in de app zien.\n\nSecties zijn ingedeeld in drie categorieën:\n- De App: uitleg over het gebruik van de app\n- Het Platform: uitleg voor beheerders\n- Koppelingen: technische uitleg over de integraties\n\nEen sectie aanpassen: open de sectie en bewerk de titel of inhoud. Gebruik de volgorde om de weergavevolgorde te bepalen.\n\nPDF exporteren: tik op \"PDF exporteren\" boven de lijst om een opgemaakt PDF-document te downloaden met alle actieve secties.",
@@ -118,6 +130,12 @@ class DocumentationSeeder extends Seeder
                 'sort_order' => 23,
                 'title'      => 'Chat (Firebase)',
                 'body'       => "De teamchat werkt via Firebase Firestore, een real-time database van Google.\n\nBerichten worden opgeslagen in de Firestore-collectie \"teamChats\" met de velden: tekst, afzender-ID, afzendernaam, team-ID en tijdstempel.\n\nReal-time updates: nieuwe berichten worden automatisch zichtbaar zonder dat de pagina hoeft te worden ververst.\n\nDirecte berichten tussen leden worden opgeslagen in de collectie \"directMessages\".\n\nVereiste configuratie: een actief Firebase-project met de juiste Firestore-beveiligingsregels en de app-configuratie in de FlutterFlow-projectinstellingen.",
+            ],
+            [
+                'category'   => 'koppelingen',
+                'sort_order' => 25,
+                'title'      => 'Ouder / Verzorger API',
+                'body'       => "De ouder/verzorger-koppeling verloopt volledig via de Laravel REST API. De relaties worden centraal opgeslagen in de tabel guardian_links.\n\nEndpoints (allemaal beveiligd met Bearer Token):\n- POST   /api/v1/guardian/request           — Verzoek indienen (ouder)\n- GET    /api/v1/guardian/pending            — Openstaande verzoeken ophalen (kind)\n- POST   /api/v1/guardian/{id}/respond       — Accepteren of weigeren (kind)\n- DELETE /api/v1/guardian/{id}/revoke        — Koppeling intrekken\n- GET    /api/v1/guardian/children           — Gekoppelde kinderen ophalen (ouder)\n- GET    /api/v1/guardian/my-requests        — Verzoekhistorie (ouder)\n- GET    /api/v1/guardian/members/{id}/data  — Kindgegevens ophalen (ouder)\n\nVerzoek indienen (POST /api/v1/guardian/request):\nBody: { \"lidnummer\": \"LID-00123\", \"achternaam\": \"Jansen\", \"geboortedatum\": \"2010-05-14\" }\n\nReageren (POST /api/v1/guardian/{id}/respond):\nBody: { \"action\": \"approve\" } of { \"action\": \"reject\" }\n\nBeveiliging:\n- Drie-veld verificatie (lidnummer + achternaam + geboortedatum)\n- Identieke foutmelding ongeacht de reden — voorkomt gebruikersenumeratie\n- Rate limiting: 5 verzoeken per minuut per account\n- Club-scoping: zoekt alleen binnen leden van dezelfde club",
             ],
             [
                 'category'   => 'koppelingen',
