@@ -38,7 +38,7 @@ return new class extends Migration
                   ->constrained('members')
                   ->nullOnDelete();
 
-            $table->timestamp('resolved_at')->nullable();
+            $table->dateTime('resolved_at')->nullable();
 
             // Wie heeft ingetrokken (kind, ouder of beheerder)
             $table->foreignUuid('revoked_by_member_id')
@@ -46,10 +46,12 @@ return new class extends Migration
                   ->constrained('members')
                   ->nullOnDelete();
 
-            $table->timestamp('revoked_at')->nullable();
+            $table->dateTime('revoked_at')->nullable();
 
             // Verzoek verloopt na 14 dagen als het kind niet reageert
-            $table->timestamp('expires_at');
+            // dateTime i.p.v. timestamp: MySQL strict mode staat timestamp NOT NULL
+            // zonder DEFAULT niet toe wanneer er al meerdere timestamp-kolommen zijn.
+            $table->dateTime('expires_at');
 
             $table->timestamps();
 
