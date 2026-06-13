@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\GuardianController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\BarDutyController;
 use App\Http\Controllers\Api\BrandingController;
 use App\Http\Controllers\Api\DocumentationController;
@@ -110,6 +111,9 @@ Route::prefix('v1')->group(function () {
         Route::post('swap-requests', [SwapRequestController::class, 'store']);
         Route::patch('swap-requests/{swapRequest}/accept', [SwapRequestController::class, 'accept']);
         Route::patch('swap-requests/{swapRequest}/decline', [SwapRequestController::class, 'decline']);
+
+        // Profiel
+        Route::patch('/profile/photo', [ProfileController::class, 'updatePhoto']);
 
         // Guardian / ouder-verzorger koppelingen
         Route::prefix('guardian')->group(function () {

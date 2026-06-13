@@ -125,6 +125,18 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const profilePhotoUrl = ffai.ProjectAppStateFieldHandle(
+    name: "profilePhotoUrl",
+    key: "m6004xmj",
+    typeName: "String",
+    persisted: true,
+  );
+  static const relatiecode = ffai.ProjectAppStateFieldHandle(
+    name: "relatiecode",
+    key: "f6wct8f2",
+    typeName: "String",
+    persisted: true,
+  );
   static const secondaryColor = ffai.ProjectAppStateFieldHandle(
     name: "secondaryColor",
     key: "0z0ap2pj",
@@ -170,6 +182,8 @@ abstract final class AppState {
     pendingStaffGroupName,
     pendingTeamMembers,
     primaryColor,
+    profilePhotoUrl,
+    relatiecode,
     secondaryColor,
     userEmail,
     userName,

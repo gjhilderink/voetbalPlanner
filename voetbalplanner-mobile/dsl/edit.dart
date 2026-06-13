@@ -1166,19 +1166,27 @@ void _setupProfielPage(FFProject project) {
 
   final existingCards = findDescendants(wc.node, (n) => n.name == 'ProfielInfoCard');
 
+  final relatiecodeId      = _findAppStateFieldId(project, 'relatiecode');
+  final profilePhotoUrlId  = _findAppStateFieldId(project, 'profilePhotoUrl');
+
   if (existingCards.isNotEmpty) {
-    // Card already exists — update secondary color and inject ProfielTeam if missing.
+    // Card already exists — update secondary color and inject missing fields.
     if (secondaryColorId != null) {
       _setContainerColor(existingCards.first,
           colorFromStringVar(varFromAppState(secondaryColorId.deepCopy())));
     }
     final infoContent = findDescendants(existingCards.first, (n) => n.name == 'ProfielInfoContent').firstOrNull;
-    if (infoContent != null && currentTeamNameId != null) {
-      final alreadyHasTeam = findDescendants(infoContent, (n) => n.name == 'ProfielTeam').isNotEmpty;
-      if (!alreadyHasTeam) {
+    if (infoContent != null) {
+      if (currentTeamNameId != null &&
+          findDescendants(infoContent, (n) => n.name == 'ProfielTeam').isEmpty) {
         infoContent.children.add(_boundText('ProfielTeam', currentTeamNameId, 'Elftal', UITextStyle.bodyMedium));
       }
+      if (relatiecodeId != null &&
+          findDescendants(infoContent, (n) => n.name == 'ProfielRelatiecode').isEmpty) {
+        infoContent.children.add(_boundText('ProfielRelatiecode', relatiecodeId, 'Lidnummer', UITextStyle.bodySmall));
+      }
     }
+    _setupProfielAvatar(project, wc, profilePhotoUrlId);
     return;
   }
 
@@ -1190,10 +1198,11 @@ void _setupProfielPage(FFProject project) {
       name: 'ProfielInfoContent',
       spacing: 8,
       children: [
-        _boundText('ProfielNaam',  userNameId,       'Naam',        UITextStyle.titleLarge),
-        _boundText('ProfielEmail', userEmailId,      'E-mailadres', UITextStyle.bodyMedium),
-        _boundText('ProfielClub',  clubNameId,       'Club',        UITextStyle.bodyMedium),
-        _boundText('ProfielTeam',  currentTeamNameId, 'Elftal',     UITextStyle.bodyMedium),
+        _boundText('ProfielNaam',        userNameId,       'Naam',       UITextStyle.titleLarge),
+        _boundText('ProfielEmail',       userEmailId,      'E-mail',     UITextStyle.bodyMedium),
+        _boundText('ProfielClub',        clubNameId,       'Club',       UITextStyle.bodyMedium),
+        _boundText('ProfielTeam',        currentTeamNameId,'Elftal',     UITextStyle.bodyMedium),
+        _boundText('ProfielRelatiecode', relatiecodeId,    'Lidnummer',  UITextStyle.bodySmall),
       ],
     ),
   );
@@ -1201,6 +1210,8 @@ void _setupProfielPage(FFProject project) {
     _setContainerColor(infoCard,
         colorFromStringVar(varFromAppState(secondaryColorId.deepCopy())));
   }
+
+  _setupProfielAvatar(project, wc, profilePhotoUrlId);
 
   final bodyChild = getPropertyChild(wc.node, 'body');
   if (bodyChild == null) {
@@ -1223,6 +1234,106 @@ void _setupProfielPage(FFProject project) {
       keyRefs: [FFNodeKeyReference(key: column.key)],
     );
   }
+}
+
+// ─── ProfielPage: avatar met profielfoto + upload ────────────────────────────
+//
+// Voegt een CircularImage-widget toe aan de Avatar-container op de ProfielPage:
+//   - Zichtbaar wanneer profilePhotoUrl niet leeg is
+//   - Verbergt de initialen-tekst wanneer foto beschikbaar is
+//   - Tap op de avatar opent de galerij en uploadt via UpdateProfilePhoto
+// Idempotent: slaat over als ProfielPhoto al bestaat.
+void _setupProfielAvatar(FFProject project, FFWidgetClass wc, FFIdentifier? profilePhotoUrlId) {
+  if (profilePhotoUrlId == null) return;
+
+  final avatarContainer = findDescendants(wc.node, (n) => n.name == 'Avatar').firstOrNull;
+  if (avatarContainer == null) return;
+
+  // Idempotent: skip if photo image already added
+  if (findDescendants(avatarContainer, (n) => n.name == 'ProfielPhoto').isNotEmpty) return;
+
+  final scaffoldKey = wc.node.key;
+  final photoUrlVar = varFromAppState(profilePhotoUrlId.deepCopy());
+
+  // Visibility: photo visible when URL is not empty
+  final hasPhotoVar = conditionVar(
+    varFromAppState(profilePhotoUrlId.deepCopy()),
+    FFCondition_Relation.NOT_EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable;
+
+  final noPhotoVar = conditionVar(
+    varFromAppState(profilePhotoUrlId.deepCopy()),
+    FFCondition_Relation.EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable;
+
+  // Build a CircleImage node with dynamic URL from AppState.
+  // UI.avatar only accepts static strings, so we build the FFNode directly.
+  final photoImage = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.CircleImage,
+    name: 'ProfielPhoto',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type:       FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue:  FFStringValue(variable: photoUrlVar.deepCopy()),
+        fit:        FFBoxFit.FF_BOX_FIT_COVER,
+        cached:     true,
+        dimensions: FFDimensions(
+          width:  FFDim(pixelsValue: FFDoubleValue(inputValue: 80.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 80.0)),
+        ),
+      ),
+    ),
+  );
+  setConditionalVisibility(photoImage, variable: hasPhotoVar);
+
+  // Hide the initials text when a photo is available
+  final initialsText = findDescendants(avatarContainer, (n) => n.name == 'Avatar Text').firstOrNull;
+  if (initialsText != null) {
+    setConditionalVisibility(initialsText, variable: noPhotoVar);
+  }
+
+  avatarContainer.children.insert(0, photoImage);
+
+  // Tap on avatar → pick image → upload → save URL to AppState
+  avatarContainer.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+
+  final uploadNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: Actions.uploadData(
+      actionName:  'profilePhoto',
+      allowPhoto:  true,
+      allowVideo:  false,
+      destination: FFUploadDataDestination.LOCAL_FILE,
+    ),
+    followUpAction: Actions.apiCallNode(
+      project,
+      endpointName:       'UpdateProfilePhoto',
+      groupName:          'VoetbalPlannerAPI',
+      outputVariableName: 'photoUploadResult',
+      nodeKey:            avatarContainer.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.snackBar('Profielfoto bijgewerkt.'),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Uploaden mislukt, probeer opnieuw.'),
+      ]),
+    ),
+  );
+
+  Actions.addTriggerChain(avatarContainer, FFActionTriggerType.ON_TAP, uploadNode);
+
+  // Resize the avatar to make it more prominent
+  final c = avatarContainer.props.container.deepCopy();
+  final dims = c.hasDimensions() ? c.dimensions.deepCopy() : FFDimensions();
+  dims.width  = FFDim(pixelsValue: FFDoubleValue(inputValue: 80.0));
+  dims.height = FFDim(pixelsValue: FFDoubleValue(inputValue: 80.0));
+  c.dimensions = dims;
+  avatarContainer.props.container = c;
 }
 
 // ─── BardienPage: filter by member's own team ────────────────────────────────
@@ -3254,14 +3365,16 @@ Future<String> verifyMagicLink(String? token) async {
     FFAppState().update(() {
       final _uName = (user['name'] as String?) ?? '';
       final _uEmail = (user['email'] as String?) ?? '';
-      FFAppState().userName       = _uName;
-      FFAppState().userEmail      = _uEmail.isNotEmpty ? _uEmail : _uName;
-      FFAppState().clubName       = (club['name']   as String?) ?? '';
+      FFAppState().userName        = _uName;
+      FFAppState().userEmail       = _uEmail.isNotEmpty ? _uEmail : _uName;
+      FFAppState().clubName        = (club['name']   as String?) ?? '';
       FFAppState().currentTeamId   = (user['team_id']   as String?) ?? '';
       FFAppState().currentTeamName = (user['team_name'] as String?) ?? '';
-      FFAppState().primaryColor   = (club['primary_color']   as String?) ?? '#1e3a5f';
-      FFAppState().secondaryColor = (club['secondary_color'] as String?) ?? '#3b82f6';
-      FFAppState().accentColor    = (club['accent_color']    as String?) ?? '#10b981';
+      FFAppState().primaryColor    = (club['primary_color']   as String?) ?? '#1e3a5f';
+      FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
+      FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
+      FFAppState().relatiecode     = (user['relatiecode']     as String?) ?? '';
+      FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
     });
     // Register this user so the direct-chat member strip shows only app users.
     final _uId = FFAppState().userEmail.isNotEmpty
@@ -3416,14 +3529,16 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().authToken = token;
       final _uName = (user['name'] as String?) ?? '';
       final _uEmail = (user['email'] as String?) ?? '';
-      FFAppState().userName = _uName;
-      FFAppState().userEmail = _uEmail.isNotEmpty ? _uEmail : _uName;
-      FFAppState().clubName = (club['name'] as String?) ?? '';
+      FFAppState().userName        = _uName;
+      FFAppState().userEmail       = _uEmail.isNotEmpty ? _uEmail : _uName;
+      FFAppState().clubName        = (club['name'] as String?) ?? '';
       FFAppState().currentTeamId   = firstTeamId;
       FFAppState().currentTeamName = (user['team_name'] as String?) ?? '';
-      FFAppState().primaryColor   = (club['primary_color']   as String?) ?? '#1e3a5f';
-      FFAppState().secondaryColor = (club['secondary_color'] as String?) ?? '#3b82f6';
-      FFAppState().accentColor    = (club['accent_color']    as String?) ?? '#10b981';
+      FFAppState().primaryColor    = (club['primary_color']   as String?) ?? '#1e3a5f';
+      FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
+      FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
+      FFAppState().relatiecode     = (user['relatiecode']     as String?) ?? '';
+      FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
     });
 
     // Register this user so the direct-chat member strip shows only app users.
@@ -3542,6 +3657,10 @@ void _fixLoginButtonBindings(FFProject project) {
   for (final field in ['authToken', 'userName', 'userEmail', 'clubName', 'currentTeamName']) {
     _makeAppStateFieldPersisted(project, field);
   }
+
+  // Nieuw: relatiecode (lidnummer) en profielfoto-URL.
+  _ensureAppStateField(project, 'relatiecode',      FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'profilePhotoUrl',  FFBaseDataType.String, persisted: true);
 
   // Resolve WedstrijdenPage route so the custom action can navigate via GoRouter.
   final wedstrijdenWc = findPage(project, name: 'WedstrijdenPage');
@@ -4343,15 +4462,25 @@ void _addGuardianEndpoints(FFProject project) {
   );
 
   // GET /guardian/members/{memberId}/data — Ouder bekijkt kindgegevens
-  // Returnt MemberResource (FootMatch-struct hergebruiken is niet van toepassing;
-  // de app roept daarna bestaande endpoints aan met het memberId als param).
   addIfMissing(
     name:      'GetChildMemberData',
     url:       '/guardian/members/[memberId]/data',
     variables: {'memberId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
-    // Geen responseDataStructName — de app pikt de bekende member-velden op
-    // via de bestaande FootMatch/Member structs, of handelt de raw JSON af.
   );
+
+  // PATCH /profile/photo — Profielfoto uploaden (multipart/form-data)
+  if (!existing.contains('UpdateProfilePhoto')) {
+    addEndpointToGroup(
+      project,
+      groupName:   groupName,
+      name:        'UpdateProfilePhoto',
+      url:         '/profile/photo',
+      method:      FFApiEndpoint_CallType.PATCH,
+      bodyType:    FFApiEndpoint_BodyType.MULTIPART,
+      variables:   {},
+      headers:     ['Authorization: Bearer [bearerToken]'],
+    );
+  }
 }
 
 // ─── Guardian pagina's: DSL-skelet ────────────────────────────────────────────
