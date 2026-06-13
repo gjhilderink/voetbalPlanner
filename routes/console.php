@@ -15,6 +15,9 @@ Artisan::command('inspire', function () {
 // Scheduled via cPanel cron: * * * * * php artisan schedule:run
 Schedule::job(new FullSyncJob())->dailyAt('03:00')->name('full-sync')->withoutOverlapping();
 
+// Markeer verlopen ouder/verzorger koppelverzoeken als geweigerd
+Schedule::command('guardian:expire')->dailyAt('02:00')->name('guardian-expire');
+
 // Direct sync command (no queue required, use on shared hosting)
 Artisan::command('sportlink:sync', function () {
     $this->info('Synchronisatie gestart...');

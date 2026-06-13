@@ -36,7 +36,7 @@ import 'package:flutterflow_ai/src/ui/actions.dart' show Actions;
 import 'package:flutterflow_ai/src/ui/ui.dart' show UI;
 import 'package:flutterflow_ai/src/ui/ui_types.dart'
     show UIBoxFit, UIColor, UITextStyle, UIMainAxisAlignment, UICrossAxisAlignment, UIEdgeInsets,
-         DynamicSource;
+         UIProgressShape, UIKeyboardType, DynamicSource;
 import 'package:voetbalplanner_mobile/flutterflow_project.dart' as ff;
 
 bool Function(ProjectError) get _validationFilter => (error) {
@@ -525,6 +525,10 @@ void buildEditFlow(App app) {
     // Fix stale DirectMemberChip tap (idempotent guard in _wireChatsPageMemberStrip
     // prevented updating it once the strip was built with the wrong navigate action).
     _fixMemberStripTapAction(project);
+    // Make GroupChip and StaffGroupChip taller (WhatsApp-style row height).
+    _makeGroupChipsTaller(project);
+    // Convert DirectMember from horizontal chips to vertical list rows.
+    _convertDirectMembersToList(project);
     // Switch chatGroups Firestore query to real-time (singleTimeQuery=false) so
     // the groups list updates immediately after creating a new group.
     _fixChatsPageGroupsRealtime(project);
@@ -536,18 +540,27 @@ void buildEditFlow(App app) {
     _resetGroupChatPageAppBar(project);
     // Fix GroupChatPage: senderId authToken→userEmail, bubble visibility, and send refresh wait.
     _fixGroupChatPage(project);
+    // Nuclear rebuild of GroupChatPage bubbles with left/right split (same pattern as TeamChat).
+    _rebuildGroupChatBubbles(project);
+    // Show group admin (createdBy) below the AppBar in GroupChatPage.
+    _addGroupChatAdminDisplay(project);
     // Fix TeamChatPage: senderId authToken→userEmail, teamId widget.teamId→currentTeamId,
     // refresh query WHERE, and text widget binding.
     _fixTeamChatSendButton(project);
     _fixTeamChatMessageTextBinding(project);
+    // Rebuild TeamChatPage bubbles with left/right split matching ChatDetailPage.
+    _fixTeamChatBubbles(project);
+    // Rebuild DirectChatPage bubbles with left/right split; fix senderId authToken→userEmail.
+    _fixDirectChatBubbles(project);
+    _fixDirectChatSendButton(project);
     // Add hasUnread + unreadCount fields to chatConversations, then show badges.
     _addUnreadFieldsToConversations(project);
     _addIsReadFieldToChatMessages(project);
     _addConversationBadges(project);
     // Reset unread count when user opens a conversation.
     _wireMarkConversationRead(project);
-    // Rebuild chat bubbles: formatted timestamp, sender name, read receipts.
-    _rebuildChatMessageBubbles(project);
+    // Nuclear rebuild of ChatDetailPage (staff chat) bubbles with left/right split + read receipts.
+    _rebuildChatDetailBubbles(project);
     // Bind TextField controller to page state so SetState.clear() visually clears it.
     _fixChatTextFieldController(project);
     // Same fix for GroupChatPage: localStateValue=true removes the 2s debounce
@@ -555,6 +568,8 @@ void buildEditFlow(App app) {
     _fixGroupChatTextField(project);
     // Same fix for TeamChatPage.
     _fixTeamChatTextField(project);
+    // Same fix for DirectChatPage.
+    _fixDirectChatTextField(project);
     // Hide the current user's own chip in the direct-message member strip.
     _fixDirectMemberSelfFilter(project);
     // Add "Bewaar in agenda" button to bardienst, wedstrijd and rijschema detail pages.
@@ -568,6 +583,14 @@ void buildEditFlow(App app) {
     // team members have logged in once can we safely switch the member strip source.
     _registerGetAppUsersAction(project);
     _addChatEditDeleteFeature(project);
+    _sortChatMessagesByCreatedAt(project);
+    _addScrollToBottomAfterSend(project);
+    // Stretch item columns and fix row alignment first.
+    _fixChatDetailBubbleAlignment(project);
+    // Remove Row wrappers so bubbles fill the column's full width directly.
+    _removeBubbleRowWrappers(project);
+    _setChatBubbleWidths(project);
+    _setAllButtonHeights(project);
   });
 
   final swapRequest = ff.Structs.swapRequest;
@@ -587,6 +610,19 @@ void buildEditFlow(App app) {
   } catch (_) {}
 
   app.raw((project) => _addSwapEndpoints(project));
+  app.raw((project) => _addGuardianEndpoints(project));
+
+  // ── Guardian pagina's ─────────────────────────────────────────────────────
+  _buildGuardianPages(app);
+  app.raw((project) {
+    _buildGuardianPageBody(project);
+    _buildGuardianRequestPageBody(project);
+    _wireGuardianPageLoad(project);
+    _wireGuardianRespondActions(project);
+    _wireGuardianRequestTextFields(project);
+    _wireGuardianRequestSubmit(project);
+  });
+
   _buildSwapRequestCard(app, swapRequest);
   _buildWisselAanvraagPage(app, swapMember);
   _buildWisselVerzoekenPage(app, swapRequest);
@@ -734,7 +770,17 @@ void buildEditFlow(App app) {
     _buildDashboardContent(project);
     _wireDashboardLoad(project);
     _fixDashboardListViewShrinkWrap(project);
+    // Add "Rijschema" section: shows matches where the user is assigned to drive.
+    _addDashboardDriveSection(project);
+    // Append GetDriveSchedule to the on-load chain (must run after _wireDashboardLoad
+    // which rebuilds the chain from scratch each push).
+    _wireDashboardDriveScheduleLoad(project);
   });
+
+  // ── Dashboard empty states ────────────────────────────────────────────────────
+  // Show "Niets gepland" when a section list is empty.
+  // visibleWhen must be a boolean; use codeExpressionVar to convert list→bool.
+  app.raw((project) => _addDashboardEmptyPlaceholders(project));
 
   // Apply club primary color to all AppBar backgrounds; set back button + title to white.
   // Runs last so the AppBar nodes already exist from all the preceding wiring steps.
@@ -4112,6 +4158,1016 @@ void _addSwapEndpoints(FFProject project) {
   }
 }
 
+// ─── Guardian / ouder-verzorger endpoints ────────────────────────────────────
+//
+// Voegt DataStructs + API-endpoints toe voor de ouder/verzorger-koppeling:
+//   GuardianRequest      — openstaand verzoek dat een kind/lid ziet
+//   GuardianChild        — goedgekeurd gekoppeld kind voor een ouder
+//   GuardianLinkSummary  — verzoekhistorie voor de ouder
+//   GuardianRequestResult— response op het indienen van een verzoek
+//
+// Alle aanroepen zijn idempotent: structs en endpoints worden alleen
+// aangemaakt als ze nog niet bestaan.
+void _addGuardianEndpoints(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+
+  // ── 1. DataStructs ─────────────────────────────────────────────────────────
+
+  // Openstaand koppelverzoek dat een kind/lid te zien krijgt (GET /guardian/pending)
+  if (findDataStruct(project, name: 'GuardianRequest') == null) {
+    addDataStruct(
+      project,
+      name: 'GuardianRequest',
+      description: 'Openstaand ouder/verzorger koppelverzoek gericht aan dit lid.',
+      fields: [
+        structField('id',            stringType, description: 'Link ID'),
+        structField('guardianName',  stringType, description: 'Naam van de ouder/verzorger'),
+        structField('guardianEmail', stringType, description: 'E-mailadres van de ouder/verzorger'),
+        structField('requestedAt',   stringType, description: 'Tijdstip van aanvraag (ISO 8601)'),
+        structField('expiresAt',     stringType, description: 'Vervaldatum van het verzoek (ISO 8601)'),
+      ],
+    );
+  }
+
+  // Goedgekeurd gekoppeld kind voor een ouder (GET /guardian/children)
+  if (findDataStruct(project, name: 'GuardianChild') == null) {
+    addDataStruct(
+      project,
+      name: 'GuardianChild',
+      description: 'Goedgekeurd gekoppeld kind/lid van een ouder/verzorger.',
+      fields: [
+        structField('linkId',      stringType, description: 'Koppeling ID'),
+        structField('memberId',    stringType, description: 'Lid ID'),
+        structField('name',        stringType, description: 'Volledige naam'),
+        structField('email',       stringType, description: 'E-mailadres'),
+        structField('externalId',  stringType, description: 'Lidnummer (relatiecode)'),
+        structField('dateOfBirth', stringType, description: 'Geboortedatum (Y-m-d)'),
+        structField('approvedAt',  stringType, description: 'Datum goedkeuring (ISO 8601)'),
+      ],
+    );
+  }
+
+  // Verzoekhistorie voor de ouder/verzorger (GET /guardian/my-requests)
+  if (findDataStruct(project, name: 'GuardianLinkSummary') == null) {
+    addDataStruct(
+      project,
+      name: 'GuardianLinkSummary',
+      description: 'Overzicht van een ouder/verzorger koppelverzoek met alle statusinformatie.',
+      fields: [
+        structField('id',             stringType, description: 'Link ID'),
+        structField('status',         stringType, description: 'Status: pending|approved|rejected|revoked'),
+        structField('statusLabel',    stringType, description: 'Nederlandse statuslabel'),
+        structField('guardianName',   stringType, description: 'Naam ouder/verzorger'),
+        structField('guardianEmail',  stringType, description: 'E-mail ouder/verzorger'),
+        structField('childName',      stringType, description: 'Naam kind/lid'),
+        structField('childEmail',     stringType, description: 'E-mail kind/lid'),
+        structField('childExternalId',stringType, description: 'Lidnummer kind'),
+        structField('requestedAt',    stringType, description: 'Aanvraagtijdstip (ISO 8601)'),
+        structField('expiresAt',      stringType, description: 'Vervaldatum (ISO 8601)'),
+        structField('resolvedAt',     stringType, description: 'Beslissingstijdstip (ISO 8601)'),
+        structField('revokedAt',      stringType, description: 'Intrekkingstijdstip (ISO 8601)'),
+      ],
+    );
+  }
+
+  // Resultaat bij het indienen van een verzoek (POST /guardian/request response.data)
+  if (findDataStruct(project, name: 'GuardianRequestResult') == null) {
+    addDataStruct(
+      project,
+      name: 'GuardianRequestResult',
+      description: 'Bevestiging na het indienen van een ouder/verzorger koppelverzoek.',
+      fields: [
+        structField('id',        stringType, description: 'Nieuw aangemaakte link ID'),
+        structField('status',    stringType, description: 'Status: altijd pending'),
+        structField('childName', stringType, description: 'Naam van het gevonden kind/lid'),
+        structField('expiresAt', stringType, description: 'Vervaldatum (ISO 8601)'),
+      ],
+    );
+  }
+
+  // ── 2. Bestaande endpoints bijhouden (idempotent guard) ────────────────────
+
+  final existing = <String>{};
+  for (final group in project.backend.apiConfig.apiGroups) {
+    for (final ep in group.endpoints) {
+      existing.add(ep.identifier.name);
+    }
+  }
+
+  void addIfMissing({
+    required String name,
+    required String url,
+    FFApiEndpoint_CallType method = FFApiEndpoint_CallType.GET,
+    FFApiEndpoint_BodyType bodyType = FFApiEndpoint_BodyType.NONE,
+    String? body,
+    Map<String, FFDataTypeV2>? variables,
+    String? responseDataStructName,
+    bool responseDataStructIsList = false,
+  }) {
+    if (existing.contains(name)) return;
+    addEndpointToGroup(
+      project,
+      groupName:                groupName,
+      name:                     name,
+      url:                      url,
+      method:                   method,
+      bodyType:                 bodyType,
+      body:                     body,
+      variables:                variables,
+      headers:                  ['Authorization: Bearer [bearerToken]'],
+      responseDataStructName:   responseDataStructName,
+      responseDataStructIsList: responseDataStructIsList,
+    );
+  }
+
+  // ── 3. API-endpoints ───────────────────────────────────────────────────────
+
+  // POST /guardian/request — Ouder dient koppelverzoek in
+  addIfMissing(
+    name:     'RequestGuardianAccess',
+    url:      '/guardian/request',
+    method:   FFApiEndpoint_CallType.POST,
+    bodyType: FFApiEndpoint_BodyType.JSON,
+    body:     '{"lidnummer":"[lidnummer]","achternaam":"[achternaam]","geboortedatum":"[geboortedatum]"}',
+    variables: {
+      'lidnummer':     FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'achternaam':    FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'geboortedatum': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+    responseDataStructName: 'GuardianRequestResult',
+  );
+
+  // GET /guardian/pending — Kind haalt openstaande verzoeken op
+  addIfMissing(
+    name:                     'GetPendingGuardianRequests',
+    url:                      '/guardian/pending',
+    responseDataStructName:   'GuardianRequest',
+    responseDataStructIsList: true,
+  );
+
+  // POST /guardian/{linkId}/respond — Kind accepteert of weigert verzoek
+  addIfMissing(
+    name:     'RespondGuardianRequest',
+    url:      '/guardian/[linkId]/respond',
+    method:   FFApiEndpoint_CallType.POST,
+    bodyType: FFApiEndpoint_BodyType.JSON,
+    body:     '{"action":"[action]"}',
+    variables: {
+      'linkId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'action': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+  );
+
+  // DELETE /guardian/{linkId}/revoke — Koppeling intrekken
+  addIfMissing(
+    name:      'RevokeGuardianLink',
+    url:       '/guardian/[linkId]/revoke',
+    method:    FFApiEndpoint_CallType.DELETE,
+    variables: {'linkId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+  );
+
+  // GET /guardian/children — Ouder haalt zijn/haar gekoppelde kinderen op
+  addIfMissing(
+    name:                     'GetGuardianChildren',
+    url:                      '/guardian/children',
+    responseDataStructName:   'GuardianChild',
+    responseDataStructIsList: true,
+  );
+
+  // GET /guardian/my-requests — Ouder ziet eigen verzoekhistorie
+  addIfMissing(
+    name:                     'GetMyGuardianRequests',
+    url:                      '/guardian/my-requests',
+    responseDataStructName:   'GuardianLinkSummary',
+    responseDataStructIsList: true,
+  );
+
+  // GET /guardian/members/{memberId}/data — Ouder bekijkt kindgegevens
+  // Returnt MemberResource (FootMatch-struct hergebruiken is niet van toepassing;
+  // de app roept daarna bestaande endpoints aan met het memberId als param).
+  addIfMissing(
+    name:      'GetChildMemberData',
+    url:       '/guardian/members/[memberId]/data',
+    variables: {'memberId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+    // Geen responseDataStructName — de app pikt de bekende member-velden op
+    // via de bestaande FootMatch/Member structs, of handelt de raw JSON af.
+  );
+}
+
+// ─── Guardian pagina's: DSL-skelet ────────────────────────────────────────────
+//
+// Declareert state-velden en een minimal body-container voor elke pagina.
+// De werkelijke body-inhoud wordt door de _buildGuardian*Body raw-functies
+// gebouwd zodat we geen typed ff.Pages.guardianPage.*-handles nodig hebben
+// (die bestaan pas na de eerste push).
+void _buildGuardianPages(App app) {
+  // ── GuardianPage: overzicht koppelingen ──────────────────────────────────
+  app.ensurePage(
+    'GuardianPage',
+    description: 'Overzicht ouder/verzorger koppelingen: mijn kinderen, openstaande verzoeken en verzoekhistorie.',
+    route: 'guardian',
+    state: {
+      'children':     listOf(ff.Structs.guardianChild),
+      'pendingForMe': listOf(ff.Structs.guardianRequest),
+      'myRequests':   listOf(ff.Structs.guardianLinkSummary),
+      'isLoading':    bool_.withDefault(true),
+      'isActing':     bool_.withDefault(false),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Ouder / Verzorger'),
+      body: Column(
+        name: 'GuardianRootColumn',
+        children: [
+          Container(name: 'GuardianBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+
+  // ── GuardianRequestPage: koppeling aanvragen ──────────────────────────────
+  app.ensurePage(
+    'GuardianRequestPage',
+    description: 'Formulier om een koppeling aan te vragen met een kind/lid.',
+    route: 'guardian-request',
+    state: {
+      'isSubmitting':   bool_.withDefault(false),
+      'errorMessage':   string.withDefault(''),
+      'lidnummer':      string.withDefault(''),
+      'achternaam':     string.withDefault(''),
+      'geboortedatum':  string.withDefault(''),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Koppeling aanvragen'),
+      body: Column(
+        name: 'GuardianRequestRootColumn',
+        children: [
+          Container(name: 'GuardianRequestBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+}
+
+// ─── GuardianPage body ────────────────────────────────────────────────────────
+//
+// Vervangt de placeholder-container met de werkelijke body:
+//   - loading-spinner
+//   - sectie "openstaande verzoeken voor mij" (als kind/lid)
+//   - sectie "mijn kinderen" (als ouder)
+//   - sectie "mijn verzoeken" (als ouder)
+//
+// Idempotent: slaat over als de body al gebouwd is.
+void _buildGuardianPageBody(FFProject project) {
+  final wc = findPage(project, name: 'GuardianPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'GuardianLoadingSpinner').isNotEmpty) return;
+
+  final scaffoldKey = wc.node.key;
+
+  // Zoek de root Column en verwijder de placeholder
+  final rootCol = findDescendants(wc.node, (n) => n.name == 'GuardianRootColumn').firstOrNull;
+  if (rootCol == null) return;
+  rootCol.children.removeWhere((n) => n.name == 'GuardianBodyPlaceholder');
+
+  // ── State field IDs ──────────────────────────────────────────────────────
+  final isLoadingId     = _findPageStateFieldId(project, 'GuardianPage', 'isLoading');
+  final childrenId      = _findPageStateFieldId(project, 'GuardianPage', 'children');
+  final pendingForMeId  = _findPageStateFieldId(project, 'GuardianPage', 'pendingForMe');
+  final myRequestsId    = _findPageStateFieldId(project, 'GuardianPage', 'myRequests');
+  if (isLoadingId == null || childrenId == null || pendingForMeId == null || myRequestsId == null) return;
+
+  FFVariable _stateVar(FFIdentifier id) => varFromPageState(id.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  // Struct field helpers (null-safe: falls back to name-only)
+  FFVariable _genField(String listKey, String structName, String fieldName) {
+    final id = _findStructFieldId(project, structName, fieldName);
+    if (id != null) {
+      return varFromGeneratorVariable(listKey)
+        ..operations.add(FFVariableOperation(
+          accessDataStructField: FFAccessDataStructField(fieldIdentifier: id.deepCopy()),
+        ));
+    }
+    return generatorVarField(listKey, fieldName);
+  }
+
+  // isLoading condition for visibility
+  final isLoadingVar    = _stateVar(isLoadingId);
+  final isNotLoadingVar = _stateVar(isLoadingId.deepCopy())
+    ..operations.add(FFVariableOperation(negate: FFNegateBoolean()));
+
+  // "isEmpty" heuristic via first-item field check (same pattern as dashboard)
+  FFVariable _isEmptyVar(FFIdentifier listStateId, String structName, String fieldName) {
+    final firstField = varFromPageState(listStateId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)
+      ..operations.add(FFVariableOperation(
+        listItemAtIndex: FFListItemAtIndex(type: FFListItemAtIndex_IndexType.FIRST),
+      ))
+      ..operations.add(FFVariableOperation(
+        accessDataStructField: FFAccessDataStructField(
+          fieldIdentifier: _findStructFieldId(project, structName, fieldName)?.deepCopy()
+              ?? FFIdentifier(name: fieldName),
+        ),
+      ));
+    return conditionVar(firstField, FFCondition_Relation.EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable;
+  }
+
+  FFVariable _isNotEmptyVar(FFIdentifier listStateId, String structName, String fieldName) {
+    return conditionVar(
+      varFromPageState(listStateId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)
+        ..operations.add(FFVariableOperation(
+          listItemAtIndex: FFListItemAtIndex(type: FFListItemAtIndex_IndexType.FIRST),
+        ))
+        ..operations.add(FFVariableOperation(
+          accessDataStructField: FFAccessDataStructField(
+            fieldIdentifier: _findStructFieldId(project, structName, fieldName)?.deepCopy()
+                ?? FFIdentifier(name: fieldName),
+          ),
+        )),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable;
+  }
+
+  // ── Loading spinner ──────────────────────────────────────────────────────
+  final loadingSpinner = UI.container(
+    name: 'GuardianLoadingSpinner',
+    padding: UIEdgeInsets.all(40),
+    child: UI.column(
+      name: 'GuardianLoadingCol',
+      mainAxisAlignment: UIMainAxisAlignment.center,
+      children: [UI.progressBar(name: 'GuardianSpinner', shape: UIProgressShape.circular, width: 40, thickness: 4)],
+    ),
+  );
+  setConditionalVisibility(loadingSpinner, variable: isLoadingVar);
+
+  // ── Content column (scrollable) ──────────────────────────────────────────
+  final contentCol = UI.column(
+    name: 'GuardianContentCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 0,
+    children: [],
+  );
+  setConditionalVisibility(contentCol, variable: isNotLoadingVar);
+
+  // ── 1. Sectie: Openstaande verzoeken voor mij (als kind/lid) ──────────
+  // Alleen zichtbaar als pendingForMe niet leeg is
+  final pendingListKey = 'PendingForMeListView_g';
+  final pendingSource  = _stateVar(pendingForMeId.deepCopy());
+
+  final pendingListView = UI.listView(
+    name: 'PendingForMeListView',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    dynamicSource: DynamicSource(variable: pendingSource, itemName: 'pendingReq'),
+  );
+  // Set shrinkWrap so it works inside a scrollable Column
+  final lvPending = pendingListView.props.listView.deepCopy();
+  lvPending.shrinkWrapValue = FFBooleanValue(inputValue: true);
+  pendingListView.props.listView = lvPending;
+
+  final pendingItem = UI.container(
+    name: 'PendingReqCard',
+    padding: UIEdgeInsets.all(16),
+    borderRadius: 12,
+    color: UIColor.primaryBackground,
+    child: UI.column(
+      name: 'PendingReqCardCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 8,
+      children: [
+        UI.text('', name: 'PendingGuardianName', style: UITextStyle.titleSmall),
+        UI.text('', name: 'PendingGuardianEmail', style: UITextStyle.bodySmall),
+        UI.text('', name: 'PendingExpiresAt', style: UITextStyle.bodySmall),
+        UI.row(
+          name: 'PendingActionsRow',
+          spacing: 8,
+          mainAxisAlignment: UIMainAxisAlignment.end,
+          children: [
+            UI.button('Weigeren',  name: 'WeigerenButton',  width: 100),
+            UI.button('Accepteren', name: 'AccepterenButton', width: 110),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  // Bind text fields to generator variables
+  void _bindText(FFNode textNode, String listKey, String structName, String fieldName) {
+    final copy = textNode.props.text.deepCopy();
+    copy.textValue = FFStringValue(variable: _genField(listKey, structName, fieldName));
+    textNode.props.text = copy;
+  }
+
+  _bindText(findDescendants(pendingItem, (n) => n.name == 'PendingGuardianName').first,
+      pendingListView.key, 'GuardianRequest', 'guardianName');
+  _bindText(findDescendants(pendingItem, (n) => n.name == 'PendingGuardianEmail').first,
+      pendingListView.key, 'GuardianRequest', 'guardianEmail');
+  _bindText(findDescendants(pendingItem, (n) => n.name == 'PendingExpiresAt').first,
+      pendingListView.key, 'GuardianRequest', 'expiresAt');
+
+  pendingListView.children.add(pendingItem);
+
+  final pendingSection = UI.container(
+    name: 'PendingForMeSection',
+    child: UI.column(
+      name: 'PendingForMeSectionCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      children: [
+        UI.container(
+          name: 'PendingHeaderContainer',
+          padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: UI.text('Verzoeken aan mij', name: 'PendingHeaderText', style: UITextStyle.titleSmall),
+        ),
+        pendingListView,
+        UI.container(name: 'PendingSectionDivider', padding: UIEdgeInsets.only(bottom: 8)),
+      ],
+    ),
+  );
+  setConditionalVisibility(pendingSection,
+      variable: _isNotEmptyVar(pendingForMeId, 'GuardianRequest', 'id'));
+
+  // ── 2. Sectie: Mijn kinderen (als ouder/verzorger) ───────────────────
+  final childrenSource   = _stateVar(childrenId.deepCopy());
+
+  final childrenListView = UI.listView(
+    name: 'GuardianChildrenListView',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    dynamicSource: DynamicSource(variable: childrenSource, itemName: 'child'),
+  );
+  final lvChildren = childrenListView.props.listView.deepCopy();
+  lvChildren.shrinkWrapValue = FFBooleanValue(inputValue: true);
+  childrenListView.props.listView = lvChildren;
+
+  final childItem = UI.container(
+    name: 'GuardianChildCard',
+    padding: UIEdgeInsets.all(16),
+    borderRadius: 12,
+    color: UIColor.secondaryBackground,
+    child: UI.row(
+      name: 'GuardianChildCardRow',
+      mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
+      children: [
+        UI.column(
+          name: 'GuardianChildInfoCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 2,
+          children: [
+            UI.text('', name: 'GuardianChildName',       style: UITextStyle.titleSmall),
+            UI.text('', name: 'GuardianChildExternalId', style: UITextStyle.bodySmall),
+          ],
+        ),
+        UI.iconButton('link_off', color: UIColor.error, name: 'IntrekkenButton'),
+      ],
+    ),
+  );
+
+  _bindText(findDescendants(childItem, (n) => n.name == 'GuardianChildName').first,
+      childrenListView.key, 'GuardianChild', 'name');
+  _bindText(findDescendants(childItem, (n) => n.name == 'GuardianChildExternalId').first,
+      childrenListView.key, 'GuardianChild', 'externalId');
+
+  childrenListView.children.add(childItem);
+
+  final childrenEmptyMsg = UI.container(
+    name: 'ChildrenEmptyContainer',
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: UI.text(
+      'Nog geen kinderen gekoppeld. Tik op + om een koppeling aan te vragen.',
+      name: 'ChildrenEmptyText',
+      style: UITextStyle.bodySmall,
+    ),
+  );
+  setConditionalVisibility(childrenEmptyMsg,
+      variable: _isEmptyVar(childrenId, 'GuardianChild', 'linkId'));
+  final childrenNonEmptyList = childrenListView;
+  setConditionalVisibility(childrenNonEmptyList,
+      variable: _isNotEmptyVar(childrenId, 'GuardianChild', 'linkId'));
+
+  // Add-button navigates to GuardianRequestPage
+  final addChildBtn = UI.iconButton('person_add', size: 24, color: UIColor.primary, name: 'AddChildButton');
+  Actions.addTriggerChain(
+    addChildBtn,
+    FFActionTriggerType.ON_TAP,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(project, pageName: 'GuardianRequestPage'),
+    ),
+  );
+
+  final childrenSection = UI.container(
+    name: 'ChildrenSection',
+    child: UI.column(
+      name: 'ChildrenSectionCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      children: [
+        UI.container(
+          name: 'ChildrenHeaderContainer',
+          padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: UI.row(
+            name: 'ChildrenHeaderRow',
+            mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
+            children: [
+              UI.text('Mijn kinderen', name: 'ChildrenHeaderText', style: UITextStyle.titleSmall),
+              addChildBtn,
+            ],
+          ),
+        ),
+        childrenEmptyMsg,
+        childrenNonEmptyList,
+        UI.container(name: 'ChildrenSectionDivider', padding: UIEdgeInsets.only(bottom: 8)),
+      ],
+    ),
+  );
+
+  // ── 3. Sectie: Mijn verzoeken (als ouder) ────────────────────────────
+  final myRequestsSource   = _stateVar(myRequestsId.deepCopy());
+
+  final myRequestsListView = UI.listView(
+    name: 'MyGuardianRequestsListView',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    dynamicSource: DynamicSource(variable: myRequestsSource, itemName: 'req'),
+  );
+  final lvMyReq = myRequestsListView.props.listView.deepCopy();
+  lvMyReq.shrinkWrapValue = FFBooleanValue(inputValue: true);
+  myRequestsListView.props.listView = lvMyReq;
+
+  final myReqItem = UI.container(
+    name: 'MyGuardianReqCard',
+    padding: UIEdgeInsets.all(16),
+    borderRadius: 12,
+    color: UIColor.secondaryBackground,
+    child: UI.column(
+      name: 'MyGuardianReqCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 4,
+      children: [
+        UI.row(
+          name: 'MyGuardianReqTitleRow',
+          mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
+          children: [
+            UI.text('', name: 'MyReqChildName',    style: UITextStyle.titleSmall),
+            UI.text('', name: 'MyReqStatusLabel',  style: UITextStyle.bodySmall),
+          ],
+        ),
+        UI.text('', name: 'MyReqRequestedAt', style: UITextStyle.bodySmall),
+      ],
+    ),
+  );
+
+  _bindText(findDescendants(myReqItem, (n) => n.name == 'MyReqChildName').first,
+      myRequestsListView.key, 'GuardianLinkSummary', 'childName');
+  _bindText(findDescendants(myReqItem, (n) => n.name == 'MyReqStatusLabel').first,
+      myRequestsListView.key, 'GuardianLinkSummary', 'statusLabel');
+  _bindText(findDescendants(myReqItem, (n) => n.name == 'MyReqRequestedAt').first,
+      myRequestsListView.key, 'GuardianLinkSummary', 'requestedAt');
+
+  myRequestsListView.children.add(myReqItem);
+
+  final myRequestsSection = UI.container(
+    name: 'MyRequestsSection',
+    child: UI.column(
+      name: 'MyRequestsSectionCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      children: [
+        UI.container(
+          name: 'MyRequestsHeaderContainer',
+          padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: UI.text('Mijn verzoeken', name: 'MyRequestsHeaderText', style: UITextStyle.titleSmall),
+        ),
+        myRequestsListView,
+        UI.container(name: 'MyRequestsSectionDivider', padding: UIEdgeInsets.only(bottom: 16)),
+      ],
+    ),
+  );
+
+  // ── Assemble content column ──────────────────────────────────────────────
+  contentCol.children.addAll([pendingSection, childrenSection, myRequestsSection]);
+
+  // ── Replace placeholder with actual body ─────────────────────────────────
+  rootCol.children.addAll([loadingSpinner, contentCol]);
+}
+
+// ─── GuardianRequestPage body ─────────────────────────────────────────────────
+//
+// Vervangt de placeholder-container met het formulier voor het aanvragen
+// van een ouder/verzorger koppeling.
+// Idempotent: slaat over als de body al gebouwd is.
+void _buildGuardianRequestPageBody(FFProject project) {
+  final wc = findPage(project, name: 'GuardianRequestPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'SubmitGuardianButton').isNotEmpty) return;
+
+  final scaffoldKey = wc.node.key;
+
+  final rootCol = findDescendants(wc.node, (n) => n.name == 'GuardianRequestRootColumn').firstOrNull;
+  if (rootCol == null) return;
+  rootCol.children.removeWhere((n) => n.name == 'GuardianRequestBodyPlaceholder');
+
+  final errorMsgId = _findPageStateFieldId(project, 'GuardianRequestPage', 'errorMessage');
+
+  // Error container: visible when errorMessage != ''
+  final errorContainer = UI.container(
+    name: 'GuardianErrorContainer',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.error,
+    child: UI.text('', name: 'GuardianErrorText', style: UITextStyle.bodySmall),
+  );
+  if (errorMsgId != null) {
+    // Bind errorMessage to text
+    final errText = findDescendants(errorContainer, (n) => n.name == 'GuardianErrorText').firstOrNull;
+    if (errText != null) {
+      final errVar = varFromPageState(errorMsgId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+      final copy = errText.props.text.deepCopy();
+      copy.textValue = FFStringValue(variable: errVar.deepCopy());
+      errText.props.text = copy;
+    }
+    // Visibility: visible when errorMessage is not empty
+    final isErrorVar = conditionVar(
+      varFromPageState(errorMsgId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable;
+    setConditionalVisibility(errorContainer, variable: isErrorVar);
+  }
+
+  // Submit button
+  final submitBtn = UI.button('Koppeling aanvragen', name: 'SubmitGuardianButton', width: double.infinity);
+
+  // Intro section
+  final introIcon = UI.icon('person_add', size: 48, color: UIColor.primary, name: 'GuardianRequestIcon');
+  final introTitle = UI.text('Koppeling aanvragen', name: 'GuardianRequestTitle', style: UITextStyle.titleMedium);
+  final introText  = UI.text(
+    'Vul de gegevens in van het lid waarmee u wilt koppelen. '
+    'Het lid ontvangt een verzoek en moet dit bevestigen.',
+    name: 'GuardianRequestIntro',
+    style: UITextStyle.bodySmall,
+  );
+
+  // Build the scrollable form body
+  final formCol = UI.column(
+    name: 'GuardianFormColumn',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 16,
+    children: [
+      // Center the icon
+      UI.container(
+        name: 'GuardianIconContainer',
+        padding: UIEdgeInsets.symmetric(vertical: 16),
+        child: UI.column(
+          name: 'GuardianIconCol',
+          mainAxisAlignment: UIMainAxisAlignment.center,
+          children: [introIcon],
+        ),
+      ),
+      introTitle,
+      introText,
+      UI.container(name: 'GuardianFormDivider', padding: UIEdgeInsets.only(bottom: 4)),
+      // Veld: Lidnummer
+      UI.container(
+        name: 'LidnummerFieldContainer',
+        child: UI.column(
+          name: 'LidnummerFieldCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 4,
+          children: [
+            UI.text('Lidnummer', name: 'LidnummerLabel', style: UITextStyle.labelMedium),
+            UI.textField(hintText: 'bijv. LID-00123', name: 'LidnummerField'),
+          ],
+        ),
+      ),
+      // Veld: Achternaam
+      UI.container(
+        name: 'AchternaamFieldContainer',
+        child: UI.column(
+          name: 'AchternaamFieldCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 4,
+          children: [
+            UI.text('Achternaam', name: 'AchternaamLabel', style: UITextStyle.labelMedium),
+            UI.textField(hintText: 'Achternaam van het lid', name: 'AchternaamField'),
+          ],
+        ),
+      ),
+      // Veld: Geboortedatum
+      UI.container(
+        name: 'GeboortedatumFieldContainer',
+        child: UI.column(
+          name: 'GeboortedatumFieldCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 4,
+          children: [
+            UI.text('Geboortedatum', name: 'GeboortedatumLabel', style: UITextStyle.labelMedium),
+            UI.textField(hintText: 'JJJJ-MM-DD', name: 'GeboortedatumField', keyboardType: UIKeyboardType.number),
+          ],
+        ),
+      ),
+      errorContainer,
+      submitBtn,
+    ],
+  );
+
+  // Wrap in a scrollable container
+  final scrollContainer = UI.container(
+    name: 'GuardianRequestScrollContainer',
+    padding: UIEdgeInsets.all(24),
+    child: formCol,
+  );
+
+  rootCol.children.add(scrollContainer);
+}
+
+// ─── GuardianPage: API-wiring on load ────────────────────────────────────────
+//
+// Koppelt drie sequentiële API-aanroepen aan de ON_INIT_STATE trigger:
+//   GetPendingGuardianRequests → GetGuardianChildren → GetMyGuardianRequests
+// Na afloop: setLoading(false).
+void _wireGuardianPageLoad(FFProject project) {
+  final wc = findPage(project, name: 'GuardianPage');
+  if (wc == null) return;
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  void _setLoading(bool val) {}
+
+  // Build chain: pending → children → myRequests → setLoading(false)
+  final myRequestsNode = Actions.apiCallNode(
+    project,
+    endpointName:       'GetMyGuardianRequests',
+    groupName:          'VoetbalPlannerAPI',
+    outputVariableName: 'guardianMyReqLoad',
+    nodeKey:            wc.node.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updatePageState(project, widgetClassName: 'GuardianPage', updates: [
+        StateFieldUpdate.setFromVariable('myRequests', ctx.responseVar),
+        StateFieldUpdate.set('isLoading', 'false'),
+      ]),
+    ]),
+    onFailure: (ctx) => Actions.chain([
+      Actions.updatePageState(project, widgetClassName: 'GuardianPage', updates: [
+        StateFieldUpdate.set('isLoading', 'false'),
+      ]),
+    ]),
+  );
+
+  final childrenNode = Actions.apiCallNode(
+    project,
+    endpointName:       'GetGuardianChildren',
+    groupName:          'VoetbalPlannerAPI',
+    outputVariableName: 'guardianChildrenLoad',
+    nodeKey:            wc.node.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updatePageState(project, widgetClassName: 'GuardianPage', updates: [
+        StateFieldUpdate.setFromVariable('children', ctx.responseVar),
+      ]),
+    ]),
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Kon kinderen niet laden.'),
+    ]),
+  );
+
+  // Append myRequests after children chain tail
+  var childrenTail = childrenNode;
+  while (childrenTail.hasFollowUpAction()) childrenTail = childrenTail.followUpAction;
+  childrenTail.followUpAction = myRequestsNode;
+
+  final pendingNode = Actions.apiCallNode(
+    project,
+    endpointName:       'GetPendingGuardianRequests',
+    groupName:          'VoetbalPlannerAPI',
+    outputVariableName: 'guardianPendingLoad',
+    nodeKey:            wc.node.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updatePageState(project, widgetClassName: 'GuardianPage', updates: [
+        StateFieldUpdate.setFromVariable('pendingForMe', ctx.responseVar),
+      ]),
+    ]),
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Kon verzoeken niet laden.'),
+    ]),
+  );
+
+  // Append children chain after pending chain tail
+  var pendingTail = pendingNode;
+  while (pendingTail.hasFollowUpAction()) pendingTail = pendingTail.followUpAction;
+  pendingTail.followUpAction = childrenNode;
+
+  Actions.onPageLoadChain(wc.node, pendingNode);
+}
+
+// ─── GuardianPage: Accepteren / Weigeren / Intrekken buttons ─────────────────
+//
+// Koppelt de actieknopen in de list-items aan de juiste API-aanroepen.
+// Na elke actie: snackbar. De pagina herlaadt automatisch bij terugnavigatie
+// (ON_INIT_STATE vuurt opnieuw op iOS/Android navigate-back).
+void _wireGuardianRespondActions(FFProject project) {
+  final wc = findPage(project, name: 'GuardianPage');
+  if (wc == null) return;
+
+  // ── AccepterenButton ──────────────────────────────────────────────────
+  final pendingList = findDescendants(wc.node, (n) => n.name == 'PendingForMeListView').firstOrNull;
+  if (pendingList != null && pendingList.children.isNotEmpty) {
+    final itemTemplate = pendingList.children.first;
+
+    final acceptBtn = findDescendants(itemTemplate, (n) => n.name == 'AccepterenButton').firstOrNull;
+    if (acceptBtn != null) {
+      acceptBtn.triggerActions.removeWhere(
+        (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+      );
+      final linkIdFieldId = _findStructFieldId(project, 'GuardianRequest', 'id');
+      final linkIdVar = linkIdFieldId != null
+          ? (varFromGeneratorVariable(pendingList.key)
+              ..operations.add(FFVariableOperation(
+                accessDataStructField: FFAccessDataStructField(fieldIdentifier: linkIdFieldId.deepCopy()),
+              )))
+          : generatorVarField(pendingList.key, 'id');
+
+      Actions.addTriggerChain(
+        acceptBtn,
+        FFActionTriggerType.ON_TAP,
+        Actions.apiCallNode(
+          project,
+          endpointName:       'RespondGuardianRequest',
+          groupName:          'VoetbalPlannerAPI',
+          variables:          {'action': 'approve'},
+          dynamicVariables:   {'linkId': linkIdVar},
+          outputVariableName: 'gApproveResult',
+          nodeKey:            acceptBtn.key,
+          onSuccess: (ctx) => Actions.chain([
+            Actions.snackBar('Koppeling geaccepteerd. Vernieuw de pagina om de wijziging te zien.'),
+          ]),
+          onFailure: (ctx) => Actions.chain([
+            Actions.snackBar('Actie mislukt, probeer opnieuw.'),
+          ]),
+        ),
+      );
+    }
+
+    // ── WeigerenButton ────────────────────────────────────────────────────
+    final rejectBtn = findDescendants(itemTemplate, (n) => n.name == 'WeigerenButton').firstOrNull;
+    if (rejectBtn != null) {
+      rejectBtn.triggerActions.removeWhere(
+        (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+      );
+      final linkIdFieldId = _findStructFieldId(project, 'GuardianRequest', 'id');
+      final linkIdVar = linkIdFieldId != null
+          ? (varFromGeneratorVariable(pendingList.key)
+              ..operations.add(FFVariableOperation(
+                accessDataStructField: FFAccessDataStructField(fieldIdentifier: linkIdFieldId.deepCopy()),
+              )))
+          : generatorVarField(pendingList.key, 'id');
+
+      Actions.addTriggerChain(
+        rejectBtn,
+        FFActionTriggerType.ON_TAP,
+        Actions.apiCallNode(
+          project,
+          endpointName:       'RespondGuardianRequest',
+          groupName:          'VoetbalPlannerAPI',
+          variables:          {'action': 'reject'},
+          dynamicVariables:   {'linkId': linkIdVar},
+          outputVariableName: 'gRejectResult',
+          nodeKey:            rejectBtn.key,
+          onSuccess: (ctx) => Actions.chain([
+            Actions.snackBar('Verzoek geweigerd.'),
+          ]),
+          onFailure: (ctx) => Actions.chain([
+            Actions.snackBar('Actie mislukt, probeer opnieuw.'),
+          ]),
+        ),
+      );
+    }
+  }
+
+  // ── IntrekkenButton ────────────────────────────────────────────────────
+  final childrenList = findDescendants(wc.node, (n) => n.name == 'GuardianChildrenListView').firstOrNull;
+  if (childrenList != null && childrenList.children.isNotEmpty) {
+    final itemTemplate = childrenList.children.first;
+    final intrekkenBtn = findDescendants(itemTemplate, (n) => n.name == 'IntrekkenButton').firstOrNull;
+    if (intrekkenBtn != null) {
+      intrekkenBtn.triggerActions.removeWhere(
+        (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+      );
+      final linkIdFieldId = _findStructFieldId(project, 'GuardianChild', 'linkId');
+      final linkIdVar = linkIdFieldId != null
+          ? (varFromGeneratorVariable(childrenList.key)
+              ..operations.add(FFVariableOperation(
+                accessDataStructField: FFAccessDataStructField(fieldIdentifier: linkIdFieldId.deepCopy()),
+              )))
+          : generatorVarField(childrenList.key, 'linkId');
+
+      Actions.addTriggerChain(
+        intrekkenBtn,
+        FFActionTriggerType.ON_TAP,
+        Actions.apiCallNode(
+          project,
+          endpointName:       'RevokeGuardianLink',
+          groupName:          'VoetbalPlannerAPI',
+          dynamicVariables:   {'linkId': linkIdVar},
+          outputVariableName: 'gRevokeResult',
+          nodeKey:            intrekkenBtn.key,
+          onSuccess: (ctx) => Actions.chain([
+            Actions.snackBar('Koppeling ingetrokken.'),
+          ]),
+          onFailure: (ctx) => Actions.chain([
+            Actions.snackBar('Intrekken mislukt, probeer opnieuw.'),
+          ]),
+        ),
+      );
+    }
+  }
+}
+
+// ─── GuardianRequestPage: TextField → page state binding ─────────────────────
+//
+// Bindt elke TextField aan zijn page-state-veld via localStateValue = true.
+// Hetzelfde patroon als _fixChatTextFieldDebounce: instant updates, geen debounce.
+void _wireGuardianRequestTextFields(FFProject project) {
+  final wc = findPage(project, name: 'GuardianRequestPage');
+  if (wc == null) return;
+
+  void _bindField(String fieldName, String stateFieldName) {
+    final tf = findDescendants(wc.node, (n) => n.name == fieldName).firstOrNull;
+    if (tf == null) return;
+    final stateId = _findPageStateFieldId(project, 'GuardianRequestPage', stateFieldName);
+    if (stateId == null) return;
+
+    tf.props.ensureTextField().debounceTimeValue = FFDoubleValue(inputValue: 0.0);
+    tf.props.textField.localStateValue = true;
+    tf.props.textField.initialText = FFText(
+      textValue: FFStringValue(
+        variable: varFromPageState(stateId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      ),
+    );
+  }
+
+  _bindField('LidnummerField',    'lidnummer');
+  _bindField('AchternaamField',   'achternaam');
+  _bindField('GeboortedatumField','geboortedatum');
+}
+
+// ─── GuardianRequestPage: formulier submit ────────────────────────────────────
+//
+// Koppelt de SubmitGuardianButton aan RequestGuardianAccess.
+// Leest veldwaarden via page state (gevoed door TextField localStateValue bindings).
+void _wireGuardianRequestSubmit(FFProject project) {
+  final wc = findPage(project, name: 'GuardianRequestPage');
+  if (wc == null) return;
+
+  final submitBtn = findDescendants(wc.node, (n) => n.name == 'SubmitGuardianButton').firstOrNull;
+  if (submitBtn == null) return;
+
+  submitBtn.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+
+  final scaffoldKey = wc.node.key;
+
+  FFVariable _stateVar(String name) {
+    final id = _findPageStateFieldId(project, 'GuardianRequestPage', name);
+    if (id == null) return varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING);
+    return varFromPageState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  final errorMsgId = _findPageStateFieldId(project, 'GuardianRequestPage', 'errorMessage');
+
+  final submitNode = Actions.apiCallNode(
+    project,
+    endpointName:       'RequestGuardianAccess',
+    groupName:          'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'lidnummer':     _stateVar('lidnummer'),
+      'achternaam':    _stateVar('achternaam'),
+      'geboortedatum': _stateVar('geboortedatum'),
+    },
+    outputVariableName: 'guardianRequestResult',
+    nodeKey:            submitBtn.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updatePageState(project, widgetClassName: 'GuardianRequestPage',
+          updates: [StateFieldUpdate.set('errorMessage', '')]),
+      Actions.snackBar('Koppelverzoek verstuurd! Het lid wordt gevraagd dit te bevestigen.'),
+      Actions.navigate(project, pageName: 'GuardianPage'),
+    ]),
+    onFailure: (ctx) => Actions.chain([
+      Actions.updatePageState(project, widgetClassName: 'GuardianRequestPage',
+          updates: [StateFieldUpdate.set('errorMessage', 'Geen lid gevonden met deze gegevens.')]),
+      Actions.snackBar('Geen lid gevonden met deze gegevens.'),
+    ]),
+  );
+
+  Actions.addTriggerChain(submitBtn, FFActionTriggerType.ON_TAP, submitNode);
+}
+
 // SwapRequestCard component: shows requester, duty label, accept + decline buttons.
 void _buildSwapRequestCard(App app, StructHandle swapRequest) {
   // addComponent in project_helpers.dart is idempotent for components:
@@ -7102,6 +8158,173 @@ void _rebuildChatMessageBubbles(FFProject project) {
   ownCol.children.add(metaRow);
 }
 
+// Nuclear rebuild of ChatDetailPage (staff chat) message bubbles with left/right
+// alignment and read receipts. Clears Column_e6dtwbzq and replaces with:
+//   OtherBubbleRow (visible: senderId != userEmail, mainAxis: start)
+//   OwnBubbleRow   (visible: senderId == userEmail, mainAxis: end)
+// Non-idempotent by design: always rebuilds so UI.row() rows replace the legacy
+// FlutterFlow rows that had minSizeValue=true and ignored mainAxisAlignment.
+void _rebuildChatDetailBubbles(FFProject project) {
+  final wc = findPage(project, name: 'ChatDetailPage');
+  if (wc == null) return;
+
+  final innerCol = findByKey(wc.node, 'Column_e6dtwbzq');
+  if (innerCol == null) return;
+
+  final userEmailId = _findAppStateFieldId(project, 'userEmail');
+  if (userEmailId == null) return;
+
+  const listKey     = 'ListView_ws05qhut';
+  const kSenderId   = '9hloj348'; // chatMessages.senderId
+  const kSenderName = 'kyzfo8ov'; // chatMessages.senderName
+  const kText       = '4ezq3smy'; // chatMessages.text
+  const kCreatedAt  = 'p94w5qdd'; // chatMessages.createdAt
+  final isReadField = findCollectionField(project, collectionName: 'chatMessages', fieldName: 'isRead');
+
+  FFVariable _field(String key, String name) => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: key, name: name),
+      ),
+    ));
+
+  FFVariable _formattedTime() => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: kCreatedAt, name: 'createdAt'),
+      ),
+    ))
+    ..operations.add(FFVariableOperation(
+      dateTimeFormat: FFDateTimeFormat(format: 'HH:mm', isCustom: true),
+    ));
+
+  FFNode _txt(String nodeName, String fieldKey, String fieldName, {
+    FFText_ThemeStyle style = FFText_ThemeStyle.BODY_MEDIUM,
+    FFColor_ThemeColor? color,
+  }) {
+    final node = UI.text('', name: nodeName, style: UITextStyle.bodyMedium);
+    final copy = node.props.text.deepCopy();
+    copy.themeStyle = style;
+    copy.textValue  = FFStringValue(variable: _field(fieldKey, fieldName));
+    if (color != null) copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: color));
+    node.props.text = copy;
+    return node;
+  }
+
+  FFNode _timeTxt(String nodeName, {FFColor_ThemeColor color = FFColor_ThemeColor.SECONDARY_TEXT}) {
+    final node = UI.text('', name: nodeName, style: UITextStyle.bodySmall);
+    final copy = node.props.text.deepCopy();
+    copy.themeStyle = FFText_ThemeStyle.BODY_SMALL;
+    copy.textValue  = FFStringValue(variable: _formattedTime());
+    copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: color));
+    node.props.text = copy;
+    return node;
+  }
+
+  innerCol.children.clear();
+
+  // ── Others' bubble (left) ──────────────────────────────────────────────────
+  final otherMsgCol = UI.column(
+    name: 'OtherMsgCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 4,
+    children: [
+      _txt('OtherSenderName', kSenderName, 'senderName',
+        style: FFText_ThemeStyle.LABEL_MEDIUM, color: FFColor_ThemeColor.PRIMARY),
+      _txt('OtherMsgText', kText, 'text'),
+      _timeTxt('OtherMsgTime'),
+    ],
+  );
+
+  final otherBubble = UI.container(
+    name: 'OtherBubble',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 12,
+    color: UIColor.secondaryBackground,
+    child: otherMsgCol,
+  );
+
+  final otherRow = UI.row(
+    name: 'OtherBubbleRow',
+    mainAxisAlignment: UIMainAxisAlignment.start,
+    children: [otherBubble],
+  );
+  setConditionalVisibility(
+    otherRow,
+    variable: conditionVar(
+      _field(kSenderId, 'senderId'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromAppState(userEmailId.deepCopy()),
+    ).variable,
+  );
+
+  // ── Own bubble (right) ────────────────────────────────────────────────────
+  FFVariable? isReadVar;
+  FFVariable? notIsReadVar;
+  if (isReadField != null) {
+    isReadVar = _field(isReadField.identifier.key, 'isRead');
+    notIsReadVar = varFromGeneratorVariable(listKey)
+      ..operations.add(FFVariableOperation(
+        accessDocumentField: FFAccessDocumentField(
+          fieldIdentifier: FFIdentifier(key: isReadField.identifier.key, name: 'isRead'),
+        ),
+      ))
+      ..operations.add(FFVariableOperation(negate: FFNegateBoolean()));
+  }
+
+  final ownMsgMeta = UI.row(
+    name: 'OwnMsgMeta',
+    mainAxisAlignment: UIMainAxisAlignment.end,
+    spacing: 4,
+    children: [_timeTxt('OwnMsgTime', color: FFColor_ThemeColor.PRIMARY_BACKGROUND)],
+  );
+
+  final sentIcon = UI.icon('done', size: 14, color: UIColor.primaryBackground, name: 'ReadReceiptSent');
+  if (notIsReadVar != null) setConditionalVisibility(sentIcon, variable: notIsReadVar);
+  ownMsgMeta.children.add(sentIcon);
+
+  final readIcon = UI.icon('done_all', size: 14, color: UIColor.primaryBackground, name: 'ReadReceiptRead');
+  if (isReadVar != null) setConditionalVisibility(readIcon, variable: isReadVar);
+  ownMsgMeta.children.add(readIcon);
+
+  final ownMsgCol = UI.column(
+    name: 'OwnMsgCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 4,
+    children: [
+      _txt('OwnSenderName', kSenderName, 'senderName',
+        style: FFText_ThemeStyle.LABEL_MEDIUM, color: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+      _txt('OwnMsgText', kText, 'text', color: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+      ownMsgMeta,
+    ],
+  );
+
+  final ownBubble = UI.container(
+    name: 'OwnBubble',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 12,
+    color: UIColor.primary,
+    child: ownMsgCol,
+  );
+
+  final ownRow = UI.row(
+    name: 'OwnBubbleRow',
+    mainAxisAlignment: UIMainAxisAlignment.end,
+    children: [ownBubble],
+  );
+  setConditionalVisibility(
+    ownRow,
+    variable: conditionVar(
+      _field(kSenderId, 'senderId'),
+      FFCondition_Relation.EQUAL_TO,
+      varFromAppState(userEmailId.deepCopy()),
+    ).variable,
+  );
+
+  innerCol.children.add(otherRow);
+  innerCol.children.add(ownRow);
+}
+
 // Sets debounceTimeValue=0 on the chat TextField so that onChange fires
 // immediately without the default 2000ms EasyDebounce delay. This ensures
 // _model.messageText is always in sync when the send button's condition fires.
@@ -7634,10 +8857,10 @@ void _fixMemberChipStyle(FFProject project) {
   }
 }
 
-// Improves ChatsPage DirectMemberChip appearance:
-//   DirectMemberName: body_small → label_medium (more readable)
-//   DirectMemberAvatar: empty container → primary-colored circle with person icon
-//   DirectMemberChip: wider via dimensions deepCopy
+// Improves ChatsPage DirectMemberChip appearance (runs every push to patch
+// whatever structure is current after _convertDirectMembersToList):
+//   DirectMemberName: ensure label_medium style
+//   DirectMemberAvatar: ensure primary-colored circle with person icon
 void _fixDirectMemberChipStyle(FFProject project) {
   final wc = findPage(project, name: 'ChatsPage');
   if (wc == null) return;
@@ -7659,16 +8882,210 @@ void _fixDirectMemberChipStyle(FFProject project) {
       avatar.children.add(UI.icon('person', size: 22, color: UIColor.primaryBackground));
     }
   }
+}
 
-  // Widen chip from 60 → 76px so the name has more room.
-  final chip = findDescendants(wc.node, (n) => n.name == 'DirectMemberChip').firstOrNull;
-  if (chip != null) {
-    final existingDims = chip.props.container.hasDimensions()
-        ? chip.props.container.dimensions.deepCopy()
-        : FFDimensions();
-    existingDims.width = FFDim(legacyPixels: 76.0);
-    chip.props.container.dimensions = existingDims;
+// Sets height=40 on every Button widget across all pages and components.
+// IconButton widgets are intentionally excluded (different widget type).
+void _setAllButtonHeights(FFProject project) {
+  final allWidgetClasses = [
+    for (final key in project.pageKeys)
+      if (project.widgetClasses[key] case final wc?) wc,
+    ...project.getComponents(),
+  ];
+
+  for (final wc in allWidgetClasses) {
+    final buttons = [
+      if (wc.node.type == FFWidgetType.Button) wc.node,
+      ...findDescendants(wc.node, (n) => n.type == FFWidgetType.Button),
+    ];
+    for (final btn in buttons) {
+      final tmpDims = UI.button('', height: 40).props.button.dimensions.deepCopy();
+      if (!btn.props.button.hasDimensions()) {
+        btn.props.button.dimensions = tmpDims;
+      } else {
+        final dims = btn.props.button.dimensions.deepCopy();
+        dims.height = tmpDims.height.deepCopy();
+        btn.props.button.dimensions = dims;
+      }
+    }
   }
+}
+
+// Adds orderBy createdAt ascending to every Firestore message query on all chat
+// pages so messages always arrive oldest-first (newest at the bottom of the list).
+// Covers TeamChatPage (teamChats), GroupChatPage (groupMessages),
+// ChatDetailPage (chatMessages), and DirectChatPage (directMessages).
+void _sortChatMessagesByCreatedAt(FFProject project) {
+  const targets = [
+    ('TeamChatPage',   'teamChats'),
+    ('GroupChatPage',  'groupMessages'),
+    ('ChatDetailPage', 'chatMessages'),
+    ('DirectChatPage', 'directMessages'),
+  ];
+
+  for (final (pageName, collName) in targets) {
+    final wc = findPage(project, name: pageName);
+    if (wc == null) continue;
+
+    final createdAtField = findCollectionField(
+      project,
+      collectionName: collName,
+      fieldName: 'createdAt',
+    );
+    if (createdAtField == null) continue;
+
+    final allNodes = [wc.node, ...findDescendants(wc.node, (_) => true)];
+    for (final node in allNodes) {
+      for (final trigger in node.triggerActions) {
+        if (trigger.hasRootAction()) {
+          _applyOrderByToActionChain(
+            trigger.rootAction,
+            createdAtField.identifier,
+            collectionName: collName,
+          );
+        }
+      }
+    }
+  }
+}
+
+void _applyOrderByToActionChain(
+  FFActionNode node,
+  FFIdentifier createdAtFieldId, {
+  String? collectionName,
+}) {
+  if (node.hasAction() &&
+      node.action.hasDatabase() &&
+      node.action.database.hasFirestoreQuery()) {
+    final query = node.action.database.firestoreQuery;
+    if ((collectionName == null ||
+            query.collectionIdentifier.name == collectionName) &&
+        query.orderBy.isEmpty) {
+      query.orderBy.add(
+        FFFirestoreOrderBy(
+          collectionFieldIdentifier: createdAtFieldId.deepCopy(),
+          descending: false,
+        ),
+      );
+    }
+  }
+
+  if (node.hasConditionActions()) {
+    for (final branch in node.conditionActions.trueActions) {
+      if (branch.hasTrueAction()) {
+        _applyOrderByToActionChain(
+          branch.trueAction,
+          createdAtFieldId,
+          collectionName: collectionName,
+        );
+      }
+    }
+    if (node.conditionActions.hasFalseAction()) {
+      _applyOrderByToActionChain(
+        node.conditionActions.falseAction,
+        createdAtFieldId,
+        collectionName: collectionName,
+      );
+    }
+  }
+  if (node.hasLoopAction() && node.loopAction.hasAction()) {
+    _applyOrderByToActionChain(
+      node.loopAction.action,
+      createdAtFieldId,
+      collectionName: collectionName,
+    );
+  }
+  if (node.hasParallelActions()) {
+    for (final branch in node.parallelActions.actions) {
+      _applyOrderByToActionChain(
+        branch,
+        createdAtFieldId,
+        collectionName: collectionName,
+      );
+    }
+  }
+  if (node.hasFollowUpAction()) {
+    _applyOrderByToActionChain(
+      node.followUpAction,
+      createdAtFieldId,
+      collectionName: collectionName,
+    );
+  }
+}
+
+// Increases the row height of GroupChip and StaffGroupChip by setting taller
+// vertical padding — matches WhatsApp-style list item height (~56px).
+void _makeGroupChipsTaller(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  for (final name in ['GroupChip', 'StaffGroupChip']) {
+    final chip = findDescendants(wc.node, (n) => n.name == name).firstOrNull;
+    if (chip == null) continue;
+    final tmpChip = UI.container(padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 18));
+    chip.props.padding = tmpChip.props.padding;
+  }
+}
+
+// Converts the DirectMember horizontal chip strip to a full-width vertical list
+// matching the GroupChip/StaffGroupChip row style. Non-idempotent: always rebuilds
+// the chip layout so it stays consistent with changes to group/staff chip styles.
+void _convertDirectMembersToList(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  final memberList = findDescendants(wc.node, (n) => n.name == 'ChatsDirectMemberList').firstOrNull;
+  if (memberList != null) {
+    final lvCopy = memberList.props.listView.deepCopy();
+    lvCopy.axis = FFAxis.FF_AXIS_VERTICAL;
+    lvCopy.shrinkWrapValue = FFBooleanValue(inputValue: true);
+    memberList.props.listView = lvCopy;
+  }
+
+  // Remove fixed height from the strip wrapper so it can grow with the list.
+  final strip = findDescendants(wc.node, (n) => n.name == 'ChatsDirectStripInner').firstOrNull;
+  if (strip != null && strip.props.container.hasDimensions()) {
+    final c = strip.props.container.deepCopy();
+    c.dimensions.clearHeight();
+    strip.props.container = c;
+  }
+
+  // Rebuild DirectMemberChip as a full-width row (avatar | name | chevron).
+  final chip = findDescendants(wc.node, (n) => n.name == 'DirectMemberChip').firstOrNull;
+  if (chip == null) return;
+
+  // Remove fixed width so the chip fills the list item width.
+  if (chip.props.container.hasDimensions()) {
+    final c = chip.props.container.deepCopy();
+    c.dimensions.clearWidth();
+    chip.props.container = c;
+  }
+  final tmpChipPad = UI.container(padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 14));
+  chip.props.padding = tmpChipPad.props.padding;
+
+  // Rebuild internals: column (avatar + name) → row (avatar | name | chevron).
+  chip.children.clear();
+
+  final avatar = UI.container(name: 'DirectMemberAvatar', width: 40, height: 40, borderRadius: 20);
+  _setContainerColor(avatar, FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY)));
+  avatar.children.add(UI.icon('person', size: 22, color: UIColor.primaryBackground));
+
+  final nameText = UI.text('', name: 'DirectMemberName', style: UITextStyle.labelMedium);
+  if (memberList != null) {
+    nameText.props.text.textValue = FFStringValue(
+      variable: generatorVarField(memberList.key, 'name'),
+    );
+  }
+
+  chip.children.add(UI.row(
+    name: 'DirectMemberRow',
+    spacing: 12,
+    children: [
+      avatar,
+      nameText,
+      UI.icon('chevron_right', size: 18, color: UIColor.secondaryText),
+    ],
+  ));
 }
 
 // Adds a "Staffgroepen" section to ChatsPage body — a ListView bound to the
@@ -8076,6 +9493,225 @@ void _fixDashboardListViewShrinkWrap(FFProject project) {
     lvCopy.shrinkWrapValue = FFBooleanValue(inputValue: true);
     node.props.listView = lvCopy;
   }
+}
+
+// Adds a "Rijschema" section to the DashboardPage body:
+//   - driveMatches state field (List<FootMatch>)
+//   - Section header "Rijschema" + DashboardDriveContainer with DashboardDriveList
+//   - Card shows opponent + matchDatetime (same style as DashboardMatchCard)
+// Idempotent: skips if DashboardDriveContainer already present.
+void _addDashboardDriveSection(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  // Skip if section already built.
+  if (findDescendants(wc.node, (n) => n.name == 'DashboardDriveContainer').isNotEmpty) return;
+
+  // Ensure driveMatches state field exists.
+  // Use isList=true on the parameter (not listType wrapping) — correct serialization
+  // for DataStruct list fields per R15 diagnostic guidance.
+  final fieldExists = wc.classModel.stateFields.any(
+    (f) => f.parameter.identifier.name == 'driveMatches',
+  );
+  if (!fieldExists) {
+    final struct = findDataStruct(project, name: 'FootMatch');
+    if (struct == null) return;
+    final fieldId = FFIdentifier(
+      name: 'driveMatches',
+      key: generateRandomAlphaNumericString(),
+    );
+    final param = FFParameter(
+      identifier: fieldId,
+      dataType: dataStructType(struct.identifier.deepCopy()),
+    );
+    param.isList = true;
+    wc.classModel.stateFields.add(FFWidgetClassStateField(parameter: param));
+  }
+
+  final driveMatchesId = _findPageStateFieldId(project, 'DashboardPage', 'driveMatches');
+  if (driveMatchesId == null) return;
+
+  final bodyCol = getPropertyChild(wc.node, 'body');
+  if (bodyCol == null) return;
+
+  // Section label.
+  final labelContainer = UI.container(
+    name: 'DashboardDriveLabelContainer',
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    child: UI.text('Rijschema', name: 'DashboardDriveLabel', style: UITextStyle.titleSmall),
+  );
+
+  // Content container.
+  final driveMatchesVar = varFromPageState(driveMatchesId.deepCopy());
+  driveMatchesVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final listView = UI.listView(
+    name: 'DashboardDriveList',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    dynamicSource: DynamicSource(variable: driveMatchesVar, itemName: 'driveMatch'),
+  );
+
+  // shrinkWrap — same fix as DashboardMatchesList/DashboardDutiesList.
+  final lvCopy = listView.props.listView.deepCopy();
+  lvCopy.shrinkWrapValue = FFBooleanValue(inputValue: true);
+  listView.props.listView = lvCopy;
+
+  final opponentText = UI.text('', name: 'DashboardDriveOpponent', style: UITextStyle.bodyMedium);
+  opponentText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'opponent'));
+
+  final dateText = UI.text('', name: 'DashboardDriveDate', style: UITextStyle.bodySmall);
+  dateText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'matchDatetime'));
+
+  final card = UI.container(
+    name: 'DashboardDriveCard',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.secondaryBackground,
+    child: UI.row(
+      name: 'DashboardDriveRow',
+      spacing: 12,
+      children: [
+        UI.icon('directions_car', size: 24, color: UIColor.primary),
+        UI.column(
+          name: 'DashboardDriveInfo',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 4,
+          children: [opponentText, dateText],
+        ),
+      ],
+    ),
+  );
+
+  listView.children.add(card);
+
+  final driveContainer = UI.container(name: 'DashboardDriveContainer', child: listView);
+
+  bodyCol.children.add(labelContainer);
+  bodyCol.children.add(driveContainer);
+}
+
+// Adds "Niets gepland" placeholder text below each dashboard ListView.
+// Visibility uses a "first item field == empty" heuristic:
+//   - empty list  → first?.field returns null/""  → EQUAL_TO EMPTY_STRING → show placeholder
+//   - non-empty   → first?.field has value         → NOT equal → hide placeholder
+// Idempotent: skips if placeholder already present.
+void _addDashboardEmptyPlaceholders(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  final scaffoldKey = wc.node.key;
+
+  // Finds the identifier of a named field inside a DataStruct.
+  FFIdentifier? _structField(String structName, String fieldName) {
+    final s = findDataStruct(project, name: structName);
+    if (s == null) return null;
+    return s.fields
+        .cast<FFParameter?>()
+        .firstWhere((f) => f?.identifier.name == fieldName, orElse: () => null)
+        ?.identifier;
+  }
+
+  // Builds a boolean variable: true when the first item's string field is empty/null.
+  // This is true exactly when the list itself is empty (empty list → no first item → field = "").
+  FFVariable? _isEmptyVar(FFIdentifier stateFieldId, FFIdentifier? fieldId) {
+    if (fieldId == null) return null;
+    final firstFieldVar = varFromPageState(stateFieldId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)
+      ..operations.add(FFVariableOperation(
+        listItemAtIndex: FFListItemAtIndex(type: FFListItemAtIndex_IndexType.FIRST),
+      ))
+      ..operations.add(FFVariableOperation(
+        accessDataStructField: FFAccessDataStructField(
+          fieldIdentifier: fieldId.deepCopy(),
+        ),
+      ));
+    return conditionVar(
+      firstFieldVar,
+      FFCondition_Relation.EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable;
+  }
+
+  // Builds a placeholder Text node with conditional visibility.
+  FFNode _placeholder(String nodeName, FFVariable isEmptyVar) {
+    final text = UI.text('Niets gepland', name: nodeName, style: UITextStyle.bodySmall);
+    final copy = text.props.text.deepCopy();
+    copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT));
+    text.props.text = copy;
+    final padRef = UI.container(padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 8));
+    text.props.padding = padRef.props.padding.deepCopy();
+    setConditionalVisibility(text, variable: isEmptyVar);
+    return text;
+  }
+
+  // Configs: [containerName, stateName, placeholderName, structName, fieldName]
+  const configs = [
+    ('DashboardMatchesContainer', 'matches',      'DashboardMatchesEmpty', 'FootMatch', 'opponent'),
+    ('DashboardDutiesContainer',  'duties',       'DashboardDutiesEmpty',  'BarDuty',   'shift'),
+    ('DashboardDriveContainer',   'driveMatches', 'DashboardDriveEmpty',   'FootMatch', 'opponent'),
+  ];
+
+  for (final (containerName, stateName, placeholderName, structName, fieldName) in configs) {
+    final container = findDescendants(wc.node, (n) => n.name == containerName).firstOrNull;
+    if (container == null) continue;
+    if (findDescendants(container, (n) => n.name == placeholderName).isNotEmpty) continue;
+
+    final stateFieldId = _findPageStateFieldId(project, 'DashboardPage', stateName);
+    if (stateFieldId == null) continue;
+    final fieldId = _structField(structName, fieldName);
+    final isEmptyVar = _isEmptyVar(stateFieldId, fieldId);
+    if (isEmptyVar == null) continue;
+
+    final placeholder = _placeholder(placeholderName, isEmptyVar);
+
+    if (container.children.isEmpty) continue;
+    final listView = container.children.first;
+    final col = UI.column(
+      name: '${containerName}Col',
+      children: [listView, placeholder],
+    );
+    container.children.clear();
+    container.children.add(col);
+  }
+}
+
+// Appends a GetDriveSchedule API call to the DashboardPage ON_INIT_STATE chain.
+// Must be called AFTER _wireDashboardLoad (which rebuilds the chain from scratch)
+// so it always lands at the tail: matches → duties → driveSchedule.
+void _wireDashboardDriveScheduleLoad(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  final authTokenId = project.appState.fields
+      .cast<FFAppStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'authToken', orElse: () => null)
+      ?.parameter.identifier;
+  if (authTokenId == null) return;
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetDriveSchedule',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+      },
+      outputVariableName: 'dashDrive',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'DashboardPage',
+          updates: [StateFieldUpdate.setFromVariable('driveMatches', ctx.responseVar)],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Kon rijschema niet laden.'),
+      ]),
+    ),
+  );
 }
 
 // Rebinds GroupChipName to use accessDocumentField with only the field name
@@ -8508,45 +10144,8 @@ void _fixGroupChatPage(FFProject project) {
   final userEmailId = _findAppStateFieldId(project, 'userEmail');
   if (userEmailId == null) return;
 
-  // ── 1. Fix bubble visibility ─────────────────────────────────────────────
-  // Row_j8ozlvxw: "other" bubble — visible when senderId != userEmail
-  // Row_z94tcbcb: "own"   bubble — visible when senderId == userEmail
-  const listKey     = 'ListView_6t0r29c1';
-  const senderIdKey = '5nh0jzir'; // groupMessages.senderId field key
-
-  final senderIdVar = varFromGeneratorVariable(listKey)
-    ..operations.add(FFVariableOperation(
-      accessDocumentField: FFAccessDocumentField(
-        fieldIdentifier: FFIdentifier(key: senderIdKey, name: 'senderId'),
-      ),
-    ));
-  final userEmailVar = varFromAppState(userEmailId.deepCopy());
-
-  final otherRow = findByKey(wc.node, 'Row_j8ozlvxw');
-  if (otherRow != null) {
-    setConditionalVisibility(
-      otherRow,
-      variable: conditionVar(
-        senderIdVar.deepCopy(),
-        FFCondition_Relation.NOT_EQUAL_TO,
-        userEmailVar.deepCopy(),
-      ).variable,
-    );
-  }
-
-  final ownRow = findByKey(wc.node, 'Row_z94tcbcb');
-  if (ownRow != null) {
-    setConditionalVisibility(
-      ownRow,
-      variable: conditionVar(
-        senderIdVar.deepCopy(),
-        FFCondition_Relation.EQUAL_TO,
-        userEmailVar.deepCopy(),
-      ).variable,
-    );
-  }
-
-  // ── 2 & 3. Fix send button: senderId + refresh wait ──────────────────────
+  // ── Fix send button: senderId + refresh wait ─────────────────────────────
+  // Bubble layout and visibility are handled by _rebuildGroupChatBubbles.
   final sendBtn = findByKey(wc.node, 'IconButton_tgwfn8d7');
   if (sendBtn == null) return;
 
@@ -8603,6 +10202,768 @@ void _fixGroupChatPage(FFProject project) {
     }
     prev = curr;
   }
+}
+
+// Adds formatted timestamps and senderName to GroupChatPage message bubbles to
+// match ChatDetailPage layout:
+//   - Others' bubble (Column_x195x8zz): append OtherMsgTime (HH:mm, secondaryText)
+//   - Own bubble     (Column_qsknd353):  prepend OwnSenderName, insert OwnMsgMeta row
+//     (with OwnMsgTime) before OwnActionsRow.
+// Idempotent: each part is guarded by a name-based presence check.
+void _fixGroupChatBubbles(FFProject project) {
+  final wc = findPage(project, name: 'GroupChatPage');
+  if (wc == null) return;
+
+  const listKey     = 'ListView_6t0r29c1';
+  const kSenderName = 'opya0tqd'; // groupMessages.senderName
+  const kCreatedAt  = 'a4h76kji'; // groupMessages.createdAt
+
+  FFVariable _field(String key, String name) => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: key, name: name),
+      ),
+    ));
+
+  FFVariable _formattedTime() => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: kCreatedAt, name: 'createdAt'),
+      ),
+    ))
+    ..operations.add(FFVariableOperation(
+      dateTimeFormat: FFDateTimeFormat(format: 'HH:mm', isCustom: true),
+    ));
+
+  // ── Others' bubble ──────────────────────────────────────────────────────────
+  final otherCol = findByKey(wc.node, 'Column_x195x8zz');
+  if (otherCol != null && !otherCol.children.any((n) => n.name == 'OtherMsgTime')) {
+    final timeNode = UI.text('', name: 'OtherMsgTime', style: UITextStyle.bodySmall);
+    final copy = timeNode.props.text.deepCopy();
+    copy.themeStyle = FFText_ThemeStyle.BODY_SMALL;
+    copy.textValue  = FFStringValue(variable: _formattedTime());
+    copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT));
+    timeNode.props.text = copy;
+    otherCol.children.add(timeNode);
+  }
+
+  // ── Own bubble ──────────────────────────────────────────────────────────────
+  final ownCol = findByKey(wc.node, 'Column_qsknd353');
+  if (ownCol == null) return;
+
+  if (!ownCol.children.any((n) => n.name == 'OwnSenderName')) {
+    final senderNode = UI.text('', name: 'OwnSenderName', style: UITextStyle.labelMedium);
+    final copy = senderNode.props.text.deepCopy();
+    copy.themeStyle = FFText_ThemeStyle.LABEL_MEDIUM;
+    copy.textValue  = FFStringValue(variable: _field(kSenderName, 'senderName'));
+    copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_BACKGROUND));
+    senderNode.props.text = copy;
+    ownCol.children.insert(0, senderNode);
+  }
+
+  if (!ownCol.children.any((n) => n.name == 'OwnMsgMeta')) {
+    final timeNode = UI.text('', name: 'OwnMsgTime', style: UITextStyle.bodySmall);
+    final copy = timeNode.props.text.deepCopy();
+    copy.themeStyle = FFText_ThemeStyle.BODY_SMALL;
+    copy.textValue  = FFStringValue(variable: _formattedTime());
+    copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_BACKGROUND));
+    timeNode.props.text = copy;
+
+    final metaRow = UI.row(
+      name: 'OwnMsgMeta',
+      mainAxisAlignment: UIMainAxisAlignment.end,
+      spacing: 4,
+      children: [timeNode],
+    );
+
+    final ownActionsIdx = ownCol.children.indexWhere((n) => n.name == 'OwnActionsRow');
+    if (ownActionsIdx >= 0) {
+      ownCol.children.insert(ownActionsIdx, metaRow);
+    } else {
+      ownCol.children.add(metaRow);
+    }
+  }
+}
+
+// Nuclear rebuild of GroupChatPage message bubbles with left/right alignment.
+// Clears Column_dk9brcp8 (list item column) and replaces with:
+//   OtherBubbleRow (visible: senderId != userEmail, mainAxis: start)
+//   OwnBubbleRow   (visible: senderId == userEmail, mainAxis: end)
+// Non-idempotent by design: always rebuilds so UI.row() rows replace the legacy
+// FlutterFlow rows that had minSizeValue=true and ignored mainAxisAlignment.
+void _rebuildGroupChatBubbles(FFProject project) {
+  final wc = findPage(project, name: 'GroupChatPage');
+  if (wc == null) return;
+
+  final innerCol = findByKey(wc.node, 'Column_dk9brcp8');
+  if (innerCol == null) return;
+
+  final userNameId = _findAppStateFieldId(project, 'userName');
+  if (userNameId == null) return;
+
+  const listKey     = 'ListView_6t0r29c1';
+  const kSenderName = 'opya0tqd'; // groupMessages.senderName
+  const kText       = 'l46qea8h'; // groupMessages.text
+  const kCreatedAt  = 'a4h76kji'; // groupMessages.createdAt
+
+  FFVariable _field(String key, String name) => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: key, name: name),
+      ),
+    ));
+
+  FFVariable _formattedTime() => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: kCreatedAt, name: 'createdAt'),
+      ),
+    ))
+    ..operations.add(FFVariableOperation(
+      dateTimeFormat: FFDateTimeFormat(format: 'HH:mm', isCustom: true),
+    ));
+
+  FFNode _txt(String nodeName, String fieldKey, String fieldName, {
+    FFText_ThemeStyle style = FFText_ThemeStyle.BODY_MEDIUM,
+    FFColor_ThemeColor? color,
+  }) {
+    final node = UI.text('', name: nodeName, style: UITextStyle.bodyMedium);
+    final copy = node.props.text.deepCopy();
+    copy.themeStyle = style;
+    copy.textValue  = FFStringValue(variable: _field(fieldKey, fieldName));
+    if (color != null) copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: color));
+    node.props.text = copy;
+    return node;
+  }
+
+  FFNode _timeTxt(String nodeName, {FFColor_ThemeColor color = FFColor_ThemeColor.SECONDARY_TEXT}) {
+    final node = UI.text('', name: nodeName, style: UITextStyle.bodySmall);
+    final copy = node.props.text.deepCopy();
+    copy.themeStyle = FFText_ThemeStyle.BODY_SMALL;
+    copy.textValue  = FFStringValue(variable: _formattedTime());
+    copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: color));
+    node.props.text = copy;
+    return node;
+  }
+
+  innerCol.children.clear();
+
+  // ── Others' bubble (left) ──────────────────────────────────────────────────
+  final otherMsgCol = UI.column(
+    name: 'OtherMsgCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 4,
+    children: [
+      _txt('OtherSenderName', kSenderName, 'senderName',
+        style: FFText_ThemeStyle.LABEL_MEDIUM, color: FFColor_ThemeColor.PRIMARY),
+      _txt('OtherMsgText', kText, 'text'),
+      _timeTxt('OtherMsgTime'),
+    ],
+  );
+
+  final otherBubble = UI.container(
+    name: 'OtherBubble',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 12,
+    color: UIColor.secondaryBackground,
+    child: otherMsgCol,
+  );
+
+  final otherRow = UI.row(
+    name: 'OtherBubbleRow',
+    mainAxisAlignment: UIMainAxisAlignment.start,
+    children: [otherBubble],
+  );
+  setConditionalVisibility(
+    otherRow,
+    variable: conditionVar(
+      _field(kSenderName, 'senderName'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromAppState(userNameId.deepCopy()),
+    ).variable,
+  );
+
+  // ── Own bubble (right) ────────────────────────────────────────────────────
+  final ownMsgMeta = UI.row(
+    name: 'OwnMsgMeta',
+    mainAxisAlignment: UIMainAxisAlignment.end,
+    spacing: 4,
+    children: [_timeTxt('OwnMsgTime', color: FFColor_ThemeColor.PRIMARY_BACKGROUND)],
+  );
+
+  final ownMsgCol = UI.column(
+    name: 'OwnMsgCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 4,
+    children: [
+      _txt('OwnSenderName', kSenderName, 'senderName',
+        style: FFText_ThemeStyle.LABEL_MEDIUM, color: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+      _txt('OwnMsgText', kText, 'text', color: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+      ownMsgMeta,
+    ],
+  );
+
+  final ownBubble = UI.container(
+    name: 'OwnBubble',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 12,
+    color: UIColor.primary,
+    child: ownMsgCol,
+  );
+
+  final ownRow = UI.row(
+    name: 'OwnBubbleRow',
+    mainAxisAlignment: UIMainAxisAlignment.end,
+    children: [ownBubble],
+  );
+  setConditionalVisibility(
+    ownRow,
+    variable: conditionVar(
+      _field(kSenderName, 'senderName'),
+      FFCondition_Relation.EQUAL_TO,
+      varFromAppState(userNameId.deepCopy()),
+    ).variable,
+  );
+
+  innerCol.children.add(otherRow);
+  innerCol.children.add(ownRow);
+}
+
+// ─── TeamChatPage bubble fixes ───────────────────────────────────────────────
+
+// Rebuilds TeamChatPage message items with left/right bubble layout matching
+// ChatDetailPage / DirectChatPage:
+//   - Clears Container_00rk30lc background + padding.
+//   - Replaces Column_thoxlcla children with two conditional Rows:
+//       OtherBubbleRow (visible: senderName != userName, mainAxis: start)
+//         → Container OtherBubble (secondaryBackground, 12px padding+radius)
+//           → Column OtherMsgCol: [OtherSenderName (primary), OtherMsgText, OtherMsgTime (HH:mm)]
+//       OwnBubbleRow (visible: senderName == userName, mainAxis: end)
+//         → Container OwnBubble (primary, 12px padding+radius)
+//           → Column OwnMsgCol: [OwnSenderName (primaryBackground), OwnMsgText, OwnMsgMeta row]
+// Uses senderName == userName (not senderId) so old messages (authToken senderId) still
+// appear in the correct own bubble.
+// Idempotent: skips if OtherBubbleRow is already a child of Column_thoxlcla.
+void _fixTeamChatBubbles(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+
+  final col = findByKey(wc.node, 'Column_thoxlcla');
+  if (col == null) return;
+
+  if (col.children.any((n) => n.name == 'OtherBubbleRow')) return;
+
+  final userNameId = _findAppStateFieldId(project, 'userName');
+  if (userNameId == null) return;
+
+  const listKey     = 'ListView_9sebksf4';
+  const kSenderName = '766twey2'; // teamChats.senderName
+  const kText       = 'c6cfne01'; // teamChats.text
+  const kCreatedAt  = 'iyd2epsz'; // teamChats.createdAt
+
+  FFVariable _field(String key, String name) => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: key, name: name),
+      ),
+    ));
+
+  FFVariable _formattedTime() => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: kCreatedAt, name: 'createdAt'),
+      ),
+    ))
+    ..operations.add(FFVariableOperation(
+      dateTimeFormat: FFDateTimeFormat(format: 'HH:mm', isCustom: true),
+    ));
+
+  FFNode _txt(String nodeName, String fieldKey, String fieldName, {
+    FFText_ThemeStyle style = FFText_ThemeStyle.BODY_MEDIUM,
+    FFColor_ThemeColor? color,
+  }) {
+    final node = UI.text('', name: nodeName, style: UITextStyle.bodyMedium);
+    final copy = node.props.text.deepCopy();
+    copy.themeStyle = style;
+    copy.textValue  = FFStringValue(variable: _field(fieldKey, fieldName));
+    if (color != null) copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: color));
+    node.props.text = copy;
+    return node;
+  }
+
+  FFNode _timeTxt(String nodeName, {FFColor_ThemeColor color = FFColor_ThemeColor.SECONDARY_TEXT}) {
+    final node = UI.text('', name: nodeName, style: UITextStyle.bodySmall);
+    final copy = node.props.text.deepCopy();
+    copy.themeStyle = FFText_ThemeStyle.BODY_SMALL;
+    copy.textValue  = FFStringValue(variable: _formattedTime());
+    copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: color));
+    node.props.text = copy;
+    return node;
+  }
+
+  // Clear background + padding on outer Container_00rk30lc.
+  final outerContainer = findByKey(wc.node, 'Container_00rk30lc');
+  if (outerContainer != null) {
+    if (outerContainer.props.container.hasBoxDecoration()) {
+      outerContainer.props.container.boxDecoration.clearColorValue();
+    }
+    if (outerContainer.props.hasPadding()) {
+      outerContainer.props.clearPadding();
+    }
+  }
+
+  col.children.clear();
+
+  // ── Others' bubble (left) ──────────────────────────────────────────────────
+  final otherMsgCol = UI.column(
+    name: 'OtherMsgCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 4,
+    children: [
+      _txt('OtherSenderName', kSenderName, 'senderName',
+        style: FFText_ThemeStyle.LABEL_MEDIUM, color: FFColor_ThemeColor.PRIMARY),
+      _txt('OtherMsgText', kText, 'text'),
+      _timeTxt('OtherMsgTime'),
+    ],
+  );
+
+  final otherBubble = UI.container(
+    name: 'OtherBubble',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 12,
+    color: UIColor.secondaryBackground,
+    child: otherMsgCol,
+  );
+
+  final otherRow = UI.row(
+    name: 'OtherBubbleRow',
+    mainAxisAlignment: UIMainAxisAlignment.start,
+    children: [otherBubble],
+  );
+  setConditionalVisibility(
+    otherRow,
+    variable: conditionVar(
+      _field(kSenderName, 'senderName'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromAppState(userNameId.deepCopy()),
+    ).variable,
+  );
+
+  // ── Own bubble (right) ────────────────────────────────────────────────────
+  final ownMsgMeta = UI.row(
+    name: 'OwnMsgMeta',
+    mainAxisAlignment: UIMainAxisAlignment.end,
+    spacing: 4,
+    children: [_timeTxt('OwnMsgTime', color: FFColor_ThemeColor.PRIMARY_BACKGROUND)],
+  );
+
+  final ownMsgCol = UI.column(
+    name: 'OwnMsgCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 4,
+    children: [
+      _txt('OwnSenderName', kSenderName, 'senderName',
+        style: FFText_ThemeStyle.LABEL_MEDIUM, color: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+      _txt('OwnMsgText', kText, 'text', color: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+      ownMsgMeta,
+    ],
+  );
+
+  final ownBubble = UI.container(
+    name: 'OwnBubble',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 12,
+    color: UIColor.primary,
+    child: ownMsgCol,
+  );
+
+  final ownRow = UI.row(
+    name: 'OwnBubbleRow',
+    mainAxisAlignment: UIMainAxisAlignment.end,
+    children: [ownBubble],
+  );
+  setConditionalVisibility(
+    ownRow,
+    variable: conditionVar(
+      _field(kSenderName, 'senderName'),
+      FFCondition_Relation.EQUAL_TO,
+      varFromAppState(userNameId.deepCopy()),
+    ).variable,
+  );
+
+  col.children.add(otherRow);
+  col.children.add(ownRow);
+}
+
+// Shows "Beheerder: <createdBy>" strip at the top of GroupChatPage body.
+// Adds a 'groupCreatedBy' state field and appends a Firestore query on init
+// to fetch the creator's name from chatGroups where name == Param('groupId').
+// Idempotent: skips if GroupAdminStrip already present.
+void _addGroupChatAdminDisplay(FFProject project) {
+  final wc = findPage(project, name: 'GroupChatPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'GroupAdminStrip').isNotEmpty) return;
+
+  // Add 'groupCreatedBy' state field if not present.
+  final fieldAlreadyExists = wc.classModel.stateFields.any(
+    (f) => f.parameter.identifier.name == 'groupCreatedBy',
+  );
+  if (!fieldAlreadyExists) {
+    final param = FFParameter(
+      identifier: FFIdentifier(name: 'groupCreatedBy', key: generateRandomAlphaNumericString()),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    );
+    wc.classModel.stateFields.add(FFWidgetClassStateField(parameter: param));
+  }
+
+  final bodyCol = getPropertyChild(wc.node, 'body');
+  if (bodyCol == null) return;
+
+  final createdByFieldId = _findPageStateFieldId(project, 'GroupChatPage', 'groupCreatedBy');
+  if (createdByFieldId == null) return;
+
+  final createdByVar = varFromPageState(createdByFieldId.deepCopy());
+  createdByVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final createdByText = UI.text('', name: 'GroupAdminValue', style: UITextStyle.bodySmall);
+  createdByText.props.text.textValue = FFStringValue(variable: createdByVar);
+
+  final adminStrip = UI.container(
+    name: 'GroupAdminStrip',
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    color: UIColor.secondaryBackground,
+    child: UI.row(
+      name: 'GroupAdminRow',
+      spacing: 6,
+      children: [
+        UI.text('Beheerder:', name: 'GroupAdminLabel', style: UITextStyle.labelSmall,
+            color: UIColor.secondaryText),
+        createdByText,
+      ],
+    ),
+  );
+
+  bodyCol.children.insert(0, adminStrip);
+
+  // Append Firestore query to init chain to populate groupCreatedBy.
+  final chatGroupsColl = findCollection(project, name: 'chatGroups');
+  if (chatGroupsColl == null) return;
+
+  FFIdentifier? groupIdParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'groupId') {
+      groupIdParamId = param.identifier.deepCopy();
+      break;
+    }
+  }
+  if (groupIdParamId == null) return;
+
+  final nameField = findCollectionField(project, collectionName: 'chatGroups', fieldName: 'name');
+  final createdByCollField = findCollectionField(project, collectionName: 'chatGroups', fieldName: 'createdBy');
+  if (nameField == null || createdByCollField == null) return;
+
+  final queryAction = Actions.firestoreQuery(
+    collectionIdentifier: chatGroupsColl.identifier.deepCopy(),
+    limit: 1,
+    singleTimeQuery: true,
+  );
+  queryAction.outputVariableName = 'groupInfo';
+  queryAction.database.firestoreQuery.where = FFFirestoreWhere(
+    isAnd: true,
+    filters: [
+      FFFirestoreWhere_NestedFilter(
+        baseFilter: FFFirestoreFilter(
+          collectionFieldIdentifier: nameField.identifier.deepCopy(),
+          relation: FFFirestoreFilter_Relation.EQUAL_TO,
+          variable: varFromPageParam(groupIdParamId),
+        ),
+      ),
+    ],
+  );
+
+  final createdByFromQuery = varFromActionOutput(
+    actionKey: queryAction.key,
+    outputName: 'groupInfo',
+  )
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)
+    ..operations.add(FFVariableOperation(
+      listItemAtIndex: FFListItemAtIndex(type: FFListItemAtIndex_IndexType.FIRST),
+    ))
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: createdByCollField.identifier.deepCopy(),
+      ),
+    ));
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: queryAction,
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.updatePageState(
+          project,
+          widgetClassName: 'GroupChatPage',
+          updates: [StateFieldUpdate.setFromVariable('groupCreatedBy', createdByFromQuery)],
+        ),
+      ),
+    ),
+  );
+}
+
+// ─── DirectChatPage bubble fixes ─────────────────────────────────────────────
+
+// Rebuilds DirectChatPage's inner message column with left/right bubble layout
+// matching ChatDetailPage:
+//   - Clears the outer Container_oulzkkz8 background so bubbles control their own color.
+//   - Replaces Column_hz6ofrah children with two conditional Rows:
+//       OtherBubbleRow (visible: senderId != userEmail, mainAxis: start)
+//         → Container OtherBubble (secondaryBackground, 12px padding+radius)
+//           → Column OtherMsgCol: [OtherSenderName, OtherMsgText, OtherMsgTime]
+//       OwnBubbleRow (visible: senderId == userEmail, mainAxis: end)
+//         → Container OwnBubble (primary, 12px padding+radius)
+//           → Column OwnMsgCol: [OwnSenderName, OwnMsgText, OwnMsgMeta row]
+// Idempotent: skips if OtherBubbleRow already present.
+void _fixDirectChatBubbles(FFProject project) {
+  final wc = findPage(project, name: 'DirectChatPage');
+  if (wc == null) return;
+
+  final innerCol = findByKey(wc.node, 'Column_hz6ofrah');
+  if (innerCol == null) return;
+
+  final userEmailId = _findAppStateFieldId(project, 'userEmail');
+  if (userEmailId == null) return;
+
+  const listKey     = 'ListView_z624qee2';
+  const kSenderId   = 'e252z61j'; // directMessages.senderId
+  const kSenderName = 'h0m9j6mm'; // directMessages.senderName
+  const kText       = 'hj046bgs'; // directMessages.text
+  const kCreatedAt  = '14dp9wer'; // directMessages.createdAt
+
+  FFVariable _field(String key, String name) => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: key, name: name),
+      ),
+    ));
+
+  FFVariable _formattedTime() => varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: kCreatedAt, name: 'createdAt'),
+      ),
+    ))
+    ..operations.add(FFVariableOperation(
+      dateTimeFormat: FFDateTimeFormat(format: 'HH:mm', isCustom: true),
+    ));
+
+  FFNode _txt(String nodeName, String fieldKey, String fieldName, {
+    FFText_ThemeStyle style = FFText_ThemeStyle.BODY_MEDIUM,
+    FFColor_ThemeColor? color,
+  }) {
+    final node = UI.text('', name: nodeName, style: UITextStyle.bodyMedium);
+    final copy = node.props.text.deepCopy();
+    copy.themeStyle = style;
+    copy.textValue  = FFStringValue(variable: _field(fieldKey, fieldName));
+    if (color != null) {
+      copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: color));
+    }
+    node.props.text = copy;
+    return node;
+  }
+
+  FFNode _timeTxt(String nodeName, {FFColor_ThemeColor color = FFColor_ThemeColor.SECONDARY_TEXT}) {
+    final node = UI.text('', name: nodeName, style: UITextStyle.bodySmall);
+    final copy = node.props.text.deepCopy();
+    copy.themeStyle = FFText_ThemeStyle.BODY_SMALL;
+    copy.textValue  = FFStringValue(variable: _formattedTime());
+    copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: color));
+    node.props.text = copy;
+    return node;
+  }
+
+  // Clear background and padding on outer wrapper so bubbles style themselves.
+  final outerContainer = findByKey(wc.node, 'Container_oulzkkz8');
+  if (outerContainer != null) {
+    if (outerContainer.props.container.hasBoxDecoration()) {
+      outerContainer.props.container.boxDecoration.clearColorValue();
+    }
+    if (outerContainer.props.hasPadding()) {
+      outerContainer.props.clearPadding();
+    }
+  }
+
+  innerCol.children.clear();
+
+  // ── Others' bubble (left) ──────────────────────────────────────────────────
+  final otherMsgCol = UI.column(
+    name: 'OtherMsgCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 4,
+    children: [
+      _txt('OtherSenderName', kSenderName, 'senderName',
+        style: FFText_ThemeStyle.LABEL_MEDIUM,
+        color: FFColor_ThemeColor.PRIMARY,
+      ),
+      _txt('OtherMsgText', kText, 'text'),
+      _timeTxt('OtherMsgTime'),
+    ],
+  );
+
+  final otherBubble = UI.container(
+    name: 'OtherBubble',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 12,
+    color: UIColor.secondaryBackground,
+    child: otherMsgCol,
+  );
+
+  final otherRow = UI.row(
+    name: 'OtherBubbleRow',
+    mainAxisAlignment: UIMainAxisAlignment.start,
+    children: [otherBubble],
+  );
+  setConditionalVisibility(
+    otherRow,
+    variable: conditionVar(
+      _field(kSenderId, 'senderId'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromAppState(userEmailId.deepCopy()),
+    ).variable,
+  );
+
+  // ── Own bubble (right) ────────────────────────────────────────────────────
+  final ownMsgMeta = UI.row(
+    name: 'OwnMsgMeta',
+    mainAxisAlignment: UIMainAxisAlignment.end,
+    spacing: 4,
+    children: [_timeTxt('OwnMsgTime', color: FFColor_ThemeColor.PRIMARY_BACKGROUND)],
+  );
+
+  final ownMsgCol = UI.column(
+    name: 'OwnMsgCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 4,
+    children: [
+      _txt('OwnSenderName', kSenderName, 'senderName',
+        style: FFText_ThemeStyle.LABEL_MEDIUM,
+        color: FFColor_ThemeColor.PRIMARY_BACKGROUND,
+      ),
+      _txt('OwnMsgText', kText, 'text',
+        color: FFColor_ThemeColor.PRIMARY_BACKGROUND,
+      ),
+      ownMsgMeta,
+    ],
+  );
+
+  final ownBubble = UI.container(
+    name: 'OwnBubble',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 12,
+    color: UIColor.primary,
+    child: ownMsgCol,
+  );
+
+  final ownRow = UI.row(
+    name: 'OwnBubbleRow',
+    mainAxisAlignment: UIMainAxisAlignment.end,
+    children: [ownBubble],
+  );
+  setConditionalVisibility(
+    ownRow,
+    variable: conditionVar(
+      _field(kSenderId, 'senderId'),
+      FFCondition_Relation.EQUAL_TO,
+      varFromAppState(userEmailId.deepCopy()),
+    ).variable,
+  );
+
+  innerCol.children.add(otherRow);
+  innerCol.children.add(ownRow);
+}
+
+// Fixes DirectChatPage send button: senderId authToken→userEmail AppState,
+// and inserts wait(300) before the singleTimeQuery refresh for Firestore propagation.
+void _fixDirectChatSendButton(FFProject project) {
+  final wc = findPage(project, name: 'DirectChatPage');
+  if (wc == null) return;
+
+  final userEmailId = _findAppStateFieldId(project, 'userEmail');
+  if (userEmailId == null) return;
+
+  final sendBtn = findByKey(wc.node, 'IconButton_y4orjomc');
+  if (sendBtn == null) return;
+
+  final tapIdx = sendBtn.triggerActions.indexWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+  if (tapIdx < 0) return;
+  final tap = sendBtn.triggerActions[tapIdx];
+  if (!tap.hasRootAction()) return;
+
+  final root = tap.rootAction;
+  if (!root.hasConditionActions()) return;
+  if (root.conditionActions.trueActions.isEmpty) return;
+  final trueEntry = root.conditionActions.trueActions.first;
+  if (!trueEntry.hasTrueAction()) return;
+
+  // Fix senderId in FirestoreCreate.
+  final createNode = trueEntry.trueAction;
+  if (createNode.hasAction() &&
+      createNode.action.hasDatabase() &&
+      createNode.action.database.hasCreateDocument()) {
+    final create = createNode.action.database.createDocument;
+    if (create.hasWrite()) {
+      const kSenderIdKey = 'e252z61j'; // directMessages.senderId
+      final entry = create.write.updates[kSenderIdKey];
+      if (entry != null) {
+        entry.variable = varFromAppState(userEmailId.deepCopy());
+      }
+    }
+  }
+
+  // Insert wait(300) before the singleTimeQuery refresh (idempotent).
+  FFActionNode prev = trueEntry.trueAction;
+  while (prev.hasFollowUpAction()) {
+    final curr = prev.followUpAction;
+    if (curr.hasAction() &&
+        curr.action.hasDatabase() &&
+        curr.action.database.hasFirestoreQuery() &&
+        curr.action.database.firestoreQuery.singleTimeQuery) {
+      if (prev.hasAction() &&
+          !prev.action.hasDatabase() &&
+          !prev.action.hasLocalStateUpdate() &&
+          !prev.action.hasCustomAction() &&
+          !prev.action.hasNavigate()) {
+        return; // wait already present
+      }
+      prev.followUpAction = FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.wait(300),
+        followUpAction: curr,
+      );
+      return;
+    }
+    prev = curr;
+  }
+}
+
+void _fixDirectChatTextField(FFProject project) =>
+    _fixChatTextFieldDebounce(project, 'DirectChatPage', 'DirectMessageField');
+
+void _addEditDeleteToDirectChatPage(FFProject project) {
+  final wc = findPage(project, name: 'DirectChatPage');
+  if (wc == null) return;
+  final ownCol = findDescendants(wc.node, (n) => n.name == 'OwnMsgCol').firstOrNull;
+  if (ownCol == null) return;
+  final userEmailId = _findAppStateFieldId(project, 'userEmail');
+  if (userEmailId == null) return;
+  _addOwnActionsRow(
+    ownCol, project, 'DirectChatPage', 'Scaffold_29a0eu74', 'ListView_z624qee2', 'hj046bgs',
+    visibilityVar: _ownMessageVisibility('ListView_z624qee2', 'e252z61j', 'senderId', userEmailId),
+    collectionName: 'directMessages',
+  );
 }
 
 // ─── TeamChatPage send-button fixes ──────────────────────────────────────────
@@ -9299,6 +11660,10 @@ void _addChatEditDeleteFeature(FFProject project) {
   _addEditDeleteToChatDetailPage(project);
   _addEditDeleteToGroupChatPage(project);
   _addEditDeleteToTeamChatPage(project);
+  _addEditDeleteToDirectChatPage(project);
+  // Re-apply conversationId filter so the new delete/save refresh queries on
+  // ChatDetailPage also get filtered (they were added after the initial run).
+  _wireChatDetailFilters(project);
 }
 
 // Returns the generator variable's DocumentReference.
@@ -9321,9 +11686,44 @@ void _addOwnActionsRow(
   String scaffoldKey,
   String listKey,
   String textFieldKey,
-  { FFVariable? visibilityVar }
+  { FFVariable? visibilityVar, String collectionName = '' }
 ) {
   ownCol.children.removeWhere((n) => n.name == 'OwnActionsRow');
+
+  // Builds wait(300) → firestoreQuery → setState(chatMessages) to refresh after delete/save.
+  // outputName must be unique per page — use 'postDeleteRefresh' or 'postSaveRefresh'.
+  FFActionNode? buildRefresh(String btnKey, {required String outputName}) {
+    if (collectionName.isEmpty) return null;
+    final coll = findCollection(project, name: collectionName);
+    if (coll == null) return null;
+    final queryAction = Actions.firestoreQuery(
+      collectionIdentifier: coll.identifier.deepCopy(),
+      limit: 100,
+      singleTimeQuery: true,
+    );
+    queryAction.outputVariableName = outputName;
+    final refreshedVar = varFromActionOutput(
+      actionKey: queryAction.key,
+      outputName: outputName,
+    )..nodeKeyRef = FFNodeKeyReference(key: btnKey);
+    final setStateNode = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.updatePageState(
+        project,
+        widgetClassName: pageName,
+        updates: [StateFieldUpdate.setFromVariable('chatMessages', refreshedVar)],
+      ),
+    );
+    return FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.wait(300),
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: queryAction,
+        followUpAction: setStateNode,
+      ),
+    );
+  }
 
   FFVariable textVar() => varFromGeneratorVariable(listKey)
     ..operations.add(FFVariableOperation(
@@ -9352,6 +11752,12 @@ void _addOwnActionsRow(
   // ── Delete button (visible when not editing) ───────────────────────────────
   final deleteBtn = UI.iconButton('delete', color: UIColor.secondaryText, name: 'OwnDeleteBtn');
   if (editingDocPathId != null) setConditionalVisibility(deleteBtn, variable: notEditingCond());
+  final deleteFirestoreNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: Actions.firestoreDelete(reference: _docRefVar(listKey)),
+  );
+  final deleteRefresh = buildRefresh(deleteBtn.key, outputName: 'postDeleteRefresh');
+  if (deleteRefresh != null) deleteFirestoreNode.followUpAction = deleteRefresh;
   final deleteChain = FFActionNode(
     key: generateRandomAlphaNumericString(),
     action: FFAction(
@@ -9365,10 +11771,7 @@ void _addOwnActionsRow(
         ),
       ),
     ),
-    followUpAction: FFActionNode(
-      key: generateRandomAlphaNumericString(),
-      action: Actions.firestoreDelete(reference: _docRefVar(listKey)),
-    ),
+    followUpAction: deleteFirestoreNode,
   );
   Actions.addTriggerChain(deleteBtn, FFActionTriggerType.ON_TAP, deleteChain);
 
@@ -9413,7 +11816,14 @@ void _addOwnActionsRow(
       Actions.updatePageState(project, widgetClassName: pageName,
           updates: [StateFieldUpdate.clear('messageText')]),
     ];
-    Actions.addTriggerChain(saveBtn, FFActionTriggerType.ON_TAP, Actions.chain(saveActions));
+    final saveTriggerRoot = Actions.chain(saveActions);
+    final saveRefresh = buildRefresh(saveBtn.key, outputName: 'postSaveRefresh');
+    if (saveRefresh != null) {
+      FFActionNode saveTail = saveTriggerRoot;
+      while (saveTail.hasFollowUpAction()) saveTail = saveTail.followUpAction;
+      saveTail.followUpAction = saveRefresh;
+    }
+    Actions.addTriggerChain(saveBtn, FFActionTriggerType.ON_TAP, saveTriggerRoot);
   }
 
   // ── Cancel button (visible when editing THIS message) ─────────────────────
@@ -9444,57 +11854,248 @@ void _addOwnActionsRow(
   ownCol.children.add(actionsRow);
 }
 
+// Builds a visibility condition: senderField == currentUser (AppState).
+// Ensures OwnActionsRow never renders on messages from other users.
+FFVariable _ownMessageVisibility(
+  String listKey,
+  String senderFieldKey,
+  String senderFieldName,
+  FFIdentifier currentUserStateId,
+) {
+  final senderVar = varFromGeneratorVariable(listKey)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: FFIdentifier(key: senderFieldKey, name: senderFieldName),
+      ),
+    ));
+  return conditionVar(
+    senderVar,
+    FFCondition_Relation.EQUAL_TO,
+    varFromAppState(currentUserStateId.deepCopy()),
+  ).variable;
+}
+
 void _addEditDeleteToChatDetailPage(FFProject project) {
   final wc = findPage(project, name: 'ChatDetailPage');
   if (wc == null) return;
-  final ownCol = findByKey(wc.node, 'Column_6e4g1gje');
+  final ownCol = findDescendants(wc.node, (n) => n.name == 'OwnMsgCol').firstOrNull;
   if (ownCol == null) return;
+  final userEmailId = _findAppStateFieldId(project, 'userEmail');
+  if (userEmailId == null) return;
   _addOwnActionsRow(
     ownCol, project, 'ChatDetailPage', 'Scaffold_pvzwjd3v', 'ListView_ws05qhut', '4ezq3smy',
+    visibilityVar: _ownMessageVisibility('ListView_ws05qhut', '9hloj348', 'senderId', userEmailId),
+    collectionName: 'chatMessages',
   );
 }
 
 void _addEditDeleteToGroupChatPage(FFProject project) {
   final wc = findPage(project, name: 'GroupChatPage');
   if (wc == null) return;
-  final ownCol = findByKey(wc.node, 'Column_qsknd353');
+  final ownCol = findDescendants(wc.node, (n) => n.name == 'OwnMsgCol').firstOrNull;
   if (ownCol == null) return;
+  // No visibilityVar needed: parent OwnBubbleRow already has senderId==userEmail
+  // visibility set by _rebuildGroupChatBubbles.
   _addOwnActionsRow(
     ownCol, project, 'GroupChatPage', 'Scaffold_rr8bdjs8', 'ListView_6t0r29c1', 'l46qea8h',
+    collectionName: 'groupMessages',
   );
 }
 
 void _addEditDeleteToTeamChatPage(FFProject project) {
   final wc = findPage(project, name: 'TeamChatPage');
   if (wc == null) return;
-  final col = findByKey(wc.node, 'Column_thoxlcla');
-  if (col == null) return;
-
-  // Compare senderName == userName so the OwnActionsRow is visible for ALL own
-  // messages regardless of whether senderId was stored as authToken (old) or
-  // userEmail (new, after _fixTeamChatSendButton).
+  final ownCol = findDescendants(wc.node, (n) => n.name == 'OwnMsgCol').firstOrNull;
+  if (ownCol == null) return;
+  // TeamChat stores senderName (not senderId) — compare against AppState.userName.
   final userNameId = _findAppStateFieldId(project, 'userName');
   if (userNameId == null) return;
-
-  const listKey       = 'ListView_9sebksf4';
-  const senderNameKey = '766twey2';
-
-  final senderNameVar = varFromGeneratorVariable(listKey)
-    ..operations.add(FFVariableOperation(
-      accessDocumentField: FFAccessDocumentField(
-        fieldIdentifier: FFIdentifier(key: senderNameKey, name: 'senderName'),
-      ),
-    ));
-  final visibilityVar = conditionVar(
-    senderNameVar,
-    FFCondition_Relation.EQUAL_TO,
-    varFromAppState(userNameId.deepCopy()),
-  ).variable;
-
   _addOwnActionsRow(
-    col, project, 'TeamChatPage', 'Scaffold_tc1ashmu', listKey, 'c6cfne01',
-    visibilityVar: visibilityVar,
+    ownCol, project, 'TeamChatPage', 'Scaffold_tc1ashmu', 'ListView_9sebksf4', 'c6cfne01',
+    visibilityVar: _ownMessageVisibility('ListView_9sebksf4', '766twey2', 'senderName', userNameId),
+    collectionName: 'teamChats',
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Ensures own-message rows are right-aligned across all chat pages by:
+//   1. Setting crossAxisAlignment:stretch on the list-item column so Row children
+//      are forced to full width (otherwise collapsed rows ignore mainAxisAlignment).
+//   2. Replacing row props with a fresh FFRow(mainAxisAlignment:end/start) — no
+//      legacy minSize baggage from the original FlutterFlow-built rows.
+void _fixChatDetailBubbleAlignment(FFProject project) {
+  void _stretchCol(FFNode col) {
+    final c = col.props.hasColumn() ? col.props.column.deepCopy() : FFColumn();
+    c.crossAxisAlignment = FFCrossAxisAlignment.cross_axis_stretch;
+    col.props.column = c;
+  }
+
+  void _alignRow(FFNode row, FFMainAxisAlignment alignment) {
+    row.props.row = FFRow(mainAxisAlignment: alignment);
+  }
+
+  // ChatDetailPage — fixed keys from initial ensurePage build.
+  final chatWc = findPage(project, name: 'ChatDetailPage');
+  if (chatWc != null) {
+    final itemCol = findByKey(chatWc.node, 'Column_e6dtwbzq');
+    if (itemCol != null) _stretchCol(itemCol);
+    final otherRow = findByKey(chatWc.node, 'Row_gor1ialq');
+    if (otherRow != null) _alignRow(otherRow, FFMainAxisAlignment.main_axis_start);
+    final ownRow = findByKey(chatWc.node, 'Row_hwrm4seh');
+    if (ownRow != null) _alignRow(ownRow, FFMainAxisAlignment.main_axis_end);
+  }
+
+  // DirectChatPage — rebuilt rows named OtherBubbleRow / OwnBubbleRow.
+  final directWc = findPage(project, name: 'DirectChatPage');
+  if (directWc != null) {
+    final itemCol = findByKey(directWc.node, 'Column_hz6ofrah');
+    if (itemCol != null) _stretchCol(itemCol);
+    final otherRow = findDescendants(directWc.node, (n) => n.name == 'OtherBubbleRow').firstOrNull;
+    if (otherRow != null) _alignRow(otherRow, FFMainAxisAlignment.main_axis_start);
+    final ownRow = findDescendants(directWc.node, (n) => n.name == 'OwnBubbleRow').firstOrNull;
+    if (ownRow != null) _alignRow(ownRow, FFMainAxisAlignment.main_axis_end);
+  }
+
+  // TeamChatPage — rebuilt by _fixTeamChatBubbles.
+  final teamWc = findPage(project, name: 'TeamChatPage');
+  if (teamWc != null) {
+    final itemCol = findByKey(teamWc.node, 'Column_thoxlcla');
+    if (itemCol != null) _stretchCol(itemCol);
+    final otherRow = findDescendants(teamWc.node, (n) => n.name == 'OtherBubbleRow').firstOrNull;
+    if (otherRow != null) _alignRow(otherRow, FFMainAxisAlignment.main_axis_start);
+    final ownRow = findDescendants(teamWc.node, (n) => n.name == 'OwnBubbleRow').firstOrNull;
+    if (ownRow != null) _alignRow(ownRow, FFMainAxisAlignment.main_axis_end);
+  }
+
+  // GroupChatPage — rebuilt by _rebuildGroupChatBubbles.
+  final groupWc = findPage(project, name: 'GroupChatPage');
+  if (groupWc != null) {
+    final itemCol = findByKey(groupWc.node, 'Column_dk9brcp8');
+    if (itemCol != null) _stretchCol(itemCol);
+    final otherRow = findDescendants(groupWc.node, (n) => n.name == 'OtherBubbleRow').firstOrNull;
+    if (otherRow != null) _alignRow(otherRow, FFMainAxisAlignment.main_axis_start);
+    final ownRow = findDescendants(groupWc.node, (n) => n.name == 'OwnBubbleRow').firstOrNull;
+    if (ownRow != null) _alignRow(ownRow, FFMainAxisAlignment.main_axis_end);
+  }
+}
+
+// Sets bubble container width across all chat pages.
+// Appends a scroll-to-bottom action at the tail of the send-button action chain
+// for GroupChatPage, TeamChatPage, and DirectChatPage.
+// ChatDetailPage already handles this in _wireRefreshAfterSend.
+void _addScrollToBottomAfterSend(FFProject project) {
+  const configs = [
+    (page: 'GroupChatPage',  btnKey: 'IconButton_tgwfn8d7', listKey: 'ListView_6t0r29c1'),
+    (page: 'TeamChatPage',   btnKey: 'IconButton_l68mmxn6',  listKey: 'ListView_9sebksf4'),
+    (page: 'DirectChatPage', btnKey: 'IconButton_y4orjomc',  listKey: 'ListView_z624qee2'),
+  ];
+
+  for (final cfg in configs) {
+    final wc = findPage(project, name: cfg.page);
+    if (wc == null) continue;
+
+    final sendBtn = findByKey(wc.node, cfg.btnKey);
+    if (sendBtn == null) continue;
+
+    final tapIdx = sendBtn.triggerActions.indexWhere(
+      (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+    );
+    if (tapIdx < 0) continue;
+    final tap = sendBtn.triggerActions[tapIdx];
+    if (!tap.hasRootAction()) continue;
+
+    final root = tap.rootAction;
+    if (!root.hasConditionActions()) continue;
+    if (root.conditionActions.trueActions.isEmpty) continue;
+    final trueEntry = root.conditionActions.trueActions.first;
+    if (!trueEntry.hasTrueAction()) continue;
+
+    bool hasScroll(FFActionNode n) {
+      if (n.hasAction() &&
+          n.action.hasScrollToPercentage() &&
+          n.action.scrollToPercentage.scrollableNodeKeyRef.key == cfg.listKey) return true;
+      if (n.hasFollowUpAction()) return hasScroll(n.followUpAction);
+      return false;
+    }
+    if (hasScroll(tap.rootAction)) continue;
+
+    FFActionNode tail = trueEntry.trueAction;
+    while (tail.hasFollowUpAction()) tail = tail.followUpAction;
+
+    tail.followUpAction = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.scrollTo(widgetKey: cfg.listKey, percentage: 1.0, durationMillis: 150),
+    );
+  }
+}
+
+// Removes OtherBubbleRow/OwnBubbleRow Row wrappers from all chat page item columns.
+// After removal, bubble Containers sit directly in the item Column which has
+// crossAxisAlignment:stretch (set by _fixChatDetailBubbleAlignment), so they fill
+// the full width automatically. Visibility conditions are copied from Row to bubble.
+// OwnMsgCol gets crossAxisAlignment:end so own-message text is right-aligned.
+void _removeBubbleRowWrappers(FFProject project) {
+  const configs = [
+    (page: 'ChatDetailPage', colKey: 'Column_e6dtwbzq'),
+    (page: 'DirectChatPage', colKey: 'Column_hz6ofrah'),
+    (page: 'TeamChatPage',   colKey: 'Column_thoxlcla'),
+    (page: 'GroupChatPage',  colKey: 'Column_dk9brcp8'),
+  ];
+
+  for (final cfg in configs) {
+    final wc = findPage(project, name: cfg.page);
+    if (wc == null) continue;
+    final itemCol = findByKey(wc.node, cfg.colKey);
+    if (itemCol == null) continue;
+
+    final newChildren = <FFNode>[];
+    for (final child in itemCol.children) {
+      if (child.name == 'OtherBubbleRow' || child.name == 'OwnBubbleRow') {
+        if (child.children.isEmpty) { newChildren.add(child); continue; }
+        final bubble = child.children.first;
+        // Copy visibility condition from Row → bubble.
+        if (child.props.hasVisibility() && child.props.visibility.hasVisibleValue()) {
+          final vis = bubble.props.visibility.deepCopy();
+          vis.visibleValue = child.props.visibility.visibleValue.deepCopy();
+          bubble.props.visibility = vis;
+        }
+        // Own messages: keep crossAxisAlignment start (left-aligned text inside bubble).
+        // No extra column changes needed; padding on the container provides the spacing.
+        newChildren.add(bubble);
+      } else {
+        newChildren.add(child);
+      }
+    }
+    itemCol.children..clear()..addAll(newChildren);
+  }
+}
+
+// Sets bubble container width to fill available space and ensures 16px inner padding.
+// After _removeBubbleRowWrappers the bubbles are direct children of the stretched
+// item Column, so double.infinity = fill the column's full width.
+void _setChatBubbleWidths(FFProject project) {
+  // Temporary container used solely to get the serialized 16px padding value.
+  final _padRef = UI.container(padding: UIEdgeInsets.all(16));
+
+  void applyStyle(FFNode node) {
+    // Width: fill available.
+    final c = node.props.container.deepCopy();
+    final dims = c.hasDimensions() ? c.dimensions.deepCopy() : FFDimensions();
+    dims.width = FFDim(pixelsValue: FFDoubleValue(inputValue: double.infinity));
+    c.dimensions = dims;
+    node.props.container = c;
+    // Padding: 16px on all sides so text never touches bubble edges.
+    node.props.padding = _padRef.props.padding.deepCopy();
+  }
+
+  for (final pageName in ['TeamChatPage', 'DirectChatPage', 'GroupChatPage', 'ChatDetailPage']) {
+    final wc = findPage(project, name: pageName);
+    if (wc == null) continue;
+    for (final node in findDescendants(wc.node, (n) => n.name == 'OtherBubble' || n.name == 'OwnBubble')) {
+      applyStyle(node);
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

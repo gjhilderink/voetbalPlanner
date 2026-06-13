@@ -41,6 +41,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const editingChatDocPath = ffai.ProjectAppStateFieldHandle(
+    name: "editingChatDocPath",
+    key: "2u2thpp6",
+    typeName: "String",
+    persisted: false,
+  );
   static const groupMemberNames = ffai.ProjectAppStateFieldHandle(
     name: "groupMemberNames",
     key: "ppeud04v",
@@ -107,6 +113,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const pendingTeamMembers = ffai.ProjectAppStateFieldHandle(
+    name: "pendingTeamMembers",
+    key: "1vok8wo7",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
   static const primaryColor = ffai.ProjectAppStateFieldHandle(
     name: "primaryColor",
     key: "28f643xh",
@@ -144,6 +156,7 @@ abstract final class AppState {
     currentConversationId,
     currentTeamId,
     currentTeamName,
+    editingChatDocPath,
     groupMemberNames,
     hasUnreadTeamChat,
     loginEmail,
@@ -155,6 +168,7 @@ abstract final class AppState {
     pendingMessageText,
     pendingStaffGroupId,
     pendingStaffGroupName,
+    pendingTeamMembers,
     primaryColor,
     secondaryColor,
     userEmail,

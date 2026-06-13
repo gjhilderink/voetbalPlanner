@@ -19,6 +19,12 @@ final class DashboardPageParams {
 
 final class DashboardPageState {
   const DashboardPageState();
+  ffai.ProjectStateFieldHandle get driveMatches =>
+      const ffai.ProjectStateFieldHandle(
+        name: "driveMatches",
+        key: "oa3250rt",
+        typeName: "List<DataStruct<?>>",
+      );
   ffai.ProjectStateFieldHandle get duties =>
       const ffai.ProjectStateFieldHandle(
         name: "duties",
@@ -107,52 +113,67 @@ abstract final class DashboardPageWidgets {
                 name: "DashboardMatchesContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "ListView_ux9jjbft",
-                    type: "ListView",
+                    key: "Column_d2avfuf6",
+                    type: "Column",
                     path: "DashboardPage.body[0].children[2].children[0]",
-                    name: "DashboardMatchesList",
+                    name: "DashboardMatchesContainerCol",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_8j2hki5v",
-                        type: "Container",
+                        key: "ListView_ux9jjbft",
+                        type: "ListView",
                         path: "DashboardPage.body[0].children[2].children[0].children[0]",
-                        name: "DashboardMatchCard",
+                        name: "DashboardMatchesList",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_skqxbji9",
-                            type: "Row",
+                            key: "Container_8j2hki5v",
+                            type: "Container",
                             path: "DashboardPage.body[0].children[2].children[0].children[0].children[0]",
-                            name: "DashboardMatchRow",
+                            name: "DashboardMatchCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_dik3xjpy",
-                                type: "Icon",
+                                key: "Row_skqxbji9",
+                                type: "Row",
                                 path: "DashboardPage.body[0].children[2].children[0].children[0].children[0].children[0]",
-                                name: "Icon",
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "Column_cdgpfqv4",
-                                type: "Column",
-                                path: "DashboardPage.body[0].children[2].children[0].children[0].children[0].children[1]",
-                                name: "DashboardMatchInfo",
+                                name: "DashboardMatchRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_m4dzzjf5",
-                                    type: "Text",
-                                    path: "DashboardPage.body[0].children[2].children[0].children[0].children[0].children[1].children[0]",
-                                    name: "DashboardMatchOpponent",
+                                    key: "Icon_dik3xjpy",
+                                    type: "Icon",
+                                    path: "DashboardPage.body[0].children[2].children[0].children[0].children[0].children[0].children[0]",
+                                    name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_ugvw2ypw",
-                                    type: "Text",
-                                    path: "DashboardPage.body[0].children[2].children[0].children[0].children[0].children[1].children[1]",
-                                    name: "DashboardMatchDate",
+                                    key: "Column_cdgpfqv4",
+                                    type: "Column",
+                                    path: "DashboardPage.body[0].children[2].children[0].children[0].children[0].children[0].children[1]",
+                                    name: "DashboardMatchInfo",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_m4dzzjf5",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[2].children[0].children[0].children[0].children[0].children[1].children[0]",
+                                        name: "DashboardMatchOpponent",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_ugvw2ypw",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[2].children[0].children[0].children[0].children[0].children[1].children[1]",
+                                        name: "DashboardMatchDate",
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
                             ],
                           ),
                         ],
+                      ),
+                      ffai.ProjectWidgetHandle(
+                        key: "Text_zndte22m",
+                        type: "Text",
+                        path: "DashboardPage.body[0].children[2].children[0].children[1]",
+                        name: "DashboardMatchesEmpty",
+                        text: "Niets gepland",
                       ),
                     ],
                   ),
@@ -180,52 +201,155 @@ abstract final class DashboardPageWidgets {
                 name: "DashboardDutiesContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "ListView_y34ufx10",
-                    type: "ListView",
+                    key: "Column_huhaem9u",
+                    type: "Column",
                     path: "DashboardPage.body[0].children[4].children[0]",
-                    name: "DashboardDutiesList",
+                    name: "DashboardDutiesContainerCol",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_8qxgcrne",
-                        type: "Container",
+                        key: "ListView_y34ufx10",
+                        type: "ListView",
                         path: "DashboardPage.body[0].children[4].children[0].children[0]",
-                        name: "DashboardDutyCard",
+                        name: "DashboardDutiesList",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_62qk9a5s",
-                            type: "Row",
+                            key: "Container_8qxgcrne",
+                            type: "Container",
                             path: "DashboardPage.body[0].children[4].children[0].children[0].children[0]",
-                            name: "DashboardDutyRow",
+                            name: "DashboardDutyCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_df4pdo5i",
-                                type: "Icon",
+                                key: "Row_62qk9a5s",
+                                type: "Row",
                                 path: "DashboardPage.body[0].children[4].children[0].children[0].children[0].children[0]",
-                                name: "Icon",
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "Column_15dycu0h",
-                                type: "Column",
-                                path: "DashboardPage.body[0].children[4].children[0].children[0].children[0].children[1]",
-                                name: "DashboardDutyInfo",
+                                name: "DashboardDutyRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_ttr6vetj",
-                                    type: "Text",
-                                    path: "DashboardPage.body[0].children[4].children[0].children[0].children[0].children[1].children[0]",
-                                    name: "DashboardDutyShift",
+                                    key: "Icon_df4pdo5i",
+                                    type: "Icon",
+                                    path: "DashboardPage.body[0].children[4].children[0].children[0].children[0].children[0].children[0]",
+                                    name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_12ziadu6",
-                                    type: "Text",
-                                    path: "DashboardPage.body[0].children[4].children[0].children[0].children[0].children[1].children[1]",
-                                    name: "DashboardDutyDate",
+                                    key: "Column_15dycu0h",
+                                    type: "Column",
+                                    path: "DashboardPage.body[0].children[4].children[0].children[0].children[0].children[0].children[1]",
+                                    name: "DashboardDutyInfo",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_ttr6vetj",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[4].children[0].children[0].children[0].children[0].children[1].children[0]",
+                                        name: "DashboardDutyShift",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_12ziadu6",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[4].children[0].children[0].children[0].children[0].children[1].children[1]",
+                                        name: "DashboardDutyDate",
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
                             ],
                           ),
                         ],
+                      ),
+                      ffai.ProjectWidgetHandle(
+                        key: "Text_f8i2iwa8",
+                        type: "Text",
+                        path: "DashboardPage.body[0].children[4].children[0].children[1]",
+                        name: "DashboardDutiesEmpty",
+                        text: "Niets gepland",
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "Container_tqxy5sh5",
+                type: "Container",
+                path: "DashboardPage.body[0].children[5]",
+                name: "DashboardDriveLabelContainer",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "Text_1mze090q",
+                    type: "Text",
+                    path: "DashboardPage.body[0].children[5].children[0]",
+                    name: "DashboardDriveLabel",
+                    text: "Rijschema",
+                  ),
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "Container_vaea0dpp",
+                type: "Container",
+                path: "DashboardPage.body[0].children[6]",
+                name: "DashboardDriveContainer",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "Column_4wjwffjw",
+                    type: "Column",
+                    path: "DashboardPage.body[0].children[6].children[0]",
+                    name: "DashboardDriveContainerCol",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "ListView_wz1c1vvm",
+                        type: "ListView",
+                        path: "DashboardPage.body[0].children[6].children[0].children[0]",
+                        name: "DashboardDriveList",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_fvbrtmcu",
+                            type: "Container",
+                            path: "DashboardPage.body[0].children[6].children[0].children[0].children[0]",
+                            name: "DashboardDriveCard",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_17itoaq4",
+                                type: "Row",
+                                path: "DashboardPage.body[0].children[6].children[0].children[0].children[0].children[0]",
+                                name: "DashboardDriveRow",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Icon_056k9hkf",
+                                    type: "Icon",
+                                    path: "DashboardPage.body[0].children[6].children[0].children[0].children[0].children[0].children[0]",
+                                    name: "Icon",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_0g0dnc37",
+                                    type: "Column",
+                                    path: "DashboardPage.body[0].children[6].children[0].children[0].children[0].children[0].children[1]",
+                                    name: "DashboardDriveInfo",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_wxtv0e7l",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[6].children[0].children[0].children[0].children[0].children[1].children[0]",
+                                        name: "DashboardDriveOpponent",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_5hkzrs9s",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[6].children[0].children[0].children[0].children[0].children[1].children[1]",
+                                        name: "DashboardDriveDate",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      ffai.ProjectWidgetHandle(
+                        key: "Text_c82b7f6t",
+                        type: "Text",
+                        path: "DashboardPage.body[0].children[6].children[0].children[1]",
+                        name: "DashboardDriveEmpty",
+                        text: "Niets gepland",
                       ),
                     ],
                   ),

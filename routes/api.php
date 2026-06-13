@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BannerController;
+use App\Http\Controllers\Api\GuardianController;
 use App\Http\Controllers\Api\BarDutyController;
 use App\Http\Controllers\Api\BrandingController;
 use App\Http\Controllers\Api\DocumentationController;
@@ -109,6 +110,31 @@ Route::prefix('v1')->group(function () {
         Route::post('swap-requests', [SwapRequestController::class, 'store']);
         Route::patch('swap-requests/{swapRequest}/accept', [SwapRequestController::class, 'accept']);
         Route::patch('swap-requests/{swapRequest}/decline', [SwapRequestController::class, 'decline']);
+
+        // Guardian / ouder-verzorger koppelingen
+        Route::prefix('guardian')->group(function () {
+            // Ouder: verzoek indienen (throttle: 5/min, 20/uur)
+            Route::post('/request', [GuardianController::class, 'request'])
+                 ->middleware(['throttle:5,1']);
+
+            // Kind: openstaande verzoeken ophalen (ook bij login)
+            Route::get('/pending', [GuardianController::class, 'pendingForMe']);
+
+            // Kind: reageren op een verzoek
+            Route::post('/{guardianLink}/respond', [GuardianController::class, 'respond']);
+
+            // Kind / ouder / beheerder: koppeling intrekken
+            Route::delete('/{guardianLink}/revoke', [GuardianController::class, 'revoke']);
+
+            // Ouder: eigen gekoppelde kinderen ophalen
+            Route::get('/children', [GuardianController::class, 'children']);
+
+            // Ouder: overzicht van eigen ingediende verzoeken
+            Route::get('/my-requests', [GuardianController::class, 'myRequests']);
+
+            // Ouder: basisgegevens van een gekoppeld kind bekijken
+            Route::get('/members/{member}/data', [GuardianController::class, 'childData']);
+        });
 
         // Sync (admin only)
         Route::middleware('role:super_admin|club_admin')->prefix('sync')->group(function () {

@@ -87,6 +87,58 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final guardianChild = ffai.StructHandle(
+    "GuardianChild",
+    <String, ffai.DslType>{
+      "approvedAt": ffai.string,
+      "dateOfBirth": ffai.string,
+      "email": ffai.string,
+      "externalId": ffai.string,
+      "linkId": ffai.string,
+      "memberId": ffai.string,
+      "name": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
+  static final guardianLinkSummary = ffai.StructHandle(
+    "GuardianLinkSummary",
+    <String, ffai.DslType>{
+      "childEmail": ffai.string,
+      "childExternalId": ffai.string,
+      "childName": ffai.string,
+      "expiresAt": ffai.string,
+      "guardianEmail": ffai.string,
+      "guardianName": ffai.string,
+      "id": ffai.string,
+      "requestedAt": ffai.string,
+      "resolvedAt": ffai.string,
+      "revokedAt": ffai.string,
+      "status": ffai.string,
+      "statusLabel": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
+  static final guardianRequest = ffai.StructHandle(
+    "GuardianRequest",
+    <String, ffai.DslType>{
+      "expiresAt": ffai.string,
+      "guardianEmail": ffai.string,
+      "guardianName": ffai.string,
+      "id": ffai.string,
+      "requestedAt": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
+  static final guardianRequestResult = ffai.StructHandle(
+    "GuardianRequestResult",
+    <String, ffai.DslType>{
+      "childName": ffai.string,
+      "expiresAt": ffai.string,
+      "id": ffai.string,
+      "status": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final lineupPlayer = ffai.StructHandle(
     "LineupPlayer",
     <String, ffai.DslType>{
@@ -177,6 +229,10 @@ abstract final class Structs {
     clubRef,
     documentSection,
     footMatch,
+    guardianChild,
+    guardianLinkSummary,
+    guardianRequest,
+    guardianRequestResult,
     lineupPlayer,
     loginData,
     loginResponse,
@@ -189,6 +245,11 @@ abstract final class Structs {
 }
 
 abstract final class Collections {
+  static final appUsers = ffai.ProjectCollectionHandle<AppUsersFields>(
+    name: "appUsers",
+    description: "Geregistreerde app-gebruikers per team. Wordt bijgewerkt bij elke login.",
+    fields: AppUsersFields(),
+  );
   static final chatConversations = ffai.ProjectCollectionHandle<ChatConversationsFields>(
     name: "chatConversations",
     description: "Gesprekken: teamchat, 1-op-1 en staffgroepen.",
@@ -225,6 +286,7 @@ abstract final class Collections {
     fields: UsersFields(),
   );
   static final all = <ffai.ProjectCollectionHandle>[
+    appUsers,
     chatConversations,
     chatGroups,
     chatMessages,
@@ -233,6 +295,65 @@ abstract final class Collections {
     teamChats,
     users,
   ];
+}
+
+final class AppUsersFields extends MapBase<String, ffai.DslType> {
+  final teamId = ffai.ProjectCollectionFieldHandle(
+    name: "teamId",
+    key: "xqn9ihaz",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final updatedAt = ffai.ProjectCollectionFieldHandle(
+    name: "updatedAt",
+    key: "tjeqyf4g",
+    typeName: "DateTime",
+    type: ffai.dateTime,
+    description: "",
+  );
+  final userId = ffai.ProjectCollectionFieldHandle(
+    name: "userId",
+    key: "birpwaoq",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final userName = ffai.ProjectCollectionFieldHandle(
+    name: "userName",
+    key: "yo9ybjwy",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+
+  @override
+  Iterable<String> get keys => const <String>[
+    "teamId",
+    "updatedAt",
+    "userId",
+    "userName",
+  ];
+
+  @override
+  ffai.DslType? operator [](Object? key) => switch (key) {
+    "teamId" => teamId,
+    "updatedAt" => updatedAt,
+    "userId" => userId,
+    "userName" => userName,
+    _ => null,
+  };
+
+  @override
+  void operator []=(String key, ffai.DslType value) =>
+      throw UnsupportedError('Generated project SDK fields are read-only.');
+
+  @override
+  void clear() => throw UnsupportedError('Generated project SDK fields are read-only.');
+
+  @override
+  ffai.DslType? remove(Object? key) =>
+      throw UnsupportedError('Generated project SDK fields are read-only.');
 }
 
 final class ChatConversationsFields extends MapBase<String, ffai.DslType> {
@@ -796,6 +917,7 @@ abstract final class CustomCode {
     "AuthenticateBiometric",
     "CreateChatGroup",
     "DeleteChatGroup",
+    "GetAppUsersAsMembers",
     "GetOrCreateDirectConversation",
     "GetOrCreateStaffGroupConversation",
     "InitializeTeamConversation",
