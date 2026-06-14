@@ -190,6 +190,7 @@ abstract final class Structs {
   static final swapMember = ffai.StructHandle(
     "SwapMember",
     <String, ffai.DslType>{
+      "email": ffai.string,
       "id": ffai.string,
       "name": ffai.string,
     },

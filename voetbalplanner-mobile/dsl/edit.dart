@@ -432,8 +432,20 @@ void buildEditFlow(App app) {
     app.struct('SwapMember', {
       'id':   string,
       'name': string,
-    });
+    }); // email field added via raw mutation below
   } catch (_) {}
+
+  // Ensure SwapMember has email field (needed for deterministic direct-chat conversationId).
+  app.raw((project) {
+    final s = findDataStruct(project, name: 'SwapMember');
+    if (s == null) return;
+    if (s.fields.any((f) => f.identifier.name == 'email')) return;
+    s.fields.add(FFParameter(
+      identifier: FFIdentifier(name: 'email', key: generateRandomAlphaNumericString()),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ));
+  });
+
   // AppState intermediary for GetAppUsersAsMembers. Only declared if not yet present —
   // skip if already exists to avoid payload-mismatch on re-push.
   app.raw((project) {
@@ -7583,7 +7595,7 @@ void _wireChatsPageMemberStrip(FFProject project) {
   );
 
   // Tap chain:
-  //   1. UpdateAppState pendingDirectUserId = member.id
+  //   1. UpdateAppState pendingDirectUserId = member.EMAIL (not UUID!)
   //   2. UpdateAppState pendingDirectUserName = member.name
   //   3. CallCustomAction GetOrCreateDirectConversation
   //   4. Navigate to ChatDetailPage
@@ -7593,9 +7605,11 @@ void _wireChatsPageMemberStrip(FFProject project) {
       key: generateRandomAlphaNumericString(),
       localStateUpdate: FFLocalStateUpdate(
         updates: [
+          // Store EMAIL so getOrCreateDirectConversation produces the same
+          // conversationId from both sides: team_${sorted(emailA, emailB)}.
           FFLocalStateFieldUpdate(
             fieldIdentifier: pendingUserIdId.deepCopy(),
-            setValue: FFValue(variable: generatorVarField(memberList.key, 'id')),
+            setValue: FFValue(variable: generatorVarField(memberList.key, 'email')),
           ),
           FFLocalStateFieldUpdate(
             fieldIdentifier: pendingUserNameId.deepCopy(),
@@ -7662,21 +7676,9 @@ void _fixMemberStripTapAction(FFProject project) {
   final memberList = findDescendants(wc.node, (n) => n.name == 'ChatsDirectMemberList').firstOrNull;
   if (memberList == null) return;
 
-  // Already correct if any ON_TAP chain contains GetOrCreateDirectConversation.
-  bool hasGetOrCreate(FFActionNode node) {
-    if (node.hasAction() &&
-        node.action.hasCustomAction() &&
-        node.action.customAction.customActionIdentifier.name == 'GetOrCreateDirectConversation') {
-      return true;
-    }
-    if (node.hasFollowUpAction()) return hasGetOrCreate(node.followUpAction);
-    return false;
-  }
-  final alreadyCorrect = chip.triggerActions.any((t) {
-    if (!t.hasTrigger() || t.trigger.triggerType != FFActionTriggerType.ON_TAP) return false;
-    return t.hasRootAction() && hasGetOrCreate(t.rootAction);
-  });
-  if (alreadyCorrect) return;
+  // Always rebuild the tap chain so we can correct the pendingDirectUserId field
+  // from member UUID to member EMAIL (fix for "only see own messages" bug where
+  // myId=email but otherId=uuid gave different conversationIds per direction).
 
   final pendingUserIdId   = _findAppStateFieldId(project, 'pendingDirectUserId');
   final pendingUserNameId = _findAppStateFieldId(project, 'pendingDirectUserName');
@@ -7696,9 +7698,11 @@ void _fixMemberStripTapAction(FFProject project) {
       key: generateRandomAlphaNumericString(),
       localStateUpdate: FFLocalStateUpdate(
         updates: [
+          // Use EMAIL (not UUID) so both chat participants share the same
+          // conversationId: team_${sorted(emailA, emailB)}.
           FFLocalStateFieldUpdate(
             fieldIdentifier: pendingUserIdId.deepCopy(),
-            setValue: FFValue(variable: generatorVarField(memberList.key, 'id')),
+            setValue: FFValue(variable: generatorVarField(memberList.key, 'email')),
           ),
           FFLocalStateFieldUpdate(
             fieldIdentifier: pendingUserNameId.deepCopy(),
