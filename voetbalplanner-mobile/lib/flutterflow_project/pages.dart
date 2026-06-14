@@ -5,6 +5,7 @@ library;
 import 'package:flutterflow_ai/flutterflow_ai.dart' as ffai;
 import 'pages/bardien_detail_page.dart' show bardienDetailPageHandle;
 import 'pages/bardien_page.dart' show bardienPageHandle;
+import 'pages/bug_report_page.dart' show bugReportPageHandle;
 import 'pages/chat_detail_page.dart' show chatDetailPageHandle;
 import 'pages/chats_page.dart' show chatsPageHandle;
 import 'pages/create_group_page.dart' show createGroupPageHandle;
@@ -32,6 +33,7 @@ import 'pages/wissel_verzoeken_page.dart' show wisselVerzoekenPageHandle;
 abstract final class Pages {
   static final bardienDetailPage = bardienDetailPageHandle;
   static final bardienPage = bardienPageHandle;
+  static final bugReportPage = bugReportPageHandle;
   static final chatDetailPage = chatDetailPageHandle;
   static final chatsPage = chatsPageHandle;
   static final createGroupPage = createGroupPageHandle;
@@ -58,6 +60,7 @@ abstract final class Pages {
   static final all = <ffai.ProjectPageHandle>[
     bardienDetailPage,
     bardienPage,
+    bugReportPage,
     chatDetailPage,
     chatsPage,
     createGroupPage,

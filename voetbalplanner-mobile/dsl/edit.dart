@@ -422,6 +422,12 @@ void buildEditFlow(App app) {
   app.raw((project) => _wireDocumentationPageLoad(project));
   app.raw((project) => _addHandleidingButton(project));
   app.raw((project) => _addGuardianButton(project));
+  app.raw((project) => _addBugReportButton(project));
+  _buildBugReportPage(app);
+  app.raw((project) => _ensureBugReportCustomAction(project));
+  app.raw((project) => _buildBugReportPageBody(project));
+  app.raw((project) => _wireBugReportTextFields(project));
+  app.raw((project) => _wireBugReportSubmit(project));
 
   // ─── Wissel (swap) feature ────────────────────────────────────────────────
   app.raw((project) => _addSwapStructFields(project));
@@ -2932,6 +2938,498 @@ void _addGuardianButton(FFProject project) {
   } else {
     wc.node.children.add(button);
   }
+}
+
+// Voegt "Bug melden" knop toe aan ProfielPage. Navigeert naar BugReportPage.
+void _addBugReportButton(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+  if (findPage(project, name: 'BugReportPage') == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'BugReportButton').isNotEmpty) return;
+
+  final button = UI.button('Bug melden', name: 'BugReportButton');
+  Actions.onTap(button, Actions.navigate(project, pageName: 'BugReportPage'));
+
+  final bodyChild = getPropertyChild(wc.node, 'body');
+  if (bodyChild != null && bodyChild.type == FFWidgetType.Column) {
+    bodyChild.children.add(button);
+  } else {
+    wc.node.children.add(button);
+  }
+}
+
+// Declareert de BugReportPage (state-velden + placeholder body).
+void _buildBugReportPage(App app) {
+  app.ensurePage(
+    'BugReportPage',
+    description: 'Formulier waarmee gebruikers bugs/meldingen versturen, eventueel met schermafbeeldingen.',
+    route: 'bug-report',
+    state: {
+      'title':         string.withDefault(''),
+      'description':   string.withDefault(''),
+      'screenshotCount': int_.withDefault(0),
+      'isSubmitting':  bool_.withDefault(false),
+      'errorMessage':  string.withDefault(''),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Bug melden'),
+      body: Column(
+        name: 'BugReportRootColumn',
+        children: [
+          Container(name: 'BugReportBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+}
+
+// Custom Dart action die de bug submit met multipart upload (max 5 screenshots).
+void _ensureBugReportCustomAction(FFProject project) {
+  const _code = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+
+// Module-private store voor de gekozen screenshots tussen taps door.
+List<XFile> _bugScreenshots = [];
+
+Future<int> pickBugScreenshot(BuildContext context) async {
+  try {
+    if (_bugScreenshots.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Maximaal 5 schermafbeeldingen.')),
+      );
+      return _bugScreenshots.length;
+    }
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 80,
+    );
+    if (picked == null) return _bugScreenshots.length;
+    _bugScreenshots.add(picked);
+    return _bugScreenshots.length;
+  } catch (e) {
+    debugPrint('[BugReport pick] $e');
+    return _bugScreenshots.length;
+  }
+}
+
+Future<bool> clearBugScreenshots() async {
+  _bugScreenshots.clear();
+  return true;
+}
+
+Future<bool> submitBugReport(
+  BuildContext context,
+  String? title,
+  String? description,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final t = (title ?? '').trim();
+  final d = (description ?? '').trim();
+  if (t.isEmpty || d.isEmpty) {
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Vul een titel en omschrijving in.')),
+    );
+    return false;
+  }
+
+  final token = FFAppState().authToken;
+  if (token.isEmpty) {
+    messenger.showSnackBar(const SnackBar(content: Text('Niet ingelogd.')));
+    return false;
+  }
+
+  try {
+    final uri = Uri.parse('https://voetbalplanner.nubix.nl/api/v1/bug-reports');
+    final req = http.MultipartRequest('POST', uri)
+      ..headers['Authorization'] = 'Bearer $token'
+      ..headers['Accept']        = 'application/json'
+      ..fields['title']          = t
+      ..fields['description']    = d
+      ..fields['platform']       = (kIsWeb ? 'web' : (Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'other')));
+
+    for (final shot in _bugScreenshots) {
+      req.files.add(await http.MultipartFile.fromPath('screenshots[]', shot.path));
+    }
+
+    final streamed = await req.send();
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('Versturen mislukt (HTTP ${response.statusCode}).'),
+      ));
+      return false;
+    }
+
+    _bugScreenshots.clear();
+    messenger.showSnackBar(const SnackBar(
+      content: Text('Melding verstuurd! Bedankt.'),
+    ));
+    return true;
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('Fout: $e')));
+    return false;
+  }
+}
+''';
+
+  if (findCustomAction(project, name: 'PickBugScreenshot') == null) {
+    addCustomAction(
+      project,
+      name: 'PickBugScreenshot',
+      description: 'Voegt een schermafbeelding toe aan de bug-melding. Returnt het nieuwe totaal aantal.',
+      arguments: [],
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Integer),
+      ),
+      includeContext: true,
+      code: _code,
+    );
+  } else {
+    updateCustomAction(project, name: 'PickBugScreenshot', code: _code,
+        arguments: [], includeContext: true);
+  }
+
+  if (findCustomAction(project, name: 'ClearBugScreenshots') == null) {
+    addCustomAction(
+      project,
+      name: 'ClearBugScreenshots',
+      description: 'Wist alle geselecteerde bug-screenshots.',
+      arguments: [],
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+      ),
+      code: _code,
+    );
+  } else {
+    updateCustomAction(project, name: 'ClearBugScreenshots', code: _code, arguments: []);
+  }
+
+  const _kBugTitleArgKey = 'bug_title_arg';
+  const _kBugDescArgKey  = 'bug_desc_arg';
+  final submitArgs = [
+    FFParameter(
+      identifier: FFIdentifier(name: 'title', key: _kBugTitleArgKey),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ),
+    FFParameter(
+      identifier: FFIdentifier(name: 'description', key: _kBugDescArgKey),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ),
+  ];
+
+  if (findCustomAction(project, name: 'SubmitBugReport') == null) {
+    addCustomAction(
+      project,
+      name: 'SubmitBugReport',
+      description: 'Verstuurt een bug-melding inclusief screenshots naar de Laravel API.',
+      arguments: submitArgs,
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+      ),
+      includeContext: true,
+      code: _code,
+    );
+  } else {
+    updateCustomAction(
+      project,
+      name: 'SubmitBugReport',
+      code: _code,
+      arguments: submitArgs,
+      includeContext: true,
+    );
+  }
+
+  // Pub dependencies.
+  try { addPubDependency(project, name: 'image_picker', version: '^1.0.0'); } catch (_) {}
+  try { addPubDependency(project, name: 'http',         version: '^1.2.0'); } catch (_) {}
+}
+
+// Bouwt de body van BugReportPage met titel/omschrijving veld, screenshot
+// teller, "Voeg screenshot toe" knop, en verstuur-knop.
+void _buildBugReportPageBody(FFProject project) {
+  final wc = findPage(project, name: 'BugReportPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'BugReportSubmitButton').isNotEmpty) return;
+
+  final scaffoldKey = wc.node.key;
+  final rootCol = findDescendants(wc.node,
+      (n) => n.name == 'BugReportRootColumn').firstOrNull;
+  if (rootCol == null) return;
+  rootCol.children.removeWhere((n) => n.name == 'BugReportBodyPlaceholder');
+
+  // Scrollable
+  if (rootCol.props.hasColumn()) {
+    final c = rootCol.props.column.deepCopy();
+    c.scrollable = true;
+    rootCol.props.column = c;
+  }
+
+  final titleField = UI.textField(
+    hintText: 'Korte titel van het probleem', name: 'BugTitleField');
+  final descField = UI.textField(
+    hintText: 'Beschrijf wat er mis gaat, welke stappen je doet en wat je verwacht.',
+    name: 'BugDescriptionField',
+    maxLines: 8,
+  );
+
+  // Screenshot teller binding
+  final countId = _findPageStateFieldId(project, 'BugReportPage', 'screenshotCount');
+  final countText = UI.text('0 schermafbeeldingen toegevoegd',
+      name: 'BugScreenshotCountText', style: UITextStyle.bodySmall);
+  if (countId != null) {
+    final tc = countText.props.text.deepCopy();
+    tc.textValue = interpolateVar([
+      '',
+      varFromPageState(countId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+      ' schermafbeelding(en) toegevoegd',
+    ]);
+    countText.props.text = tc;
+  }
+
+  final addScreenshotBtn = UI.button(
+    'Schermafbeelding toevoegen',
+    name: 'BugAddScreenshotButton',
+    width: double.infinity,
+    color: UIColor.secondaryBackground,
+    textColor: UIColor.primary,
+    borderRadius: 8,
+  );
+
+  final submitBtn = UI.button('Versturen',
+      name: 'BugReportSubmitButton', width: double.infinity);
+
+  // Foutcontainer
+  final errorId = _findPageStateFieldId(project, 'BugReportPage', 'errorMessage');
+  final errorContainer = UI.container(
+    name: 'BugErrorContainer',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.error,
+    child: UI.text('', name: 'BugErrorText', style: UITextStyle.bodySmall),
+  );
+  if (errorId != null) {
+    final errTxt = findDescendants(errorContainer, (n) => n.name == 'BugErrorText').firstOrNull;
+    if (errTxt != null) {
+      final errVar = varFromPageState(errorId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+      final copy = errTxt.props.text.deepCopy();
+      copy.textValue = FFStringValue(variable: errVar.deepCopy());
+      errTxt.props.text = copy;
+    }
+    final isErrVar = conditionVar(
+      varFromPageState(errorId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable;
+    setConditionalVisibility(errorContainer, variable: isErrVar);
+  }
+
+  final formCol = UI.column(
+    name: 'BugReportFormCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 16,
+    children: [
+      UI.icon('bug_report', size: 48, color: UIColor.primary, name: 'BugIcon'),
+      UI.text('Bug of probleem melden',
+          name: 'BugReportTitle', style: UITextStyle.titleMedium),
+      UI.text(
+        'Hoe duidelijker je de fout omschrijft, hoe sneller we hem kunnen oplossen. '
+        'Je kunt tot 5 schermafbeeldingen toevoegen.',
+        name: 'BugReportIntro', style: UITextStyle.bodySmall,
+      ),
+      UI.container(name: 'BugDivider', padding: UIEdgeInsets.only(bottom: 4)),
+
+      UI.column(
+        name: 'BugTitleCol',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 4,
+        children: [
+          UI.text('Titel', name: 'BugTitleLabel', style: UITextStyle.labelMedium),
+          titleField,
+        ],
+      ),
+      UI.column(
+        name: 'BugDescriptionCol',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 4,
+        children: [
+          UI.text('Omschrijving', name: 'BugDescriptionLabel', style: UITextStyle.labelMedium),
+          descField,
+        ],
+      ),
+      UI.column(
+        name: 'BugScreenshotCol',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 8,
+        children: [
+          UI.text('Schermafbeeldingen (optioneel)',
+              name: 'BugScreenshotLabel', style: UITextStyle.labelMedium),
+          countText,
+          addScreenshotBtn,
+        ],
+      ),
+      errorContainer,
+      submitBtn,
+    ],
+  );
+
+  rootCol.children.add(
+    UI.container(
+      name: 'BugReportScrollContainer',
+      padding: UIEdgeInsets.all(24),
+      child: formCol,
+    ),
+  );
+}
+
+void _wireBugReportTextFields(FFProject project) {
+  final wc = findPage(project, name: 'BugReportPage');
+  if (wc == null) return;
+
+  void _bind(String fieldName, String stateField) {
+    final tf = findDescendants(wc.node, (n) => n.name == fieldName).firstOrNull;
+    if (tf == null) return;
+    final stateId = _findPageStateFieldId(project, 'BugReportPage', stateField);
+    if (stateId == null) return;
+    tf.props.ensureTextField().debounceTimeValue = FFDoubleValue(inputValue: 0.0);
+    tf.props.textField.localStateValue = true;
+    tf.props.textField.initialText = FFText(
+      textValue: FFStringValue(
+        variable: varFromPageState(stateId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      ),
+    );
+  }
+
+  _bind('BugTitleField',       'title');
+  _bind('BugDescriptionField', 'description');
+}
+
+// Koppelt de Voeg-screenshot-knop en de Verstuur-knop aan hun custom actions.
+void _wireBugReportSubmit(FFProject project) {
+  final wc = findPage(project, name: 'BugReportPage');
+  if (wc == null) return;
+
+  final addBtn = findDescendants(wc.node, (n) => n.name == 'BugAddScreenshotButton').firstOrNull;
+  final submitBtn = findDescendants(wc.node, (n) => n.name == 'BugReportSubmitButton').firstOrNull;
+
+  final scaffoldKey = wc.node.key;
+
+  // ── Add screenshot button ──────────────────────────────────────────────────
+  final pickAction = findCustomAction(project, name: 'PickBugScreenshot');
+  if (addBtn != null && pickAction != null) {
+    addBtn.triggerActions.removeWhere(
+      (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+    );
+    const _kPickOutput = 'pickedCount';
+    final pickCall = FFAction(
+      key: generateRandomAlphaNumericString(),
+      customAction: FFCustomActionCall(
+        customActionIdentifier: pickAction.identifier.deepCopy(),
+      ),
+    );
+    pickCall.outputVariableName = _kPickOutput;
+
+    final countId = _findPageStateFieldId(project, 'BugReportPage', 'screenshotCount');
+    final pickedVar = varFromActionOutput(actionKey: pickCall.key, outputName: _kPickOutput)
+      ..nodeKeyRef = FFNodeKeyReference(key: addBtn.key);
+
+    final setStateNode = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: countId != null
+          ? FFAction(
+              key: generateRandomAlphaNumericString(),
+              localStateUpdate: FFLocalStateUpdate(
+                stateVariableType: FFStateVariableType.WIDGET_CLASS_STATE,
+                updates: [
+                  FFLocalStateFieldUpdate(
+                    fieldIdentifier: countId.deepCopy(),
+                    setValue: FFValue(variable: pickedVar),
+                  ),
+                ],
+              ),
+            )
+          : Actions.snackBar(''),
+    );
+
+    Actions.addTriggerChain(addBtn, FFActionTriggerType.ON_TAP, FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: pickCall,
+      followUpAction: setStateNode,
+    ));
+  }
+
+  // ── Submit button ─────────────────────────────────────────────────────────
+  final submitAction = findCustomAction(project, name: 'SubmitBugReport');
+  final clearAction  = findCustomAction(project, name: 'ClearBugScreenshots');
+  if (submitBtn == null || submitAction == null) return;
+
+  submitBtn.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+
+  FFVariable _stateVar(String name) {
+    final id = _findPageStateFieldId(project, 'BugReportPage', name);
+    if (id == null) return varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING);
+    return varFromPageState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  // Submit args — keys moeten matchen met die in _ensureBugReportCustomAction.
+  const _kTitleKey = 'bug_title_arg';
+  const _kDescKey  = 'bug_desc_arg';
+  final args = FFFunctionCallValues();
+  args.arguments[_kTitleKey] = FFFunctionCallValues_FFArgument(
+    value: FFValue(variable: _stateVar('title')),
+  );
+  args.arguments[_kDescKey] = FFFunctionCallValues_FFArgument(
+    value: FFValue(variable: _stateVar('description')),
+  );
+
+  final submitCall = FFAction(
+    key: generateRandomAlphaNumericString(),
+    customAction: FFCustomActionCall(
+      customActionIdentifier: submitAction.identifier.deepCopy(),
+      argumentValues: args,
+    ),
+  );
+  submitCall.outputVariableName = 'bugSubmitResult';
+
+  final successVar = varFromActionOutput(
+    actionKey: submitCall.key,
+    outputName: 'bugSubmitResult',
+  )..nodeKeyRef = FFNodeKeyReference(key: submitBtn.key);
+
+  // Bij succes: navigate terug naar ProfielPage; bij failure: snackbar zit in action.
+  final onSuccessChain = Actions.chain([
+    Actions.navigate(project, pageName: 'ProfielPage'),
+  ]);
+
+  final submitNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: submitCall,
+    followUpAction: Actions.conditional(
+      condition: successVar,
+      trueActions: onSuccessChain,
+    ),
+  );
+
+  Actions.addTriggerChain(submitBtn, FFActionTriggerType.ON_TAP, submitNode);
 }
 
 // ─── DirectChatPage ───────────────────────────────────────────────────────────

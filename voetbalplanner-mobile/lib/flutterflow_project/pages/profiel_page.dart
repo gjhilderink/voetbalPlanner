@@ -196,6 +196,16 @@ abstract final class ProfielPageWidgets {
                   "ON_TAP",
                 ],
               ),
+              ffai.ProjectWidgetHandle(
+                key: "Button_wbfnewkm",
+                type: "Button",
+                path: "ProfielPage.body[0].children[5]",
+                name: "BugReportButton",
+                text: "Bug melden",
+                triggers: const <String>[
+                  "ON_TAP",
+                ],
+              ),
             ],
           ),
         ],

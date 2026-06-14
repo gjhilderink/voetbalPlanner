@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BannerController;
+use App\Http\Controllers\Api\BugReportController;
 use App\Http\Controllers\Api\GuardianController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\BarDutyController;
@@ -118,6 +119,10 @@ Route::prefix('v1')->group(function () {
 
         // Profiel
         Route::patch('/profile/photo', [ProfileController::class, 'updatePhoto']);
+
+        // Bug reports (throttle: 5 per minute)
+        Route::post('/bug-reports', [BugReportController::class, 'store'])
+             ->middleware(['throttle:5,1']);
 
         // Guardian / ouder-verzorger koppelingen
         Route::prefix('guardian')->group(function () {

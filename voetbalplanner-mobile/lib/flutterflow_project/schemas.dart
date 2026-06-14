@@ -916,6 +916,7 @@ abstract final class CustomCode {
   static const actions = <String>[
     "AddEventToCalendar",
     "AuthenticateBiometric",
+    "ClearBugScreenshots",
     "CreateChatGroup",
     "DeleteChatGroup",
     "GetAppUsersAsMembers",
@@ -925,8 +926,10 @@ abstract final class CustomCode {
     "LoadGroupMemberNames",
     "LoginWithCredentials",
     "MarkConversationRead",
+    "PickBugScreenshot",
     "SendMagicLink",
     "SendMessage",
+    "SubmitBugReport",
     "SubscribeToTeamTopic",
     "UnsubscribeFromTeamTopic",
     "VerifyMagicLink",
