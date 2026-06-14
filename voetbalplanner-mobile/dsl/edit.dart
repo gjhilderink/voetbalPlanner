@@ -557,6 +557,7 @@ void buildEditFlow(App app) {
     // Fix TeamChatPage: senderId authToken→userEmail, teamId widget.teamId→currentTeamId,
     // refresh query WHERE, and text widget binding.
     _fixTeamChatSendButton(project);
+    _addClearMessageTextToTeamChatSend(project);
     _fixTeamChatMessageTextBinding(project);
     // Rebuild TeamChatPage bubbles with left/right split matching ChatDetailPage.
     _fixTeamChatBubbles(project);
@@ -12129,6 +12130,86 @@ void _fixTeamChatSendButton(FFProject project) {
     }
     prev = curr;
   }
+}
+
+// Wist het messageText veld in TeamChatPage state nadat de send-knop is geklikt.
+// De andere 3 chat-pagina's (ChatDetail, Direct, Group) hebben dit al in de
+// DSL via SetState.clear, maar TeamChatPage's send-chain is via raw mutatie
+// opgebouwd en mist deze clear-actie.
+//
+// Plaatst de clear-actie direct ná de Firestore create (vóór de wait + refresh),
+// zodat het tekstveld onmiddellijk leeg lijkt voor de gebruiker.
+// Idempotent: skipt als er al een localStateUpdate voor messageText in de keten zit.
+void _addClearMessageTextToTeamChatSend(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+
+  final messageTextId = _findPageStateFieldId(project, 'TeamChatPage', 'messageText');
+  if (messageTextId == null) return;
+
+  final sendBtn = findByKey(wc.node, 'IconButton_l68mmxn6');
+  if (sendBtn == null) return;
+
+  final tapIdx = sendBtn.triggerActions.indexWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+  if (tapIdx < 0) return;
+  final tap = sendBtn.triggerActions[tapIdx];
+  if (!tap.hasRootAction()) return;
+  if (!tap.rootAction.hasConditionActions()) return;
+  if (tap.rootAction.conditionActions.trueActions.isEmpty) return;
+  final trueEntry = tap.rootAction.conditionActions.trueActions.first;
+  if (!trueEntry.hasTrueAction()) return;
+
+  // Idempotent: skip als al ergens in de keten een page state update voor
+  // messageText zit.
+  bool _alreadyClears(FFActionNode node) {
+    if (node.hasAction() && node.action.hasLocalStateUpdate()) {
+      final lsu = node.action.localStateUpdate;
+      if (lsu.stateVariableType == FFStateVariableType.WIDGET_CLASS_STATE &&
+          lsu.updates.any((u) => u.fieldIdentifier.name == 'messageText')) {
+        return true;
+      }
+    }
+    if (node.hasFollowUpAction() && _alreadyClears(node.followUpAction)) return true;
+    return false;
+  }
+  if (_alreadyClears(tap.rootAction)) return;
+
+  // Vind de Firestore create-document node (eerste actie in true-branch) en
+  // voeg de clear-actie toe als directe followUp.
+  final createNode = trueEntry.trueAction;
+  if (!createNode.hasAction() ||
+      !createNode.action.hasDatabase() ||
+      !createNode.action.database.hasCreateDocument()) {
+    return;
+  }
+
+  final clearAction = FFAction(
+    key: generateRandomAlphaNumericString(),
+    localStateUpdate: FFLocalStateUpdate(
+      updates: [
+        FFLocalStateFieldUpdate(
+          fieldIdentifier: messageTextId.deepCopy(),
+          setValue: FFValue(variable: varFromConstant(
+              FFConstantsVariable_ConstantValue.EMPTY_STRING)),
+        ),
+      ],
+      stateVariableType: FFStateVariableType.WIDGET_CLASS_STATE,
+    ),
+  );
+
+  // Wrap: createNode → clear → (huidige createNode.followUpAction)
+  final originalFollowUp = createNode.hasFollowUpAction()
+      ? createNode.followUpAction
+      : null;
+
+  final clearNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: clearAction,
+    followUpAction: originalFollowUp,
+  );
+  createNode.followUpAction = clearNode;
 }
 
 // Ensures Text_t5hhwvox (message text widget in team chat list item) is explicitly
