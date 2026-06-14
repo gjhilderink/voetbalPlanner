@@ -16,6 +16,7 @@ import 'pages/group_members_page.dart' show groupMembersPageHandle;
 import 'pages/guardian_create_parent_page.dart' show guardianCreateParentPageHandle;
 import 'pages/guardian_page.dart' show guardianPageHandle;
 import 'pages/guardian_request_page.dart' show guardianRequestPageHandle;
+import 'pages/guardian_self_register_page.dart' show guardianSelfRegisterPageHandle;
 import 'pages/home_page.dart' show homePageHandle;
 import 'pages/login_page.dart' show loginPageHandle;
 import 'pages/magic_link_verify_page.dart' show magicLinkVerifyPageHandle;
@@ -42,6 +43,7 @@ abstract final class Pages {
   static final guardianCreateParentPage = guardianCreateParentPageHandle;
   static final guardianPage = guardianPageHandle;
   static final guardianRequestPage = guardianRequestPageHandle;
+  static final guardianSelfRegisterPage = guardianSelfRegisterPageHandle;
   static final homePage = homePageHandle;
   static final loginPage = loginPageHandle;
   static final magicLinkVerifyPage = magicLinkVerifyPageHandle;
@@ -67,6 +69,7 @@ abstract final class Pages {
     guardianCreateParentPage,
     guardianPage,
     guardianRequestPage,
+    guardianSelfRegisterPage,
     homePage,
     loginPage,
     magicLinkVerifyPage,

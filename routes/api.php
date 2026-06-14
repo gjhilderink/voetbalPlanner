@@ -23,6 +23,10 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/magic-link', [AuthController::class, 'sendMagicLink']);
     Route::post('/auth/verify-magic-link', [AuthController::class, 'verifyMagicLink']);
 
+    // Guardian: ouder/verzorger self-registratie (publiek, throttled)
+    Route::post('/guardian/self-register', [GuardianController::class, 'selfRegister'])
+         ->middleware(['throttle:3,1']);
+
     // Health
     Route::get('/health', fn() => response()->json(['status' => 'ok', 'timestamp' => now()]));
     Route::get('/sync/health', [SyncController::class, 'healthCheck']);

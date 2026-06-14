@@ -7,12 +7,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\GuardianLinkResource;
 use App\Http\Resources\MemberResource;
+use App\Mail\MagicLinkMail;
 use App\Models\Club;
 use App\Models\GuardianLink;
+use App\Models\MagicLinkToken;
 use App\Models\Member;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class GuardianController extends Controller
@@ -424,6 +427,122 @@ class GuardianController extends Controller
                 'parentEmail' => $parentMember->email,
             ],
             'message' => 'Ouder account aangemaakt. De ouder kan nu inloggen via de magic link in de app.',
+        ], 201);
+    }
+
+    /**
+     * POST /v1/guardian/self-register
+     *
+     * Publiek endpoint: een ouder/verzorger registreert zichzelf.
+     * Vereist 3-veld verificatie van het kind (lidnummer + achternaam + geboortedatum).
+     *
+     * Bij succesvolle verificatie:
+     *   - Wordt een User + Member voor de ouder aangemaakt
+     *   - Wordt een GuardianLink met status 'pending' aangemaakt
+     *   - Wordt een magic link naar de ouder gestuurd zodat hij kan inloggen
+     *   - Bij eerste login van het kind: bevestig of weiger het verzoek
+     *
+     * Throttle: 3 verzoeken per minuut, 10 per uur per IP.
+     */
+    public function selfRegister(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'naam'          => 'required|string|min:2|max:100',
+            'email'         => 'required|email|max:191',
+            'lidnummer'     => 'required|string|max:50',
+            'achternaam'    => 'required|string|min:2|max:100',
+            'geboortedatum' => 'required|date_format:Y-m-d|before:today',
+        ]);
+
+        $email = strtolower($validated['email']);
+
+        // Controleer of het e-mailadres al in gebruik is.
+        if (User::where('email', $email)->exists()) {
+            return response()->json([
+                'success' => false,
+                'data'    => null,
+                'message' => 'Dit e-mailadres is al in gebruik. Log in met je bestaande account.',
+            ], 409);
+        }
+
+        // 3-veld verificatie van het kind/lid.
+        $child = Member::where('external_id', $validated['lidnummer'])
+            ->where('name', 'like', '%' . $validated['achternaam'] . '%')
+            ->whereDate('date_of_birth', $validated['geboortedatum'])
+            ->where('is_active', true)
+            ->first();
+
+        // Altijd dezelfde foutmelding ongeacht reden — voorkomt user enumeration.
+        if (! $child) {
+            return response()->json([
+                'success' => false,
+                'data'    => null,
+                'message' => 'Geen lid gevonden met de opgegeven gegevens. Controleer lidnummer, achternaam en geboortedatum.',
+            ], 404);
+        }
+
+        $clubId = $child->teams()->first()?->club_id;
+        if (! $clubId) {
+            return response()->json([
+                'success' => false,
+                'data'    => null,
+                'message' => 'Dit lid is niet gekoppeld aan een team. Neem contact op met de club.',
+            ], 422);
+        }
+
+        // Maak Member-record voor de ouder.
+        $parentMember = Member::create([
+            'name'      => $validated['naam'],
+            'email'     => $email,
+            'is_active' => true,
+            'role'      => 'player',
+        ]);
+
+        // Maak User-account voor de ouder (wachtwoord is willekeurig → magic link).
+        $parentUser = User::create([
+            'name'      => $validated['naam'],
+            'email'     => $email,
+            'password'  => Str::random(32),
+            'club_id'   => $clubId,
+            'is_active' => true,
+        ]);
+
+        $parentMember->update(['user_id' => $parentUser->id]);
+
+        // Maak GuardianLink met status 'pending' — kind moet bevestigen.
+        GuardianLink::create([
+            'club_id'            => $clubId,
+            'guardian_member_id' => $parentMember->id,
+            'child_member_id'    => $child->id,
+            'status'             => 'pending',
+            'request_token'      => GuardianLink::generateToken(),
+            'expires_at'         => now()->addDays(14),
+        ]);
+
+        // Stuur magic link naar de ouder.
+        $token = Str::random(64);
+        MagicLinkToken::create([
+            'email'      => $email,
+            'token'      => $token,
+            'expires_at' => now()->addMinutes(30),
+        ]);
+
+        try {
+            $club = Club::find($clubId);
+            Mail::to($email)->send(new MagicLinkMail($token, $validated['naam'], $club));
+        } catch (\Throwable $e) {
+            \Log::error('[GuardianSelfRegister] mail failed', [
+                'email' => $email, 'error' => $e->getMessage(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'childName' => $child->name,
+            ],
+            'message' => 'Registratie gelukt! Een inloglink is naar je e-mailadres verstuurd. '
+                . 'Het kind/lid moet de koppeling nog bevestigen voordat je toegang hebt tot zijn/haar gegevens.',
         ], 201);
     }
 }

@@ -629,12 +629,16 @@ void buildEditFlow(App app) {
     _buildGuardianPageBody(project);
     _buildGuardianCreateParentPageBody(project);
     _buildGuardianRequestPageBody(project);
+    _buildGuardianSelfRegisterPageBody(project);
     _wireGuardianPageLoad(project);
     _wireGuardianRespondActions(project);
     _wireGuardianCreateParentTextFields(project);
     _wireGuardianCreateParentSubmit(project);
     _wireGuardianRequestTextFields(project);
     _wireGuardianRequestSubmit(project);
+    _wireGuardianSelfRegisterTextFields(project);
+    _wireGuardianSelfRegisterSubmit(project);
+    _addGuardianRegisterLinkToLoginPage(project);
   });
 
   _buildSwapRequestCard(app, swapRequest);
@@ -4529,6 +4533,27 @@ void _addGuardianEndpoints(FFProject project) {
     variables: {'memberId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
   );
 
+  // POST /guardian/self-register — Ouder registreert zichzelf (publiek, geen auth)
+  if (!existing.contains('SelfRegisterGuardian')) {
+    addEndpointToGroup(
+      project,
+      groupName: groupName,
+      name:      'SelfRegisterGuardian',
+      url:       '/guardian/self-register',
+      method:    FFApiEndpoint_CallType.POST,
+      bodyType:  FFApiEndpoint_BodyType.JSON,
+      body:      '{"naam":"[naam]","email":"[email]","lidnummer":"[lidnummer]","achternaam":"[achternaam]","geboortedatum":"[geboortedatum]"}',
+      variables: {
+        'naam':          FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'email':         FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'lidnummer':     FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'achternaam':    FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'geboortedatum': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      // headers: leeg — publiek endpoint, geen Bearer token
+    );
+  }
+
   // POST /guardian/create-parent-account — Lid maakt ouderaccount aan (directe koppeling)
   addIfMissing(
     name:     'CreateParentAccount',
@@ -4582,6 +4607,31 @@ void _buildGuardianPages(App app) {
         name: 'GuardianRootColumn',
         children: [
           Container(name: 'GuardianBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+
+  // ── GuardianSelfRegisterPage: ouder registreert zichzelf via 3-veld check ───
+  app.ensurePage(
+    'GuardianSelfRegisterPage',
+    description: 'Ouder/verzorger registreert zichzelf via lidnummer + achternaam + geboortedatum van het kind.',
+    route: 'guardian-self-register',
+    state: {
+      'isSubmitting':  bool_.withDefault(false),
+      'errorMessage':  string.withDefault(''),
+      'naam':          string.withDefault(''),
+      'email':         string.withDefault(''),
+      'lidnummer':     string.withDefault(''),
+      'achternaam':    string.withDefault(''),
+      'geboortedatum': string.withDefault(''),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Registreren als ouder/verzorger'),
+      body: Column(
+        name: 'GuardianSelfRegisterRootColumn',
+        children: [
+          Container(name: 'GuardianSelfRegisterBodyPlaceholder'),
         ],
       ),
     ),
@@ -5609,6 +5659,235 @@ void _wireGuardianRequestSubmit(FFProject project) {
   );
 
   Actions.addTriggerChain(submitBtn, FFActionTriggerType.ON_TAP, submitNode);
+}
+
+// ─── GuardianSelfRegisterPage body ────────────────────────────────────────────
+//
+// Publiek formulier waarmee een ouder zichzelf registreert via 3-veld
+// verificatie van het kind (lidnummer + achternaam + geboortedatum).
+void _buildGuardianSelfRegisterPageBody(FFProject project) {
+  final wc = findPage(project, name: 'GuardianSelfRegisterPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'SubmitSelfRegisterButton').isNotEmpty) return;
+
+  final scaffoldKey = wc.node.key;
+
+  final rootCol = findDescendants(wc.node, (n) => n.name == 'GuardianSelfRegisterRootColumn').firstOrNull;
+  if (rootCol == null) return;
+  rootCol.children.removeWhere((n) => n.name == 'GuardianSelfRegisterBodyPlaceholder');
+
+  final errorMsgId = _findPageStateFieldId(project, 'GuardianSelfRegisterPage', 'errorMessage');
+
+  // Foutcontainer
+  final errorContainer = UI.container(
+    name: 'SelfRegErrorContainer',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.error,
+    child: UI.text('', name: 'SelfRegErrorText', style: UITextStyle.bodySmall),
+  );
+  if (errorMsgId != null) {
+    final errText = findDescendants(errorContainer, (n) => n.name == 'SelfRegErrorText').firstOrNull;
+    if (errText != null) {
+      final errVar = varFromPageState(errorMsgId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+      final copy = errText.props.text.deepCopy();
+      copy.textValue = FFStringValue(variable: errVar.deepCopy());
+      errText.props.text = copy;
+    }
+    final isErrorVar = conditionVar(
+      varFromPageState(errorMsgId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable;
+    setConditionalVisibility(errorContainer, variable: isErrorVar);
+  }
+
+  final submitBtn = UI.button(
+    'Registreren',
+    name: 'SubmitSelfRegisterButton',
+    width: double.infinity,
+  );
+
+  // Helper voor een label + tekstveld groep
+  FFNode _fieldGroup(String label, String fieldName, String hint, {UIKeyboardType? kbd}) {
+    return UI.container(
+      name: '${fieldName}Container',
+      child: UI.column(
+        name: '${fieldName}Col',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 4,
+        children: [
+          UI.text(label, name: '${fieldName}Label', style: UITextStyle.labelMedium),
+          UI.textField(
+            hintText: hint,
+            name: fieldName,
+            keyboardType: kbd ?? UIKeyboardType.text,
+          ),
+        ],
+      ),
+    );
+  }
+
+  final formCol = UI.column(
+    name: 'SelfRegFormColumn',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 16,
+    children: [
+      UI.icon('how_to_reg', size: 48, color: UIColor.primary, name: 'SelfRegIcon'),
+      UI.text(
+        'Registreren als ouder/verzorger',
+        name: 'SelfRegTitle',
+        style: UITextStyle.titleMedium,
+      ),
+      UI.text(
+        'Vul je eigen gegevens in plus het lidnummer, de achternaam en de geboortedatum '
+        'van je kind. Het kind moet de koppeling later in de app bevestigen.',
+        name: 'SelfRegIntro',
+        style: UITextStyle.bodySmall,
+      ),
+      UI.container(name: 'SelfRegDivider1', padding: UIEdgeInsets.only(bottom: 4)),
+
+      UI.text('Jouw gegevens', name: 'SelfRegSectionParent', style: UITextStyle.labelLarge),
+      _fieldGroup('Naam',  'SelfRegNaamField',  'Voor- en achternaam'),
+      _fieldGroup('E-mailadres', 'SelfRegEmailField', 'ouder@voorbeeld.nl',
+          kbd: UIKeyboardType.email),
+
+      UI.container(name: 'SelfRegDivider2', padding: UIEdgeInsets.only(bottom: 4)),
+
+      UI.text('Gegevens van het kind', name: 'SelfRegSectionChild',
+          style: UITextStyle.labelLarge),
+      _fieldGroup('Lidnummer',    'SelfRegLidnummerField',    'bijv. LID-00123'),
+      _fieldGroup('Achternaam',   'SelfRegAchternaamField',   'Achternaam van het kind'),
+      _fieldGroup('Geboortedatum','SelfRegGeboortedatumField','JJJJ-MM-DD',
+          kbd: UIKeyboardType.number),
+
+      errorContainer,
+      submitBtn,
+    ],
+  );
+
+  rootCol.children.add(
+    UI.container(
+      name: 'SelfRegScrollContainer',
+      padding: UIEdgeInsets.all(24),
+      child: formCol,
+    ),
+  );
+}
+
+// Bindt TextFields aan page state via localStateValue.
+void _wireGuardianSelfRegisterTextFields(FFProject project) {
+  final wc = findPage(project, name: 'GuardianSelfRegisterPage');
+  if (wc == null) return;
+
+  void _bindField(String fieldName, String stateFieldName) {
+    final tf = findDescendants(wc.node, (n) => n.name == fieldName).firstOrNull;
+    if (tf == null) return;
+    final stateId = _findPageStateFieldId(project, 'GuardianSelfRegisterPage', stateFieldName);
+    if (stateId == null) return;
+    tf.props.ensureTextField().debounceTimeValue = FFDoubleValue(inputValue: 0.0);
+    tf.props.textField.localStateValue = true;
+    tf.props.textField.initialText = FFText(
+      textValue: FFStringValue(
+        variable: varFromPageState(stateId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      ),
+    );
+  }
+
+  _bindField('SelfRegNaamField',          'naam');
+  _bindField('SelfRegEmailField',         'email');
+  _bindField('SelfRegLidnummerField',     'lidnummer');
+  _bindField('SelfRegAchternaamField',    'achternaam');
+  _bindField('SelfRegGeboortedatumField', 'geboortedatum');
+}
+
+// Submit knop → SelfRegisterGuardian API call.
+void _wireGuardianSelfRegisterSubmit(FFProject project) {
+  final wc = findPage(project, name: 'GuardianSelfRegisterPage');
+  if (wc == null) return;
+
+  final submitBtn = findDescendants(wc.node, (n) => n.name == 'SubmitSelfRegisterButton').firstOrNull;
+  if (submitBtn == null) return;
+
+  submitBtn.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+
+  final scaffoldKey = wc.node.key;
+
+  FFVariable _stateVar(String name) {
+    final id = _findPageStateFieldId(project, 'GuardianSelfRegisterPage', name);
+    if (id == null) return varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING);
+    return varFromPageState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  Actions.addTriggerChain(
+    submitBtn,
+    FFActionTriggerType.ON_TAP,
+    Actions.apiCallNode(
+      project,
+      endpointName:       'SelfRegisterGuardian',
+      groupName:          'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'naam':          _stateVar('naam'),
+        'email':         _stateVar('email'),
+        'lidnummer':     _stateVar('lidnummer'),
+        'achternaam':    _stateVar('achternaam'),
+        'geboortedatum': _stateVar('geboortedatum'),
+      },
+      outputVariableName: 'selfRegResult',
+      nodeKey:            submitBtn.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'GuardianSelfRegisterPage',
+          updates: [StateFieldUpdate.set('errorMessage', '')],
+        ),
+        Actions.snackBar(
+          'Registratie gelukt! Check je e-mail voor de inloglink. '
+          'Het kind moet de koppeling nog bevestigen.',
+        ),
+        Actions.navigate(project, pageName: 'LoginPage'),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'GuardianSelfRegisterPage',
+          updates: [StateFieldUpdate.set(
+            'errorMessage',
+            'Registratie mislukt. Controleer de gegevens en probeer opnieuw.',
+          )],
+        ),
+        Actions.snackBar('Registratie mislukt.'),
+      ]),
+    ),
+  );
+}
+
+// Voegt een "Registreren als ouder/verzorger" knop toe onderaan de LoginPage.
+// Idempotent: slaat over als al aanwezig.
+void _addGuardianRegisterLinkToLoginPage(FFProject project) {
+  final wc = findPage(project, name: 'LoginPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'GuardianRegisterButton').isNotEmpty) return;
+
+  final btn = UI.button(
+    'Registreren als ouder/verzorger',
+    name: 'GuardianRegisterButton',
+    width: double.infinity,
+    color: UIColor.secondaryBackground,
+    textColor: UIColor.primary,
+    borderRadius: 8,
+  );
+  Actions.onTap(btn, Actions.navigate(project, pageName: 'GuardianSelfRegisterPage'));
+
+  // Plaats onderaan de body column.
+  final bodyCol = findByKey(wc.node, 'Column_agcaeg1m');
+  if (bodyCol == null) return;
+  bodyCol.children.add(btn);
 }
 
 // SwapRequestCard component: shows requester, duty label, accept + decline buttons.
