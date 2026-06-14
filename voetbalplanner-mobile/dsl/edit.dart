@@ -3771,27 +3771,39 @@ void _fixLoginButtonBindings(FFProject project) {
     value: FFValue(variable: passwordArgVar),
   );
 
-  // Navigation via FlutterFlow's own Actions.navigate as a direct followUpAction.
-  // Error display is handled inside the custom action via ScaffoldMessenger.
-  // Note: followUpAction always fires (even on failed login) — acceptable for now
-  // while testing that FF navigation works; conditionality can be added once confirmed.
+  // The custom action returns bool (true = success). Store the return value so
+  // we can condition the navigation on it — only navigate when login succeeded.
+  const _loginOutputName = 'loginResult';
+
+  final customAction = FFAction(
+    key: actionKey,
+    customAction: FFCustomActionCall(
+      customActionIdentifier: loginAction.identifier.deepCopy(),
+      argumentValues: argValues,
+    ),
+  );
+  customAction.outputVariableName = _loginOutputName;
+
+  final loginSuccessVar = varFromActionOutput(
+    actionKey: actionKey,
+    outputName: _loginOutputName,
+  )..nodeKeyRef = FFNodeKeyReference(key: loginButton.key);
+
+  // Only navigate when the action returned true.
+  final navigateNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: Actions.navigate(project, pageName: 'WedstrijdenPage', replaceRoute: true),
+  );
+
+  final conditionalNode = Actions.conditional(
+    condition: loginSuccessVar,
+    trueActions: navigateNode,
+  );
+
   final customActionNode = FFActionNode(
     key: actionNodeKey,
-    action: FFAction(
-      key: actionKey,
-      customAction: FFCustomActionCall(
-        customActionIdentifier: loginAction.identifier.deepCopy(),
-        argumentValues: argValues,
-      ),
-    ),
-    followUpAction: FFActionNode(
-      key: generateRandomAlphaNumericString(),
-      action: Actions.navigate(
-        project,
-        pageName: 'WedstrijdenPage',
-        replaceRoute: true,
-      ),
-    ),
+    action: customAction,
+    followUpAction: conditionalNode,
   );
 
   // Pre-sync: at button-press time, copy the current TextField values into
