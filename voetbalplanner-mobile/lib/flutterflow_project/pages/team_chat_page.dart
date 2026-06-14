@@ -162,31 +162,31 @@ abstract final class TeamChatPageWidgets {
                         name: "Column",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_zwzhenqs",
+                            key: "Container_4kcdqi67",
                             type: "Container",
                             path: "TeamChatPage.body[0].children[1].children[0].children[0].children[0]",
                             name: "OtherBubble",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_00onnrao",
+                                key: "Column_0ex6w7fi",
                                 type: "Column",
                                 path: "TeamChatPage.body[0].children[1].children[0].children[0].children[0].children[0]",
                                 name: "OtherMsgCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_j5c6f49u",
+                                    key: "Text_qqinxg56",
                                     type: "Text",
                                     path: "TeamChatPage.body[0].children[1].children[0].children[0].children[0].children[0].children[0]",
                                     name: "OtherSenderName",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_25z96b4w",
+                                    key: "Text_fqiaxd1b",
                                     type: "Text",
                                     path: "TeamChatPage.body[0].children[1].children[0].children[0].children[0].children[0].children[1]",
                                     name: "OtherMsgText",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_nzbnwqw4",
+                                    key: "Text_xhgeq3jp",
                                     type: "Text",
                                     path: "TeamChatPage.body[0].children[1].children[0].children[0].children[0].children[0].children[2]",
                                     name: "OtherMsgTime",
@@ -196,37 +196,37 @@ abstract final class TeamChatPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_4klz427n",
+                            key: "Container_yx6mwztk",
                             type: "Container",
                             path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1]",
                             name: "OwnBubble",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_zj64nz6y",
+                                key: "Column_iary5ld9",
                                 type: "Column",
                                 path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1].children[0]",
                                 name: "OwnMsgCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_dt7jn549",
+                                    key: "Text_t8uyohl2",
                                     type: "Text",
                                     path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0]",
                                     name: "OwnSenderName",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_upa3f8hh",
+                                    key: "Text_580zl3cy",
                                     type: "Text",
                                     path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1].children[0].children[1]",
                                     name: "OwnMsgText",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_vlkm5md9",
+                                    key: "Row_uehk9yp4",
                                     type: "Row",
                                     path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1].children[0].children[2]",
                                     name: "OwnMsgMeta",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_t4ji6x7o",
+                                        key: "Text_ngoliv64",
                                         type: "Text",
                                         path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1].children[0].children[2].children[0]",
                                         name: "OwnMsgTime",
@@ -234,13 +234,13 @@ abstract final class TeamChatPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_r2z1cn8y",
+                                    key: "Row_dqfd3pb8",
                                     type: "Row",
                                     path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1].children[0].children[3]",
                                     name: "OwnActionsRow",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "IconButton_96peisna",
+                                        key: "IconButton_2qakig0a",
                                         type: "IconButton",
                                         path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1].children[0].children[3].children[0]",
                                         name: "OwnEditBtn",
@@ -249,7 +249,7 @@ abstract final class TeamChatPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "IconButton_8a3t8c3b",
+                                        key: "IconButton_4lrsqxso",
                                         type: "IconButton",
                                         path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1].children[0].children[3].children[1]",
                                         name: "OwnSaveBtn",
@@ -258,7 +258,7 @@ abstract final class TeamChatPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "IconButton_3qplfhte",
+                                        key: "IconButton_fjpc51km",
                                         type: "IconButton",
                                         path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1].children[0].children[3].children[2]",
                                         name: "OwnCancelBtn",
@@ -267,7 +267,7 @@ abstract final class TeamChatPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "IconButton_ln5cl3cu",
+                                        key: "IconButton_wn4l00ub",
                                         type: "IconButton",
                                         path: "TeamChatPage.body[0].children[1].children[0].children[0].children[1].children[0].children[3].children[3]",
                                         name: "OwnDeleteBtn",

@@ -600,6 +600,7 @@ void buildEditFlow(App app) {
     // Remove Row wrappers so bubbles fill the column's full width directly.
     _removeBubbleRowWrappers(project);
     _setChatBubbleWidths(project);
+    _addChatMsgColPadding(project);
     _setAllButtonHeights(project);
   });
 
@@ -742,6 +743,10 @@ void buildEditFlow(App app) {
   app.raw((project) {
     _wireRijschemaDetailPageLoad(project);
     _wireRijschemaDetailPageUI(project);
+    // Bouw RijschemaPage body opnieuw op als die ontbreekt + vul cardColumn met
+    // basis-rijen zodat _wireRijschemaCardDriverRow's `insert(2, ...)` werkt.
+    _restoreRijschemaBodyIfMissing(project);
+    _ensureRijschemaCardBaseRows(project);
     _wireRijschemaNavigation(project);
     _wireRijschemaCardDriverRow(project);
   });
@@ -10194,6 +10199,8 @@ void _addPageListEmptyPlaceholders(FFProject project) {
   // Eerdere opruiming heeft de body verwijderd; we bouwen hem opnieuw op met
   // de originele widget-keys zodat bestaande wire-functies blijven werken.
   _restoreRijschemaBodyIfMissing(project);
+  // Vul cardColumn (Column_cx7sodso) met basis-rijen als die leeg is.
+  _ensureRijschemaCardBaseRows(project);
 
   // ── Herstel: ListView direct als kind van ListViewWrapper plaatsen ────────────
   //
@@ -10267,6 +10274,50 @@ void _addPageListEmptyPlaceholders(FFProject project) {
   // De dashboard-placeholders blijven gewoon werken.
 }
 
+// Vult Column_cx7sodso (cardColumn) van RijschemaPage met de basis-rijen
+// (opponent + datum) als die leeg is. Vereist door _wireRijschemaCardDriverRow
+// dat `insert(2, ...)` doet en dus minimaal 2 kinderen verwacht.
+void _ensureRijschemaCardBaseRows(FFProject project) {
+  final wc = findPage(project, name: 'RijschemaPage');
+  if (wc == null) return;
+  final cardColumn = findByKey(wc.node, 'Column_cx7sodso');
+  if (cardColumn == null) return;
+  if (cardColumn.children.length >= 2) return; // al gevuld
+
+  final opponentText = UI.text('-', name: 'Text', style: UITextStyle.bodyMedium);
+  opponentText.props.text.textValue = FFStringValue(
+    variable: generatorVarField('ListView_55kreos3', 'opponent'),
+  );
+  final opponentRow = UI.row(
+    name: 'Row',
+    spacing: 8,
+    children: [
+      UI.icon('sports_soccer', size: 14, color: UIColor.secondaryText),
+      opponentText,
+    ],
+  );
+
+  final dateText = UI.text('-', name: 'Text', style: UITextStyle.bodySmall);
+  dateText.props.text.textValue = FFStringValue(
+    variable: generatorVarField('ListView_55kreos3', 'matchDatetime'),
+  );
+  final dateRow = UI.row(
+    name: 'Row',
+    spacing: 8,
+    children: [
+      UI.icon('calendar_today', size: 14, color: UIColor.secondaryText),
+      dateText,
+    ],
+  );
+
+  // Behoud bestaande kinderen, vul aan tot er minimaal 2 zijn.
+  while (cardColumn.children.length < 2) {
+    cardColumn.children.add(
+      cardColumn.children.isEmpty ? opponentRow : dateRow,
+    );
+  }
+}
+
 // ─── Herstel RijschemaPage body als die leeg is ───────────────────────────────
 //
 // Eerdere opruim-acties hebben mogelijk de body van de RijschemaPage volledig
@@ -10293,8 +10344,41 @@ void _restoreRijschemaBodyIfMissing(FFProject project) {
     ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)
     ..operations.add(FFVariableOperation(negate: FFNegateBoolean()));
 
-  // Card column waar _wireRijschemaCardDriverRow rows aan toevoegt
-  final cardColumn = UI.column(name: 'Column', crossAxisAlignment: UICrossAxisAlignment.start);
+  // Card column waar _wireRijschemaCardDriverRow rows aan toevoegt.
+  // De originele FlutterFlow-pagina had hier 2 basis-rijen (opponent + datum)
+  // die nodig zijn omdat _wireRijschemaCardDriverRow `insert(2, ...)` doet.
+  final opponentText = UI.text('-', name: 'Text', style: UITextStyle.bodyMedium);
+  opponentText.props.text.textValue = FFStringValue(
+    variable: generatorVarField('ListView_55kreos3', 'opponent'),
+  );
+  final opponentRow = UI.row(
+    name: 'Row',
+    spacing: 8,
+    children: [
+      UI.icon('sports_soccer', size: 14, color: UIColor.secondaryText),
+      opponentText,
+    ],
+  );
+
+  final dateText = UI.text('-', name: 'Text', style: UITextStyle.bodySmall);
+  dateText.props.text.textValue = FFStringValue(
+    variable: generatorVarField('ListView_55kreos3', 'matchDatetime'),
+  );
+  final dateRow = UI.row(
+    name: 'Row',
+    spacing: 8,
+    children: [
+      UI.icon('calendar_today', size: 14, color: UIColor.secondaryText),
+      dateText,
+    ],
+  );
+
+  final cardColumn = UI.column(
+    name: 'Column',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 6,
+    children: [opponentRow, dateRow],
+  );
   cardColumn.key = 'Column_cx7sodso';
 
   // Card container (tappable)
@@ -12784,6 +12868,21 @@ void _setChatBubbleWidths(FFProject project) {
     if (wc == null) continue;
     for (final node in findDescendants(wc.node, (n) => n.name == 'OtherBubble' || n.name == 'OwnBubble')) {
       applyStyle(node);
+    }
+  }
+}
+
+// Voegt 5px padding toe aan alle OwnMsgCol en OtherMsgCol nodes op de chat-pagina's.
+// Zorgt voor wat ademruimte tussen de tekst en de bubble-rand.
+void _addChatMsgColPadding(FFProject project) {
+  final _padRef = UI.container(padding: UIEdgeInsets.all(5));
+
+  for (final pageName in ['TeamChatPage', 'DirectChatPage', 'GroupChatPage', 'ChatDetailPage']) {
+    final wc = findPage(project, name: pageName);
+    if (wc == null) continue;
+    for (final node in findDescendants(wc.node,
+        (n) => n.name == 'OwnMsgCol' || n.name == 'OtherMsgCol')) {
+      node.props.padding = _padRef.props.padding.deepCopy();
     }
   }
 }

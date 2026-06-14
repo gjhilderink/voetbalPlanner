@@ -115,13 +115,13 @@ abstract final class WedstrijdenPageWidgets {
                     name: "WelcomeGreetingText",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_c44pesdz",
+                        key: "Text_gd3p8q6b",
                         type: "Text",
                         path: "WedstrijdenPage.body[0].children[1].children[0].children[0]",
                         name: "WelcomeClubText",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_28o2hirg",
+                        key: "Text_1f8mwm4a",
                         type: "Text",
                         path: "WedstrijdenPage.body[0].children[1].children[0].children[1]",
                         name: "WelcomeGreetingText",
