@@ -1323,11 +1323,39 @@ void _setupProfielAvatar(FFProject project, FFWidgetClass wc, FFIdentifier? prof
 
   avatarContainer.children.insert(0, photoImage);
 
-  // Tap on avatar → pick image → upload → save URL to AppState
+  // Tap on avatar → custom action handles picker + multipart upload + state update.
+  // (Visual uploadData + apiCall keten faalde omdat de file niet correct aan de
+  // multipart body werd gebonden.)
   avatarContainer.triggerActions.removeWhere(
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
   );
 
+  // Ensure custom action is registered.
+  _ensureUploadProfilePhotoCustomAction(project);
+
+  final customAction = findCustomAction(project, name: 'UploadProfilePhoto');
+  if (customAction != null) {
+    final tapChain = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: customAction.identifier.deepCopy(),
+        ),
+      ),
+    );
+    Actions.addTriggerChain(avatarContainer, FFActionTriggerType.ON_TAP, tapChain);
+    // Resize the avatar container.
+    final c = avatarContainer.props.container.deepCopy();
+    final dims = c.hasDimensions() ? c.dimensions.deepCopy() : FFDimensions();
+    dims.width  = FFDim(pixelsValue: FFDoubleValue(inputValue: 80.0));
+    dims.height = FFDim(pixelsValue: FFDoubleValue(inputValue: 80.0));
+    c.dimensions = dims;
+    avatarContainer.props.container = c;
+    return; // klaar — geen oude uploadNode meer
+  }
+
+  // Fallback: oude flow (mocht de custom action niet kunnen worden gemaakt).
   final uploadNode = FFActionNode(
     key: generateRandomAlphaNumericString(),
     action: Actions.uploadData(
@@ -1360,6 +1388,113 @@ void _setupProfielAvatar(FFProject project, FFWidgetClass wc, FFIdentifier? prof
   dims.height = FFDim(pixelsValue: FFDoubleValue(inputValue: 80.0));
   c.dimensions = dims;
   avatarContainer.props.container = c;
+}
+
+// Registreert / update een custom Dart action 'UploadProfilePhoto' die:
+//  1. de galerij opent en de gebruiker een foto laat kiezen
+//  2. de foto als multipart/form-data naar /api/v1/profile/photo POST
+//  3. de geretourneerde URL in FFAppState().profilePhotoUrl zet
+void _ensureUploadProfilePhotoCustomAction(FFProject project) {
+  const _code = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+
+Future<bool> uploadProfilePhoto(BuildContext context) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+    if (picked == null) return false;
+
+    final token = FFAppState().authToken;
+    if (token.isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text('Niet ingelogd.')));
+      return false;
+    }
+
+    final uri = Uri.parse('https://voetbalplanner.nubix.nl/api/v1/profile/photo');
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['Authorization'] = 'Bearer $token'
+      ..headers['Accept']        = 'application/json'
+      // Laravel route is PATCH — emuleer via method spoofing want multipart
+      // werkt niet betrouwbaar over PATCH.
+      ..fields['_method'] = 'PATCH'
+      ..files.add(await http.MultipartFile.fromPath('photo', picked.path));
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode != 200) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('Uploaden mislukt (HTTP ${response.statusCode}).'),
+      ));
+      return false;
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>?;
+    final url = (body?['data']?['profile_photo_url'] as String?) ?? '';
+    if (url.isEmpty) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Onverwacht antwoord van server.'),
+      ));
+      return false;
+    }
+
+    FFAppState().update(() {
+      FFAppState().profilePhotoUrl = url;
+    });
+
+    messenger.showSnackBar(const SnackBar(content: Text('Profielfoto bijgewerkt!')));
+    return true;
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(
+      content: Text('Fout bij uploaden: $e'),
+    ));
+    return false;
+  }
+}
+''';
+
+  if (findCustomAction(project, name: 'UploadProfilePhoto') == null) {
+    addCustomAction(
+      project,
+      name: 'UploadProfilePhoto',
+      description: 'Laat de gebruiker een foto kiezen en upload die als profielfoto.',
+      arguments: [],
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+      ),
+      includeContext: true,
+      code: _code,
+    );
+  } else {
+    updateCustomAction(
+      project,
+      name: 'UploadProfilePhoto',
+      code: _code,
+      arguments: [],
+      includeContext: true,
+    );
+  }
+
+  // Zorg dat de gebruikte pub-dependencies aanwezig zijn.
+  try { addPubDependency(project, name: 'image_picker', version: '^1.0.0'); } catch (_) {}
+  try { addPubDependency(project, name: 'http',         version: '^1.2.0'); } catch (_) {}
 }
 
 // ─── BardienPage: filter by member's own team ────────────────────────────────
