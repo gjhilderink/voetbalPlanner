@@ -165,9 +165,10 @@ class ManageSettings extends Page
                             ->helperText('Derde kleur — highlights, badges, call-to-action.'),
                         TextInput::make('email_subject')
                             ->label('E-mail onderwerp')
-                            ->placeholder('Jouw inloglink voor ' . config('app.name'))
+                            ->placeholder('Jouw inloglink voor {club_naam}')
                             ->maxLength(255)
-                            ->helperText('Onderwerpregel van de inlogmail (leeg = standaard).'),
+                            ->helperText('Onderwerpregel van de inlogmail (leeg = standaard). '
+                                . 'Variabelen: {club_naam}, {ontvanger_naam}, {app_naam}.'),
                         TextInput::make('email_header_text')
                             ->label('E-mail koptekst')
                             ->placeholder(config('app.name'))

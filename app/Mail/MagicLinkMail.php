@@ -32,10 +32,27 @@ class MagicLinkMail extends Mailable
         $this->headerText   = $club?->email_header_text ?? config('app.name');
         $this->introText    = $club?->email_intro_text ?? '';
         $this->footerText   = $club?->email_footer_text ?? '';
+
         // Configureerbaar per club; leeg = standaard.
-        $this->subjectLine  = trim($club?->email_subject ?? '') !== ''
-            ? $club->email_subject
-            : 'Jouw inloglink voor ' . config('app.name');
+        // Ondersteunt placeholders {club_naam}, {ontvanger_naam}, {app_naam}.
+        $rawSubject = trim($club?->email_subject ?? '');
+        $template   = $rawSubject !== '' ? $rawSubject : 'Jouw inloglink voor {app_naam}';
+        $this->subjectLine = $this->renderPlaceholders($template, $club);
+    }
+
+    /**
+     * Vervangt placeholders in een tekst-template:
+     *   {club_naam}      → naam van de club (of app-naam als fallback)
+     *   {ontvanger_naam} → naam van de ontvanger
+     *   {app_naam}       → APP_NAME uit config
+     */
+    private function renderPlaceholders(string $template, ?Club $club): string
+    {
+        return strtr($template, [
+            '{club_naam}'      => $club?->name ?? config('app.name'),
+            '{ontvanger_naam}' => $this->recipientName,
+            '{app_naam}'       => config('app.name'),
+        ]);
     }
 
     public function envelope(): Envelope
