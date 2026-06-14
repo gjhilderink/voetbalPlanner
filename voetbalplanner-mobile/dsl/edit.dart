@@ -3097,8 +3097,17 @@ Future<bool> submitBugReport(
     final response = await http.Response.fromStream(streamed);
 
     if (response.statusCode != 201 && response.statusCode != 200) {
+      // Toon ook de body-message als die er is, zodat validation errors
+      // (bijv. titel te kort, te grote screenshot) zichtbaar zijn.
+      String detail = '';
+      try {
+        final body = jsonDecode(response.body) as Map<String, dynamic>?;
+        final msg = (body?['message'] as String?) ?? '';
+        if (msg.isNotEmpty) detail = ' — $msg';
+      } catch (_) {}
       messenger.showSnackBar(SnackBar(
-        content: Text('Versturen mislukt (HTTP ${response.statusCode}).'),
+        content: Text('Versturen mislukt (HTTP ${response.statusCode})$detail'),
+        duration: const Duration(seconds: 6),
       ));
       return false;
     }
@@ -3109,7 +3118,14 @@ Future<bool> submitBugReport(
     ));
     return true;
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Fout: $e')));
+    final msg = e.toString();
+    final hint = msg.contains('Failed to fetch') || msg.contains('XMLHttpRequest')
+        ? ' (mogelijk CORS of server niet bereikbaar — controleer of /api/v1/bug-reports bestaat op de server)'
+        : '';
+    messenger.showSnackBar(SnackBar(
+      content: Text('Fout: $msg$hint'),
+      duration: const Duration(seconds: 8),
+    ));
     return false;
   }
 }
