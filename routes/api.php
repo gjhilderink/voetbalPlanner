@@ -30,6 +30,33 @@ Route::prefix('v1')->group(function () {
 
     // Health
     Route::get('/health', fn() => response()->json(['status' => 'ok', 'timestamp' => now()]));
+
+    // Diagnose: laat zien welke routes Laravel heeft gecached.
+    // Voer uit: GET /api/v1/diagnose/routes — geen auth nodig.
+    Route::get('/diagnose/routes', function () {
+        $routes = collect(\Route::getRoutes())
+            ->map(fn($r) => [
+                'methods' => $r->methods(),
+                'uri'     => $r->uri(),
+            ])
+            ->filter(fn($r) => str_starts_with($r['uri'], 'api/v1/'))
+            ->values();
+        return response()->json([
+            'bug_reports_route_exists' => $routes->contains(
+                fn($r) => str_contains($r['uri'], 'bug-reports')
+            ),
+            'bug_reports_table_exists' => \Schema::hasTable('bug_reports'),
+            'storage_link_exists'      => is_link(public_path('storage')),
+            'routes_count'             => $routes->count(),
+            'app_env'                  => config('app.env'),
+            'app_debug'                => config('app.debug'),
+        ]);
+    });
+
+    // Catch-all OPTIONS preflight zodat de browser nooit op een unmatched
+    // OPTIONS request stuit. Stuurt 204 met de standaard CORS headers (toegevoegd
+    // door HandleCorsApi middleware).
+    Route::options('/{any?}', fn() => response('', 204))->where('any', '.*');
     Route::get('/sync/health', [SyncController::class, 'healthCheck']);
 
     // Debug (remove after troubleshooting)
