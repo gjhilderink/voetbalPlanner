@@ -10097,9 +10097,9 @@ void _addDashboardEmptyPlaceholders(FFProject project) {
 
 // ─── WedstrijdenPage / BardienPage / RijschemaPage: "Niets gepland" ─────────
 //
-// Voegt een "Niets gepland" placeholder toe als sibling van de ListViewWrapper
-// BINNEN de ConditionalBuilder's content-sectie (tweede kind). De ListView
-// zelf wordt NIET gewijzigd — de Column pakt de wrapper en de placeholder in.
+// Voegt een "Niets gepland" placeholder toe als sibling van de ConditionalBuilder
+// in de pagina-body kolom. De ConditionalBuilder zelf blijft ONGEWIJZIGD —
+// geen hoogte-constraint problemen in de ListView.
 // Idempotent: slaat over als de placeholder al aanwezig is.
 void _addPageListEmptyPlaceholders(FFProject project) {
 
@@ -10112,7 +10112,7 @@ void _addPageListEmptyPlaceholders(FFProject project) {
         ?.identifier;
   }
 
-  // isEmptyVar: true when list's first item field is empty (list is empty).
+  // isEmptyVar: true when list is empty (first item field is empty/null).
   FFVariable? _isEmptyVar(
     String pageName, String scaffoldKey,
     String stateFieldName, String structName, String structFieldName,
@@ -10139,12 +10139,12 @@ void _addPageListEmptyPlaceholders(FFProject project) {
     ).variable;
   }
 
-  // Adds placeholder to the ConditionalBuilder's second child (content section).
-  // The second child (currently the ListViewWrapper) is replaced by a Column
-  // containing [ListViewWrapper, placeholder]. The ListView itself is untouched.
+  // Adds a placeholder text as sibling AFTER the ConditionalBuilder in the body column.
+  // Does NOT touch the ConditionalBuilder's internal structure.
   void _addPlaceholder({
     required String pageName,
     required String scaffoldKey,
+    required String bodyColKey,          // key of the Column that contains the CB
     required String conditionalBuilderKey,
     required String stateFieldName,
     required String structName,
@@ -10154,18 +10154,13 @@ void _addPageListEmptyPlaceholders(FFProject project) {
     final pageWc = findPage(project, name: pageName);
     if (pageWc == null) return;
 
-    // Idempotent: skip if placeholder already present anywhere on the page.
     if (findDescendants(pageWc.node, (n) => n.name == placeholderName).isNotEmpty) return;
-
-    final conditionalBuilder = findByKey(pageWc.node, conditionalBuilderKey);
-    if (conditionalBuilder == null || conditionalBuilder.children.length < 2) return;
 
     final isEmptyVar = _isEmptyVar(
       pageName, scaffoldKey, stateFieldName, structName, structFieldName,
     );
     if (isEmptyVar == null) return;
 
-    // Build placeholder text with padding.
     final text = UI.text(
       'Geen activiteiten gepland',
       name: placeholderName,
@@ -10177,26 +10172,29 @@ void _addPageListEmptyPlaceholders(FFProject project) {
     );
     text.props.text = textCopy;
     text.props.padding = (UI.container(
-      padding: UIEdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      padding: UIEdgeInsets.symmetric(horizontal: 24, vertical: 16),
     )).props.padding.deepCopy();
     setConditionalVisibility(text, variable: isEmptyVar);
 
-    // Replace ConditionalBuilder.children[1] (ListViewWrapper) with a Column
-    // that holds both the ListViewWrapper and the placeholder.
-    final listViewWrapper = conditionalBuilder.children[1];
-    final contentCol = UI.column(
-      name: '${pageName}ContentCol',
-      crossAxisAlignment: UICrossAxisAlignment.start,
-      children: [listViewWrapper, text],
-    );
+    // Insert placeholder after the ConditionalBuilder in the body column.
+    final bodyCol = findByKey(pageWc.node, bodyColKey);
+    if (bodyCol == null) return;
 
-    conditionalBuilder.children[1] = contentCol;
+    final cbIdx = bodyCol.children
+        .indexWhere((n) => n.key == conditionalBuilderKey);
+
+    if (cbIdx >= 0 && cbIdx < bodyCol.children.length - 1) {
+      bodyCol.children.insert(cbIdx + 1, text);
+    } else {
+      bodyCol.children.add(text);
+    }
   }
 
   // ── WedstrijdenPage ─────────────────────────────────────────────────────────
   _addPlaceholder(
     pageName:               'WedstrijdenPage',
     scaffoldKey:            'Scaffold_xjabl8lh',
+    bodyColKey:             'Column_1mwzov65',
     conditionalBuilderKey:  'ConditionalBuilder_f1ph1tgg',
     stateFieldName:         'matches',
     structName:             'FootMatch',
@@ -10208,6 +10206,7 @@ void _addPageListEmptyPlaceholders(FFProject project) {
   _addPlaceholder(
     pageName:               'BardienPage',
     scaffoldKey:            'Scaffold_ljui3hun',
+    bodyColKey:             'Column_mkqeztja',
     conditionalBuilderKey:  'ConditionalBuilder_fwgqn2js',
     stateFieldName:         'duties',
     structName:             'BarDuty',
@@ -10216,15 +10215,52 @@ void _addPageListEmptyPlaceholders(FFProject project) {
   );
 
   // ── RijschemaPage ───────────────────────────────────────────────────────────
-  _addPlaceholder(
-    pageName:               'RijschemaPage',
-    scaffoldKey:            'Scaffold_g8lilfvp',
-    conditionalBuilderKey:  'ConditionalBuilder_ko9hyhog',
-    stateFieldName:         'driveMatches',
-    structName:             'FootMatch',
-    structFieldName:        'opponent',
-    placeholderName:        'RijschemaNietGepland',
-  );
+  // RijschemaPage's body IS the ConditionalBuilder (no wrapping column).
+  // We find the Scaffold body slot and append the placeholder there.
+  {
+    const pageName = 'RijschemaPage';
+    final pageWc = findPage(project, name: pageName);
+    if (pageWc != null &&
+        findDescendants(pageWc.node, (n) => n.name == 'RijschemaNietGepland').isEmpty) {
+      final isEmptyVar = _isEmptyVar(
+        pageName, 'Scaffold_g8lilfvp', 'driveMatches', 'FootMatch', 'opponent',
+      );
+      if (isEmptyVar != null) {
+        final text = UI.text(
+          'Geen activiteiten gepland',
+          name: 'RijschemaNietGepland',
+          style: UITextStyle.bodyMedium,
+        );
+        final textCopy = text.props.text.deepCopy();
+        textCopy.colorValue = FFColorValue(
+          inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT),
+        );
+        text.props.text = textCopy;
+        text.props.padding = (UI.container(
+          padding: UIEdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        )).props.padding.deepCopy();
+        setConditionalVisibility(text, variable: isEmptyVar);
+
+        // Add as sibling of ConditionalBuilder: wrap body in Column.
+        final bodyChild = getPropertyChild(pageWc.node, 'body');
+        if (bodyChild != null && bodyChild.key == 'ConditionalBuilder_ko9hyhog') {
+          final newBodyCol = UI.column(
+            name: 'RijschemaBodyCol',
+            mainAxisMin: false,
+            children: [bodyChild, text],
+          );
+          final bodyProp = pageWc.node.childPropertyMap['body'];
+          if (bodyProp != null) {
+            pageWc.node.children.remove(bodyChild);
+            pageWc.node.children.add(newBodyCol);
+            pageWc.node.childPropertyMap['body'] = FFChildrenKeys(
+              keyRefs: [FFNodeKeyReference(key: newBodyCol.key)],
+            );
+          }
+        }
+      }
+    }
+  }
 }
 
 // Appends a GetDriveSchedule API call to the DashboardPage ON_INIT_STATE chain.
