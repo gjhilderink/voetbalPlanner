@@ -5314,7 +5314,8 @@ void _wireGuardianCreateParentSubmit(FFProject project) {
 //
 // Koppelt drie sequentiële API-aanroepen aan de ON_INIT_STATE trigger:
 //   GetPendingGuardianRequests → GetGuardianChildren → GetMyGuardianRequests
-// Na afloop: setLoading(false).
+// EERSTE actie zet isLoading=false zodat de spinner NOOIT vastloopt, ongeacht
+// wat er met de API calls gebeurt. De UI updatet reactief als data binnenkomt.
 void _wireGuardianPageLoad(FFProject project) {
   final wc = findPage(project, name: 'GuardianPage');
   if (wc == null) return;
@@ -5330,7 +5331,7 @@ void _wireGuardianPageLoad(FFProject project) {
     updates: [StateFieldUpdate.set('isLoading', 'false')],
   );
 
-  // 3. GetMyGuardianRequests — LAST in chain, always sets isLoading=false.
+  // 3. GetMyGuardianRequests — LAST in chain.
   final myRequestsNode = Actions.apiCallNode(
     project,
     endpointName:       'GetMyGuardianRequests',
@@ -5348,7 +5349,7 @@ void _wireGuardianPageLoad(FFProject project) {
     ]),
   );
 
-  // 2. GetGuardianChildren — always continues to myRequests and stops loading.
+  // 2. GetGuardianChildren.
   final childrenNode = Actions.apiCallNode(
     project,
     endpointName:       'GetGuardianChildren',
@@ -5359,13 +5360,14 @@ void _wireGuardianPageLoad(FFProject project) {
       Actions.updatePageState(project, widgetClassName: 'GuardianPage', updates: [
         StateFieldUpdate.setFromVariable('children', ctx.responseVar),
       ]),
+      _stopLoading(),
     ]),
     onFailure: (ctx) => Actions.chain([
       _stopLoading(),
     ]),
   );
 
-  // 1. GetPendingGuardianRequests — always continues to children.
+  // 1. GetPendingGuardianRequests.
   final pendingNode = Actions.apiCallNode(
     project,
     endpointName:       'GetPendingGuardianRequests',
@@ -5376,6 +5378,7 @@ void _wireGuardianPageLoad(FFProject project) {
       Actions.updatePageState(project, widgetClassName: 'GuardianPage', updates: [
         StateFieldUpdate.setFromVariable('pendingForMe', ctx.responseVar),
       ]),
+      _stopLoading(),
     ]),
     onFailure: (ctx) => Actions.chain([
       _stopLoading(),
@@ -5393,7 +5396,15 @@ void _wireGuardianPageLoad(FFProject project) {
   while (pendingTail.hasFollowUpAction()) pendingTail = pendingTail.followUpAction;
   pendingTail.followUpAction = childrenNode;
 
-  Actions.onPageLoadChain(wc.node, pendingNode);
+  // VANGNET: zet isLoading=false als ALLEREERSTE actie zodat de spinner
+  // nooit blijft draaien, ongeacht wat de API calls daarna doen.
+  final initStopLoading = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: _stopLoading(),
+    followUpAction: pendingNode,
+  );
+
+  Actions.onPageLoadChain(wc.node, initStopLoading);
 }
 
 // ─── GuardianPage: Accepteren / Weigeren / Intrekken buttons ─────────────────
