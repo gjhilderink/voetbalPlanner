@@ -1,3 +1,15 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CORS headers via Apache mod_headers — werkt onafhankelijk van PHP/Laravel
+# cache. 'Header always set' zorgt dat de headers OOK op error responses
+# (401, 404, 500, …) worden gezet, anders blokkeert de browser de preflight.
+# ─────────────────────────────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, X-Requested-With, X-XSRF-TOKEN, X-CSRF-TOKEN, Origin"
+    Header always set Access-Control-Max-Age "86400"
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
@@ -5,9 +17,10 @@
 
     RewriteEngine On
 
-    # OPTIONS preflight must reach index.php so PHP can return CORS headers.
+    # OPTIONS preflight: stuur direct 204 No Content terug. Apache plakt de
+    # CORS headers (hierboven) automatisch op deze response. Geen PHP nodig.
     RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule .* index.php [L]
+    RewriteRule ^(.*)$ $1 [R=204,L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
