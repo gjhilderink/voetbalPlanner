@@ -13,6 +13,7 @@ import 'pages/direct_chat_page.dart' show directChatPageHandle;
 import 'pages/documentatie_page.dart' show documentatiePageHandle;
 import 'pages/group_chat_page.dart' show groupChatPageHandle;
 import 'pages/group_members_page.dart' show groupMembersPageHandle;
+import 'pages/guardian_create_parent_page.dart' show guardianCreateParentPageHandle;
 import 'pages/guardian_page.dart' show guardianPageHandle;
 import 'pages/guardian_request_page.dart' show guardianRequestPageHandle;
 import 'pages/home_page.dart' show homePageHandle;
@@ -38,6 +39,7 @@ abstract final class Pages {
   static final documentatiePage = documentatiePageHandle;
   static final groupChatPage = groupChatPageHandle;
   static final groupMembersPage = groupMembersPageHandle;
+  static final guardianCreateParentPage = guardianCreateParentPageHandle;
   static final guardianPage = guardianPageHandle;
   static final guardianRequestPage = guardianRequestPageHandle;
   static final homePage = homePageHandle;
@@ -62,6 +64,7 @@ abstract final class Pages {
     documentatiePage,
     groupChatPage,
     groupMembersPage,
+    guardianCreateParentPage,
     guardianPage,
     guardianRequestPage,
     homePage,

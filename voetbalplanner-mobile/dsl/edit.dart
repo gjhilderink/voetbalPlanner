@@ -617,9 +617,12 @@ void buildEditFlow(App app) {
   _buildGuardianPages(app);
   app.raw((project) {
     _buildGuardianPageBody(project);
+    _buildGuardianCreateParentPageBody(project);
     _buildGuardianRequestPageBody(project);
     _wireGuardianPageLoad(project);
     _wireGuardianRespondActions(project);
+    _wireGuardianCreateParentTextFields(project);
+    _wireGuardianCreateParentSubmit(project);
     _wireGuardianRequestTextFields(project);
     _wireGuardianRequestSubmit(project);
   });
@@ -4506,6 +4509,19 @@ void _addGuardianEndpoints(FFProject project) {
     variables: {'memberId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
   );
 
+  // POST /guardian/create-parent-account — Lid maakt ouderaccount aan (directe koppeling)
+  addIfMissing(
+    name:     'CreateParentAccount',
+    url:      '/guardian/create-parent-account',
+    method:   FFApiEndpoint_CallType.POST,
+    bodyType: FFApiEndpoint_BodyType.JSON,
+    body:     '{"naam":"[naam]","email":"[email]"}',
+    variables: {
+      'naam':  FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'email': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+  );
+
   // PATCH /profile/photo — Profielfoto uploaden (multipart/form-data)
   if (!existing.contains('UpdateProfilePhoto')) {
     addEndpointToGroup(
@@ -4551,20 +4567,42 @@ void _buildGuardianPages(App app) {
     ),
   );
 
-  // ── GuardianRequestPage: koppeling aanvragen ──────────────────────────────
+  // ── GuardianCreateParentPage: ouder account aanmaken (door het kind) ─────
   app.ensurePage(
-    'GuardianRequestPage',
-    description: 'Formulier om een koppeling aan te vragen met een kind/lid.',
-    route: 'guardian-request',
+    'GuardianCreateParentPage',
+    description: 'Lid maakt een ouder/verzorger account aan. Koppeling is direct actief.',
+    route: 'guardian-create-parent',
     state: {
-      'isSubmitting':   bool_.withDefault(false),
-      'errorMessage':   string.withDefault(''),
-      'lidnummer':      string.withDefault(''),
-      'achternaam':     string.withDefault(''),
-      'geboortedatum':  string.withDefault(''),
+      'isSubmitting': bool_.withDefault(false),
+      'errorMessage': string.withDefault(''),
+      'naam':         string.withDefault(''),
+      'email':        string.withDefault(''),
     },
     body: Scaffold(
-      appBar: AppBar(title: 'Koppeling aanvragen'),
+      appBar: AppBar(title: 'Ouder account aanmaken'),
+      body: Column(
+        name: 'GuardianCreateParentRootColumn',
+        children: [
+          Container(name: 'GuardianCreateParentBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+
+  // ── GuardianRequestPage: extra kind koppelen (door de ouder) ─────────────
+  app.ensurePage(
+    'GuardianRequestPage',
+    description: 'Ouder koppelt een extra kind/lid aan zijn account.',
+    route: 'guardian-request',
+    state: {
+      'isSubmitting':  bool_.withDefault(false),
+      'errorMessage':  string.withDefault(''),
+      'lidnummer':     string.withDefault(''),
+      'achternaam':    string.withDefault(''),
+      'geboortedatum': string.withDefault(''),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Kind koppelen'),
       body: Column(
         name: 'GuardianRequestRootColumn',
         children: [
@@ -4814,10 +4852,21 @@ void _buildGuardianPageBody(FFProject project) {
   setConditionalVisibility(childrenNonEmptyList,
       variable: _isNotEmptyVar(childrenId, 'GuardianChild', 'linkId'));
 
-  // Add-button navigates to GuardianRequestPage
+  // "Ouder aanmaken" — het kind maakt een ouderaccount aan (directe koppeling)
   final addChildBtn = UI.iconButton('person_add', size: 24, color: UIColor.primary, name: 'AddChildButton');
   Actions.addTriggerChain(
     addChildBtn,
+    FFActionTriggerType.ON_TAP,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(project, pageName: 'GuardianCreateParentPage'),
+    ),
+  );
+
+  // "Kind koppelen" — de ouder koppelt een extra kind via lidnummer
+  final linkChildBtn = UI.iconButton('link', size: 24, color: UIColor.secondaryText, name: 'LinkChildButton');
+  Actions.addTriggerChain(
+    linkChildBtn,
     FFActionTriggerType.ON_TAP,
     FFActionNode(
       key: generateRandomAlphaNumericString(),
@@ -4839,6 +4888,7 @@ void _buildGuardianPageBody(FFProject project) {
             mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
             children: [
               UI.text('Mijn kinderen', name: 'ChildrenHeaderText', style: UITextStyle.titleSmall),
+              linkChildBtn,
               addChildBtn,
             ],
           ),
@@ -5049,6 +5099,195 @@ void _buildGuardianRequestPageBody(FFProject project) {
   );
 
   rootCol.children.add(scrollContainer);
+}
+
+// ─── GuardianCreateParentPage body ───────────────────────────────────────────
+//
+// Formulier waarmee een lid een ouder/verzorger-account aanmaakt.
+// Invulvelden: naam + e-mailadres. Na submit wordt de koppeling direct actief.
+// Idempotent: slaat over als de body al gebouwd is.
+void _buildGuardianCreateParentPageBody(FFProject project) {
+  final wc = findPage(project, name: 'GuardianCreateParentPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'SubmitCreateParentButton').isNotEmpty) return;
+
+  final scaffoldKey = wc.node.key;
+
+  final rootCol = findDescendants(wc.node, (n) => n.name == 'GuardianCreateParentRootColumn').firstOrNull;
+  if (rootCol == null) return;
+  rootCol.children.removeWhere((n) => n.name == 'GuardianCreateParentBodyPlaceholder');
+
+  final errorMsgId = _findPageStateFieldId(project, 'GuardianCreateParentPage', 'errorMessage');
+
+  // Foutcontainer
+  final errorContainer = UI.container(
+    name: 'CreateParentErrorContainer',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.error,
+    child: UI.text('', name: 'CreateParentErrorText', style: UITextStyle.bodySmall),
+  );
+  if (errorMsgId != null) {
+    final errText = findDescendants(errorContainer, (n) => n.name == 'CreateParentErrorText').firstOrNull;
+    if (errText != null) {
+      final errVar = varFromPageState(errorMsgId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+      final copy = errText.props.text.deepCopy();
+      copy.textValue = FFStringValue(variable: errVar.deepCopy());
+      errText.props.text = copy;
+    }
+    final isErrorVar = conditionVar(
+      varFromPageState(errorMsgId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable;
+    setConditionalVisibility(errorContainer, variable: isErrorVar);
+  }
+
+  final submitBtn = UI.button(
+    'Ouder account aanmaken',
+    name: 'SubmitCreateParentButton',
+    width: double.infinity,
+  );
+
+  final formCol = UI.column(
+    name: 'CreateParentFormColumn',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 16,
+    children: [
+      UI.icon('supervisor_account', size: 48, color: UIColor.primary, name: 'CreateParentIcon'),
+      UI.text(
+        'Maak een ouder/verzorger account aan.',
+        name: 'CreateParentTitle',
+        style: UITextStyle.titleMedium,
+      ),
+      UI.text(
+        'De ouder ontvangt een e-mail en kan daarna via de magic link inloggen. '
+        'De koppeling is direct actief.',
+        name: 'CreateParentIntro',
+        style: UITextStyle.bodySmall,
+      ),
+      UI.container(name: 'CreateParentDivider', padding: UIEdgeInsets.only(bottom: 4)),
+      // Naam
+      UI.column(
+        name: 'CreateParentNaamCol',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 4,
+        children: [
+          UI.text('Naam ouder/verzorger', name: 'CreateParentNaamLabel', style: UITextStyle.labelMedium),
+          UI.textField(hintText: 'Voor- en achternaam', name: 'CreateParentNaamField'),
+        ],
+      ),
+      // E-mail
+      UI.column(
+        name: 'CreateParentEmailCol',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 4,
+        children: [
+          UI.text('E-mailadres', name: 'CreateParentEmailLabel', style: UITextStyle.labelMedium),
+          UI.textField(
+            hintText: 'ouder@voorbeeld.nl',
+            name: 'CreateParentEmailField',
+            keyboardType: UIKeyboardType.email,
+          ),
+        ],
+      ),
+      errorContainer,
+      submitBtn,
+    ],
+  );
+
+  rootCol.children.add(
+    UI.container(
+      name: 'CreateParentScrollContainer',
+      padding: UIEdgeInsets.all(24),
+      child: formCol,
+    ),
+  );
+}
+
+// Bindt TextFields aan page state via localStateValue (zelfde patroon als GuardianRequestPage).
+void _wireGuardianCreateParentTextFields(FFProject project) {
+  final wc = findPage(project, name: 'GuardianCreateParentPage');
+  if (wc == null) return;
+
+  void _bindField(String fieldName, String stateFieldName) {
+    final tf = findDescendants(wc.node, (n) => n.name == fieldName).firstOrNull;
+    if (tf == null) return;
+    final stateId = _findPageStateFieldId(project, 'GuardianCreateParentPage', stateFieldName);
+    if (stateId == null) return;
+    tf.props.ensureTextField().debounceTimeValue = FFDoubleValue(inputValue: 0.0);
+    tf.props.textField.localStateValue = true;
+    tf.props.textField.initialText = FFText(
+      textValue: FFStringValue(
+        variable: varFromPageState(stateId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      ),
+    );
+  }
+
+  _bindField('CreateParentNaamField',  'naam');
+  _bindField('CreateParentEmailField', 'email');
+}
+
+// Koppelt de SubmitCreateParentButton aan CreateParentAccount API.
+void _wireGuardianCreateParentSubmit(FFProject project) {
+  final wc = findPage(project, name: 'GuardianCreateParentPage');
+  if (wc == null) return;
+
+  final submitBtn = findDescendants(wc.node, (n) => n.name == 'SubmitCreateParentButton').firstOrNull;
+  if (submitBtn == null) return;
+
+  submitBtn.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+
+  final scaffoldKey = wc.node.key;
+
+  FFVariable _stateVar(String name) {
+    final id = _findPageStateFieldId(project, 'GuardianCreateParentPage', name);
+    if (id == null) return varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING);
+    return varFromPageState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  Actions.addTriggerChain(
+    submitBtn,
+    FFActionTriggerType.ON_TAP,
+    Actions.apiCallNode(
+      project,
+      endpointName:       'CreateParentAccount',
+      groupName:          'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'naam':  _stateVar('naam'),
+        'email': _stateVar('email'),
+      },
+      outputVariableName: 'createParentResult',
+      nodeKey:            submitBtn.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'GuardianCreateParentPage',
+          updates: [StateFieldUpdate.set('errorMessage', '')],
+        ),
+        Actions.snackBar(
+          'Ouder account aangemaakt! De ouder kan nu inloggen via de magic link in de app.',
+        ),
+        Actions.navigate(project, pageName: 'GuardianPage'),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'GuardianCreateParentPage',
+          updates: [StateFieldUpdate.set(
+            'errorMessage',
+            'Aanmaken mislukt. Controleer de gegevens en probeer opnieuw.',
+          )],
+        ),
+        Actions.snackBar('Aanmaken mislukt.'),
+      ]),
+    ),
+  );
 }
 
 // ─── GuardianPage: API-wiring on load ────────────────────────────────────────

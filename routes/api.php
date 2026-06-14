@@ -117,7 +117,11 @@ Route::prefix('v1')->group(function () {
 
         // Guardian / ouder-verzorger koppelingen
         Route::prefix('guardian')->group(function () {
-            // Ouder: verzoek indienen (throttle: 5/min, 20/uur)
+            // Lid maakt een ouder/verzorger-account aan (directe goedkeuring)
+            Route::post('/create-parent-account', [GuardianController::class, 'createParentAccount'])
+                 ->middleware(['throttle:5,1']);
+
+            // Ouder: verzoek indienen voor extra kind (throttle: 5/min)
             Route::post('/request', [GuardianController::class, 'request'])
                  ->middleware(['throttle:5,1']);
 

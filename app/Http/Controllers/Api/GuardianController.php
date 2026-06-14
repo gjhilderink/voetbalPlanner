@@ -7,10 +7,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\GuardianLinkResource;
 use App\Http\Resources\MemberResource;
+use App\Models\Club;
 use App\Models\GuardianLink;
 use App\Models\Member;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class GuardianController extends Controller
 {
@@ -343,5 +346,84 @@ class GuardianController extends Controller
             'data'    => new MemberResource($member),
             'message' => '',
         ]);
+    }
+
+    /**
+     * POST /v1/guardian/create-parent-account
+     *
+     * Een lid maakt een ouder/verzorger-account aan voor zichzelf.
+     * De koppeling wordt direct goedgekeurd — geen bevestiging nodig.
+     * De ouder krijgt een e-mail om in te loggen via een magic link.
+     */
+    public function createParentAccount(Request $request): JsonResponse
+    {
+        $user  = $request->user();
+        $child = $user->member;
+
+        if (! $child) {
+            return response()->json([
+                'success' => false,
+                'data'    => null,
+                'message' => 'Geen lid-profiel gevonden voor uw account.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'naam'  => 'required|string|min:2|max:100',
+            'email' => 'required|email|max:191',
+        ]);
+
+        $email = strtolower($validated['email']);
+
+        // Controleer of het e-mailadres al in gebruik is
+        if (User::where('email', $email)->exists()) {
+            return response()->json([
+                'success' => false,
+                'data'    => null,
+                'message' => 'Dit e-mailadres is al in gebruik. '
+                    . 'De ouder kan inloggen en vanuit zijn profiel een koppeling aanvragen.',
+            ], 409);
+        }
+
+        // Maak een Member-record aan voor de ouder (geen club-lid, maar wel nodig voor koppeling)
+        $parentMember = Member::create([
+            'name'      => $validated['naam'],
+            'email'     => $email,
+            'is_active' => true,
+            'role'      => 'player',
+        ]);
+
+        // Maak een User-account aan (wachtwoord is willekeurig — ouder logt in via magic link)
+        $parentUser = User::create([
+            'name'      => $validated['naam'],
+            'email'     => $email,
+            'password'  => Str::random(32),
+            'club_id'   => $user->club_id,
+            'is_active' => true,
+        ]);
+
+        // Koppel User aan Member
+        $parentMember->update(['user_id' => $parentUser->id]);
+
+        // Maak de koppeling direct goedgekeurd aan — het kind heeft zelf het account aangemaakt
+        GuardianLink::create([
+            'club_id'               => $user->club_id,
+            'guardian_member_id'    => $parentMember->id,
+            'child_member_id'       => $child->id,
+            'status'                => 'approved',
+            'request_token'         => GuardianLink::generateToken(),
+            'expires_at'            => now()->addYears(10),
+            'resolved_by_member_id' => $child->id,
+            'resolved_at'           => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'parentName'  => $parentMember->name,
+                'parentEmail' => $parentMember->email,
+            ],
+            'message' => 'Ouder account aangemaakt. De ouder kan nu inloggen via de magic link in de app.',
+        ], 201);
     }
 }
