@@ -593,6 +593,7 @@ void buildEditFlow(App app) {
     _addCalendarButtons(project);
     _fixLoginKeyboard(project);
     _dedupLedenLoginSection(project);
+    _fixLoginTextFieldDebounce(project);
     _addLoginValidation(project);
     // Register the GetAppUsersAsMembers custom action + keep login upserts
     // so the appUsers collection is silently populated on every login.
@@ -13348,6 +13349,55 @@ void _dedupLedenLoginSection(FFProject project) {
     if (identical(s, keeper)) continue;
     final res = findParentByKey(wc.node, s.key);
     res?.parent.children.removeWhere((n) => n.key == s.key);
+  }
+}
+
+// Zet debounce op 0 + bi-directional state binding voor alle LoginPage
+// TextFields zodat één tik op de inlog/magic-link knop direct werkt.
+//
+// Standaard heeft FlutterFlow's onChanged trigger een 2-seconden debounce —
+// als je tekst typt en meteen op de knop tikt, leest de validatie nog een
+// lege state field. Bij een tweede tik (na de debounce) gaat het goed.
+void _fixLoginTextFieldDebounce(FFProject project) {
+  final wc = findPage(project, name: 'LoginPage');
+  if (wc == null) return;
+
+  // [TextFieldKey, pageStateFieldName]
+  const fields = [
+    ('TextField_73irroiw', 'emailInput'),     // beheerder e-mail
+    ('TextField_v1ycg741', 'passwordInput'),  // beheerder wachtwoord
+  ];
+
+  for (final (tfKey, stateName) in fields) {
+    final tf = findByKey(wc.node, tfKey);
+    if (tf == null) continue;
+    final stateId = _findPageStateFieldId(project, 'LoginPage', stateName);
+    if (stateId == null) continue;
+
+    tf.props.ensureTextField().debounceTimeValue = FFDoubleValue(inputValue: 0.0);
+    tf.props.textField.localStateValue = true;
+    tf.props.textField.initialText = FFText(
+      textValue: FFStringValue(
+        variable: varFromPageState(stateId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      ),
+    );
+  }
+
+  // MagicLinkEmailField (kan andere key hebben na dedup) — zoek op naam.
+  final magicTf = findDescendants(wc.node, (n) => n.name == 'MagicLinkEmailField').firstOrNull;
+  if (magicTf != null) {
+    final magicId = _findPageStateFieldId(project, 'LoginPage', 'magicLinkEmail');
+    if (magicId != null) {
+      magicTf.props.ensureTextField().debounceTimeValue = FFDoubleValue(inputValue: 0.0);
+      magicTf.props.textField.localStateValue = true;
+      magicTf.props.textField.initialText = FFText(
+        textValue: FFStringValue(
+          variable: varFromPageState(magicId.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        ),
+      );
+    }
   }
 }
 
