@@ -1,4 +1,18 @@
 # ─────────────────────────────────────────────────────────────────────────────
+# Schakel WAF/mod_security regels uit die OPTIONS preflight blokkeren.
+# Op shared hosting (cPanel/Plesk) blokkeert mod_security vaak OPTIONS
+# requests waardoor de server een lege 'Allow:' header en HTTP 405 stuurt
+# voordat .htaccess of PHP er aan te pas komen.
+# ─────────────────────────────────────────────────────────────────────────────
+<IfModule mod_security.c>
+    SecRuleEngine Off
+    SecFilterEngine Off
+</IfModule>
+<IfModule mod_security2.c>
+    SecRuleEngine Off
+</IfModule>
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CORS headers via Apache mod_headers — werkt onafhankelijk van PHP/Laravel
 # cache. 'Header always set' zorgt dat de headers OOK op error responses
 # (401, 404, 500, …) worden gezet, anders blokkeert de browser de preflight.
@@ -17,10 +31,11 @@
 
     RewriteEngine On
 
-    # OPTIONS preflight: stuur direct 204 No Content terug. Apache plakt de
-    # CORS headers (hierboven) automatisch op deze response. Geen PHP nodig.
+    # OPTIONS preflight: stuur door naar index.php zodat Laravel's
+    # catch-all OPTIONS route in routes/api.php (binnen prefix v1) reageert
+    # met 204 + de CORS headers via HandleCorsApi middleware.
     RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ $1 [R=204,L]
+    RewriteRule ^.*$ index.php [L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .

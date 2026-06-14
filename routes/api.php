@@ -18,6 +18,11 @@ use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TeamController;
 use Illuminate\Support\Facades\Route;
 
+// Globale catch-all voor OPTIONS preflight — moet ALS EERSTE staan zodat
+// browsers altijd 204 + CORS headers krijgen, zelfs voor non-existent
+// routes of routes achter auth:sanctum.
+Route::options('{any?}', fn() => response('', 204))->where('any', '.*');
+
 Route::prefix('v1')->group(function () {
     // Auth
     Route::post('/auth/login', [AuthController::class, 'login']);
