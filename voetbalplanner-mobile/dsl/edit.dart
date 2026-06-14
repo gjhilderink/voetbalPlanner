@@ -3321,12 +3321,43 @@ void _wireBugReportTextFields(FFProject project) {
     if (tf == null) return;
     final stateId = _findPageStateFieldId(project, 'BugReportPage', stateField);
     if (stateId == null) return;
+
     tf.props.ensureTextField().debounceTimeValue = FFDoubleValue(inputValue: 0.0);
     tf.props.textField.localStateValue = true;
     tf.props.textField.initialText = FFText(
       textValue: FFStringValue(
         variable: varFromPageState(stateId.deepCopy())
           ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      ),
+    );
+
+    // Expliciete ON_TEXTFIELD_CHANGE trigger die de page state direct
+    // bijwerkt met TEXT_VALUE. localStateValue alleen is niet altijd
+    // genoeg om de state up-to-date te houden vóór een knop-tap.
+    tf.triggerActions.removeWhere(
+      (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TEXTFIELD_CHANGE,
+    );
+
+    final setStateAction = FFAction(
+      key: generateRandomAlphaNumericString(),
+      localStateUpdate: FFLocalStateUpdate(
+        stateVariableType: FFStateVariableType.WIDGET_CLASS_STATE,
+        updates: [
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: stateId.deepCopy(),
+            setValue: FFValue(variable: varFromTextFieldValue(tf.key)),
+          ),
+        ],
+      ),
+    );
+
+    tf.triggerActions.add(
+      FFTriggerActions(
+        trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TEXTFIELD_CHANGE),
+        rootAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: setStateAction,
+        ),
       ),
     );
   }

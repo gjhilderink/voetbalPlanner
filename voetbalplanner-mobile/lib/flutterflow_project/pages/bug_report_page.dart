@@ -142,6 +142,9 @@ abstract final class BugReportPageWidgets {
                             path: "BugReportPage.body[0].children[0].children[0].children[4].children[1]",
                             name: "BugTitleField",
                             text: "Korte titel van het probleem",
+                            triggers: const <String>[
+                              "ON_TEXTFIELD_CHANGE",
+                            ],
                           ),
                         ],
                       ),
@@ -164,6 +167,9 @@ abstract final class BugReportPageWidgets {
                             path: "BugReportPage.body[0].children[0].children[0].children[5].children[1]",
                             name: "BugDescriptionField",
                             text: "Beschrijf wat er mis gaat, welke stappen je doet en wat je verwacht.",
+                            triggers: const <String>[
+                              "ON_TEXTFIELD_CHANGE",
+                            ],
                           ),
                         ],
                       ),
