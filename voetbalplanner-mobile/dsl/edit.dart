@@ -10687,6 +10687,7 @@ void _addPageListEmptyPlaceholders(FFProject project) {
 
         final bodyChild = getPropertyChild(pageWc.node, 'body');
         if (bodyChild != null && bodyChild.key == 'ConditionalBuilder_ko9hyhog') {
+          UI.expanded(bodyChild);
           final newBodyCol = UI.column(
             name: 'RijschemaBodyCol',
             mainAxisMin: false,
@@ -10698,6 +10699,15 @@ void _addPageListEmptyPlaceholders(FFProject project) {
             keyRefs: [FFNodeKeyReference(key: newBodyCol.key)],
           );
         }
+      }
+
+      // Belangrijk: zorg ALTIJD dat de ConditionalBuilder Expanded is binnen
+      // de wrapping RijschemaBodyCol. Zonder Expanded krijgt de ListView
+      // geen hoogte en blijft de pagina visueel leeg.
+      final cb = findByKey(pageWc.node, 'ConditionalBuilder_ko9hyhog');
+      final parent = cb != null ? findParentByKey(pageWc.node, cb.key) : null;
+      if (cb != null && parent != null && parent.parent.key.startsWith('Column_')) {
+        if (!cb.props.hasExpanded()) UI.expanded(cb);
       }
     }
   }
