@@ -2995,12 +2995,25 @@ import 'package:flutter/material.dart';
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 // Module-private store voor de gekozen screenshots tussen taps door.
 List<XFile> _bugScreenshots = [];
+
+String _detectPlatform() {
+  if (kIsWeb) return 'web';
+  try {
+    if (Platform.isAndroid) return 'android';
+    if (Platform.isIOS) return 'ios';
+    if (Platform.isMacOS) return 'macos';
+    if (Platform.isWindows) return 'windows';
+    if (Platform.isLinux) return 'linux';
+  } catch (_) {}
+  return 'other';
+}
 
 Future<int> pickBugScreenshot(BuildContext context) async {
   try {
@@ -3059,7 +3072,7 @@ Future<bool> submitBugReport(
       ..headers['Accept']        = 'application/json'
       ..fields['title']          = t
       ..fields['description']    = d
-      ..fields['platform']       = (kIsWeb ? 'web' : (Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'other')));
+      ..fields['platform']       = _detectPlatform();
 
     for (final shot in _bugScreenshots) {
       req.files.add(await http.MultipartFile.fromPath('screenshots[]', shot.path));
