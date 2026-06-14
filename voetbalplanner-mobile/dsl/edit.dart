@@ -638,6 +638,7 @@ void buildEditFlow(App app) {
     _wireGuardianRequestSubmit(project);
     _wireGuardianSelfRegisterTextFields(project);
     _wireGuardianSelfRegisterSubmit(project);
+    _makeGuardianSelfRegisterPageScrollable(project);
     _addGuardianRegisterLinkToLoginPage(project);
   });
 
@@ -5775,6 +5776,26 @@ void _buildGuardianSelfRegisterPageBody(FFProject project) {
       child: formCol,
     ),
   );
+}
+
+// Maakt de root column van GuardianSelfRegisterPage scrollbaar zodat alle
+// velden bereikbaar blijven, ook met geopend toetsenbord.
+// Apart van de body-build functie zodat het altijd draait, ook als de body
+// al bestaat (idempotency-skip in _buildGuardianSelfRegisterPageBody).
+void _makeGuardianSelfRegisterPageScrollable(FFProject project) {
+  final wc = findPage(project, name: 'GuardianSelfRegisterPage');
+  if (wc == null) return;
+
+  final rootCol = findDescendants(wc.node,
+      (n) => n.name == 'GuardianSelfRegisterRootColumn').firstOrNull;
+  if (rootCol == null) return;
+  if (!rootCol.props.hasColumn()) return;
+
+  if (!rootCol.props.column.scrollable) {
+    final colCopy = rootCol.props.column.deepCopy();
+    colCopy.scrollable = true;
+    rootCol.props.column = colCopy;
+  }
 }
 
 // Bindt TextFields aan page state via localStateValue.
