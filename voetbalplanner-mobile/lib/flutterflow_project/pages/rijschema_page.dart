@@ -63,6 +63,60 @@ abstract final class RijschemaPageWidgets {
             },
           ),
         ],
+        "body": <ffai.ProjectWidgetHandle>[
+          ffai.ProjectWidgetHandle(
+            key: "ConditionalBuilder_ko9hyhog",
+            type: "ConditionalBuilder",
+            path: "RijschemaPage.body[0]",
+            name: "ConditionalBuilder",
+            children: <ffai.ProjectWidgetHandle>[
+              ffai.ProjectWidgetHandle(
+                key: "Column_r8o5hqpo",
+                type: "Column",
+                path: "RijschemaPage.body[0].children[0]",
+                name: "Column",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "ProgressBar_swmm4iru",
+                    type: "ProgressBar",
+                    path: "RijschemaPage.body[0].children[0].children[0]",
+                    name: "ProgressBar",
+                  ),
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "Container_aznkrhkc",
+                type: "Container",
+                path: "RijschemaPage.body[0].children[1]",
+                name: "ListViewWrapper",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "ListView_55kreos3",
+                    type: "ListView",
+                    path: "RijschemaPage.body[0].children[1].children[0]",
+                    name: "ListView",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Container_od2z9b8b",
+                        type: "Container",
+                        path: "RijschemaPage.body[0].children[1].children[0].children[0]",
+                        name: "Container",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Column_cx7sodso",
+                            type: "Column",
+                            path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0]",
+                            name: "Column",
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       },
     ),
   );

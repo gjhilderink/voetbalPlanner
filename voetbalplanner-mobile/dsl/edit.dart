@@ -10190,6 +10190,11 @@ void _addPageListEmptyPlaceholders(FFProject project) {
     }
   }
 
+  // ── Herstel: RijschemaPage body opnieuw opbouwen als die leeg is ────────────
+  // Eerdere opruiming heeft de body verwijderd; we bouwen hem opnieuw op met
+  // de originele widget-keys zodat bestaande wire-functies blijven werken.
+  _restoreRijschemaBodyIfMissing(project);
+
   // ── Herstel: ListView direct als kind van ListViewWrapper plaatsen ────────────
   //
   // Vorige pushes hebben de ListView gewrapped in een Column INSIDE de
@@ -10260,6 +10265,91 @@ void _addPageListEmptyPlaceholders(FFProject project) {
 
   // Placeholders zijn voorlopig uitgeschakeld om de pagina-layout te beschermen.
   // De dashboard-placeholders blijven gewoon werken.
+}
+
+// ─── Herstel RijschemaPage body als die leeg is ───────────────────────────────
+//
+// Eerdere opruim-acties hebben mogelijk de body van de RijschemaPage volledig
+// verwijderd (alleen AppBar blijft over). Deze functie detecteert dat en
+// bouwt de body opnieuw op met de originele widget-keys zodat alle bestaande
+// wire-functies (navigatie, cardrows, onLoad) blijven werken.
+void _restoreRijschemaBodyIfMissing(FFProject project) {
+  final wc = findPage(project, name: 'RijschemaPage');
+  if (wc == null) return;
+
+  // Skip als de ConditionalBuilder al bestaat — body is intact.
+  if (findByKey(wc.node, 'ConditionalBuilder_ko9hyhog') != null) return;
+
+  // State velden ophalen
+  final driveMatchesId = _findPageStateFieldId(project, 'RijschemaPage', 'driveMatches');
+  final isLoadingId    = _findPageStateFieldId(project, 'RijschemaPage', 'isLoading');
+  if (driveMatchesId == null || isLoadingId == null) return;
+
+  final driveMatchesVar = varFromPageState(driveMatchesId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  final isLoadingVar = varFromPageState(isLoadingId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  final isNotLoadingVar = varFromPageState(isLoadingId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)
+    ..operations.add(FFVariableOperation(negate: FFNegateBoolean()));
+
+  // Card column waar _wireRijschemaCardDriverRow rows aan toevoegt
+  final cardColumn = UI.column(name: 'Column', crossAxisAlignment: UICrossAxisAlignment.start);
+  cardColumn.key = 'Column_cx7sodso';
+
+  // Card container (tappable)
+  final cardContainer = UI.container(
+    name: 'Container',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 12,
+    color: UIColor.secondaryBackground,
+    child: cardColumn,
+  );
+  cardContainer.key = 'Container_od2z9b8b';
+
+  // ListView gebonden aan driveMatches
+  final listView = UI.listView(
+    name: 'ListView',
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    spacing: 8,
+    dynamicSource: DynamicSource(variable: driveMatchesVar, itemName: 'driveMatch'),
+  );
+  listView.key = 'ListView_55kreos3';
+  listView.children.add(cardContainer);
+
+  // ListViewWrapper (Expanded zodat ListView ruimte krijgt)
+  final wrapper = UI.container(name: 'ListViewWrapper', child: listView);
+  wrapper.key = 'Container_aznkrhkc';
+  UI.expanded(wrapper);
+  setConditionalVisibility(wrapper, variable: isNotLoadingVar);
+
+  // Loading column met spinner
+  final spinner = UI.progressBar(name: 'ProgressBar',
+      shape: UIProgressShape.circular, width: 40, thickness: 4);
+  spinner.key = 'ProgressBar_swmm4iru';
+  final loadingCol = UI.column(name: 'Column',
+      mainAxisAlignment: UIMainAxisAlignment.center, children: [spinner]);
+  loadingCol.key = 'Column_r8o5hqpo';
+  setConditionalVisibility(loadingCol, variable: isLoadingVar);
+
+  // ConditionalBuilder (loading vs content)
+  final conditionalBuilder = FFNode(
+    key: 'ConditionalBuilder_ko9hyhog',
+    type: FFWidgetType.ConditionalBuilder,
+    name: 'ConditionalBuilder',
+    props: FFWidgetProperties(conditionalBuilder: FFConditionalBuilder()),
+    children: [loadingCol, wrapper],
+  );
+
+  // Verwijder bestaande body-children en plaats nieuwe body
+  final existingBodyKeys = wc.node.childPropertyMap['body']?.keyRefs
+      .map((r) => r.key).toSet() ?? <String>{};
+  wc.node.children.removeWhere((n) => existingBodyKeys.contains(n.key));
+
+  wc.node.children.add(conditionalBuilder);
+  wc.node.childPropertyMap['body'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: conditionalBuilder.key)],
+  );
 }
 
 // Appends a GetDriveSchedule API call to the DashboardPage ON_INIT_STATE chain.
