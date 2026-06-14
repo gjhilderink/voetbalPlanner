@@ -131,27 +131,58 @@ abstract final class LoginPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
+                key: "Column_ipqidhvg",
+                type: "Column",
+                path: "LoginPage.body[0].children[8]",
+                name: "LedenLoginSection",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "Divider_s6krbpiu",
+                    type: "Divider",
+                    path: "LoginPage.body[0].children[8].children[0]",
+                    name: "Divider",
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "Text_othzus1i",
+                    type: "Text",
+                    path: "LoginPage.body[0].children[8].children[1]",
+                    name: "LedenLoginLabel",
+                    text: "Inloggen leden",
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "TextField_cfp8d0xg",
+                    type: "TextField",
+                    path: "LoginPage.body[0].children[8].children[2]",
+                    name: "MagicLinkEmailField",
+                    text: "E-mailadres",
+                    triggers: const <String>[
+                      "ON_TEXTFIELD_CHANGE",
+                    ],
+                  ),
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
                 key: "Container_5019dijp",
                 type: "Container",
-                path: "LoginPage.body[0].children[8]",
+                path: "LoginPage.body[0].children[9]",
                 name: "LoginErrorContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
                     key: "Row_x4dw5rcs",
                     type: "Row",
-                    path: "LoginPage.body[0].children[8].children[0]",
+                    path: "LoginPage.body[0].children[9].children[0]",
                     name: "LoginErrorRow",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
                         key: "Icon_4ie2qp7z",
                         type: "Icon",
-                        path: "LoginPage.body[0].children[8].children[0].children[0]",
+                        path: "LoginPage.body[0].children[9].children[0].children[0]",
                         name: "LoginErrorIcon",
                       ),
                       ffai.ProjectWidgetHandle(
                         key: "Text_nwn04wpx",
                         type: "Text",
-                        path: "LoginPage.body[0].children[8].children[0].children[1]",
+                        path: "LoginPage.body[0].children[9].children[0].children[1]",
                         name: "LoginErrorText",
                       ),
                     ],
@@ -161,26 +192,26 @@ abstract final class LoginPageWidgets {
               ffai.ProjectWidgetHandle(
                 key: "Column_zhhikdu7",
                 type: "Column",
-                path: "LoginPage.body[0].children[9]",
+                path: "LoginPage.body[0].children[10]",
                 name: "LedenLoginSection",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
                     key: "Divider_mpf7pwsq",
                     type: "Divider",
-                    path: "LoginPage.body[0].children[9].children[0]",
+                    path: "LoginPage.body[0].children[10].children[0]",
                     name: "Divider",
                   ),
                   ffai.ProjectWidgetHandle(
                     key: "Text_rq2ns9wo",
                     type: "Text",
-                    path: "LoginPage.body[0].children[9].children[1]",
+                    path: "LoginPage.body[0].children[10].children[1]",
                     name: "LedenLoginLabel",
                     text: "Inloggen leden",
                   ),
                   ffai.ProjectWidgetHandle(
                     key: "TextField_1x5me2b8",
                     type: "TextField",
-                    path: "LoginPage.body[0].children[9].children[2]",
+                    path: "LoginPage.body[0].children[10].children[2]",
                     name: "MagicLinkEmailField",
                     text: "E-mailadres",
                     triggers: const <String>[
@@ -190,7 +221,7 @@ abstract final class LoginPageWidgets {
                   ffai.ProjectWidgetHandle(
                     key: "Button_uukn463f",
                     type: "Button",
-                    path: "LoginPage.body[0].children[9].children[3]",
+                    path: "LoginPage.body[0].children[10].children[3]",
                     name: "SendMagicLinkButton",
                     text: "Stuur inloglink",
                     triggers: const <String>[

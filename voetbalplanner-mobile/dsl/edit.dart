@@ -586,7 +586,6 @@ void buildEditFlow(App app) {
     _addCalendarButtons(project);
     _fixLoginKeyboard(project);
     _addLoginValidation(project);
-    _addLoginErrorDisplay(project);
     // Register the GetAppUsersAsMembers custom action + keep login upserts
     // so the appUsers collection is silently populated on every login.
     // The chain replacement (_setupAppUsersRegistry) is intentionally NOT called
@@ -5319,9 +5318,14 @@ void _wireGuardianPageLoad(FFProject project) {
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
   );
 
-  void _setLoading(bool val) {}
+  // Helper: setLoading(false) action — used in every success/failure branch.
+  FFAction _stopLoading() => Actions.updatePageState(
+    project,
+    widgetClassName: 'GuardianPage',
+    updates: [StateFieldUpdate.set('isLoading', 'false')],
+  );
 
-  // Build chain: pending → children → myRequests → setLoading(false)
+  // 3. GetMyGuardianRequests — LAST in chain, always sets isLoading=false.
   final myRequestsNode = Actions.apiCallNode(
     project,
     endpointName:       'GetMyGuardianRequests',
@@ -5331,16 +5335,15 @@ void _wireGuardianPageLoad(FFProject project) {
     onSuccess: (ctx) => Actions.chain([
       Actions.updatePageState(project, widgetClassName: 'GuardianPage', updates: [
         StateFieldUpdate.setFromVariable('myRequests', ctx.responseVar),
-        StateFieldUpdate.set('isLoading', 'false'),
       ]),
+      _stopLoading(),
     ]),
     onFailure: (ctx) => Actions.chain([
-      Actions.updatePageState(project, widgetClassName: 'GuardianPage', updates: [
-        StateFieldUpdate.set('isLoading', 'false'),
-      ]),
+      _stopLoading(),
     ]),
   );
 
+  // 2. GetGuardianChildren — always continues to myRequests and stops loading.
   final childrenNode = Actions.apiCallNode(
     project,
     endpointName:       'GetGuardianChildren',
@@ -5353,15 +5356,11 @@ void _wireGuardianPageLoad(FFProject project) {
       ]),
     ]),
     onFailure: (ctx) => Actions.chain([
-      Actions.snackBar('Kon kinderen niet laden.'),
+      _stopLoading(),
     ]),
   );
 
-  // Append myRequests after children chain tail
-  var childrenTail = childrenNode;
-  while (childrenTail.hasFollowUpAction()) childrenTail = childrenTail.followUpAction;
-  childrenTail.followUpAction = myRequestsNode;
-
+  // 1. GetPendingGuardianRequests — always continues to children.
   final pendingNode = Actions.apiCallNode(
     project,
     endpointName:       'GetPendingGuardianRequests',
@@ -5374,11 +5373,17 @@ void _wireGuardianPageLoad(FFProject project) {
       ]),
     ]),
     onFailure: (ctx) => Actions.chain([
-      Actions.snackBar('Kon verzoeken niet laden.'),
+      _stopLoading(),
     ]),
   );
 
-  // Append children chain after pending chain tail
+  // Chain: pending → children → myRequests
+  // Use explicit followUpAction at root level so the next node always fires
+  // regardless of success/failure of the current one.
+  var childrenTail = childrenNode;
+  while (childrenTail.hasFollowUpAction()) childrenTail = childrenTail.followUpAction;
+  childrenTail.followUpAction = myRequestsNode;
+
   var pendingTail = pendingNode;
   while (pendingTail.hasFollowUpAction()) pendingTail = pendingTail.followUpAction;
   pendingTail.followUpAction = childrenNode;
@@ -11988,70 +11993,25 @@ void _addLoginValidation(FFProject project) {
     errorMessage: 'Vul email en wachtwoord in',
   );
 
-  // Magic link (Button_s0q1isbo): magicLinkEmail must be filled.
-  _wrapWithValidation(
-    btnKey: 'Button_s0q1isbo',
-    condition: _notEmpty('magicLinkEmail'),
-    errorMessage: 'Vul een e-mailadres in',
-  );
-}
-
-// Voegt een nette foutmelding-container toe aan de LoginPage, direct boven de
-// LedenLoginSection. De container is zichtbaar wanneer loginError niet leeg is.
-// Idempotent: slaat over als de container al aanwezig is.
-void _addLoginErrorDisplay(FFProject project) {
-  final wc = findPage(project, name: 'LoginPage');
-  if (wc == null) return;
-
-  // Idempotent: skip if already added.
-  if (findDescendants(wc.node, (n) => n.name == 'LoginErrorContainer').isNotEmpty) return;
-
-  final loginErrorId = _findAppStateFieldId(project, 'loginError');
-  if (loginErrorId == null) return;
-
-  // Visibility: show when loginError is not empty.
-  final hasErrorVar = conditionVar(
-    varFromAppState(loginErrorId.deepCopy()),
-    FFCondition_Relation.NOT_EQUAL_TO,
-    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
-  ).variable;
-
-  // Error text bound to loginError AppState.
-  final errorText = UI.text('', name: 'LoginErrorText', style: UITextStyle.bodySmall);
-  final copy = errorText.props.text.deepCopy();
-  copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_BACKGROUND));
-  copy.textValue  = FFStringValue(variable: varFromAppState(loginErrorId.deepCopy()));
-  errorText.props.text = copy;
-
-  // Container: error red background with rounded corners.
-  final errorContainer = UI.container(
-    name: 'LoginErrorContainer',
-    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    borderRadius: 8,
-    color: UIColor.error,
-    width: double.infinity,
-    child: UI.row(
-      name: 'LoginErrorRow',
-      spacing: 8,
-      children: [
-        UI.icon('error_outline', size: 18, color: UIColor.primaryBackground, name: 'LoginErrorIcon'),
-        errorText,
-      ],
-    ),
-  );
-  setConditionalVisibility(errorContainer, variable: hasErrorVar);
-
-  // Insert before LedenLoginSection (Column_zhhikdu7).
-  final bodyCol = findByKey(wc.node, 'Column_agcaeg1m');
-  if (bodyCol == null) return;
-
-  final ledenIdx = bodyCol.children
-      .indexWhere((n) => n.key == 'Column_zhhikdu7' || n.name == 'LedenLoginSection');
-
-  if (ledenIdx >= 0) {
-    bodyCol.children.insert(ledenIdx, errorContainer);
-  } else {
-    bodyCol.children.add(errorContainer);
+  // Magic link button: find by NAME so the hard-coded key never goes stale.
+  // There may be duplicate SendMagicLinkButton widgets if ensureInsertedAfter
+  // re-ran. Remove all but the LAST one to avoid outputVariableName conflicts.
+  final allMagicBtns = findDescendants(wc.node, (n) => n.name == 'SendMagicLinkButton');
+  if (allMagicBtns.length > 1) {
+    // Keep the last-created button (highest index) and remove others from parents.
+    for (var i = 0; i < allMagicBtns.length - 1; i++) {
+      final stale = allMagicBtns[i];
+      final result = findParentByKey(wc.node, stale.key);
+      result?.parent.children.removeWhere((n) => n.key == stale.key);
+    }
+  }
+  final magicBtn = findDescendants(wc.node, (n) => n.name == 'SendMagicLinkButton').firstOrNull;
+  if (magicBtn != null) {
+    _wrapWithValidation(
+      btnKey: magicBtn.key,
+      condition: _notEmpty('magicLinkEmail'),
+      errorMessage: 'Vul een e-mailadres in',
+    );
   }
 }
 
