@@ -779,9 +779,10 @@ void buildEditFlow(App app) {
   });
 
   // ── Dashboard empty states ────────────────────────────────────────────────────
-  // Show "Niets gepland" when a section list is empty.
-  // visibleWhen must be a boolean; use codeExpressionVar to convert list→bool.
   app.raw((project) => _addDashboardEmptyPlaceholders(project));
+
+  // ── WedstrijdenPage / BardienPage / RijschemaPage: "Niets gepland" ───────────
+  app.raw((project) => _addPageListEmptyPlaceholders(project));
 
   // Apply club primary color to all AppBar backgrounds; set back button + title to white.
   // Runs last so the AppBar nodes already exist from all the preceding wiring steps.
@@ -9840,6 +9841,140 @@ void _addDashboardEmptyPlaceholders(FFProject project) {
     container.children.clear();
     container.children.add(col);
   }
+}
+
+// ─── WedstrijdenPage / BardienPage / RijschemaPage: "Niets gepland" ─────────
+//
+// Voegt een "Niets gepland" placeholder toe aan de ListViewWrapper van elke
+// lijstpagina. De placeholder wordt zichtbaar wanneer de lijst leeg is via
+// het heuristische first-item-field check (zelfde patroon als het dashboard).
+// Idempotent: slaat over als de placeholder al aanwezig is.
+void _addPageListEmptyPlaceholders(FFProject project) {
+
+  // Finds a struct field identifier by struct name + field name.
+  FFIdentifier? _structFieldId(String structName, String fieldName) {
+    final s = findDataStruct(project, name: structName);
+    if (s == null) return null;
+    return s.fields
+        .cast<FFParameter?>()
+        .firstWhere((f) => f?.identifier.name == fieldName, orElse: () => null)
+        ?.identifier;
+  }
+
+  // Builds isEmptyVar: true when list's first item's field is empty/null.
+  FFVariable? _isEmptyVar(
+    String pageName,
+    String scaffoldKey,
+    String stateFieldName,
+    String structName,
+    String structFieldName,
+  ) {
+    final pageWc = findPage(project, name: pageName);
+    if (pageWc == null) return null;
+    final stateId = _findPageStateFieldId(project, pageName, stateFieldName);
+    if (stateId == null) return null;
+    final fieldId = _structFieldId(structName, structFieldName);
+
+    final firstFieldVar = varFromPageState(stateId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)
+      ..operations.add(FFVariableOperation(
+        listItemAtIndex: FFListItemAtIndex(type: FFListItemAtIndex_IndexType.FIRST),
+      ))
+      ..operations.add(FFVariableOperation(
+        accessDataStructField: FFAccessDataStructField(
+          fieldIdentifier: fieldId?.deepCopy() ?? FFIdentifier(name: structFieldName),
+        ),
+      ));
+
+    return conditionVar(
+      firstFieldVar,
+      FFCondition_Relation.EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable;
+  }
+
+  // Adds a "Niets gepland" text to the ListViewWrapper of a page.
+  void _addPlaceholder({
+    required String pageName,
+    required String scaffoldKey,
+    required String listViewWrapperKey,
+    required String stateFieldName,
+    required String structName,
+    required String structFieldName,
+    required String placeholderName,
+  }) {
+    final pageWc = findPage(project, name: pageName);
+    if (pageWc == null) return;
+
+    final wrapper = findByKey(pageWc.node, listViewWrapperKey);
+    if (wrapper == null) return;
+
+    // Idempotent: skip if placeholder already present.
+    if (findDescendants(wrapper, (n) => n.name == placeholderName).isNotEmpty) return;
+
+    final isEmptyVar = _isEmptyVar(
+      pageName, scaffoldKey, stateFieldName, structName, structFieldName,
+    );
+    if (isEmptyVar == null) return;
+
+    // Build placeholder text
+    final text = UI.text('Niets gepland', name: placeholderName, style: UITextStyle.bodySmall);
+    final copy = text.props.text.deepCopy();
+    copy.colorValue = FFColorValue(
+      inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT),
+    );
+    text.props.text = copy;
+    final padRef = UI.container(
+      padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 24),
+    );
+    text.props.padding = padRef.props.padding.deepCopy();
+    setConditionalVisibility(text, variable: isEmptyVar);
+
+    // Wrap existing ListView + placeholder in a Column
+    if (wrapper.children.isEmpty) return;
+    final listView = wrapper.children.first;
+
+    final col = UI.column(
+      name: '${pageName}EmptyCol',
+      children: [listView, text],
+    );
+    wrapper.children
+      ..clear()
+      ..add(col);
+  }
+
+  // ── WedstrijdenPage ─────────────────────────────────────────────────────────
+  _addPlaceholder(
+    pageName:           'WedstrijdenPage',
+    scaffoldKey:        'Scaffold_xjabl8lh',
+    listViewWrapperKey: 'Container_k5bkzn1l',
+    stateFieldName:     'matches',
+    structName:         'FootMatch',
+    structFieldName:    'opponent',
+    placeholderName:    'WedstrijdenNietGepland',
+  );
+
+  // ── BardienPage ─────────────────────────────────────────────────────────────
+  _addPlaceholder(
+    pageName:           'BardienPage',
+    scaffoldKey:        'Scaffold_ljui3hun',
+    listViewWrapperKey: 'Container_2u86md6h',
+    stateFieldName:     'duties',
+    structName:         'BarDuty',
+    structFieldName:    'shift',
+    placeholderName:    'BardienNietGepland',
+  );
+
+  // ── RijschemaPage ───────────────────────────────────────────────────────────
+  _addPlaceholder(
+    pageName:           'RijschemaPage',
+    scaffoldKey:        'Scaffold_g8lilfvp',
+    listViewWrapperKey: 'Container_aznkrhkc',
+    stateFieldName:     'driveMatches',
+    structName:         'FootMatch',
+    structFieldName:    'opponent',
+    placeholderName:    'RijschemaNietGepland',
+  );
 }
 
 // Appends a GetDriveSchedule API call to the DashboardPage ON_INIT_STATE chain.

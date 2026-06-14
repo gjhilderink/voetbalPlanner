@@ -123,17 +123,32 @@ abstract final class BardienPageWidgets {
                     name: "ListViewWrapper",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "ListView_tu54znnh",
-                        type: "ListView",
+                        key: "Column_48ksx4xh",
+                        type: "Column",
                         path: "BardienPage.body[0].children[1].children[1].children[0]",
-                        name: "ListView",
+                        name: "BardienPageEmptyCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_3x9tkqc6",
-                            type: "Container",
+                            key: "ListView_tu54znnh",
+                            type: "ListView",
                             path: "BardienPage.body[0].children[1].children[1].children[0].children[0]",
-                            name: "BarDutyCard",
-                            componentName: "BarDutyCard",
+                            name: "ListView",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_3x9tkqc6",
+                                type: "Container",
+                                path: "BardienPage.body[0].children[1].children[1].children[0].children[0].children[0]",
+                                name: "BarDutyCard",
+                                componentName: "BarDutyCard",
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_umydzi4o",
+                            type: "Text",
+                            path: "BardienPage.body[0].children[1].children[1].children[0].children[1]",
+                            name: "BardienNietGepland",
+                            text: "Niets gepland",
                           ),
                         ],
                       ),
