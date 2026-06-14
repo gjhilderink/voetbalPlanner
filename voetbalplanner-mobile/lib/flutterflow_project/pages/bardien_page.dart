@@ -150,7 +150,7 @@ abstract final class BardienPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Text_8sq5akyx",
+                key: "Text_mq99v6ab",
                 type: "Text",
                 path: "BardienPage.body[0].children[2]",
                 name: "BardienNietGepland",

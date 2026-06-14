@@ -94,31 +94,31 @@ abstract final class ChatDetailPageWidgets {
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_jp18l9ot",
+                        key: "Container_fvlu2v9m",
                         type: "Container",
                         path: "ChatDetailPage.body[0].children[0].children[0].children[0]",
                         name: "OtherBubble",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_p5oflyul",
+                            key: "Column_k222pnmp",
                             type: "Column",
                             path: "ChatDetailPage.body[0].children[0].children[0].children[0].children[0]",
                             name: "OtherMsgCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_93eyycov",
+                                key: "Text_zypi2t7r",
                                 type: "Text",
                                 path: "ChatDetailPage.body[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "OtherSenderName",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_ykfxbfoi",
+                                key: "Text_66d8u5l7",
                                 type: "Text",
                                 path: "ChatDetailPage.body[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "OtherMsgText",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_ns6bx6d5",
+                                key: "Text_iwi9t2fd",
                                 type: "Text",
                                 path: "ChatDetailPage.body[0].children[0].children[0].children[0].children[0].children[2]",
                                 name: "OtherMsgTime",
@@ -128,49 +128,49 @@ abstract final class ChatDetailPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_qmvqigoy",
+                        key: "Container_3c65lxi5",
                         type: "Container",
                         path: "ChatDetailPage.body[0].children[0].children[0].children[1]",
                         name: "OwnBubble",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_70ec5517",
+                            key: "Column_tf5ukenm",
                             type: "Column",
                             path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0]",
                             name: "OwnMsgCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_4an5mk7a",
+                                key: "Text_5han7lnq",
                                 type: "Text",
                                 path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[0]",
                                 name: "OwnSenderName",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_qf8aabgn",
+                                key: "Text_pyibrl4l",
                                 type: "Text",
                                 path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[1]",
                                 name: "OwnMsgText",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_7rlkedvf",
+                                key: "Row_r5pswkwc",
                                 type: "Row",
                                 path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[2]",
                                 name: "OwnMsgMeta",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_0o15via8",
+                                    key: "Text_dstwpxp6",
                                     type: "Text",
                                     path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[2].children[0]",
                                     name: "OwnMsgTime",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_pxgtxki9",
+                                    key: "Icon_ru80qich",
                                     type: "Icon",
                                     path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[2].children[1]",
                                     name: "ReadReceiptSent",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_1259aa0d",
+                                    key: "Icon_jofw7d3g",
                                     type: "Icon",
                                     path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[2].children[2]",
                                     name: "ReadReceiptRead",
@@ -178,13 +178,13 @@ abstract final class ChatDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_33samkzd",
+                                key: "Row_103hq0p4",
                                 type: "Row",
                                 path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[3]",
                                 name: "OwnActionsRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "IconButton_hxqvpw7v",
+                                    key: "IconButton_e4swwgoy",
                                     type: "IconButton",
                                     path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[3].children[0]",
                                     name: "OwnEditBtn",
@@ -193,7 +193,7 @@ abstract final class ChatDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "IconButton_q03lbcvv",
+                                    key: "IconButton_zgzpuv0a",
                                     type: "IconButton",
                                     path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[3].children[1]",
                                     name: "OwnSaveBtn",
@@ -202,7 +202,7 @@ abstract final class ChatDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "IconButton_e3fiscn7",
+                                    key: "IconButton_6te5830d",
                                     type: "IconButton",
                                     path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[3].children[2]",
                                     name: "OwnCancelBtn",
@@ -211,7 +211,7 @@ abstract final class ChatDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "IconButton_8mz77ixn",
+                                    key: "IconButton_ddqw098m",
                                     type: "IconButton",
                                     path: "ChatDetailPage.body[0].children[0].children[0].children[1].children[0].children[3].children[3]",
                                     name: "OwnDeleteBtn",

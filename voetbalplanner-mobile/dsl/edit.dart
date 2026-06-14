@@ -10190,114 +10190,104 @@ void _addPageListEmptyPlaceholders(FFProject project) {
     }
   }
 
-  // ── Herstel: verwijder de oude kapotte Column-wrapper uit de ConditionalBuilder ──
-  // Een vorige push vervving ConditionalBuilder.children[1] door een Column.
-  // Die Column had geen hoogte-constraint, waardoor de ListView leeg bleef.
-  // Dit blok detecteert en herstelt die situatie.
-  void _restoreConditionalBuilder(String pageName, String conditionalBuilderKey) {
-    final pageWc = findPage(project, name: pageName);
-    if (pageWc == null) return;
-    final cb = findByKey(pageWc.node, conditionalBuilderKey);
-    if (cb == null || cb.children.length < 2) return;
-    final secondChild = cb.children[1];
-    // Herken de kapotte wrapper: het is een Column met naam '${pageName}ContentCol'
-    if (secondChild.type == FFWidgetType.Column &&
-        secondChild.name == '${pageName}ContentCol' &&
-        secondChild.children.isNotEmpty) {
-      // Zet de originele ListViewWrapper (eerste kind van de Column) terug
-      cb.children[1] = secondChild.children.first;
-    }
-  }
+  // ── Herstel alle ConditionalBuilder-structuren naar originele staat ──────────
+  // Vorige pushes hebben cb.children[1] vervangen door een Column.
+  // Dit blok zet elke pagina terug naar de bekende-goede structuur via
+  // de vaste widget-sleutels van de originele ListViewWrappers.
+  final _cbRestoreMap = {
+    'ConditionalBuilder_f1ph1tgg': 'Container_k5bkzn1l', // WedstrijdenPage
+    'ConditionalBuilder_fwgqn2js': 'Container_2u86md6h', // BardienPage
+    'ConditionalBuilder_ko9hyhog': 'Container_aznkrhkc', // RijschemaPage
+  };
 
-  _restoreConditionalBuilder('WedstrijdenPage', 'ConditionalBuilder_f1ph1tgg');
-  _restoreConditionalBuilder('BardienPage',     'ConditionalBuilder_fwgqn2js');
-  _restoreConditionalBuilder('RijschemaPage',   'ConditionalBuilder_ko9hyhog');
+  for (final page in ['WedstrijdenPage', 'BardienPage', 'RijschemaPage']) {
+    final pageWc = findPage(project, name: page);
+    if (pageWc == null) continue;
 
-  // Verwijder ook eerder toegevoegde placeholders zodat we ze opnieuw correct plaatsen.
-  void _removeStalePlaceholder(String pageName, String placeholderName) {
-    final pageWc = findPage(project, name: pageName);
-    if (pageWc == null) return;
-    final stale = findDescendants(pageWc.node, (n) => n.name == placeholderName).firstOrNull;
-    if (stale == null) return;
-    final result = findParentByKey(pageWc.node, stale.key);
-    result?.parent.children.removeWhere((n) => n.key == stale.key);
-  }
-
-  _removeStalePlaceholder('WedstrijdenPage', 'WedstrijdenNietGepland');
-  _removeStalePlaceholder('BardienPage',     'BardienNietGepland');
-  _removeStalePlaceholder('RijschemaPage',   'RijschemaNietGepland');
-
-  // ── WedstrijdenPage ─────────────────────────────────────────────────────────
-  _addPlaceholder(
-    pageName:               'WedstrijdenPage',
-    scaffoldKey:            'Scaffold_xjabl8lh',
-    bodyColKey:             'Column_1mwzov65',
-    conditionalBuilderKey:  'ConditionalBuilder_f1ph1tgg',
-    stateFieldName:         'matches',
-    structName:             'FootMatch',
-    structFieldName:        'opponent',
-    placeholderName:        'WedstrijdenNietGepland',
-  );
-
-  // ── BardienPage ─────────────────────────────────────────────────────────────
-  _addPlaceholder(
-    pageName:               'BardienPage',
-    scaffoldKey:            'Scaffold_ljui3hun',
-    bodyColKey:             'Column_mkqeztja',
-    conditionalBuilderKey:  'ConditionalBuilder_fwgqn2js',
-    stateFieldName:         'duties',
-    structName:             'BarDuty',
-    structFieldName:        'shift',
-    placeholderName:        'BardienNietGepland',
-  );
-
-  // ── RijschemaPage ───────────────────────────────────────────────────────────
-  // RijschemaPage's body IS the ConditionalBuilder (no wrapping column).
-  // We find the Scaffold body slot and append the placeholder there.
-  {
-    const pageName = 'RijschemaPage';
-    final pageWc = findPage(project, name: pageName);
-    if (pageWc != null &&
-        findDescendants(pageWc.node, (n) => n.name == 'RijschemaNietGepland').isEmpty) {
-      final isEmptyVar = _isEmptyVar(
-        pageName, 'Scaffold_g8lilfvp', 'driveMatches', 'FootMatch', 'opponent',
-      );
-      if (isEmptyVar != null) {
-        final text = UI.text(
-          'Geen activiteiten gepland',
-          name: 'RijschemaNietGepland',
-          style: UITextStyle.bodyMedium,
-        );
-        final textCopy = text.props.text.deepCopy();
-        textCopy.colorValue = FFColorValue(
-          inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT),
-        );
-        text.props.text = textCopy;
-        text.props.padding = (UI.container(
-          padding: UIEdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        )).props.padding.deepCopy();
-        setConditionalVisibility(text, variable: isEmptyVar);
-
-        // Add as sibling of ConditionalBuilder: wrap body in Column.
-        final bodyChild = getPropertyChild(pageWc.node, 'body');
-        if (bodyChild != null && bodyChild.key == 'ConditionalBuilder_ko9hyhog') {
-          final newBodyCol = UI.column(
-            name: 'RijschemaBodyCol',
-            mainAxisMin: false,
-            children: [bodyChild, text],
-          );
-          final bodyProp = pageWc.node.childPropertyMap['body'];
-          if (bodyProp != null) {
-            pageWc.node.children.remove(bodyChild);
-            pageWc.node.children.add(newBodyCol);
-            pageWc.node.childPropertyMap['body'] = FFChildrenKeys(
-              keyRefs: [FFNodeKeyReference(key: newBodyCol.key)],
-            );
-          }
-        }
+    // Verwijder ALLE foutief geplaatste placeholder-nodes.
+    for (final name in ['WedstrijdenNietGepland', 'BardienNietGepland',
+                        'RijschemaNietGepland', 'WedstrijdenPageContentCol',
+                        'BardienPageContentCol', 'RijschemaPageContentCol',
+                        'RijschemaBodyCol']) {
+      bool found = true;
+      while (found) {
+        final node = findDescendants(pageWc.node, (n) => n.name == name).firstOrNull;
+        if (node == null) { found = false; break; }
+        final res = findParentByKey(pageWc.node, node.key);
+        res?.parent.children.removeWhere((n) => n.key == node.key);
+        found = res != null;
       }
     }
   }
+
+  // Zet de originele ListViewWrapper terug in elke ConditionalBuilder
+  // als children[1] momenteel NIET de bekende wrapper-sleutel is.
+  for (final entry in _cbRestoreMap.entries) {
+    final cbKey      = entry.key;
+    final wrapperKey = entry.value;
+
+    for (final page in ['WedstrijdenPage', 'BardienPage', 'RijschemaPage']) {
+      final pageWc = findPage(project, name: page);
+      if (pageWc == null) continue;
+
+      final cb = findByKey(pageWc.node, cbKey);
+      if (cb == null || cb.children.length < 2) continue;
+
+      // Controleer of children[1] al de juiste wrapper is.
+      if (cb.children[1].key == wrapperKey) continue;
+
+      // Zoek de originele wrapper ergens in de pagina-boom.
+      final wrapper = findByKey(pageWc.node, wrapperKey);
+      if (wrapper == null) continue;
+
+      // Verwijder wrapper uit zijn huidige ouder.
+      final wRes = findParentByKey(pageWc.node, wrapperKey);
+      wRes?.parent.children.removeWhere((n) => n.key == wrapperKey);
+
+      // Zet terug als children[1] van de ConditionalBuilder.
+      if (cb.children.length >= 2) {
+        cb.children[1] = wrapper;
+      } else {
+        cb.children.add(wrapper);
+      }
+    }
+  }
+
+  // ── Placeholder ─────────────────────────────────────────────────────────────
+  // Voeg "Geen activiteiten gepland" toe BUITEN de ConditionalBuilder.
+  // WedstrijdenPage en BardienPage hebben een body-kolom, RijschemaPage niet.
+
+  void _addToBodyCol(
+    String pageName, String scaffoldKey, String bodyColKey,
+    String stateFieldName, String structName, String structFieldName,
+    String placeholderName,
+  ) {
+    final pageWc = findPage(project, name: pageName);
+    if (pageWc == null) return;
+    if (findDescendants(pageWc.node, (n) => n.name == placeholderName).isNotEmpty) return;
+
+    final isEV = _isEmptyVar(pageName, scaffoldKey, stateFieldName, structName, structFieldName);
+    if (isEV == null) return;
+
+    final t = UI.text('Geen activiteiten gepland', name: placeholderName,
+        style: UITextStyle.bodySmall);
+    final tc = t.props.text.deepCopy();
+    tc.colorValue = FFColorValue(inputValue: FFColor(
+        themeColor: FFColor_ThemeColor.SECONDARY_TEXT));
+    t.props.text = tc;
+    t.props.padding = (UI.container(
+        padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12))).props.padding.deepCopy();
+    setConditionalVisibility(t, variable: isEV);
+
+    final col = findByKey(findPage(project, name: pageName)!.node, bodyColKey);
+    col?.children.add(t);
+  }
+
+  _addToBodyCol('WedstrijdenPage', 'Scaffold_xjabl8lh', 'Column_1mwzov65',
+      'matches', 'FootMatch', 'opponent', 'WedstrijdenNietGepland');
+  _addToBodyCol('BardienPage', 'Scaffold_ljui3hun', 'Column_mkqeztja',
+      'duties', 'BarDuty', 'shift', 'BardienNietGepland');
+  // RijschemaPage: geen outer column — placeholder weglaten om layout niet te breken.
 }
 
 // Appends a GetDriveSchedule API call to the DashboardPage ON_INIT_STATE chain.
