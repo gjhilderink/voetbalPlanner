@@ -586,6 +586,7 @@ void buildEditFlow(App app) {
     // Add "Bewaar in agenda" button to bardienst, wedstrijd and rijschema detail pages.
     _addCalendarButtons(project);
     _fixLoginKeyboard(project);
+    _dedupLedenLoginSection(project);
     _addLoginValidation(project);
     // Register the GetAppUsersAsMembers custom action + keep login upserts
     // so the appUsers collection is silently populated on every login.
@@ -12519,6 +12520,43 @@ void _fixLoginKeyboard(FFProject project) {
       ),
     ),
   );
+}
+
+// Verwijdert dubbele LedenLoginSection Column-nodes uit de LoginPage body.
+// Eerdere pushes hebben de sectie meerdere keren ingevoegd (zonder
+// idempotency-check op de wrapper Column zelf). De juiste section heeft
+// een SendMagicLinkButton; oudere duplicates missen die soms.
+//
+// Strategie:
+//   1. Verzamel alle Columns met naam 'LedenLoginSection'
+//   2. Prefereer de section die een SendMagicLinkButton bevat — die houden we
+//   3. Verwijder alle andere uit hun parent
+//
+// Idempotent: doet niets als er hooguit één LedenLoginSection bestaat.
+void _dedupLedenLoginSection(FFProject project) {
+  final wc = findPage(project, name: 'LoginPage');
+  if (wc == null) return;
+
+  final sections = findDescendants(wc.node, (n) => n.name == 'LedenLoginSection');
+  if (sections.length <= 1) return;
+
+  // Vind de section die een werkende SendMagicLinkButton bevat.
+  FFNode? keeper;
+  for (final s in sections) {
+    if (findDescendants(s, (n) => n.name == 'SendMagicLinkButton').isNotEmpty) {
+      keeper = s;
+      break;
+    }
+  }
+  // Fallback: behoud de laatste (meest recent toegevoegde) als er geen
+  // werkende SendMagicLinkButton in zit.
+  keeper ??= sections.last;
+
+  for (final s in sections) {
+    if (identical(s, keeper)) continue;
+    final res = findParentByKey(wc.node, s.key);
+    res?.parent.children.removeWhere((n) => n.key == s.key);
+  }
 }
 
 // ─── Login button input validation ───────────────────────────────────────────

@@ -137,26 +137,36 @@ abstract final class LoginPageWidgets {
                 name: "LedenLoginSection",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Divider_ximxo68j",
+                    key: "Divider_9y9bj4op",
                     type: "Divider",
                     path: "LoginPage.body[0].children[8].children[0]",
                     name: "Divider",
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Text_asl6z1e7",
+                    key: "Text_0svqe9a8",
                     type: "Text",
                     path: "LoginPage.body[0].children[8].children[1]",
                     name: "LedenLoginLabel",
                     text: "Inloggen leden",
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "TextField_ot7vetut",
+                    key: "TextField_yhfn3xam",
                     type: "TextField",
                     path: "LoginPage.body[0].children[8].children[2]",
                     name: "MagicLinkEmailField",
                     text: "E-mailadres",
                     triggers: const <String>[
                       "ON_TEXTFIELD_CHANGE",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "Button_dwckgqbk",
+                    type: "Button",
+                    path: "LoginPage.body[0].children[8].children[3]",
+                    name: "SendMagicLinkButton",
+                    text: "Stuur inloglink",
+                    triggers: const <String>[
+                      "ON_TAP",
                     ],
                   ),
                 ],
@@ -190,50 +200,9 @@ abstract final class LoginPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Column_zhhikdu7",
-                type: "Column",
-                path: "LoginPage.body[0].children[10]",
-                name: "LedenLoginSection",
-                children: <ffai.ProjectWidgetHandle>[
-                  ffai.ProjectWidgetHandle(
-                    key: "Divider_mpf7pwsq",
-                    type: "Divider",
-                    path: "LoginPage.body[0].children[10].children[0]",
-                    name: "Divider",
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "Text_rq2ns9wo",
-                    type: "Text",
-                    path: "LoginPage.body[0].children[10].children[1]",
-                    name: "LedenLoginLabel",
-                    text: "Inloggen leden",
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "TextField_1x5me2b8",
-                    type: "TextField",
-                    path: "LoginPage.body[0].children[10].children[2]",
-                    name: "MagicLinkEmailField",
-                    text: "E-mailadres",
-                    triggers: const <String>[
-                      "ON_TEXTFIELD_CHANGE",
-                    ],
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "Button_uukn463f",
-                    type: "Button",
-                    path: "LoginPage.body[0].children[10].children[3]",
-                    name: "SendMagicLinkButton",
-                    text: "Stuur inloglink",
-                    triggers: const <String>[
-                      "ON_TAP",
-                    ],
-                  ),
-                ],
-              ),
-              ffai.ProjectWidgetHandle(
                 key: "Button_gagp4698",
                 type: "Button",
-                path: "LoginPage.body[0].children[11]",
+                path: "LoginPage.body[0].children[10]",
                 name: "GuardianRegisterButton",
                 text: "Registreren als ouder/verzorger",
                 triggers: const <String>[
