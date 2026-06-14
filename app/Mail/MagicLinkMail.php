@@ -20,6 +20,7 @@ class MagicLinkMail extends Mailable
     public string $headerText;
     public string $introText;
     public string $footerText;
+    public string $subjectLine;
 
     public function __construct(
         public readonly string $token,
@@ -31,12 +32,16 @@ class MagicLinkMail extends Mailable
         $this->headerText   = $club?->email_header_text ?? config('app.name');
         $this->introText    = $club?->email_intro_text ?? '';
         $this->footerText   = $club?->email_footer_text ?? '';
+        // Configureerbaar per club; leeg = standaard.
+        $this->subjectLine  = trim($club?->email_subject ?? '') !== ''
+            ? $club->email_subject
+            : 'Jouw inloglink voor ' . config('app.name');
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Jouw inloglink voor ' . config('app.name'),
+            subject: $this->subjectLine,
         );
     }
 

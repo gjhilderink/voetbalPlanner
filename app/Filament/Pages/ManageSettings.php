@@ -74,6 +74,7 @@ class ManageSettings extends Page
             'email_header_text'   => $club?->email_header_text,
             'email_intro_text'    => $club?->email_intro_text,
             'email_footer_text'   => $club?->email_footer_text,
+            'email_subject'       => $club?->email_subject,
         ]);
     }
 
@@ -162,6 +163,11 @@ class ManageSettings extends Page
                             ->label('Accentkleur')
                             ->hex()
                             ->helperText('Derde kleur — highlights, badges, call-to-action.'),
+                        TextInput::make('email_subject')
+                            ->label('E-mail onderwerp')
+                            ->placeholder('Jouw inloglink voor ' . config('app.name'))
+                            ->maxLength(255)
+                            ->helperText('Onderwerpregel van de inlogmail (leeg = standaard).'),
                         TextInput::make('email_header_text')
                             ->label('E-mail koptekst')
                             ->placeholder(config('app.name'))
@@ -313,6 +319,7 @@ class ManageSettings extends Page
                 'email_header_text'  => $data['email_header_text'] ?? null,
                 'email_intro_text'   => $data['email_intro_text'] ?? null,
                 'email_footer_text'  => $data['email_footer_text'] ?? null,
+                'email_subject'      => $data['email_subject'] ?? null,
             ]);
         }
 

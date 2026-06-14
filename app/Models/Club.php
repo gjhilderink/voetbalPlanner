@@ -20,7 +20,7 @@ class Club extends Model
         'name', 'slug', 'logo_path', 'address', 'city',
         'phone', 'email', 'website', 'is_active',
         'primary_color', 'secondary_color', 'accent_color',
-        'email_header_text', 'email_intro_text', 'email_footer_text',
+        'email_header_text', 'email_intro_text', 'email_footer_text', 'email_subject',
     ];
 
     protected function casts(): array
