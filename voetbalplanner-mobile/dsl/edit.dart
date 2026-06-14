@@ -597,6 +597,7 @@ void buildEditFlow(App app) {
     _addChatEditDeleteFeature(project);
     _sortChatMessagesByCreatedAt(project);
     _addScrollToBottomAfterSend(project);
+    _addClearTextFieldToAllChatSends(project);
     // Stretch item columns and fix row alignment first.
     _fixChatDetailBubbleAlignment(project);
     // Remove Row wrappers so bubbles fill the column's full width directly.
@@ -13470,6 +13471,7 @@ void _fixChatDetailBubbleAlignment(FFProject project) {
 // ChatDetailPage already handles this in _wireRefreshAfterSend.
 void _addScrollToBottomAfterSend(FFProject project) {
   const configs = [
+    (page: 'ChatDetailPage', btnKey: 'IconButton_nnsnoc98', listKey: 'ListView_ws05qhut'),
     (page: 'GroupChatPage',  btnKey: 'IconButton_tgwfn8d7', listKey: 'ListView_6t0r29c1'),
     (page: 'TeamChatPage',   btnKey: 'IconButton_l68mmxn6',  listKey: 'ListView_9sebksf4'),
     (page: 'DirectChatPage', btnKey: 'IconButton_y4orjomc',  listKey: 'ListView_z624qee2'),
@@ -13511,6 +13513,70 @@ void _addScrollToBottomAfterSend(FFProject project) {
       key: generateRandomAlphaNumericString(),
       action: Actions.scrollTo(widgetKey: cfg.listKey, percentage: 1.0, durationMillis: 150),
     );
+  }
+}
+
+// Voegt een Actions.clearTextField toe aan de send-button keten van elke chat pagina.
+// De bestaande SetState.clear/localStateUpdate wist de page state, maar de TextField
+// controller behoudt soms zijn waarde — clearTextField reset de controller direct.
+// Plaatst de clear-actie meteen NA de Firestore create (vóór wait+refresh).
+// Idempotent: detecteert bestaande clearTextFieldAction op de juiste field.
+void _addClearTextFieldToAllChatSends(FFProject project) {
+  const configs = [
+    (page: 'ChatDetailPage', sendBtnKey: 'IconButton_nnsnoc98', fieldName: 'ChatMessageField'),
+    (page: 'GroupChatPage',  sendBtnKey: 'IconButton_tgwfn8d7', fieldName: 'GroupMessageField'),
+    (page: 'TeamChatPage',   sendBtnKey: 'IconButton_l68mmxn6', fieldName: 'MessageField'),
+    (page: 'DirectChatPage', sendBtnKey: 'IconButton_y4orjomc', fieldName: 'DirectMessageField'),
+  ];
+
+  for (final cfg in configs) {
+    final wc = findPage(project, name: cfg.page);
+    if (wc == null) continue;
+
+    final tf = findDescendants(wc.node, (n) => n.name == cfg.fieldName).firstOrNull;
+    if (tf == null) continue;
+
+    final sendBtn = findByKey(wc.node, cfg.sendBtnKey);
+    if (sendBtn == null) continue;
+
+    final tapIdx = sendBtn.triggerActions.indexWhere(
+      (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+    );
+    if (tapIdx < 0) continue;
+    final tap = sendBtn.triggerActions[tapIdx];
+    if (!tap.hasRootAction()) continue;
+    if (!tap.rootAction.hasConditionActions()) continue;
+    if (tap.rootAction.conditionActions.trueActions.isEmpty) continue;
+    final trueEntry = tap.rootAction.conditionActions.trueActions.first;
+    if (!trueEntry.hasTrueAction()) continue;
+
+    // Idempotent: skip if a clearTextFieldAction for this field key already exists.
+    bool _hasClear(FFActionNode n) {
+      if (n.hasAction() && n.action.hasClearTextFieldAction()) {
+        for (final p in n.action.clearTextFieldAction.nodeKeyPaths) {
+          for (final r in p.keyPath) {
+            if (r.key == tf.key) return true;
+          }
+        }
+      }
+      if (n.hasFollowUpAction() && _hasClear(n.followUpAction)) return true;
+      return false;
+    }
+    if (_hasClear(tap.rootAction)) continue;
+
+    // Build the clear action node.
+    final clearNode = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.clearTextField(widgetKey: tf.key),
+    );
+
+    // Vind de eerste actie in de true-branche (meestal Firestore create) en
+    // voeg de clear-actie in als directe followUp.
+    final firstAction = trueEntry.trueAction;
+    if (firstAction.hasFollowUpAction()) {
+      clearNode.followUpAction = firstAction.followUpAction;
+    }
+    firstAction.followUpAction = clearNode;
   }
 }
 

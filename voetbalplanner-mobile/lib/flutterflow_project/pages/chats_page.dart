@@ -64,14 +64,14 @@ abstract final class ChatsPageWidgets {
       slots: <String, List<ffai.ProjectWidgetHandle>>{
         "appBar": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "AppBar_0kbyjcr3",
+            key: "AppBar_261ws0hb",
             type: "AppBar",
             path: "ChatsPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_n539ajn7",
+                  key: "Text_4fp7c73u",
                   type: "Text",
                   path: "ChatsPage.appBar[0].title[0]",
                   name: "ChatsAppBarTitle",
@@ -390,19 +390,19 @@ abstract final class ChatsPageWidgets {
                             ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_u7uin77f",
+                                key: "Row_l7qwy37s",
                                 type: "Row",
                                 path: "ChatsPage.body[0].children[7].children[0].children[0].children[0].children[0]",
                                 name: "DirectMemberRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_ac386i1d",
+                                    key: "Container_wx8g4v3o",
                                     type: "Container",
                                     path: "ChatsPage.body[0].children[7].children[0].children[0].children[0].children[0].children[0]",
                                     name: "DirectMemberAvatar",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_sf9u63g2",
+                                        key: "Icon_4ikth1ei",
                                         type: "Icon",
                                         path: "ChatsPage.body[0].children[7].children[0].children[0].children[0].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -410,13 +410,13 @@ abstract final class ChatsPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_0rji53y0",
+                                    key: "Text_vl91jtoa",
                                     type: "Text",
                                     path: "ChatsPage.body[0].children[7].children[0].children[0].children[0].children[0].children[1]",
                                     name: "DirectMemberName",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_l0rpg7nu",
+                                    key: "Icon_6wdgpnd7",
                                     type: "Icon",
                                     path: "ChatsPage.body[0].children[7].children[0].children[0].children[0].children[0].children[2]",
                                     name: "Icon",
