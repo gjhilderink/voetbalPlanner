@@ -10190,6 +10190,43 @@ void _addPageListEmptyPlaceholders(FFProject project) {
     }
   }
 
+  // ── Herstel: verwijder de oude kapotte Column-wrapper uit de ConditionalBuilder ──
+  // Een vorige push vervving ConditionalBuilder.children[1] door een Column.
+  // Die Column had geen hoogte-constraint, waardoor de ListView leeg bleef.
+  // Dit blok detecteert en herstelt die situatie.
+  void _restoreConditionalBuilder(String pageName, String conditionalBuilderKey) {
+    final pageWc = findPage(project, name: pageName);
+    if (pageWc == null) return;
+    final cb = findByKey(pageWc.node, conditionalBuilderKey);
+    if (cb == null || cb.children.length < 2) return;
+    final secondChild = cb.children[1];
+    // Herken de kapotte wrapper: het is een Column met naam '${pageName}ContentCol'
+    if (secondChild.type == FFWidgetType.Column &&
+        secondChild.name == '${pageName}ContentCol' &&
+        secondChild.children.isNotEmpty) {
+      // Zet de originele ListViewWrapper (eerste kind van de Column) terug
+      cb.children[1] = secondChild.children.first;
+    }
+  }
+
+  _restoreConditionalBuilder('WedstrijdenPage', 'ConditionalBuilder_f1ph1tgg');
+  _restoreConditionalBuilder('BardienPage',     'ConditionalBuilder_fwgqn2js');
+  _restoreConditionalBuilder('RijschemaPage',   'ConditionalBuilder_ko9hyhog');
+
+  // Verwijder ook eerder toegevoegde placeholders zodat we ze opnieuw correct plaatsen.
+  void _removeStalePlaceholder(String pageName, String placeholderName) {
+    final pageWc = findPage(project, name: pageName);
+    if (pageWc == null) return;
+    final stale = findDescendants(pageWc.node, (n) => n.name == placeholderName).firstOrNull;
+    if (stale == null) return;
+    final result = findParentByKey(pageWc.node, stale.key);
+    result?.parent.children.removeWhere((n) => n.key == stale.key);
+  }
+
+  _removeStalePlaceholder('WedstrijdenPage', 'WedstrijdenNietGepland');
+  _removeStalePlaceholder('BardienPage',     'BardienNietGepland');
+  _removeStalePlaceholder('RijschemaPage',   'RijschemaNietGepland');
+
   // ── WedstrijdenPage ─────────────────────────────────────────────────────────
   _addPlaceholder(
     pageName:               'WedstrijdenPage',
