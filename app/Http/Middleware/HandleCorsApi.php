@@ -24,6 +24,16 @@ class HandleCorsApi
     {
         $origin = $request->headers->get('Origin', '*');
 
+        // Vermijd duplicate headers — als Apache mod_headers (of een ander
+        // niveau) deze al heeft gezet, vervangen we ze gewoon i.p.v. toevoegen.
+        // Browsers blokkeren responses met meerdere Access-Control-Allow-Origin
+        // headers stilletjes ('Failed to fetch' zonder verdere uitleg).
+        $response->headers->remove('Access-Control-Allow-Origin');
+        $response->headers->remove('Access-Control-Allow-Methods');
+        $response->headers->remove('Access-Control-Allow-Headers');
+        $response->headers->remove('Access-Control-Max-Age');
+        $response->headers->remove('Access-Control-Allow-Credentials');
+
         $response->headers->set('Access-Control-Allow-Origin', $origin);
         $response->headers->set('Vary', 'Origin');
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
