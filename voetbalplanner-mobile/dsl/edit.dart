@@ -10339,35 +10339,23 @@ void _addDashboardEmptyPlaceholders(FFProject project) {
 
   final scaffoldKey = wc.node.key;
 
-  // Finds the identifier of a named field inside a DataStruct.
-  FFIdentifier? _structField(String structName, String fieldName) {
-    final s = findDataStruct(project, name: structName);
-    if (s == null) return null;
-    return s.fields
-        .cast<FFParameter?>()
-        .firstWhere((f) => f?.identifier.name == fieldName, orElse: () => null)
-        ?.identifier;
-  }
-
-  // Builds a boolean variable: true when the first item's string field is empty/null.
-  // This is true exactly when the list itself is empty (empty list → no first item → field = "").
-  FFVariable? _isEmptyVar(FFIdentifier stateFieldId, FFIdentifier? fieldId) {
-    if (fieldId == null) return null;
-    final firstFieldVar = varFromPageState(stateFieldId.deepCopy())
+  // Builds a boolean variable: true when the list state field is empty.
+  // Strategy: listNumItems → integer length, compared to literal 0 via
+  // FFValue.inputValue (literal parameter value, not a constant variable).
+  FFVariable _emptyVarForStruct(FFIdentifier stateFieldId, String _structName) {
+    final lengthVar = varFromPageState(stateFieldId.deepCopy())
       ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)
-      ..operations.add(FFVariableOperation(
-        listItemAtIndex: FFListItemAtIndex(type: FFListItemAtIndex_IndexType.FIRST),
-      ))
-      ..operations.add(FFVariableOperation(
-        accessDataStructField: FFAccessDataStructField(
-          fieldIdentifier: fieldId.deepCopy(),
-        ),
-      ));
-    return conditionVar(
-      firstFieldVar,
-      FFCondition_Relation.EQUAL_TO,
-      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
-    ).variable;
+      ..operations.add(FFVariableOperation(listNumItems: FFListNumItems()));
+    return FFVariable(
+      source: FFVariableSource.FUNCTION_CALL,
+      functionCall: FFFunctionCall(
+        condition: FFCondition(relation: FFCondition_Relation.EQUAL_TO),
+        values: [
+          FFValue(variable: lengthVar),
+          FFValue(inputValue: FFParameterValue(serializedValue: '0')),
+        ],
+      ),
+    );
   }
 
   // Builds a placeholder Text node with conditional visibility.
@@ -10382,23 +10370,27 @@ void _addDashboardEmptyPlaceholders(FFProject project) {
     return text;
   }
 
-  // Configs: [containerName, stateName, placeholderName, structName, fieldName]
+  // Configs: [containerName, stateName, placeholderName, structName]
   const configs = [
-    ('DashboardMatchesContainer', 'matches',      'DashboardMatchesEmpty', 'FootMatch', 'opponent'),
-    ('DashboardDutiesContainer',  'duties',       'DashboardDutiesEmpty',  'BarDuty',   'shift'),
-    ('DashboardDriveContainer',   'driveMatches', 'DashboardDriveEmpty',   'FootMatch', 'opponent'),
+    ('DashboardMatchesContainer', 'matches',      'DashboardMatchesEmpty', 'FootMatch'),
+    ('DashboardDutiesContainer',  'duties',       'DashboardDutiesEmpty',  'BarDuty'),
+    ('DashboardDriveContainer',   'driveMatches', 'DashboardDriveEmpty',   'FootMatch'),
   ];
 
-  for (final (containerName, stateName, placeholderName, structName, fieldName) in configs) {
+  for (final (containerName, stateName, placeholderName, structName) in configs) {
     final container = findDescendants(wc.node, (n) => n.name == containerName).firstOrNull;
     if (container == null) continue;
-    if (findDescendants(container, (n) => n.name == placeholderName).isNotEmpty) continue;
 
     final stateFieldId = _findPageStateFieldId(project, 'DashboardPage', stateName);
     if (stateFieldId == null) continue;
-    final fieldId = _structField(structName, fieldName);
-    final isEmptyVar = _isEmptyVar(stateFieldId, fieldId);
-    if (isEmptyVar == null) continue;
+
+    final isEmptyVar = _emptyVarForStruct(stateFieldId, structName);
+
+    final existing = findDescendants(container, (n) => n.name == placeholderName).firstOrNull;
+    if (existing != null) {
+      setConditionalVisibility(existing, variable: isEmptyVar);
+      continue;
+    }
 
     final placeholder = _placeholder(placeholderName, isEmptyVar);
 
@@ -10559,13 +10551,12 @@ void _addPageListEmptyPlaceholders(FFProject project) {
       ..add(listView);
   }
 
-  // Verwijder ALLE stale placeholder/wrapper nodes die in vorige pushes
-  // zijn aangemaakt — overal in de pagina-boom.
+  // Verwijder alleen stale WRAPPER nodes uit eerdere mislukte pushes — niet
+  // de placeholders zelf (die voegen we hieronder netjes toe / vernieuwen we).
+  // RijschemaBodyCol blijft staan: wordt door de nieuwe code hergebruikt.
   const _staleNames = [
-    'WedstrijdenNietGepland', 'BardienNietGepland', 'RijschemaNietGepland',
     'WedstrijdenPageContentCol', 'BardienPageContentCol', 'RijschemaPageContentCol',
     'WedstrijdenPageEmptyCol', 'BardienPageEmptyCol', 'RijschemaPageEmptyCol',
-    'RijschemaBodyCol',
   ];
 
   for (final pageName in _wrapperKeys.keys) {
@@ -10583,8 +10574,133 @@ void _addPageListEmptyPlaceholders(FFProject project) {
     }
   }
 
-  // Placeholders zijn voorlopig uitgeschakeld om de pagina-layout te beschermen.
-  // De dashboard-placeholders blijven gewoon werken.
+  // ── Voeg "Niets gepland" placeholders toe (zichtbaar als lijst leeg is) ────
+  // Plaatsing: BUITEN de ConditionalBuilder, ALS extra kind in de body-kolom.
+  // De ConditionalBuilder en zijn ListView blijven ongewijzigd.
+  // Visibility: list == EMPTY_LIST.
+
+  FFVariable _emptyListVar(String pageName, String scaffoldKey, String stateField, String _structName) {
+    final stateId = _findPageStateFieldId(project, pageName, stateField);
+    if (stateId == null) return varFromConstant(FFConstantsVariable_ConstantValue.FALSE);
+    final lengthVar = varFromPageState(stateId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)
+      ..operations.add(FFVariableOperation(listNumItems: FFListNumItems()));
+    return FFVariable(
+      source: FFVariableSource.FUNCTION_CALL,
+      functionCall: FFFunctionCall(
+        condition: FFCondition(relation: FFCondition_Relation.EQUAL_TO),
+        values: [
+          FFValue(variable: lengthVar),
+          FFValue(inputValue: FFParameterValue(serializedValue: '0')),
+        ],
+      ),
+    );
+  }
+
+  void _addBelowCB({
+    required String pageName,
+    required String scaffoldKey,
+    required String bodyColKey,
+    required String conditionalBuilderKey,
+    required String stateFieldName,
+    required String structName,
+    required String placeholderName,
+  }) {
+    final pageWc = findPage(project, name: pageName);
+    if (pageWc == null) return;
+
+    final visVar = _emptyListVar(pageName, scaffoldKey, stateFieldName, structName);
+
+    // Update visibility op bestaande placeholder en stop.
+    final existing = findDescendants(pageWc.node,
+        (n) => n.name == placeholderName).firstOrNull;
+    if (existing != null) {
+      setConditionalVisibility(existing, variable: visVar);
+      return;
+    }
+
+    final text = UI.text('Niets gepland',
+        name: placeholderName, style: UITextStyle.bodyMedium);
+    final textCopy = text.props.text.deepCopy();
+    textCopy.colorValue = FFColorValue(
+        inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT));
+    text.props.text = textCopy;
+    text.props.padding = (UI.container(
+        padding: UIEdgeInsets.symmetric(horizontal: 24, vertical: 16)))
+        .props.padding.deepCopy();
+    setConditionalVisibility(text, variable: visVar);
+
+    final bodyCol = findByKey(pageWc.node, bodyColKey);
+    if (bodyCol == null) return;
+
+    final cbIdx = bodyCol.children.indexWhere(
+        (n) => n.key == conditionalBuilderKey);
+    if (cbIdx >= 0 && cbIdx < bodyCol.children.length - 1) {
+      bodyCol.children.insert(cbIdx + 1, text);
+    } else {
+      bodyCol.children.add(text);
+    }
+  }
+
+  _addBelowCB(
+    pageName:              'WedstrijdenPage',
+    scaffoldKey:           'Scaffold_xjabl8lh',
+    bodyColKey:            'Column_1mwzov65',
+    conditionalBuilderKey: 'ConditionalBuilder_f1ph1tgg',
+    stateFieldName:        'matches',
+    structName:            'FootMatch',
+    placeholderName:       'WedstrijdenNietGepland',
+  );
+  _addBelowCB(
+    pageName:              'BardienPage',
+    scaffoldKey:           'Scaffold_ljui3hun',
+    bodyColKey:            'Column_mkqeztja',
+    conditionalBuilderKey: 'ConditionalBuilder_fwgqn2js',
+    stateFieldName:        'duties',
+    structName:            'BarDuty',
+    placeholderName:       'BardienNietGepland',
+  );
+
+  // RijschemaPage's body IS de ConditionalBuilder; voeg placeholder direct
+  // toe als tweede child in de Scaffold body via een wrapping column.
+  {
+    const pageName = 'RijschemaPage';
+    final pageWc = findPage(project, name: pageName);
+    if (pageWc != null) {
+      final visVar = _emptyListVar(pageName, 'Scaffold_g8lilfvp', 'driveMatches', 'FootMatch');
+
+      final existing = findDescendants(pageWc.node,
+          (n) => n.name == 'RijschemaNietGepland').firstOrNull;
+      if (existing != null) {
+        setConditionalVisibility(existing, variable: visVar);
+      } else {
+        final text = UI.text('Niets gepland',
+            name: 'RijschemaNietGepland', style: UITextStyle.bodyMedium);
+        final textCopy = text.props.text.deepCopy();
+        textCopy.colorValue = FFColorValue(
+            inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT));
+        text.props.text = textCopy;
+        text.props.padding = (UI.container(
+            padding: UIEdgeInsets.symmetric(horizontal: 24, vertical: 16)))
+            .props.padding.deepCopy();
+        setConditionalVisibility(text, variable: visVar);
+
+        final bodyChild = getPropertyChild(pageWc.node, 'body');
+        if (bodyChild != null && bodyChild.key == 'ConditionalBuilder_ko9hyhog') {
+          final newBodyCol = UI.column(
+            name: 'RijschemaBodyCol',
+            mainAxisMin: false,
+            children: [bodyChild, text],
+          );
+          pageWc.node.children.remove(bodyChild);
+          pageWc.node.children.add(newBodyCol);
+          pageWc.node.childPropertyMap['body'] = FFChildrenKeys(
+            keyRefs: [FFNodeKeyReference(key: newBodyCol.key)],
+          );
+        }
+      }
+    }
+  }
 }
 
 // Vult Column_cx7sodso (cardColumn) van RijschemaPage met de basis-rijen

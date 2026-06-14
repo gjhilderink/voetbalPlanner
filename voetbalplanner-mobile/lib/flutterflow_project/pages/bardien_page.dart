@@ -141,6 +141,13 @@ abstract final class BardienPageWidgets {
                   ),
                 ],
               ),
+              ffai.ProjectWidgetHandle(
+                key: "Text_7or0rnf7",
+                type: "Text",
+                path: "BardienPage.body[0].children[2]",
+                name: "BardienNietGepland",
+                text: "Niets gepland",
+              ),
             ],
           ),
         ],

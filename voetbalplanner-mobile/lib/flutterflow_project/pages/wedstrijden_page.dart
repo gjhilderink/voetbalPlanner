@@ -115,13 +115,13 @@ abstract final class WedstrijdenPageWidgets {
                     name: "WelcomeGreetingText",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_ydry6rlk",
+                        key: "Text_1mwymi1a",
                         type: "Text",
                         path: "WedstrijdenPage.body[0].children[1].children[0].children[0]",
                         name: "WelcomeClubText",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_wvyxpnj7",
+                        key: "Text_4mvzxfr2",
                         type: "Text",
                         path: "WedstrijdenPage.body[0].children[1].children[0].children[1]",
                         name: "WelcomeGreetingText",
@@ -209,6 +209,13 @@ abstract final class WedstrijdenPageWidgets {
                     ],
                   ),
                 ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "Text_o32dhycr",
+                type: "Text",
+                path: "WedstrijdenPage.body[0].children[5]",
+                name: "WedstrijdenNietGepland",
+                text: "Niets gepland",
               ),
             ],
           ),

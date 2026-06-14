@@ -65,149 +65,157 @@ abstract final class RijschemaPageWidgets {
         ],
         "body": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "ConditionalBuilder_ko9hyhog",
-            type: "ConditionalBuilder",
+            key: "Column_2fdbe2yf",
+            type: "Column",
             path: "RijschemaPage.body[0]",
-            name: "ConditionalBuilder",
+            name: "RijschemaBodyCol",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_r8o5hqpo",
-                type: "Column",
+                key: "ConditionalBuilder_ko9hyhog",
+                type: "ConditionalBuilder",
                 path: "RijschemaPage.body[0].children[0]",
-                name: "Column",
+                name: "ConditionalBuilder",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "ProgressBar_swmm4iru",
-                    type: "ProgressBar",
+                    key: "Column_r8o5hqpo",
+                    type: "Column",
                     path: "RijschemaPage.body[0].children[0].children[0]",
-                    name: "ProgressBar",
-                  ),
-                ],
-              ),
-              ffai.ProjectWidgetHandle(
-                key: "Container_aznkrhkc",
-                type: "Container",
-                path: "RijschemaPage.body[0].children[1]",
-                name: "ListViewWrapper",
-                children: <ffai.ProjectWidgetHandle>[
-                  ffai.ProjectWidgetHandle(
-                    key: "ListView_55kreos3",
-                    type: "ListView",
-                    path: "RijschemaPage.body[0].children[1].children[0]",
-                    name: "ListView",
+                    name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_od2z9b8b",
-                        type: "Container",
-                        path: "RijschemaPage.body[0].children[1].children[0].children[0]",
-                        name: "Container",
-                        triggers: const <String>[
-                          "ON_TAP",
-                        ],
+                        key: "ProgressBar_swmm4iru",
+                        type: "ProgressBar",
+                        path: "RijschemaPage.body[0].children[0].children[0].children[0]",
+                        name: "ProgressBar",
+                      ),
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "Container_aznkrhkc",
+                    type: "Container",
+                    path: "RijschemaPage.body[0].children[0].children[1]",
+                    name: "ListViewWrapper",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "ListView_55kreos3",
+                        type: "ListView",
+                        path: "RijschemaPage.body[0].children[0].children[1].children[0]",
+                        name: "ListView",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_cx7sodso",
-                            type: "Column",
-                            path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0]",
-                            name: "Column",
+                            key: "Container_od2z9b8b",
+                            type: "Container",
+                            path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0]",
+                            name: "Container",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_38w9j9wf",
-                                type: "Row",
-                                path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[0]",
-                                name: "Row",
+                                key: "Column_cx7sodso",
+                                type: "Column",
+                                path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0]",
+                                name: "Column",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_o86d6og7",
-                                    type: "Icon",
-                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[0].children[0]",
-                                    name: "Icon",
+                                    key: "Row_38w9j9wf",
+                                    type: "Row",
+                                    path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0]",
+                                    name: "Row",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_o86d6og7",
+                                        type: "Icon",
+                                        path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_8jq134ug",
+                                        type: "Text",
+                                        path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0].children[1]",
+                                        name: "Text",
+                                      ),
+                                    ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_8jq134ug",
-                                    type: "Text",
-                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[0].children[1]",
-                                    name: "Text",
-                                  ),
-                                ],
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "Row_4zbcnznu",
-                                type: "Row",
-                                path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[1]",
-                                name: "Row",
-                                children: <ffai.ProjectWidgetHandle>[
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Icon_t3jueq7e",
-                                    type: "Icon",
-                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[1].children[0]",
-                                    name: "Icon",
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Text_vkwajq0y",
-                                    type: "Text",
-                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[1].children[1]",
-                                    name: "Text",
-                                  ),
-                                ],
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "Row_yppd5ycb",
-                                type: "Row",
-                                path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[2]",
-                                name: "RijCardLocationRow",
-                                children: <ffai.ProjectWidgetHandle>[
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Icon_sp0uo40a",
-                                    type: "Icon",
-                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[2].children[0]",
-                                    name: "Icon",
+                                    key: "Row_4zbcnznu",
+                                    type: "Row",
+                                    path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[1]",
+                                    name: "Row",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_t3jueq7e",
+                                        type: "Icon",
+                                        path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_vkwajq0y",
+                                        type: "Text",
+                                        path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[1].children[1]",
+                                        name: "Text",
+                                      ),
+                                    ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_uncgznrv",
-                                    type: "Text",
-                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[2].children[1]",
-                                    name: "RijCardLocationText",
-                                  ),
-                                ],
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "Row_7omkhi84",
-                                type: "Row",
-                                path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[3]",
-                                name: "RijCardDriverRow",
-                                children: <ffai.ProjectWidgetHandle>[
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Icon_cglak0a7",
-                                    type: "Icon",
-                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[3].children[0]",
-                                    name: "Icon",
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Text_u3vht68x",
-                                    type: "Text",
-                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[3].children[1]",
-                                    name: "RijCardDriverText",
-                                  ),
-                                ],
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "Row_ir54ebof",
-                                type: "Row",
-                                path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[4]",
-                                name: "RijCardCoachRow",
-                                children: <ffai.ProjectWidgetHandle>[
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Icon_i29ccvk2",
-                                    type: "Icon",
-                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[4].children[0]",
-                                    name: "Icon",
+                                    key: "Row_yppd5ycb",
+                                    type: "Row",
+                                    path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[2]",
+                                    name: "RijCardLocationRow",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_sp0uo40a",
+                                        type: "Icon",
+                                        path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[2].children[0]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_uncgznrv",
+                                        type: "Text",
+                                        path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[2].children[1]",
+                                        name: "RijCardLocationText",
+                                      ),
+                                    ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_g302wjyx",
-                                    type: "Text",
-                                    path: "RijschemaPage.body[0].children[1].children[0].children[0].children[0].children[4].children[1]",
-                                    name: "RijCardCoachText",
+                                    key: "Row_7omkhi84",
+                                    type: "Row",
+                                    path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[3]",
+                                    name: "RijCardDriverRow",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_cglak0a7",
+                                        type: "Icon",
+                                        path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[3].children[0]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_u3vht68x",
+                                        type: "Text",
+                                        path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[3].children[1]",
+                                        name: "RijCardDriverText",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_ir54ebof",
+                                    type: "Row",
+                                    path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[4]",
+                                    name: "RijCardCoachRow",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_i29ccvk2",
+                                        type: "Icon",
+                                        path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[4].children[0]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_g302wjyx",
+                                        type: "Text",
+                                        path: "RijschemaPage.body[0].children[0].children[1].children[0].children[0].children[0].children[4].children[1]",
+                                        name: "RijCardCoachText",
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -218,6 +226,13 @@ abstract final class RijschemaPageWidgets {
                     ],
                   ),
                 ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "Text_xjt4khja",
+                type: "Text",
+                path: "RijschemaPage.body[0].children[1]",
+                name: "RijschemaNietGepland",
+                text: "Niets gepland",
               ),
             ],
           ),
