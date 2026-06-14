@@ -4537,7 +4537,21 @@ void _addGuardianEndpoints(FFProject project) {
   );
 
   // POST /guardian/self-register — Ouder registreert zichzelf (publiek, geen auth)
-  if (!existing.contains('SelfRegisterGuardian')) {
+  // Existing endpoint: replace body + variables to drop geboortedatum.
+  if (existing.contains('SelfRegisterGuardian')) {
+    updateApiEndpoint(
+      project,
+      name:      'SelfRegisterGuardian',
+      groupName: groupName,
+      body:      '{"naam":"[naam]","email":"[email]","lidnummer":"[lidnummer]","achternaam":"[achternaam]"}',
+      variables: {
+        'naam':       FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'email':      FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'lidnummer':  FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'achternaam': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+    );
+  } else {
     addEndpointToGroup(
       project,
       groupName: groupName,
@@ -4545,15 +4559,13 @@ void _addGuardianEndpoints(FFProject project) {
       url:       '/guardian/self-register',
       method:    FFApiEndpoint_CallType.POST,
       bodyType:  FFApiEndpoint_BodyType.JSON,
-      body:      '{"naam":"[naam]","email":"[email]","lidnummer":"[lidnummer]","achternaam":"[achternaam]","geboortedatum":"[geboortedatum]"}',
+      body:      '{"naam":"[naam]","email":"[email]","lidnummer":"[lidnummer]","achternaam":"[achternaam]"}',
       variables: {
-        'naam':          FFDataTypeV2(scalarType: FFBaseDataType.String),
-        'email':         FFDataTypeV2(scalarType: FFBaseDataType.String),
-        'lidnummer':     FFDataTypeV2(scalarType: FFBaseDataType.String),
-        'achternaam':    FFDataTypeV2(scalarType: FFBaseDataType.String),
-        'geboortedatum': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'naam':       FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'email':      FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'lidnummer':  FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'achternaam': FFDataTypeV2(scalarType: FFBaseDataType.String),
       },
-      // headers: leeg — publiek endpoint, geen Bearer token
     );
   }
 
@@ -4621,13 +4633,12 @@ void _buildGuardianPages(App app) {
     description: 'Ouder/verzorger registreert zichzelf via lidnummer + achternaam + geboortedatum van het kind.',
     route: 'guardian-self-register',
     state: {
-      'isSubmitting':  bool_.withDefault(false),
-      'errorMessage':  string.withDefault(''),
-      'naam':          string.withDefault(''),
-      'email':         string.withDefault(''),
-      'lidnummer':     string.withDefault(''),
-      'achternaam':    string.withDefault(''),
-      'geboortedatum': string.withDefault(''),
+      'isSubmitting': bool_.withDefault(false),
+      'errorMessage': string.withDefault(''),
+      'naam':         string.withDefault(''),
+      'email':        string.withDefault(''),
+      'lidnummer':    string.withDefault(''),
+      'achternaam':   string.withDefault(''),
     },
     body: Scaffold(
       appBar: AppBar(title: 'Registreren als ouder/verzorger'),
@@ -5745,8 +5756,8 @@ void _buildGuardianSelfRegisterPageBody(FFProject project) {
         style: UITextStyle.titleMedium,
       ),
       UI.text(
-        'Vul je eigen gegevens in plus het lidnummer, de achternaam en de geboortedatum '
-        'van je kind. Het kind moet de koppeling later in de app bevestigen.',
+        'Vul je eigen gegevens in plus het lidnummer en de achternaam van je kind. '
+        'Het kind moet de koppeling later in de app bevestigen.',
         name: 'SelfRegIntro',
         style: UITextStyle.bodySmall,
       ),
@@ -5761,10 +5772,8 @@ void _buildGuardianSelfRegisterPageBody(FFProject project) {
 
       UI.text('Gegevens van het kind', name: 'SelfRegSectionChild',
           style: UITextStyle.labelLarge),
-      _fieldGroup('Lidnummer',    'SelfRegLidnummerField',    'bijv. LID-00123'),
-      _fieldGroup('Achternaam',   'SelfRegAchternaamField',   'Achternaam van het kind'),
-      _fieldGroup('Geboortedatum','SelfRegGeboortedatumField','JJJJ-MM-DD',
-          kbd: UIKeyboardType.number),
+      _fieldGroup('Lidnummer',  'SelfRegLidnummerField',  'bijv. LID-00123'),
+      _fieldGroup('Achternaam', 'SelfRegAchternaamField', 'Achternaam van het kind'),
 
       errorContainer,
       submitBtn,
@@ -5820,11 +5829,22 @@ void _wireGuardianSelfRegisterTextFields(FFProject project) {
     );
   }
 
-  _bindField('SelfRegNaamField',          'naam');
-  _bindField('SelfRegEmailField',         'email');
-  _bindField('SelfRegLidnummerField',     'lidnummer');
-  _bindField('SelfRegAchternaamField',    'achternaam');
-  _bindField('SelfRegGeboortedatumField', 'geboortedatum');
+  _bindField('SelfRegNaamField',       'naam');
+  _bindField('SelfRegEmailField',      'email');
+  _bindField('SelfRegLidnummerField',  'lidnummer');
+  _bindField('SelfRegAchternaamField', 'achternaam');
+
+  // Verwijder oude geboortedatum-velden uit eerdere pushes.
+  for (final name in ['SelfRegGeboortedatumField',
+                      'SelfRegGeboortedatumFieldCol',
+                      'SelfRegGeboortedatumFieldContainer',
+                      'SelfRegGeboortedatumFieldLabel']) {
+    final stale = findDescendants(wc.node, (n) => n.name == name).firstOrNull;
+    if (stale != null) {
+      final res = findParentByKey(wc.node, stale.key);
+      res?.parent.children.removeWhere((n) => n.key == stale.key);
+    }
+  }
 }
 
 // Submit knop → SelfRegisterGuardian API call.
@@ -5855,11 +5875,10 @@ void _wireGuardianSelfRegisterSubmit(FFProject project) {
       endpointName:       'SelfRegisterGuardian',
       groupName:          'VoetbalPlannerAPI',
       dynamicVariables: {
-        'naam':          _stateVar('naam'),
-        'email':         _stateVar('email'),
-        'lidnummer':     _stateVar('lidnummer'),
-        'achternaam':    _stateVar('achternaam'),
-        'geboortedatum': _stateVar('geboortedatum'),
+        'naam':       _stateVar('naam'),
+        'email':      _stateVar('email'),
+        'lidnummer':  _stateVar('lidnummer'),
+        'achternaam': _stateVar('achternaam'),
       },
       outputVariableName: 'selfRegResult',
       nodeKey:            submitBtn.key,

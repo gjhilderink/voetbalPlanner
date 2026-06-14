@@ -447,11 +447,10 @@ class GuardianController extends Controller
     public function selfRegister(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'naam'          => 'required|string|min:2|max:100',
-            'email'         => 'required|email|max:191',
-            'lidnummer'     => 'required|string|max:50',
-            'achternaam'    => 'required|string|min:2|max:100',
-            'geboortedatum' => 'required|date_format:Y-m-d|before:today',
+            'naam'       => 'required|string|min:2|max:100',
+            'email'      => 'required|email|max:191',
+            'lidnummer'  => 'required|string|max:50',
+            'achternaam' => 'required|string|min:2|max:100',
         ]);
 
         $email = strtolower($validated['email']);
@@ -465,10 +464,11 @@ class GuardianController extends Controller
             ], 409);
         }
 
-        // 3-veld verificatie van het kind/lid.
+        // 2-veld verificatie van het kind/lid (lidnummer + achternaam).
+        // Het kind moet de koppeling nog bevestigen in de app, dus geboortedatum
+        // is hier niet meer nodig als extra controle.
         $child = Member::where('external_id', $validated['lidnummer'])
             ->where('name', 'like', '%' . $validated['achternaam'] . '%')
-            ->whereDate('date_of_birth', $validated['geboortedatum'])
             ->where('is_active', true)
             ->first();
 
@@ -477,7 +477,7 @@ class GuardianController extends Controller
             return response()->json([
                 'success' => false,
                 'data'    => null,
-                'message' => 'Geen lid gevonden met de opgegeven gegevens. Controleer lidnummer, achternaam en geboortedatum.',
+                'message' => 'Geen lid gevonden met de opgegeven gegevens. Controleer lidnummer en achternaam.',
             ], 404);
         }
 

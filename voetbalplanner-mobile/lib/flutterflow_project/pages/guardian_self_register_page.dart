@@ -276,45 +276,15 @@ abstract final class GuardianSelfRegisterPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_9idvbfj7",
-                        type: "Container",
-                        path: "GuardianSelfRegisterPage.body[0].children[0].children[0].children[11]",
-                        name: "SelfRegGeboortedatumFieldContainer",
-                        children: <ffai.ProjectWidgetHandle>[
-                          ffai.ProjectWidgetHandle(
-                            key: "Column_004g2xm9",
-                            type: "Column",
-                            path: "GuardianSelfRegisterPage.body[0].children[0].children[0].children[11].children[0]",
-                            name: "SelfRegGeboortedatumFieldCol",
-                            children: <ffai.ProjectWidgetHandle>[
-                              ffai.ProjectWidgetHandle(
-                                key: "Text_xo7sq9sv",
-                                type: "Text",
-                                path: "GuardianSelfRegisterPage.body[0].children[0].children[0].children[11].children[0].children[0]",
-                                name: "SelfRegGeboortedatumFieldLabel",
-                                text: "Geboortedatum",
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "TextField_m47sd8d7",
-                                type: "TextField",
-                                path: "GuardianSelfRegisterPage.body[0].children[0].children[0].children[11].children[0].children[1]",
-                                name: "SelfRegGeboortedatumField",
-                                text: "JJJJ-MM-DD",
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      ffai.ProjectWidgetHandle(
                         key: "Container_ejoc9eyv",
                         type: "Container",
-                        path: "GuardianSelfRegisterPage.body[0].children[0].children[0].children[12]",
+                        path: "GuardianSelfRegisterPage.body[0].children[0].children[0].children[11]",
                         name: "SelfRegErrorContainer",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
                             key: "Text_yc94llbw",
                             type: "Text",
-                            path: "GuardianSelfRegisterPage.body[0].children[0].children[0].children[12].children[0]",
+                            path: "GuardianSelfRegisterPage.body[0].children[0].children[0].children[11].children[0]",
                             name: "SelfRegErrorText",
                           ),
                         ],
@@ -322,7 +292,7 @@ abstract final class GuardianSelfRegisterPageWidgets {
                       ffai.ProjectWidgetHandle(
                         key: "Button_pexltqxi",
                         type: "Button",
-                        path: "GuardianSelfRegisterPage.body[0].children[0].children[0].children[13]",
+                        path: "GuardianSelfRegisterPage.body[0].children[0].children[0].children[12]",
                         name: "SubmitSelfRegisterButton",
                         text: "Registreren",
                         triggers: const <String>[
