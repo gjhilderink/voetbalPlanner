@@ -115,13 +115,13 @@ abstract final class WedstrijdenPageWidgets {
                     name: "WelcomeGreetingText",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_2awg61xf",
+                        key: "Text_axpnb995",
                         type: "Text",
                         path: "WedstrijdenPage.body[0].children[1].children[0].children[0]",
                         name: "WelcomeClubText",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_uao35g5s",
+                        key: "Text_ynpzuc1c",
                         type: "Text",
                         path: "WedstrijdenPage.body[0].children[1].children[0].children[1]",
                         name: "WelcomeGreetingText",
@@ -192,38 +192,23 @@ abstract final class WedstrijdenPageWidgets {
                     name: "ListViewWrapper",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_e0yb55ty",
-                        type: "Column",
+                        key: "ListView_erdckv6e",
+                        type: "ListView",
                         path: "WedstrijdenPage.body[0].children[4].children[1].children[0]",
-                        name: "WedstrijdenPageEmptyCol",
+                        name: "ListView",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "ListView_erdckv6e",
-                            type: "ListView",
+                            key: "Container_f1p12fqf",
+                            type: "Container",
                             path: "WedstrijdenPage.body[0].children[4].children[1].children[0].children[0]",
-                            name: "ListView",
-                            children: <ffai.ProjectWidgetHandle>[
-                              ffai.ProjectWidgetHandle(
-                                key: "Container_f1p12fqf",
-                                type: "Container",
-                                path: "WedstrijdenPage.body[0].children[4].children[1].children[0].children[0].children[0]",
-                                name: "MatchCard",
-                                componentName: "MatchCard",
-                              ),
-                            ],
+                            name: "MatchCard",
+                            componentName: "MatchCard",
                           ),
                         ],
                       ),
                     ],
                   ),
                 ],
-              ),
-              ffai.ProjectWidgetHandle(
-                key: "Text_0shdi55t",
-                type: "Text",
-                path: "WedstrijdenPage.body[0].children[5]",
-                name: "WedstrijdenNietGepland",
-                text: "Geen activiteiten gepland",
               ),
             ],
           ),
