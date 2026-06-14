@@ -1436,13 +1436,20 @@ Future<bool> uploadProfilePhoto(BuildContext context) async {
     }
 
     final uri = Uri.parse('https://voetbalplanner.nubix.nl/api/v1/profile/photo');
+    // Web-safe: lees bytes uit XFile in plaats van fromPath, want XFile.path
+    // is op web een blob-URL die het filesystem niet kan lezen.
+    final bytes = await picked.readAsBytes();
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Bearer $token'
       ..headers['Accept']        = 'application/json'
       // Laravel route is PATCH — emuleer via method spoofing want multipart
       // werkt niet betrouwbaar over PATCH.
       ..fields['_method'] = 'PATCH'
-      ..files.add(await http.MultipartFile.fromPath('photo', picked.path));
+      ..files.add(http.MultipartFile.fromBytes(
+        'photo',
+        bytes,
+        filename: picked.name.isNotEmpty ? picked.name : 'profile_photo.jpg',
+      ));
 
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
@@ -3075,8 +3082,15 @@ Future<bool> submitBugReport(
       ..fields['description']    = d
       ..fields['platform']       = _detectPlatform();
 
-    for (final shot in _bugScreenshots) {
-      req.files.add(await http.MultipartFile.fromPath('screenshots[]', shot.path));
+    for (var i = 0; i < _bugScreenshots.length; i++) {
+      final shot = _bugScreenshots[i];
+      // Web-safe: lees bytes uit XFile (werkt zowel op web als mobiel).
+      final bytes = await shot.readAsBytes();
+      req.files.add(http.MultipartFile.fromBytes(
+        'screenshots[$i]',
+        bytes,
+        filename: shot.name.isNotEmpty ? shot.name : 'screenshot_$i.jpg',
+      ));
     }
 
     final streamed = await req.send();
