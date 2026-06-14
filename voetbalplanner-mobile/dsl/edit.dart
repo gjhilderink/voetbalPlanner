@@ -586,6 +586,7 @@ void buildEditFlow(App app) {
     _addCalendarButtons(project);
     _fixLoginKeyboard(project);
     _addLoginValidation(project);
+    _addLoginErrorDisplay(project);
     // Register the GetAppUsersAsMembers custom action + keep login upserts
     // so the appUsers collection is silently populated on every login.
     // The chain replacement (_setupAppUsersRegistry) is intentionally NOT called
@@ -3540,14 +3541,20 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
     debugPrint('[Login] status=${response.statusCode} body=${response.body}');
 
     if (response.statusCode != 200) {
-      final snippet = response.body.length > 80 ? response.body.substring(0, 80) : response.body;
-      showError('HTTP ${response.statusCode}: $snippet');
+      // Parse de JSON-foutmelding van Laravel en toon die leesbaar.
+      try {
+        final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+        final msg = (errorBody?['message'] as String?)?.trim() ?? '';
+        showError(msg.isNotEmpty ? msg : 'Inloggen mislukt. Controleer uw gegevens.');
+      } catch (_) {
+        showError('Inloggen mislukt. Controleer uw gegevens.');
+      }
       return false;
     }
 
     final body = jsonDecode(response.body) as Map<String, dynamic>?;
     if (body == null || body['success'] != true) {
-      showError('bad response: ${response.body.substring(0, response.body.length.clamp(0, 80))}');
+      showError('Inloggen mislukt. Probeer het opnieuw.');
       return false;
     }
 
@@ -11987,6 +11994,65 @@ void _addLoginValidation(FFProject project) {
     condition: _notEmpty('magicLinkEmail'),
     errorMessage: 'Vul een e-mailadres in',
   );
+}
+
+// Voegt een nette foutmelding-container toe aan de LoginPage, direct boven de
+// LedenLoginSection. De container is zichtbaar wanneer loginError niet leeg is.
+// Idempotent: slaat over als de container al aanwezig is.
+void _addLoginErrorDisplay(FFProject project) {
+  final wc = findPage(project, name: 'LoginPage');
+  if (wc == null) return;
+
+  // Idempotent: skip if already added.
+  if (findDescendants(wc.node, (n) => n.name == 'LoginErrorContainer').isNotEmpty) return;
+
+  final loginErrorId = _findAppStateFieldId(project, 'loginError');
+  if (loginErrorId == null) return;
+
+  // Visibility: show when loginError is not empty.
+  final hasErrorVar = conditionVar(
+    varFromAppState(loginErrorId.deepCopy()),
+    FFCondition_Relation.NOT_EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable;
+
+  // Error text bound to loginError AppState.
+  final errorText = UI.text('', name: 'LoginErrorText', style: UITextStyle.bodySmall);
+  final copy = errorText.props.text.deepCopy();
+  copy.colorValue = FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_BACKGROUND));
+  copy.textValue  = FFStringValue(variable: varFromAppState(loginErrorId.deepCopy()));
+  errorText.props.text = copy;
+
+  // Container: error red background with rounded corners.
+  final errorContainer = UI.container(
+    name: 'LoginErrorContainer',
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    borderRadius: 8,
+    color: UIColor.error,
+    width: double.infinity,
+    child: UI.row(
+      name: 'LoginErrorRow',
+      spacing: 8,
+      children: [
+        UI.icon('error_outline', size: 18, color: UIColor.primaryBackground, name: 'LoginErrorIcon'),
+        errorText,
+      ],
+    ),
+  );
+  setConditionalVisibility(errorContainer, variable: hasErrorVar);
+
+  // Insert before LedenLoginSection (Column_zhhikdu7).
+  final bodyCol = findByKey(wc.node, 'Column_agcaeg1m');
+  if (bodyCol == null) return;
+
+  final ledenIdx = bodyCol.children
+      .indexWhere((n) => n.key == 'Column_zhhikdu7' || n.name == 'LedenLoginSection');
+
+  if (ledenIdx >= 0) {
+    bodyCol.children.insert(ledenIdx, errorContainer);
+  } else {
+    bodyCol.children.add(errorContainer);
+  }
 }
 
 // ─── appUsers registry ────────────────────────────────────────────────────────
