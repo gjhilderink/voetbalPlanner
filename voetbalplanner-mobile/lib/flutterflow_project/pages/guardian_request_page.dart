@@ -200,45 +200,15 @@ abstract final class GuardianRequestPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_g41qnczt",
-                        type: "Container",
-                        path: "GuardianRequestPage.body[0].children[0].children[0].children[6]",
-                        name: "GeboortedatumFieldContainer",
-                        children: <ffai.ProjectWidgetHandle>[
-                          ffai.ProjectWidgetHandle(
-                            key: "Column_77bweqih",
-                            type: "Column",
-                            path: "GuardianRequestPage.body[0].children[0].children[0].children[6].children[0]",
-                            name: "GeboortedatumFieldCol",
-                            children: <ffai.ProjectWidgetHandle>[
-                              ffai.ProjectWidgetHandle(
-                                key: "Text_k5gfcwu5",
-                                type: "Text",
-                                path: "GuardianRequestPage.body[0].children[0].children[0].children[6].children[0].children[0]",
-                                name: "GeboortedatumLabel",
-                                text: "Geboortedatum",
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "TextField_zaxxr0ir",
-                                type: "TextField",
-                                path: "GuardianRequestPage.body[0].children[0].children[0].children[6].children[0].children[1]",
-                                name: "GeboortedatumField",
-                                text: "JJJJ-MM-DD",
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      ffai.ProjectWidgetHandle(
                         key: "Container_21xtatpu",
                         type: "Container",
-                        path: "GuardianRequestPage.body[0].children[0].children[0].children[7]",
+                        path: "GuardianRequestPage.body[0].children[0].children[0].children[6]",
                         name: "GuardianErrorContainer",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
                             key: "Text_trdtta9v",
                             type: "Text",
-                            path: "GuardianRequestPage.body[0].children[0].children[0].children[7].children[0]",
+                            path: "GuardianRequestPage.body[0].children[0].children[0].children[6].children[0]",
                             name: "GuardianErrorText",
                           ),
                         ],
@@ -246,7 +216,7 @@ abstract final class GuardianRequestPageWidgets {
                       ffai.ProjectWidgetHandle(
                         key: "Button_g85stt3k",
                         type: "Button",
-                        path: "GuardianRequestPage.body[0].children[0].children[0].children[8]",
+                        path: "GuardianRequestPage.body[0].children[0].children[0].children[7]",
                         name: "SubmitGuardianButton",
                         text: "Koppeling aanvragen",
                         triggers: const <String>[

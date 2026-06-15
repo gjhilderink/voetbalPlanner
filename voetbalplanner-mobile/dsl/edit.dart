@@ -278,6 +278,7 @@ void buildEditFlow(App app) {
         'senderName':     string,
         'createdAt':      dateTime,
         'isRead':         bool_,
+        'deleted':        bool_,
       },
     );
   } catch (_) {}
@@ -5152,20 +5153,36 @@ void _addGuardianEndpoints(FFProject project) {
 
   // ── 3. API-endpoints ───────────────────────────────────────────────────────
 
-  // POST /guardian/request — Ouder dient koppelverzoek in
-  addIfMissing(
-    name:     'RequestGuardianAccess',
-    url:      '/guardian/request',
-    method:   FFApiEndpoint_CallType.POST,
-    bodyType: FFApiEndpoint_BodyType.JSON,
-    body:     '{"lidnummer":"[lidnummer]","achternaam":"[achternaam]","geboortedatum":"[geboortedatum]"}',
-    variables: {
-      'lidnummer':     FFDataTypeV2(scalarType: FFBaseDataType.String),
-      'achternaam':    FFDataTypeV2(scalarType: FFBaseDataType.String),
-      'geboortedatum': FFDataTypeV2(scalarType: FFBaseDataType.String),
-    },
-    responseDataStructName: 'GuardianRequestResult',
-  );
+  // POST /guardian/request — Ouder dient koppelverzoek in voor extra kind
+  // (alleen lidnummer + achternaam — kind moet bevestigen in app)
+  if (existing.contains('RequestGuardianAccess')) {
+    updateApiEndpoint(
+      project,
+      name:      'RequestGuardianAccess',
+      groupName: groupName,
+      body:      '{"lidnummer":"[lidnummer]","achternaam":"[achternaam]"}',
+      variables: {
+        'lidnummer':  FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'achternaam': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+    );
+  } else {
+    addEndpointToGroup(
+      project,
+      groupName: groupName,
+      name:      'RequestGuardianAccess',
+      url:       '/guardian/request',
+      method:    FFApiEndpoint_CallType.POST,
+      bodyType:  FFApiEndpoint_BodyType.JSON,
+      body:      '{"lidnummer":"[lidnummer]","achternaam":"[achternaam]"}',
+      variables: {
+        'lidnummer':  FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'achternaam': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      headers:                ['Authorization: Bearer [bearerToken]'],
+      responseDataStructName: 'GuardianRequestResult',
+    );
+  }
 
   // GET /guardian/pending — Kind haalt openstaande verzoeken op
   addIfMissing(
@@ -5362,11 +5379,10 @@ void _buildGuardianPages(App app) {
     description: 'Ouder koppelt een extra kind/lid aan zijn account.',
     route: 'guardian-request',
     state: {
-      'isSubmitting':  bool_.withDefault(false),
-      'errorMessage':  string.withDefault(''),
-      'lidnummer':     string.withDefault(''),
-      'achternaam':    string.withDefault(''),
-      'geboortedatum': string.withDefault(''),
+      'isSubmitting': bool_.withDefault(false),
+      'errorMessage': string.withDefault(''),
+      'lidnummer':    string.withDefault(''),
+      'achternaam':   string.withDefault(''),
     },
     body: Scaffold(
       appBar: AppBar(title: 'Kind koppelen'),
@@ -5789,7 +5805,7 @@ void _buildGuardianRequestPageBody(FFProject project) {
   final introIcon = UI.icon('person_add', size: 48, color: UIColor.primary, name: 'GuardianRequestIcon');
   final introTitle = UI.text('Koppeling aanvragen', name: 'GuardianRequestTitle', style: UITextStyle.titleMedium);
   final introText  = UI.text(
-    'Vul de gegevens in van het lid waarmee u wilt koppelen. '
+    'Vul het lidnummer en de achternaam in van het lid waarmee je wilt koppelen. '
     'Het lid ontvangt een verzoek en moet dit bevestigen.',
     name: 'GuardianRequestIntro',
     style: UITextStyle.bodySmall,
@@ -5837,19 +5853,6 @@ void _buildGuardianRequestPageBody(FFProject project) {
           children: [
             UI.text('Achternaam', name: 'AchternaamLabel', style: UITextStyle.labelMedium),
             UI.textField(hintText: 'Achternaam van het lid', name: 'AchternaamField'),
-          ],
-        ),
-      ),
-      // Veld: Geboortedatum
-      UI.container(
-        name: 'GeboortedatumFieldContainer',
-        child: UI.column(
-          name: 'GeboortedatumFieldCol',
-          crossAxisAlignment: UICrossAxisAlignment.start,
-          spacing: 4,
-          children: [
-            UI.text('Geboortedatum', name: 'GeboortedatumLabel', style: UITextStyle.labelMedium),
-            UI.textField(hintText: 'JJJJ-MM-DD', name: 'GeboortedatumField', keyboardType: UIKeyboardType.number),
           ],
         ),
       ),
@@ -6301,9 +6304,18 @@ void _wireGuardianRequestTextFields(FFProject project) {
     );
   }
 
-  _bindField('LidnummerField',    'lidnummer');
-  _bindField('AchternaamField',   'achternaam');
-  _bindField('GeboortedatumField','geboortedatum');
+  _bindField('LidnummerField',  'lidnummer');
+  _bindField('AchternaamField', 'achternaam');
+
+  // Verwijder oude geboortedatum-widgets uit eerdere pushes.
+  for (final name in ['GeboortedatumField', 'GeboortedatumFieldCol',
+                      'GeboortedatumFieldContainer', 'GeboortedatumLabel']) {
+    final stale = findDescendants(wc.node, (n) => n.name == name).firstOrNull;
+    if (stale != null) {
+      final res = findParentByKey(wc.node, stale.key);
+      res?.parent.children.removeWhere((n) => n.key == stale.key);
+    }
+  }
 }
 
 // ─── GuardianRequestPage: formulier submit ────────────────────────────────────
@@ -6336,9 +6348,8 @@ void _wireGuardianRequestSubmit(FFProject project) {
     endpointName:       'RequestGuardianAccess',
     groupName:          'VoetbalPlannerAPI',
     dynamicVariables: {
-      'lidnummer':     _stateVar('lidnummer'),
-      'achternaam':    _stateVar('achternaam'),
-      'geboortedatum': _stateVar('geboortedatum'),
+      'lidnummer':  _stateVar('lidnummer'),
+      'achternaam': _stateVar('achternaam'),
     },
     outputVariableName: 'guardianRequestResult',
     nodeKey:            submitBtn.key,

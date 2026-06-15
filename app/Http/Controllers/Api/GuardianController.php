@@ -40,16 +40,16 @@ class GuardianController extends Controller
         }
 
         $validated = $request->validate([
-            'lidnummer'     => 'required|string|max:50',
-            'achternaam'    => 'required|string|min:2|max:100',
-            'geboortedatum' => 'required|date_format:Y-m-d|before:today',
+            'lidnummer'  => 'required|string|max:50',
+            'achternaam' => 'required|string|min:2|max:100',
         ]);
 
-        // Zoek het kind via COMBINATIE van drie velden — nooit op één veld alleen.
+        // Zoek het kind via 2-veld combinatie (lidnummer + achternaam).
+        // Het kind moet de koppeling nog bevestigen in de app, dus geboortedatum
+        // is hier niet meer nodig als extra controle.
         // Scope naar dezelfde club zodat leden van andere clubs niet vindbaar zijn.
         $child = Member::where('external_id', $validated['lidnummer'])
             ->where('name', 'like', '%' . $validated['achternaam'] . '%')
-            ->whereDate('date_of_birth', $validated['geboortedatum'])
             ->where('is_active', true)
             ->whereHas('teams', fn ($q) => $q->where('teams.club_id', $user->club_id))
             ->first();
