@@ -1283,7 +1283,12 @@ void _setupProfielAvatar(FFProject project, FFWidgetClass wc, FFIdentifier? prof
   final avatarContainer = findDescendants(wc.node, (n) => n.name == 'Avatar').firstOrNull;
   if (avatarContainer == null) return;
 
-  // Idempotent: skip if photo image already added
+  // Wire tap action ALTIJD opnieuw (los van idempotency body-setup).
+  // Eerdere pushes hebben hier de oude uploadData+ApiCall chain gezet die
+  // niet werkt; deze rewire vervangt hem door de werkende custom action.
+  _wireAvatarUploadTap(project, avatarContainer);
+
+  // Idempotent: skip body-setup if photo image already added.
   if (findDescendants(avatarContainer, (n) => n.name == 'ProfielPhoto').isNotEmpty) return;
 
   final scaffoldKey = wc.node.key;
@@ -1331,64 +1336,6 @@ void _setupProfielAvatar(FFProject project, FFWidgetClass wc, FFIdentifier? prof
 
   avatarContainer.children.insert(0, photoImage);
 
-  // Tap on avatar → custom action handles picker + multipart upload + state update.
-  // (Visual uploadData + apiCall keten faalde omdat de file niet correct aan de
-  // multipart body werd gebonden.)
-  avatarContainer.triggerActions.removeWhere(
-    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
-  );
-
-  // Ensure custom action is registered.
-  _ensureUploadProfilePhotoCustomAction(project);
-
-  final customAction = findCustomAction(project, name: 'UploadProfilePhoto');
-  if (customAction != null) {
-    final tapChain = FFActionNode(
-      key: generateRandomAlphaNumericString(),
-      action: FFAction(
-        key: generateRandomAlphaNumericString(),
-        customAction: FFCustomActionCall(
-          customActionIdentifier: customAction.identifier.deepCopy(),
-        ),
-      ),
-    );
-    Actions.addTriggerChain(avatarContainer, FFActionTriggerType.ON_TAP, tapChain);
-    // Resize the avatar container.
-    final c = avatarContainer.props.container.deepCopy();
-    final dims = c.hasDimensions() ? c.dimensions.deepCopy() : FFDimensions();
-    dims.width  = FFDim(pixelsValue: FFDoubleValue(inputValue: 80.0));
-    dims.height = FFDim(pixelsValue: FFDoubleValue(inputValue: 80.0));
-    c.dimensions = dims;
-    avatarContainer.props.container = c;
-    return; // klaar — geen oude uploadNode meer
-  }
-
-  // Fallback: oude flow (mocht de custom action niet kunnen worden gemaakt).
-  final uploadNode = FFActionNode(
-    key: generateRandomAlphaNumericString(),
-    action: Actions.uploadData(
-      actionName:  'profilePhoto',
-      allowPhoto:  true,
-      allowVideo:  false,
-      destination: FFUploadDataDestination.LOCAL_FILE,
-    ),
-    followUpAction: Actions.apiCallNode(
-      project,
-      endpointName:       'UpdateProfilePhoto',
-      groupName:          'VoetbalPlannerAPI',
-      outputVariableName: 'photoUploadResult',
-      nodeKey:            avatarContainer.key,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.snackBar('Profielfoto bijgewerkt.'),
-      ]),
-      onFailure: (ctx) => Actions.chain([
-        Actions.snackBar('Uploaden mislukt, probeer opnieuw.'),
-      ]),
-    ),
-  );
-
-  Actions.addTriggerChain(avatarContainer, FFActionTriggerType.ON_TAP, uploadNode);
-
   // Resize the avatar to make it more prominent
   final c = avatarContainer.props.container.deepCopy();
   final dims = c.hasDimensions() ? c.dimensions.deepCopy() : FFDimensions();
@@ -1396,6 +1343,31 @@ void _setupProfielAvatar(FFProject project, FFWidgetClass wc, FFIdentifier? prof
   dims.height = FFDim(pixelsValue: FFDoubleValue(inputValue: 80.0));
   c.dimensions = dims;
   avatarContainer.props.container = c;
+}
+
+// Wire de tap-actie van de avatar naar de UploadProfilePhoto custom action.
+// Wordt op ELKE push uitgevoerd zodat eventuele oude (kapotte) tap chains
+// vervangen worden door de werkende custom action.
+void _wireAvatarUploadTap(FFProject project, FFNode avatarContainer) {
+  _ensureUploadProfilePhotoCustomAction(project);
+
+  final customAction = findCustomAction(project, name: 'UploadProfilePhoto');
+  if (customAction == null) return;
+
+  avatarContainer.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+
+  final tapChain = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      customAction: FFCustomActionCall(
+        customActionIdentifier: customAction.identifier.deepCopy(),
+      ),
+    ),
+  );
+  Actions.addTriggerChain(avatarContainer, FFActionTriggerType.ON_TAP, tapChain);
 }
 
 // Registreert / update een custom Dart action 'UploadProfilePhoto' die:

@@ -932,6 +932,7 @@ abstract final class CustomCode {
     "SubmitBugReport",
     "SubscribeToTeamTopic",
     "UnsubscribeFromTeamTopic",
+    "UploadProfilePhoto",
     "VerifyMagicLink",
   ];
   static const widgets = <String>[
