@@ -562,6 +562,13 @@ final class ChatMessagesFields extends MapBase<String, ffai.DslType> {
     type: ffai.dateTime,
     description: "",
   );
+  final deleted = ffai.ProjectCollectionFieldHandle(
+    name: "deleted",
+    key: "mt1frfy9",
+    typeName: "Boolean",
+    type: ffai.bool_,
+    description: "",
+  );
   final isRead = ffai.ProjectCollectionFieldHandle(
     name: "isRead",
     key: "e862mzcg",
@@ -595,6 +602,7 @@ final class ChatMessagesFields extends MapBase<String, ffai.DslType> {
   Iterable<String> get keys => const <String>[
     "conversationId",
     "createdAt",
+    "deleted",
     "isRead",
     "senderId",
     "senderName",
@@ -605,6 +613,7 @@ final class ChatMessagesFields extends MapBase<String, ffai.DslType> {
   ffai.DslType? operator [](Object? key) => switch (key) {
     "conversationId" => conversationId,
     "createdAt" => createdAt,
+    "deleted" => deleted,
     "isRead" => isRead,
     "senderId" => senderId,
     "senderName" => senderName,
@@ -630,6 +639,13 @@ final class DirectMessagesFields extends MapBase<String, ffai.DslType> {
     key: "14dp9wer",
     typeName: "DateTime",
     type: ffai.dateTime,
+    description: "",
+  );
+  final deleted = ffai.ProjectCollectionFieldHandle(
+    name: "deleted",
+    key: "ttwiwfe3",
+    typeName: "Boolean",
+    type: ffai.bool_,
     description: "",
   );
   final receiverId = ffai.ProjectCollectionFieldHandle(
@@ -664,6 +680,7 @@ final class DirectMessagesFields extends MapBase<String, ffai.DslType> {
   @override
   Iterable<String> get keys => const <String>[
     "createdAt",
+    "deleted",
     "receiverId",
     "senderId",
     "senderName",
@@ -673,6 +690,7 @@ final class DirectMessagesFields extends MapBase<String, ffai.DslType> {
   @override
   ffai.DslType? operator [](Object? key) => switch (key) {
     "createdAt" => createdAt,
+    "deleted" => deleted,
     "receiverId" => receiverId,
     "senderId" => senderId,
     "senderName" => senderName,
@@ -698,6 +716,13 @@ final class GroupMessagesFields extends MapBase<String, ffai.DslType> {
     key: "a4h76kji",
     typeName: "DateTime",
     type: ffai.dateTime,
+    description: "",
+  );
+  final deleted = ffai.ProjectCollectionFieldHandle(
+    name: "deleted",
+    key: "2f36fqtu",
+    typeName: "Boolean",
+    type: ffai.bool_,
     description: "",
   );
   final groupId = ffai.ProjectCollectionFieldHandle(
@@ -732,6 +757,7 @@ final class GroupMessagesFields extends MapBase<String, ffai.DslType> {
   @override
   Iterable<String> get keys => const <String>[
     "createdAt",
+    "deleted",
     "groupId",
     "senderId",
     "senderName",
@@ -741,6 +767,7 @@ final class GroupMessagesFields extends MapBase<String, ffai.DslType> {
   @override
   ffai.DslType? operator [](Object? key) => switch (key) {
     "createdAt" => createdAt,
+    "deleted" => deleted,
     "groupId" => groupId,
     "senderId" => senderId,
     "senderName" => senderName,
@@ -766,6 +793,13 @@ final class TeamChatsFields extends MapBase<String, ffai.DslType> {
     key: "iyd2epsz",
     typeName: "DateTime",
     type: ffai.dateTime,
+    description: "",
+  );
+  final deleted = ffai.ProjectCollectionFieldHandle(
+    name: "deleted",
+    key: "mfjtikq2",
+    typeName: "Boolean",
+    type: ffai.bool_,
     description: "",
   );
   final senderId = ffai.ProjectCollectionFieldHandle(
@@ -800,6 +834,7 @@ final class TeamChatsFields extends MapBase<String, ffai.DslType> {
   @override
   Iterable<String> get keys => const <String>[
     "createdAt",
+    "deleted",
     "senderId",
     "senderName",
     "teamId",
@@ -809,6 +844,7 @@ final class TeamChatsFields extends MapBase<String, ffai.DslType> {
   @override
   ffai.DslType? operator [](Object? key) => switch (key) {
     "createdAt" => createdAt,
+    "deleted" => deleted,
     "senderId" => senderId,
     "senderName" => senderName,
     "teamId" => teamId,

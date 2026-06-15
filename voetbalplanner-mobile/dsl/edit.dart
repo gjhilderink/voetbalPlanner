@@ -17,7 +17,7 @@ import 'package:flutterflow_ai/src/helpers/data_type_helpers.dart'
 import 'package:flutterflow_ai/src/helpers/ensure_helpers.dart'
     show ensureDataStruct;
 import 'package:flutterflow_ai/src/helpers/function_call_helpers.dart'
-    show CodeExpressionArg, codeExpressionVar, colorFromStringVar, conditionVar, interpolateVar;
+    show CodeExpressionArg, andConditionsVar, codeExpressionVar, colorFromStringVar, conditionVar, interpolateVar;
 import 'package:flutterflow_ai/src/helpers/param_value.dart'
     show StaticParamValue, VariableParamValue;
 import 'package:flutterflow_ai/src/helpers/state_update.dart'
@@ -573,6 +573,7 @@ void buildEditFlow(App app) {
     // Add hasUnread + unreadCount fields to chatConversations, then show badges.
     _addUnreadFieldsToConversations(project);
     _addIsReadFieldToChatMessages(project);
+    _addDeletedFieldToChatCollections(project);
     _addConversationBadges(project);
     // Reset unread count when user opens a conversation.
     _wireMarkConversationRead(project);
@@ -602,6 +603,7 @@ void buildEditFlow(App app) {
     // team members have logged in once can we safely switch the member strip source.
     _registerGetAppUsersAction(project);
     _addChatEditDeleteFeature(project);
+    _addSoftDeleteDisplay(project);
     _sortChatMessagesByCreatedAt(project);
     _addScrollToBottomAfterSend(project);
     _addClearTextFieldToAllChatSends(project);
@@ -9359,6 +9361,20 @@ void _addIsReadFieldToChatMessages(FFProject project) {
       type: FFDataTypeV2(scalarType: FFBaseDataType.Boolean));
 }
 
+// Ensures the 'deleted' field exists on all chat-message collections (idempotent).
+// Used for soft-delete: the document blijft staan, maar de UI toont
+// "Bericht verwijderd" + grijze bubble + geen actieknoppen.
+void _addDeletedFieldToChatCollections(FFProject project) {
+  const collections = ['chatMessages', 'teamChats', 'directMessages', 'groupMessages'];
+  for (final name in collections) {
+    final coll = findCollection(project, name: name);
+    if (coll == null) continue;
+    if (coll.fields.values.any((f) => f.identifier.name == 'deleted')) continue;
+    addCollectionField(project, collectionName: name, fieldName: 'deleted',
+        type: FFDataTypeV2(scalarType: FFBaseDataType.Boolean));
+  }
+}
+
 // Adds a count badge to each conversation row in ChatsPage's ChatsConversationsList.
 // Badge is visible when hasUnread == true; shows the unreadCount value.
 // Idempotent: skips if ConvUnreadBadge already present.
@@ -13745,6 +13761,130 @@ void _addChatEditDeleteFeature(FFProject project) {
   _wireChatDetailFilters(project);
 }
 
+// ─── Soft-delete UI ──────────────────────────────────────────────────────────
+//
+// Voor elke chat pagina:
+//  - Voegt een 'DeletedBubble' node toe als sibling van OwnBubble + OtherBubble
+//    in de item-column. Grijze achtergrond, cursief "Bericht verwijderd" tekst.
+//    Visibility: deleted == true.
+//  - Wijzigt de visibility van bestaande OwnBubble + OtherBubble om AND !deleted
+//    toe te voegen, zodat ze verbergen wanneer het bericht verwijderd is.
+//  - Wijzigt OwnActionsRow visibility eveneens om AND !deleted toe te voegen.
+//
+// Idempotent: skipt wanneer DeletedBubble al bestaat in een item-column.
+void _addSoftDeleteDisplay(FFProject project) {
+  // Config per chat-pagina: listView key, message-collectie, deleted-veld key,
+  // item column key (kinderen daarvan zijn de bubbles).
+  const configs = [
+    (page: 'ChatDetailPage', listKey: 'ListView_ws05qhut', coll: 'chatMessages',
+     itemColKey: 'Column_e6dtwbzq'),
+    (page: 'DirectChatPage', listKey: 'ListView_z624qee2', coll: 'directMessages',
+     itemColKey: 'Column_hz6ofrah'),
+    (page: 'GroupChatPage',  listKey: 'ListView_6t0r29c1', coll: 'groupMessages',
+     itemColKey: 'Column_dk9brcp8'),
+    (page: 'TeamChatPage',   listKey: 'ListView_9sebksf4', coll: 'teamChats',
+     itemColKey: 'Column_thoxlcla'),
+  ];
+
+  for (final cfg in configs) {
+    final wc = findPage(project, name: cfg.page);
+    if (wc == null) continue;
+
+    final itemCol = findByKey(wc.node, cfg.itemColKey);
+    if (itemCol == null) continue;
+
+    final deletedField = findCollectionField(
+      project, collectionName: cfg.coll, fieldName: 'deleted',
+    );
+    if (deletedField == null) continue;
+
+    // Variable: list-item.deleted == true   (geeft true bij verwijderd)
+    FFVariable _deletedVar() {
+      return conditionVar(
+        varFromGeneratorVariable(cfg.listKey)
+          ..operations.add(FFVariableOperation(
+            accessDocumentField: FFAccessDocumentField(
+              fieldIdentifier: deletedField.identifier.deepCopy(),
+            ),
+          )),
+        FFCondition_Relation.EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+      ).variable;
+    }
+
+    // Variable: list-item.deleted != true   (geeft true bij NIET verwijderd of veld leeg)
+    FFVariable _notDeletedVar() {
+      return conditionVar(
+        varFromGeneratorVariable(cfg.listKey)
+          ..operations.add(FFVariableOperation(
+            accessDocumentField: FFAccessDocumentField(
+              fieldIdentifier: deletedField.identifier.deepCopy(),
+            ),
+          )),
+        FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+      ).variable;
+    }
+
+    // ── Wijzig bestaande visibility: combine met AND !deleted ─────────────
+    void _andNotDeleted(FFNode node) {
+      if (!node.props.hasVisibility() ||
+          !node.props.visibility.hasVisibleValue()) {
+        // Nog geen visibility — zet alleen !deleted
+        setConditionalVisibility(node, variable: _notDeletedVar());
+        return;
+      }
+      // Skip als al een AND_OP combine (idempotent).
+      final existing = node.props.visibility.visibleValue;
+      if (existing.hasVariable() &&
+          existing.variable.hasFunctionCall() &&
+          existing.variable.functionCall.hasCombineConditions() &&
+          existing.variable.functionCall.combineConditions.operator ==
+              FFCombineConditions_LogicalOperator.AND_OP) {
+        return;
+      }
+      // Combine existing met !deleted via AND.
+      final existingVar = existing.variable.deepCopy();
+      final combined = andConditionsVar([existingVar, _notDeletedVar()]).variable;
+      setConditionalVisibility(node, variable: combined);
+    }
+
+    // OwnBubble + OtherBubble: hide as deleted
+    for (final node in findDescendants(itemCol,
+        (n) => n.name == 'OwnBubble' || n.name == 'OtherBubble')) {
+      _andNotDeleted(node);
+    }
+    // OwnActionsRow: hide as deleted (combined met bestaande "own message" check)
+    for (final node in findDescendants(itemCol, (n) => n.name == 'OwnActionsRow')) {
+      _andNotDeleted(node);
+    }
+
+    // ── Voeg DeletedBubble toe (idempotent) ───────────────────────────────
+    if (findDescendants(itemCol, (n) => n.name == 'DeletedBubble').isNotEmpty) continue;
+
+    final deletedText = UI.text('Bericht verwijderd',
+        name: 'DeletedBubbleText', style: UITextStyle.bodyMedium);
+    final txtCopy = deletedText.props.text.deepCopy();
+    txtCopy.colorValue = FFColorValue(
+      inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT),
+    );
+    txtCopy.italicValue = FFBooleanValue(inputValue: true);
+    deletedText.props.text = txtCopy;
+
+    final deletedBubble = UI.container(
+      name: 'DeletedBubble',
+      padding: UIEdgeInsets.all(16),
+      borderRadius: 12,
+      color: UIColor.secondaryBackground,
+      width: double.infinity,
+      child: deletedText,
+    );
+    setConditionalVisibility(deletedBubble, variable: _deletedVar());
+
+    itemCol.children.add(deletedBubble);
+  }
+}
+
 // Returns the generator variable's DocumentReference.
 FFVariable _docRefVar(String listKey) => varFromGeneratorVariable(listKey)
   ..operations.add(FFVariableOperation(
@@ -13829,11 +13969,37 @@ void _addOwnActionsRow(
   ).variable;
 
   // ── Delete button (visible when not editing) ───────────────────────────────
+  // Soft-delete: zet 'deleted' field op true via firestoreUpdate i.p.v. het
+  // document echt verwijderen. UI toont vervolgens "Bericht verwijderd" in
+  // een grijze bubble zonder actieknoppen.
   final deleteBtn = UI.iconButton('delete', color: UIColor.secondaryText, name: 'OwnDeleteBtn');
   if (editingDocPathId != null) setConditionalVisibility(deleteBtn, variable: notEditingCond());
+
+  // Zoek het 'deleted' veld in de huidige collectie.
+  final deletedFieldEntry = collectionName.isEmpty
+      ? null
+      : findCollectionField(
+          project, collectionName: collectionName, fieldName: 'deleted',
+        );
+  final FFAction deleteAction;
+  if (deletedFieldEntry != null) {
+    // Soft-delete via firestoreUpdate
+    deleteAction = Actions.firestoreUpdate(
+      reference: _docRefVar(listKey),
+      fieldUpdates: {
+        deletedFieldEntry.identifier.key: FFFieldUpdate(
+          fieldIdentifier: deletedFieldEntry.identifier.deepCopy(),
+          variable: varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+        ),
+      },
+    );
+  } else {
+    // Fallback: hard-delete als 'deleted' veld nog niet bestaat.
+    deleteAction = Actions.firestoreDelete(reference: _docRefVar(listKey));
+  }
   final deleteFirestoreNode = FFActionNode(
     key: generateRandomAlphaNumericString(),
-    action: Actions.firestoreDelete(reference: _docRefVar(listKey)),
+    action: deleteAction,
   );
   final deleteRefresh = buildRefresh(deleteBtn.key, outputName: 'postDeleteRefresh');
   if (deleteRefresh != null) deleteFirestoreNode.followUpAction = deleteRefresh;
