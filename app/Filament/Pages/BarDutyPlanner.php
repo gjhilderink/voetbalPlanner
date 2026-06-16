@@ -136,56 +136,57 @@ class BarDutyPlanner extends Page
                 ->icon('heroicon-o-plus')
                 ->color('primary')
                 ->form([
-                    Forms\Components\DatePicker::make('date')
-                        ->label('Datum')
-                        ->displayFormat('d-m-Y')
-                        ->default(fn() => Carbon::parse($this->weekStart))
-                        ->required(),
-                    Forms\Components\Select::make('shift')
-                        ->label('Dienst')
-                        ->options([
-                            'ochtend' => 'Ochtend',
-                            'middag'  => 'Middag',
-                            'avond'   => 'Avond',
-                        ])
-                        ->required(),
-                    Forms\Components\Select::make('team_id')
-                        ->label('Elftal (verantwoordelijk)')
-                        ->options(fn() => Team::where('club_id', filament()->getTenant()?->id)
-                            ->where('is_active', true)->orderBy('name')
-                            ->pluck('name', 'id')->all())
-                        ->searchable()
-                        ->required()
-                        ->live(),
-                    Forms\Components\Select::make('member_ids')
-                        ->label('Leden (max. 2)')
-                        ->multiple()
-                        ->maxItems(2)
-                        ->options(fn(Forms\Get $get) => Member::query()
-                            ->when(
-                                $get('team_id'),
-                                fn($q, $tid) => $q->whereHas('teams', fn($t) => $t->where('teams.id', $tid)),
-                                fn($q) => $q->whereRaw('1=0'),
-                            )
-                            ->where('is_active', true)->orderBy('name')
-                            ->pluck('name', 'id')->all())
-                        ->helperText('Selecteer eerst een elftal')
-                        ->columnSpanFull(),
-                    Forms\Components\Select::make('status')
-                        ->label('Status')
-                        ->options([
-                            'open'      => 'Open',
-                            'bevestigd' => 'Bevestigd',
-                            'vervuld'   => 'Vervuld',
-                        ])
-                        ->default('open')
-                        ->required(),
-                    Forms\Components\Textarea::make('notes')
-                        ->label('Opmerkingen')
-                        ->rows(2)
-                        ->columnSpanFull(),
+                    Forms\Components\Grid::make(2)->schema([
+                        Forms\Components\DatePicker::make('date')
+                            ->label('Datum')
+                            ->displayFormat('d-m-Y')
+                            ->default(fn() => Carbon::parse($this->weekStart))
+                            ->required(),
+                        Forms\Components\Select::make('shift')
+                            ->label('Dienst')
+                            ->options([
+                                'ochtend' => 'Ochtend',
+                                'middag'  => 'Middag',
+                                'avond'   => 'Avond',
+                            ])
+                            ->required(),
+                        Forms\Components\Select::make('team_id')
+                            ->label('Elftal (verantwoordelijk)')
+                            ->options(fn() => Team::where('club_id', filament()->getTenant()?->id)
+                                ->where('is_active', true)->orderBy('name')
+                                ->pluck('name', 'id')->all())
+                            ->searchable()
+                            ->required()
+                            ->live(),
+                        Forms\Components\Select::make('status')
+                            ->label('Status')
+                            ->options([
+                                'open'      => 'Open',
+                                'bevestigd' => 'Bevestigd',
+                                'vervuld'   => 'Vervuld',
+                            ])
+                            ->default('open')
+                            ->required(),
+                        Forms\Components\Select::make('member_ids')
+                            ->label('Leden (max. 2)')
+                            ->multiple()
+                            ->maxItems(2)
+                            ->options(fn(Forms\Get $get) => Member::query()
+                                ->when(
+                                    $get('team_id'),
+                                    fn($q, $tid) => $q->whereHas('teams', fn($t) => $t->where('teams.id', $tid)),
+                                    fn($q) => $q->whereRaw('1=0'),
+                                )
+                                ->where('is_active', true)->orderBy('name')
+                                ->pluck('name', 'id')->all())
+                            ->helperText('Selecteer eerst een elftal')
+                            ->columnSpanFull(),
+                        Forms\Components\Textarea::make('notes')
+                            ->label('Opmerkingen')
+                            ->rows(2)
+                            ->columnSpanFull(),
+                    ]),
                 ])
-                ->columns(2)
                 ->action(function (array $data): void {
                     $duty = BarDuty::create([
                         'club_id' => filament()->getTenant()?->id,
