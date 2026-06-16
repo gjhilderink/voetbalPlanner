@@ -1,255 +1,282 @@
 <x-filament-panels::page>
 
-    {{-- Week navigation --}}
-    <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-            <button
-                wire:click="previousWeek"
-                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-                <x-heroicon-s-chevron-left class="w-4 h-4" />
-                Vorige week
-            </button>
-            <button
-                wire:click="goToCurrentWeek"
-                class="inline-flex items-center px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-                Vandaag
-            </button>
-            <button
-                wire:click="nextWeek"
-                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-                Volgende week
-                <x-heroicon-s-chevron-right class="w-4 h-4" />
-            </button>
+<style>
+.bdp-wrap       { display:flex; gap:1rem; align-items:flex-start; }
+.bdp-sidebar    { width:200px; flex-shrink:0; display:flex; flex-direction:column; gap:1rem; }
+.bdp-panel      { background:#fff; border:1px solid #e5e7eb; border-radius:.75rem; overflow:hidden; }
+.dark .bdp-panel{ background:#1f2937; border-color:#374151; }
+.bdp-panel-head { padding:.4rem .75rem; font-size:.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#fff; }
+.bdp-panel-body { padding:.5rem; display:flex; flex-direction:column; gap:.25rem; }
+
+.bdp-team-chip  {
+    display:flex; align-items:center; gap:.4rem;
+    padding:.35rem .5rem; border-radius:.5rem;
+    background:#f0fdf4; border:1px solid #bbf7d0;
+    font-size:.8rem; color:#166534;
+    cursor:grab; user-select:none;
+    white-space:nowrap; overflow:hidden;
+}
+.dark .bdp-team-chip { background:#14532d33; border-color:#166534; color:#86efac; }
+.bdp-team-chip:active { cursor:grabbing; }
+.bdp-team-chip svg { width:14px; height:14px; flex-shrink:0; opacity:.7; }
+.bdp-team-chip span { overflow:hidden; text-overflow:ellipsis; }
+
+.bdp-legend-row { display:flex; align-items:center; gap:.5rem; font-size:.75rem; color:#6b7280; margin-bottom:.25rem; }
+.bdp-dot        { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.bdp-legend-sep { border-top:1px solid #f3f4f6; margin:.25rem 0; }
+.dark .bdp-legend-sep { border-color:#374151; }
+
+.bdp-main       { flex:1; overflow-x:auto; }
+.bdp-inner      { min-width:700px; }
+
+.bdp-nav        { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+.bdp-nav-btns   { display:flex; gap:.4rem; }
+.bdp-btn        {
+    display:inline-flex; align-items:center; gap:.3rem;
+    padding:.35rem .75rem; border-radius:.5rem;
+    border:1px solid #d1d5db; background:#fff;
+    font-size:.8rem; font-weight:500; color:#374151;
+    cursor:pointer; white-space:nowrap;
+}
+.dark .bdp-btn  { background:#1f2937; border-color:#4b5563; color:#d1d5db; }
+.bdp-btn:hover  { background:#f9fafb; }
+.dark .bdp-btn:hover { background:#374151; }
+.bdp-btn svg    { width:14px; height:14px; }
+.bdp-week-label { font-size:.95rem; font-weight:600; color:#111827; }
+.dark .bdp-week-label { color:#f9fafb; }
+
+.bdp-day-grid   { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+
+.bdp-day-head   { text-align:center; padding:.5rem .25rem; border-radius:.5rem .5rem 0 0; font-size:.8rem; font-weight:600; }
+.bdp-day-head .dn { font-size:.75rem; }
+.bdp-day-head .dd { font-size:1.1rem; line-height:1.2; }
+.bdp-day-head .dm { font-size:.7rem; opacity:.7; }
+.bdp-day-normal { background:#f3f4f6; color:#374151; }
+.dark .bdp-day-normal { background:#374151; color:#d1d5db; }
+.bdp-day-today  { background:#16a34a; color:#fff; }
+
+.bdp-shift-label { display:flex; align-items:center; gap:.4rem; padding:.2rem .25rem; margin-top:.75rem; margin-bottom:2px; }
+.bdp-shift-label svg { width:10px; height:10px; }
+.bdp-shift-label span { font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#9ca3af; }
+
+.bdp-slot       { min-height:90px; border-radius:.5rem; border:1.5px solid; padding:.35rem; position:relative; transition:background .15s,box-shadow .15s; }
+.bdp-slot.over  { box-shadow:0 0 0 2px currentColor; filter:brightness(.96); }
+
+.bdp-slot-o     { background:#eff6ff; border-color:#bfdbfe; }
+.dark .bdp-slot-o { background:#1e3a5f33; border-color:#1e40af55; }
+.bdp-slot-m     { background:#fefce8; border-color:#fde68a; }
+.dark .bdp-slot-m { background:#78350f33; border-color:#92400e55; }
+.bdp-slot-a     { background:#faf5ff; border-color:#e9d5ff; }
+.dark .bdp-slot-a { background:#4c1d9533; border-color:#6d28d955; }
+
+.bdp-empty-hint { display:flex; align-items:center; justify-content:center; height:60px; pointer-events:none; }
+.bdp-empty-hint svg { width:22px; height:22px; color:#d1d5db; }
+
+.bdp-card       { border-radius:.4rem; border:1px solid; padding:.3rem .4rem; margin-bottom:.3rem; font-size:.75rem; position:relative; }
+.bdp-card-open  { background:#fff7ed; border-color:#fed7aa; }
+.dark .bdp-card-open { background:#431407; border-color:#9a3412; }
+.bdp-card-bev   { background:#eff6ff; border-color:#bfdbfe; }
+.dark .bdp-card-bev { background:#1e3a5f; border-color:#1e40af; }
+.bdp-card-ver   { background:#f0fdf4; border-color:#bbf7d0; }
+.dark .bdp-card-ver { background:#14532d; border-color:#166534; }
+
+.bdp-card-name  { display:flex; align-items:center; gap:.3rem; font-weight:600; color:#1f2937; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.dark .bdp-card-name { color:#f3f4f6; }
+.bdp-card-dot   { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.bdp-card-members { margin-top:.2rem; display:flex; flex-direction:column; gap:.1rem; }
+.bdp-card-member { display:flex; align-items:center; gap:.25rem; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dark .bdp-card-member { color:#9ca3af; }
+.bdp-card-member svg { width:10px; height:10px; flex-shrink:0; opacity:.7; }
+.bdp-card-empty { margin-top:.2rem; color:#9ca3af; font-style:italic; }
+
+.bdp-card-actions { position:absolute; top:.25rem; right:.25rem; display:none; gap:.2rem; }
+.bdp-card:hover .bdp-card-actions { display:flex; }
+.bdp-act-btn    { padding:.15rem; border-radius:.3rem; background:#fff; border:none; cursor:pointer; color:#6b7280; display:flex; }
+.dark .bdp-act-btn { background:#374151; }
+.bdp-act-btn:hover { color:#2563eb; }
+.bdp-act-btn.del:hover { color:#dc2626; }
+.bdp-act-btn svg { width:12px; height:12px; }
+</style>
+
+{{-- Week navigation --}}
+<div class="bdp-nav" style="margin-bottom:1rem;">
+    <div class="bdp-nav-btns">
+        <button class="bdp-btn" wire:click="previousWeek">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            Vorige week
+        </button>
+        <button class="bdp-btn" wire:click="goToCurrentWeek">Vandaag</button>
+        <button class="bdp-btn" wire:click="nextWeek">
+            Volgende week
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </button>
+    </div>
+    <div class="bdp-week-label">
+        Week {{ \Carbon\Carbon::parse($weekStart)->weekOfYear }}
+        &mdash;
+        {{ \Carbon\Carbon::parse($weekStart)->locale('nl')->isoFormat('D MMM') }}
+        t/m
+        {{ \Carbon\Carbon::parse($weekStart)->endOfWeek()->locale('nl')->isoFormat('D MMM YYYY') }}
+    </div>
+</div>
+
+<div class="bdp-wrap"
+    x-data="{ draggingTeamId: null, dragType: null }"
+>
+    {{-- Sidebar --}}
+    <div class="bdp-sidebar">
+        <div class="bdp-panel">
+            <div class="bdp-panel-head" style="background:#16a34a;">Elftallen</div>
+            <div class="bdp-panel-body">
+                @forelse($this->teams as $team)
+                    <div
+                        class="bdp-team-chip"
+                        draggable="true"
+                        title="Sleep naar een blok om in te plannen"
+                        @dragstart="draggingTeamId = '{{ $team->id }}'; dragType = 'team'; $event.dataTransfer.effectAllowed = 'copy';"
+                        @dragend="draggingTeamId = null; dragType = null;"
+                    >
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                        <span>{{ $team->name }}</span>
+                    </div>
+                @empty
+                    <p style="font-size:.75rem;color:#9ca3af;padding:.25rem;">Geen elftallen</p>
+                @endforelse
+            </div>
         </div>
-        <div class="text-base font-semibold text-gray-900 dark:text-white">
-            Week {{ \Carbon\Carbon::parse($weekStart)->weekOfYear }} &mdash;
-            {{ \Carbon\Carbon::parse($weekStart)->locale('nl')->isoFormat('D MMM') }}
-            t/m
-            {{ \Carbon\Carbon::parse($weekStart)->endOfWeek()->locale('nl')->isoFormat('D MMM YYYY') }}
+
+        {{-- Legend --}}
+        <div class="bdp-panel">
+            <div class="bdp-panel-head" style="background:#6b7280;">Legenda</div>
+            <div class="bdp-panel-body" style="padding:.75rem;">
+                <div class="bdp-legend-row"><span class="bdp-dot" style="background:#60a5fa;"></span> Ochtend</div>
+                <div class="bdp-legend-row"><span class="bdp-dot" style="background:#fbbf24;"></span> Middag</div>
+                <div class="bdp-legend-row"><span class="bdp-dot" style="background:#c084fc;"></span> Avond</div>
+                <div class="bdp-legend-sep"></div>
+                <div class="bdp-legend-row"><span class="bdp-dot" style="background:#fb923c;"></span> Open</div>
+                <div class="bdp-legend-row"><span class="bdp-dot" style="background:#3b82f6;"></span> Bevestigd</div>
+                <div class="bdp-legend-row"><span class="bdp-dot" style="background:#22c55e;"></span> Vervuld</div>
+            </div>
         </div>
     </div>
 
-    {{-- Main layout: teams sidebar + calendar --}}
-    <div
-        class="flex gap-4"
-        x-data="{
-            draggingTeamId: null,
-            draggingTeamName: null,
-            draggingMemberId: null,
-            draggingMemberName: null,
-            dragType: null,
-        }"
-    >
-        {{-- ===== Teams / Members sidebar ===== --}}
-        <div class="w-52 shrink-0 space-y-4">
+    {{-- Calendar --}}
+    <div class="bdp-main">
+        <div class="bdp-inner">
 
-            {{-- Teams --}}
-            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div class="bg-primary-600 text-white text-xs font-semibold uppercase tracking-wide px-3 py-2">
-                    Elftallen
-                </div>
-                <div class="p-2 space-y-1">
-                    @foreach($this->teams as $team)
-                        <div
-                            draggable="true"
-                            @dragstart="
-                                draggingTeamId = '{{ $team->id }}';
-                                draggingTeamName = '{{ addslashes($team->name) }}';
-                                dragType = 'team';
-                                $event.dataTransfer.effectAllowed = 'copy';
-                            "
-                            @dragend="draggingTeamId = null; dragType = null;"
-                            class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-700 cursor-grab active:cursor-grabbing select-none text-sm text-primary-800 dark:text-primary-200 hover:bg-primary-100 dark:hover:bg-primary-900/50"
-                            title="Sleep naar een bardienst-blok"
-                        >
-                            <x-heroicon-s-user-group class="w-3.5 h-3.5 shrink-0 opacity-70" />
-                            <span class="truncate">{{ $team->name }}</span>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-
-            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div class="bg-gray-500 text-white text-xs font-semibold uppercase tracking-wide px-3 py-2">
-                    Legenda
-                </div>
-                <div class="p-3 space-y-1.5 text-xs">
-                    <div class="flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-blue-400 shrink-0"></span>
-                        <span class="text-gray-600 dark:text-gray-400">Ochtend</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 shrink-0"></span>
-                        <span class="text-gray-600 dark:text-gray-400">Middag</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-purple-400 shrink-0"></span>
-                        <span class="text-gray-600 dark:text-gray-400">Avond</span>
-                    </div>
-                    <div class="border-t border-gray-100 dark:border-gray-700 pt-1.5 mt-1.5 space-y-1.5">
-                        <div class="flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-orange-400 shrink-0"></span>
-                            <span class="text-gray-600 dark:text-gray-400">Open</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
-                            <span class="text-gray-600 dark:text-gray-400">Bevestigd</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0"></span>
-                            <span class="text-gray-600 dark:text-gray-400">Vervuld</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- ===== Calendar grid ===== --}}
-        <div class="flex-1 overflow-x-auto">
-            <div class="min-w-[700px]">
-
-                {{-- Day header row --}}
-                <div class="grid grid-cols-7 gap-px mb-px">
-                    @foreach($this->weekDays as $day)
-                        @php
-                            $isToday = $day->isToday();
-                        @endphp
-                        <div class="text-center py-2 rounded-t-lg text-sm font-semibold
-                            {{ $isToday
-                                ? 'bg-primary-600 text-white'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300' }}">
-                            <div>{{ $day->locale('nl')->isoFormat('ddd') }}</div>
-                            <div class="text-lg leading-tight {{ $isToday ? 'text-white' : '' }}">{{ $day->format('d') }}</div>
-                            <div class="text-xs opacity-75">{{ $day->locale('nl')->isoFormat('MMM') }}</div>
-                        </div>
-                    @endforeach
-                </div>
-
-                {{-- Shift rows --}}
-                @foreach(['ochtend' => ['label'=>'Ochtend','color'=>'blue'], 'middag' => ['label'=>'Middag','color'=>'yellow'], 'avond' => ['label'=>'Avond','color'=>'purple']] as $shift => $meta)
-                    @php
-                        $shiftColors = [
-                            'blue'   => 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700/50',
-                            'yellow' => 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700/50',
-                            'purple' => 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700/50',
-                        ];
-                        $dotColors = [
-                            'blue'   => 'bg-blue-400',
-                            'yellow' => 'bg-yellow-400',
-                            'purple' => 'bg-purple-400',
-                        ];
-                        $dropHover = [
-                            'blue'   => 'ring-2 ring-blue-400 bg-blue-100 dark:bg-blue-900/40',
-                            'yellow' => 'ring-2 ring-yellow-400 bg-yellow-100 dark:bg-yellow-900/40',
-                            'purple' => 'ring-2 ring-purple-400 bg-purple-100 dark:bg-purple-900/40',
-                        ];
-                    @endphp
-
-                    {{-- Shift label row --}}
-                    <div class="grid grid-cols-7 gap-px mt-3 mb-px">
-                        <div class="col-span-7 flex items-center gap-1.5 px-1 py-0.5">
-                            <span class="w-2 h-2 rounded-full {{ $dotColors[$meta['color']] }}"></span>
-                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ $meta['label'] }}</span>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-7 gap-px">
-                        @foreach($this->weekDays as $day)
-                            @php
-                                $dateStr   = $day->toDateString();
-                                $slotDuties = $this->dutiesForSlot($dateStr, $shift);
-                                $cellBase   = $shiftColors[$meta['color']];
-                                $hoverClass = $dropHover[$meta['color']];
-                            @endphp
-
-                            <div
-                                class="min-h-[90px] rounded-lg border {{ $cellBase }} p-1.5 transition-all duration-150"
-                                x-on:dragover.prevent="$el.classList.add(...'{{ $hoverClass }}'.split(' '))"
-                                x-on:dragleave="$el.classList.remove(...'{{ $hoverClass }}'.split(' '))"
-                                x-on:drop.prevent="
-                                    $el.classList.remove(...'{{ $hoverClass }}'.split(' '));
-                                    if (dragType === 'team' && draggingTeamId) {
-                                        $wire.dropTeamOnSlot('{{ $dateStr }}', '{{ $shift }}', draggingTeamId);
-                                    }
-                                "
-                            >
-                                {{-- Existing duties in this slot --}}
-                                @foreach($slotDuties as $duty)
-                                    @php
-                                        $statusColors = [
-                                            'open'      => 'bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-600',
-                                            'bevestigd' => 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600',
-                                            'vervuld'   => 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-600',
-                                        ];
-                                        $dotStatus = [
-                                            'open'      => 'bg-orange-400',
-                                            'bevestigd' => 'bg-blue-500',
-                                            'vervuld'   => 'bg-green-500',
-                                        ];
-                                    @endphp
-                                    <div
-                                        class="group relative rounded-md border {{ $statusColors[$duty->status] ?? 'bg-gray-100 border-gray-300' }} px-1.5 py-1 mb-1 text-xs"
-                                        x-data="{ open: false }"
-                                    >
-                                        {{-- Team name --}}
-                                        <div class="flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200 truncate">
-                                            <span class="w-1.5 h-1.5 rounded-full {{ $dotStatus[$duty->status] ?? 'bg-gray-400' }} shrink-0"></span>
-                                            <span class="truncate">{{ $duty->team?->name ?? '—' }}</span>
-                                        </div>
-
-                                        {{-- Members --}}
-                                        @if($duty->members->isNotEmpty())
-                                            <div class="mt-0.5 text-gray-600 dark:text-gray-400 space-y-0.5">
-                                                @foreach($duty->members as $member)
-                                                    <div class="flex items-center gap-1 truncate">
-                                                        <x-heroicon-s-user class="w-2.5 h-2.5 shrink-0 opacity-60" />
-                                                        {{ $member->name }}
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        @else
-                                            <div class="mt-0.5 text-gray-400 dark:text-gray-500 italic">Geen leden</div>
-                                        @endif
-
-                                        {{-- Actions overlay --}}
-                                        <div class="absolute top-0.5 right-0.5 hidden group-hover:flex items-center gap-0.5">
-                                            {{-- Status toggle --}}
-                                            <button
-                                                wire:click="updateDutyStatus('{{ $duty->id }}', '{{ match($duty->status) { 'open' => 'bevestigd', 'bevestigd' => 'vervuld', default => 'open' } }}')"
-                                                class="p-0.5 rounded bg-white dark:bg-gray-700 shadow text-gray-500 hover:text-blue-600"
-                                                title="Wijzig status"
-                                            >
-                                                <x-heroicon-s-arrow-path class="w-3 h-3" />
-                                            </button>
-                                            {{-- Delete --}}
-                                            <button
-                                                wire:click="removeDuty('{{ $duty->id }}')"
-                                                wire:confirm="Weet je zeker dat je deze bardienst wilt verwijderen?"
-                                                class="p-0.5 rounded bg-white dark:bg-gray-700 shadow text-gray-500 hover:text-red-600"
-                                                title="Verwijderen"
-                                            >
-                                                <x-heroicon-s-x-mark class="w-3 h-3" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                @endforeach
-
-                                {{-- Drop hint when empty --}}
-                                @if($slotDuties->isEmpty())
-                                    <div class="h-full flex items-center justify-center text-gray-300 dark:text-gray-600 pointer-events-none">
-                                        <x-heroicon-o-plus-circle class="w-5 h-5" />
-                                    </div>
-                                @endif
-                            </div>
-                        @endforeach
+            {{-- Day headers --}}
+            <div class="bdp-day-grid" style="margin-bottom:2px;">
+                @foreach($this->weekDays as $day)
+                    <div class="bdp-day-head {{ $day->isToday() ? 'bdp-day-today' : 'bdp-day-normal' }}">
+                        <div class="dn">{{ $day->locale('nl')->isoFormat('ddd') }}</div>
+                        <div class="dd">{{ $day->format('d') }}</div>
+                        <div class="dm">{{ $day->locale('nl')->isoFormat('MMM') }}</div>
                     </div>
                 @endforeach
-
             </div>
+
+            {{-- Shift rows --}}
+            @php
+                $shifts = [
+                    'ochtend' => ['label'=>'Ochtend', 'dot'=>'#60a5fa', 'slot'=>'bdp-slot-o'],
+                    'middag'  => ['label'=>'Middag',  'dot'=>'#fbbf24', 'slot'=>'bdp-slot-m'],
+                    'avond'   => ['label'=>'Avond',   'dot'=>'#c084fc', 'slot'=>'bdp-slot-a'],
+                ];
+            @endphp
+
+            @foreach($shifts as $shift => $meta)
+                {{-- Shift label --}}
+                <div class="bdp-shift-label">
+                    <span class="bdp-dot" style="width:8px;height:8px;background:{{ $meta['dot'] }};border-radius:50%;display:inline-block;flex-shrink:0;"></span>
+                    <span>{{ $meta['label'] }}</span>
+                </div>
+
+                <div class="bdp-day-grid">
+                    @foreach($this->weekDays as $day)
+                        @php
+                            $dateStr    = $day->toDateString();
+                            $slotDuties = $this->dutiesForSlot($dateStr, $shift);
+                        @endphp
+
+                        <div
+                            class="bdp-slot {{ $meta['slot'] }}"
+                            @dragover.prevent="$el.classList.add('over')"
+                            @dragleave="$el.classList.remove('over')"
+                            @drop.prevent="
+                                $el.classList.remove('over');
+                                if (dragType === 'team' && draggingTeamId) {
+                                    $wire.dropTeamOnSlot('{{ $dateStr }}', '{{ $shift }}', draggingTeamId);
+                                }
+                            "
+                        >
+                            @forelse($slotDuties as $duty)
+                                @php
+                                    $cardClass = match($duty->status) {
+                                        'bevestigd' => 'bdp-card-bev',
+                                        'vervuld'   => 'bdp-card-ver',
+                                        default     => 'bdp-card-open',
+                                    };
+                                    $dotColor = match($duty->status) {
+                                        'bevestigd' => '#3b82f6',
+                                        'vervuld'   => '#22c55e',
+                                        default     => '#fb923c',
+                                    };
+                                    $nextStatus = match($duty->status) {
+                                        'open'      => 'bevestigd',
+                                        'bevestigd' => 'vervuld',
+                                        default     => 'open',
+                                    };
+                                @endphp
+
+                                <div class="bdp-card {{ $cardClass }}">
+                                    <div class="bdp-card-name">
+                                        <span class="bdp-card-dot" style="background:{{ $dotColor }};"></span>
+                                        {{ $duty->team?->name ?? '—' }}
+                                    </div>
+
+                                    @if($duty->members->isNotEmpty())
+                                        <div class="bdp-card-members">
+                                            @foreach($duty->members as $member)
+                                                <div class="bdp-card-member">
+                                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+                                                    {{ $member->name }}
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="bdp-card-empty">Geen leden</div>
+                                    @endif
+
+                                    <div class="bdp-card-actions">
+                                        <button
+                                            class="bdp-act-btn"
+                                            wire:click="updateDutyStatus('{{ $duty->id }}', '{{ $nextStatus }}')"
+                                            title="Status wijzigen"
+                                        >
+                                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                                        </button>
+                                        <button
+                                            class="bdp-act-btn del"
+                                            wire:click="removeDuty('{{ $duty->id }}')"
+                                            wire:confirm="Weet je zeker dat je deze bardienst wilt verwijderen?"
+                                            title="Verwijderen"
+                                        >
+                                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="bdp-empty-hint">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </div>
+                            @endempty
+                        </div>
+                    @endforeach
+                </div>
+            @endforeach
+
         </div>
     </div>
+</div>
 
 </x-filament-panels::page>
