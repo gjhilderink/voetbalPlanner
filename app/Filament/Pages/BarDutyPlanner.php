@@ -12,6 +12,7 @@ use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Grid;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 
@@ -136,7 +137,7 @@ class BarDutyPlanner extends Page
                 ->icon('heroicon-o-plus')
                 ->color('primary')
                 ->form([
-                    Forms\Components\Grid::make(2)->schema([
+                    Grid::make(2)->schema([
                         Forms\Components\DatePicker::make('date')
                             ->label('Datum')
                             ->displayFormat('d-m-Y')
