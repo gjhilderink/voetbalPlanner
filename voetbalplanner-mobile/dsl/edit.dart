@@ -811,6 +811,7 @@ void buildEditFlow(App app) {
   app.raw((project) => _addBannerEndpoint(project));
   app.raw((project) => _addBannerToWedstrijdenPage(project));
   app.raw((project) => _addBannerToBardienPage(project));
+  app.raw((project) => _addBannerToRijschemaPage(project));
 
   // ── Nieuwsfeed feature ────────────────────────────────────────────────────
   try {
@@ -9531,6 +9532,50 @@ void _addBannerToBardienPage(FFProject project) {
   _wireBannerPageLoad(project, wc, 'BardienPage', 'bardiensten');
 }
 
+// Mirror van _addBannerToBardienPage maar voor RijschemaPage.
+// Voegt bannerImageUrl/bannerLinkUrl state-velden toe, wrapt de body in een
+// Column als die dat nog niet is, en plaatst de banner als eerste child.
+void _addBannerToRijschemaPage(FFProject project) {
+  final wc = findPage(project, name: 'RijschemaPage');
+  if (wc == null) return;
+
+  _ensurePageStateField(wc, 'bannerImageUrl', FFBaseDataType.String);
+  _ensurePageStateField(wc, 'bannerLinkUrl',  FFBaseDataType.String);
+
+  // Wrap body in Column if not already done.
+  final bodyChild = getPropertyChild(wc.node, 'body');
+  if (bodyChild != null && bodyChild.type != FFWidgetType.Column) {
+    final bodyColumn = UI.column(name: 'RijschemaBodyColumn', mainAxisMin: false);
+    UI.expanded(bodyChild);
+    bodyColumn.children.add(bodyChild);
+    final idx = wc.node.children.indexWhere((n) => n.key == bodyChild.key);
+    if (idx >= 0) wc.node.children[idx] = bodyColumn;
+    wc.node.childPropertyMap['body'] = FFChildrenKeys(
+      keyRefs: [FFNodeKeyReference(key: bodyColumn.key)],
+    );
+  }
+
+  // Insert (or re-insert) banner as first child of the body Column.
+  final bodyCol = getPropertyChild(wc.node, 'body');
+  if (bodyCol == null) return;
+
+  final existing = findDescendants(wc.node, (n) => n.name == 'RijschemaBannerContainer');
+  if (existing.isEmpty) {
+    final bannerNode = _buildBannerImageNode(
+      project,
+      wc,
+      containerName: 'RijschemaBannerContainer',
+      imageName: 'RijschemaBannerImage',
+      imageUrlFieldName: 'bannerImageUrl',
+    );
+    bodyCol.children.insert(0, bannerNode);
+  } else {
+    _applyBannerContainerVisibility(wc, existing.first, 'bannerImageUrl');
+  }
+
+  _wireBannerPageLoad(project, wc, 'RijschemaPage', 'rijschema');
+}
+
 // Re-applies null-safe conditional visibility on any banner container node.
 // Separating this from _buildBannerImageNode lets the page functions call it
 // on both newly-created AND already-existing containers so that expression
@@ -15618,6 +15663,7 @@ FFNode _buildAppDrawerNode(FFProject project) {
   final header = UI.container(
     name: 'DrawerHeader',
     width: double.infinity,
+    padding: UIEdgeInsets.only(top: 30),
     child: headerColumn,
   );
   _setContainerColor(

@@ -55,6 +55,48 @@ class DocumentationSeeder extends Seeder
                 'title'      => 'Ouder / Verzorger Toegang',
                 'body'       => "Via ouder/verzorger-toegang kunnen ouders of verzorgers de teamgegevens van hun kind(eren) inzien in de app.\n\n**Koppeling aanvragen (ouder/verzorger)**\n1. Ga naar Ouder / Verzorger via het menu of profielpagina.\n2. Tik op het + icoontje bij \"Mijn kinderen\".\n3. Vul in het formulier het lidnummer, de achternaam en de geboortedatum van het kind in.\n4. Tik op \"Koppeling aanvragen\".\n\nHet kind ontvangt een melding in de app en moet de koppeling bevestigen. Het verzoek verloopt automatisch na 14 dagen als het kind niet reageert.\n\n**Verzoek bevestigen of weigeren (kind/lid)**\nAls er een openstaand verzoek is, zie je dit direct na het inloggen:\n- Tik op \"Accepteren\" om de ouder/verzorger toegang te geven.\n- Tik op \"Weigeren\" om het verzoek af te wijzen.\n\nNa acceptatie kan de ouder/verzorger via de app de wedstrijden, bardiensten en teamchat van het kind bekijken.\n\n**Koppeling intrekken**\nBoth het kind én de ouder/verzorger kunnen de koppeling zelf intrekken via de Ouder / Verzorger pagina. Een beheerder kan dit ook namens hen doen.\n\n**Beveiliging**\nVoor het aanvragen van een koppeling zijn drie gegevens vereist: lidnummer, achternaam én geboortedatum. Dit voorkomt dat willekeurige leden gevonden kunnen worden.",
             ],
+            [
+                'category'   => 'app',
+                'sort_order' => 30,
+                'title'      => 'Hamburger menu',
+                'body'       => "Linksboven in elke pagina vind je het hamburger-icoon (drie streepjes). Tik erop om het hoofdmenu te openen.\n\nBovenaan zie je je eigen profielinformatie: profielfoto, naam en e-mailadres. Daaronder staan de volgende navigatie-items:\n- Home — terug naar het dashboard\n- Nieuws — laatste nieuwsberichten van de club\n- Handleiding — deze pagina\n- Profiel — je persoonlijke gegevens en instellingen\n- Bug melden — een probleem of suggestie doorgeven\n\nTik op een item om er direct naartoe te navigeren. Het menu sluit automatisch.\n\nDe onderbalk met iconen blijft ook altijd zichtbaar voor snel wisselen tussen de hoofdpagina's: Dashboard, Wedstrijden, Bardiensten, Rijschema, Chats en Profiel.",
+            ],
+            [
+                'category'   => 'app',
+                'sort_order' => 31,
+                'title'      => 'Nieuwsfeed',
+                'body'       => "Via het menu → Nieuws zie je alle gepubliceerde clubnieuws. Per artikel vind je:\n- Titel van het bericht\n- Hoeveel dagen oud het bericht is (Vandaag / N dag(en) geleden)\n- Categorie-label: Jeugd, Senioren of Algemeen\n- Eventuele afbeelding\n- Volledige inhoud van het bericht\n\nDe meest recente artikelen staan bovenaan. Nieuwsberichten worden beheerd door clubbeheerders via het platform.",
+            ],
+            [
+                'category'   => 'app',
+                'sort_order' => 32,
+                'title'      => 'Ongelezen chats — rood bolletje',
+                'body'       => "Boven het chat-icoon in de onderbalk verschijnt een rood bolletje met een getal zodra je nieuwe ongelezen berichten hebt. Het getal toont het totaal aantal ongelezen chats — over alle gesprekken heen (team, direct én groepen).\n\nDe teller wordt live bijgewerkt: zodra iemand een bericht stuurt verschijnt het rondje vanzelf. Zodra je een gesprek opent en de berichten gelezen markeert verdwijnt het bolletje weer (of telt het lager als er nog ongelezen gesprekken zijn).\n\nDe teller blijft ook actief op andere pagina's — je hoeft de chat-pagina niet zelf eerst te openen om de melding te ontvangen.",
+            ],
+            [
+                'category'   => 'app',
+                'sort_order' => 33,
+                'title'      => 'Profielfoto uploaden',
+                'body'       => "Op de profielpagina kun je een eigen foto instellen. Tik op de cirkel met je initialen en kies een afbeelding uit de galerij.\n\nDe foto wordt automatisch verkleind en opgeslagen op de server. Je profielfoto verschijnt daarna op meerdere plekken in de app, waaronder in het hamburger-menu en op je profielpagina.\n\nDe upload werkt voor zowel gewone leden als beheerders/coaches. Maximumgrootte: 5 MB. Toegestane formaten: JPG, PNG, WEBP.",
+            ],
+            [
+                'category'   => 'app',
+                'sort_order' => 34,
+                'title'      => 'Bardienst — zelf aanmelden',
+                'body'       => "Op de detailpagina van een bardienst zie je onderaan een knop **Aanmelden** zolang er nog plek vrij is. Tik erop om jezelf toe te voegen aan de dienst.\n\nVoorwaarden:\n- Je bent lid van het team van de bardienst (of de dienst is club-breed gepland)\n- Er zijn nog plekken vrij (maximaal 2 leden per dienst)\n- Je bent nog niet aangemeld\n\nNa succesvol aanmelden:\n- Je naam verschijnt direct in de leden-lijst van die dienst (groen gemarkeerd, zie hieronder)\n- De status springt van \"Open\" naar \"Bevestigd\" zodra het maximum bereikt is\n- De Aanmelden-knop verdwijnt\n\nVoor uitschrijven of het toewijzen van anderen schakel je de bardienst-commissie of clubbeheerder in.",
+            ],
+            [
+                'category'   => 'app',
+                'sort_order' => 35,
+                'title'      => 'Eigen naam herkennen in lijsten',
+                'body'       => "In de leden-rij op de bardienst-detail én in de rijders-rij op de rijschema-detail wordt jouw eigen naam visueel gemarkeerd met een groen pill-label en een persoon-icoontje.\n\nHandig om in één oogopslag te zien of jij ingedeeld bent voor een dienst of rit. Andere namen blijven in normale tekst.",
+            ],
+            [
+                'category'   => 'app',
+                'sort_order' => 36,
+                'title'      => 'Bug melden',
+                'body'       => "Via menu → Bug melden geef je problemen, vragen of suggesties door aan de ontwikkelaars.\n\nVul in:\n- Een korte titel (waar gaat het over?)\n- Een omschrijving (wat ging er mis of wat verwacht je?)\n- Voeg optioneel schermafbeeldingen toe (max 5 stuks, max 5 MB per stuk)\n\nDe app stuurt automatisch je app-versie, platform (Android/iOS/web) en apparaatinfo mee — zo kunnen wij het probleem sneller reproduceren. Je krijgt een bevestiging zodra de melding succesvol is verstuurd.",
+            ],
 
             // ── Het Platform ─────────────────────────────────────────────────
             [
@@ -102,8 +144,20 @@ class DocumentationSeeder extends Seeder
             [
                 'category'   => 'platform',
                 'sort_order' => 16,
+                'title'      => 'Nieuws Beheren',
+                'body'       => "Via Communicatie → Nieuws beheer je alle nieuwsberichten die in de app worden getoond.\n\nNieuw bericht aanmaken:\n1. Tik op \"New nieuwsitem\" rechtsboven.\n2. Vul de titel in (verplicht, max 200 tekens).\n3. Kies een categorie: Jeugd, Senioren of Algemeen.\n4. Stel een publicatiedatum in — berichten met een toekomstige datum verschijnen pas vanaf dat moment.\n5. Upload optioneel een afbeelding (max 5 MB, jpg/png/webp).\n6. Schrijf de inhoud van het bericht.\n7. Toggle \"Gepubliceerd\" aan/uit naar wens (uit = bewerkbaar maar niet zichtbaar in de app).\n\nIn de app verschijnt het bericht direct bij iedereen van de club. De \"hoeveel dagen oud\"-tekst wordt automatisch berekend op basis van de publicatiedatum.",
+            ],
+            [
+                'category'   => 'platform',
+                'sort_order' => 17,
+                'title'      => 'Bug Meldingen',
+                'body'       => "Via Support → Bug meldingen zie je alle problemen die door gebruikers via de \"Bug melden\"-knop in de app zijn doorgegeven.\n\nPer melding zie je:\n- Titel en uitgebreide omschrijving\n- Schermafbeeldingen (klik om uit te vergroten)\n- App-versie, platform en apparaat-info — handig voor reproduceren\n- Wie de melding heeft ingestuurd\n\nWerkproces:\n- Status zet je op \"Open\" → \"In behandeling\" → \"Opgelost\" of \"Gesloten\"\n- Interne notities zijn alleen zichtbaar voor admins\n- Meldingen worden niet automatisch verwijderd; archiveer ze via Gesloten\n\nDe Bug-meldingen-resource is beschikbaar voor super_admin en club_admin rollen.",
+            ],
+            [
+                'category'   => 'platform',
+                'sort_order' => 18,
                 'title'      => 'Documentatie Beheren',
-                'body'       => "Via Documentatie in het platform beheer je de handleiding die leden in de app zien.\n\nSecties zijn ingedeeld in drie categorieën:\n- De App: uitleg over het gebruik van de app\n- Het Platform: uitleg voor beheerders\n- Koppelingen: technische uitleg over de integraties\n\nEen sectie aanpassen: open de sectie en bewerk de titel of inhoud. Gebruik de volgorde om de weergavevolgorde te bepalen.\n\nPDF exporteren: tik op \"PDF exporteren\" boven de lijst om een opgemaakt PDF-document te downloaden met alle actieve secties.",
+                'body'       => "Via Documentatie in het platform beheer je de handleiding die leden in de app zien.\n\nSecties zijn ingedeeld in drie categorieën:\n- De App: uitleg over het gebruik van de app\n- Het Platform: uitleg voor beheerders\n- Koppelingen: technische uitleg over de integraties\n\nEen sectie aanpassen: open de sectie en bewerk de titel of inhoud. Gebruik de volgorde om de weergavevolgorde in de app te bepalen.\n\n**Per sectie aan/uit zetten in de app**\nElke sectie heeft een toggle \"Tonen in app\". Zet 'm uit als je een sectie tijdelijk niet wilt tonen — de inhoud blijft hier wel bewerkbaar en je kunt 'm later weer aanzetten. In het overzicht zie je per regel een groene/grijze indicator in de kolom \"In app\".\n\n**Alleen super_admins** kunnen secties aanmaken, bewerken of verwijderen. Club_admins zien de handleiding in alleen-lezen.",
             ],
 
             // ── Koppelingen ───────────────────────────────────────────────────

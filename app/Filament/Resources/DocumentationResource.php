@@ -75,7 +75,8 @@ class DocumentationResource extends Resource
                     ->columnSpanFull(),
 
                 Forms\Components\Toggle::make('is_active')
-                    ->label('Actief')
+                    ->label('Tonen in app')
+                    ->helperText('Uit = sectie verschijnt niet in de handleiding in de mobiele app, maar blijft hier wel bewerkbaar.')
                     ->default(true)
                     ->columnSpanFull(),
             ]),
@@ -110,7 +111,7 @@ class DocumentationResource extends Resource
                     ->width(80),
 
                 Tables\Columns\IconColumn::make('is_active')
-                    ->label('Actief')
+                    ->label('In app')
                     ->boolean()
                     ->alignCenter()
                     ->width(70),
