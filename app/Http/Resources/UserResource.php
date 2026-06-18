@@ -39,8 +39,9 @@ class UserResource extends JsonResource
                 ?? '',
             'member_id'         => $this->member?->id ?? '',
             'relatiecode'       => $this->member?->external_id ?? '',
-            'profile_photo_url' => $this->member?->profile_photo
-                ? asset('storage/' . $this->member->profile_photo)
+            'profile_photo_url' => ($this->profile_photo
+                    ?? $this->member?->profile_photo)
+                ? asset('storage/' . ($this->profile_photo ?? $this->member->profile_photo))
                 : '',
             'is_active'     => $this->is_active,
             'created_at'    => $this->created_at?->toISOString(),

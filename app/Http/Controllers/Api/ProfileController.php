@@ -14,33 +14,46 @@ class ProfileController extends Controller
     /**
      * PATCH /api/v1/profile/photo
      *
-     * Upload en sla een profielfoto op voor het gekoppelde lid.
+     * Upload en sla een profielfoto op voor de ingelogde gebruiker. Werkt voor
+     * zowel leden als beheerders/admins; het pad wordt altijd op users.profile_photo
+     * geschreven en (indien aanwezig) ook gesynchroniseerd naar members.profile_photo
+     * zodat oude code die uit members leest blijft werken.
      * Accepteert multipart/form-data met een 'photo' veld (max 5 MB, jpeg/png/webp).
      */
     public function updatePhoto(Request $request): JsonResponse
     {
-        $member = $request->user()->member;
-
-        if (! $member) {
+        $user = $request->user();
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'data'    => null,
-                'message' => 'Geen lid-profiel gevonden voor uw account.',
-            ], 422);
+                'message' => 'Niet geauthenticeerd.',
+            ], 401);
         }
 
         $request->validate([
             'photo' => ['required', 'image', 'mimes:jpeg,png,webp', 'max:5120'],
         ]);
 
-        // Verwijder de oude foto als die bestaat
-        if ($member->profile_photo && Storage::disk('public')->exists($member->profile_photo)) {
-            Storage::disk('public')->delete($member->profile_photo);
+        $member = $user->member;
+
+        // Verwijder oude foto's (zowel user als member) als die bestaan.
+        $disk = Storage::disk('public');
+        if ($user->profile_photo && $disk->exists($user->profile_photo)) {
+            $disk->delete($user->profile_photo);
+        }
+        if ($member && $member->profile_photo
+            && $member->profile_photo !== $user->profile_photo
+            && $disk->exists($member->profile_photo)) {
+            $disk->delete($member->profile_photo);
         }
 
         $path = $request->file('photo')->store('profile_photos', 'public');
 
-        $member->update(['profile_photo' => $path]);
+        $user->update(['profile_photo' => $path]);
+        if ($member) {
+            $member->update(['profile_photo' => $path]);
+        }
 
         return response()->json([
             'success' => true,

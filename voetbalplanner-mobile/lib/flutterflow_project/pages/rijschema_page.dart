@@ -51,6 +51,13 @@ abstract final class RijschemaPageWidgets {
             path: "RijschemaPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
+              "actions": <ffai.ProjectWidgetHandle>[
+                ffai.ProjectWidgetHandle(
+                  key: "Icon_xx3a1f9w",
+                  type: "Icon",
+                  path: "RijschemaPage.appBar[0].actions[0]",
+                ),
+              ],
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
                   key: "Text_yojhwb1a",
@@ -233,6 +240,102 @@ abstract final class RijschemaPageWidgets {
                 path: "RijschemaPage.body[0].children[1]",
                 name: "RijschemaNietGepland",
                 text: "Niets gepland",
+              ),
+            ],
+          ),
+        ],
+        "drawer": <ffai.ProjectWidgetHandle>[
+          ffai.ProjectWidgetHandle(
+            key: "Drawer_3hkhkjna",
+            type: "Drawer",
+            path: "RijschemaPage.drawer[0]",
+            name: "AppDrawer",
+            children: <ffai.ProjectWidgetHandle>[
+              ffai.ProjectWidgetHandle(
+                key: "Column_hhxln8if",
+                type: "Column",
+                path: "RijschemaPage.drawer[0].children[0]",
+                name: "DrawerMenuColumn",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "Container_fw0h6ihn",
+                    type: "Container",
+                    path: "RijschemaPage.drawer[0].children[0].children[0]",
+                    name: "DrawerHeader",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Column_720pfs9d",
+                        type: "Column",
+                        path: "RijschemaPage.drawer[0].children[0].children[0].children[0]",
+                        name: "DrawerHeaderColumn",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_0ed7ucnv",
+                            type: "Container",
+                            path: "RijschemaPage.drawer[0].children[0].children[0].children[0].children[0]",
+                            name: "DrawerHeaderAvatar",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Icon_delubf1h",
+                                type: "Icon",
+                                path: "RijschemaPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
+                                name: "Icon",
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_3ctw0q80",
+                            type: "Text",
+                            path: "RijschemaPage.drawer[0].children[0].children[0].children[0].children[1]",
+                            name: "DrawerHeaderName",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_zrc1sbn3",
+                            type: "Text",
+                            path: "RijschemaPage.drawer[0].children[0].children[0].children[0].children[2]",
+                            name: "DrawerHeaderEmail",
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_77il3jri",
+                    type: "ListTile",
+                    path: "RijschemaPage.drawer[0].children[0].children[1]",
+                    name: "DrawerTileHome",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_md58dssh",
+                    type: "ListTile",
+                    path: "RijschemaPage.drawer[0].children[0].children[2]",
+                    name: "DrawerTileDocs",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_svpk0xq9",
+                    type: "ListTile",
+                    path: "RijschemaPage.drawer[0].children[0].children[3]",
+                    name: "DrawerTileProfiel",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_1v0wyp2e",
+                    type: "ListTile",
+                    path: "RijschemaPage.drawer[0].children[0].children[4]",
+                    name: "DrawerTileBug",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                ],
               ),
             ],
           ),

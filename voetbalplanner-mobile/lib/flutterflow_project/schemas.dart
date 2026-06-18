@@ -299,9 +299,51 @@ abstract final class Collections {
 }
 
 final class AppUsersFields extends MapBase<String, ffai.DslType> {
+  final createdTime = ffai.ProjectCollectionFieldHandle(
+    name: "created_time",
+    key: "",
+    typeName: "DateTime",
+    type: ffai.dateTime,
+    description: "",
+  );
+  final displayName = ffai.ProjectCollectionFieldHandle(
+    name: "display_name",
+    key: "",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final email = ffai.ProjectCollectionFieldHandle(
+    name: "email",
+    key: "",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final phoneNumber = ffai.ProjectCollectionFieldHandle(
+    name: "phone_number",
+    key: "",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final photoUrl = ffai.ProjectCollectionFieldHandle(
+    name: "photo_url",
+    key: "",
+    typeName: "ImagePath",
+    type: ffai.imagePath,
+    description: "",
+  );
   final teamId = ffai.ProjectCollectionFieldHandle(
     name: "teamId",
     key: "xqn9ihaz",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
+  final uid = ffai.ProjectCollectionFieldHandle(
+    name: "uid",
+    key: "",
     typeName: "String",
     type: ffai.string,
     description: "",
@@ -330,7 +372,13 @@ final class AppUsersFields extends MapBase<String, ffai.DslType> {
 
   @override
   Iterable<String> get keys => const <String>[
+    "created_time",
+    "display_name",
+    "email",
+    "phone_number",
+    "photo_url",
     "teamId",
+    "uid",
     "updatedAt",
     "userId",
     "userName",
@@ -338,7 +386,13 @@ final class AppUsersFields extends MapBase<String, ffai.DslType> {
 
   @override
   ffai.DslType? operator [](Object? key) => switch (key) {
+    "created_time" => createdTime,
+    "display_name" => displayName,
+    "email" => email,
+    "phone_number" => phoneNumber,
+    "photo_url" => photoUrl,
     "teamId" => teamId,
+    "uid" => uid,
     "updatedAt" => updatedAt,
     "userId" => userId,
     "userName" => userName,
@@ -952,6 +1006,7 @@ abstract final class CustomCode {
   static const actions = <String>[
     "AddEventToCalendar",
     "AuthenticateBiometric",
+    "BumpConversationUnread",
     "ClearBugScreenshots",
     "CreateChatGroup",
     "DeleteChatGroup",
@@ -970,8 +1025,10 @@ abstract final class CustomCode {
     "UnsubscribeFromTeamTopic",
     "UploadProfilePhoto",
     "VerifyMagicLink",
+    "WatchUnreadChatCount",
   ];
   static const widgets = <String>[
+    "HighlightedNameList",
   ];
 }
 

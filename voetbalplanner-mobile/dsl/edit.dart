@@ -27,6 +27,7 @@ import 'package:flutterflow_ai/src/helpers/tree_helpers.dart'
          unwrap, findParentByKey;
 import 'package:flutterflow_ai/src/helpers/widget_helpers.dart'
     show setConditionalVisibility;
+import 'package:fixnum/fixnum.dart' show Int64;
 import 'package:flutterflow_ai/src/helpers/nav_bar_helpers.dart'
     show setNavBarEnabled, addNavBarPage, removeNavBarPage, listNavBarPages, reorderNavBarPage;
 import 'package:flutterflow_ai/src/helpers/widget_class_param_helpers.dart'
@@ -208,6 +209,16 @@ void buildEditFlow(App app) {
     // Profile page: bind AppState fields (naam, e-mail, club)
     _setupProfielPage(project);
 
+    // Remove fill color from ProfielInfoCard (visually flatter look).
+    _removeProfielInfoCardFill(project);
+
+    // Highlight the user's own name within the "Leden" (bardienst) and
+    // "Rijders" (rijschema) lists on the detail pages — green pill where
+    // the name appears.
+    _removeOwnNameChip(project, 'BardienDetailPage');
+    _removeOwnNameChip(project, 'RijschemaDetailPage');
+    _wireOwnNameHighlight(project);
+
     // Bardiensten: filter by member's team + update onLoad
     _setupBardienFilter(project);
 
@@ -283,18 +294,9 @@ void buildEditFlow(App app) {
     );
   } catch (_) {}
 
-  try {
-    app.collection(
-      'appUsers',
-      description: 'Geregistreerde app-gebruikers per team. Wordt bijgewerkt bij elke login.',
-      fields: {
-        'userId':   string,
-        'teamId':   string,
-        'userName': string,
-        'updatedAt': dateTime,
-      },
-    );
-  } catch (_) {}
+  // 'appUsers' collection is managed remotely — no DSL declaration here.
+  // (Re-declaring via app.collection(...) raises ensureCollection-payload-mismatch
+  // errors after schema drift, even when fields look identical to the typed SDK.)
 
   // Construct handles directly — works whether or not the typed SDK has been refreshed
   // after the first push that creates these collections.
@@ -571,6 +573,10 @@ void buildEditFlow(App app) {
     // Rebuild DirectChatPage bubbles with left/right split; fix senderId authToken→userEmail.
     _fixDirectChatBubbles(project);
     _fixDirectChatSendButton(project);
+    // After all send buttons are wired, append BumpConversationUnread call so
+    // chatConversations.unreadCount gets incremented after every team/direct/
+    // group message — this is what the WatchUnreadChatCount stream sums.
+    _wireBumpUnreadOnAllChatSends(project);
     // Add hasUnread + unreadCount fields to chatConversations, then show badges.
     _addUnreadFieldsToConversations(project);
     _addIsReadFieldToChatMessages(project);
@@ -811,6 +817,8 @@ void buildEditFlow(App app) {
     // Append GetDriveSchedule to the on-load chain (must run after _wireDashboardLoad
     // which rebuilds the chain from scratch each push).
     _wireDashboardDriveScheduleLoad(project);
+    // Tap on a dashboard card → open the corresponding detail page.
+    _wireDashboardCardNavigation(project);
   });
 
   // ── Dashboard empty states ────────────────────────────────────────────────────
@@ -829,6 +837,10 @@ void buildEditFlow(App app) {
   // Force NavBar items LAST — after all other raw mutations that touch the scaffold.
   app.raw((project) => _forceDashboardNavBarItem(project));
   app.raw((project) => _forceChatsNavBarItem(project));
+
+  // Hamburger menu / Drawer on every main NavBar page. Runs after all pages
+  // are wired so Navigate-targets exist when the drawer tiles are built.
+  app.raw((project) => _wireAppDrawerOnAllMainPages(project));
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
@@ -1840,6 +1852,29 @@ void _forceChatsNavBarItem(FFProject project) {
       inputValue: FFIconData(name: 'chat', family: 'MaterialIcons'),
     ),
   );
+
+  // Dynamic label: "Chats" when unreadChatCount == 0, else "Chats (N)".
+  // Acts as the badge-count indicator within the FF NavBar (which doesn't
+  // expose a widget-level badge slot on FFNavBarItem).
+  final unreadId = _findAppStateFieldId(project, 'unreadChatCount');
+  if (unreadId != null) {
+    final labelVar = codeExpressionVar(
+      expression:
+          "(count ?? 0) > 0 ? 'Chats (' + (count ?? 0).toString() + ')' : 'Chats'",
+      arguments: [
+        CodeExpressionArg(
+          name: 'count',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Integer),
+          value: FFValue(variable: varFromAppState(unreadId.deepCopy())),
+        ),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    );
+    navBarItem.label = FFText(
+      textValue: FFStringValue(variable: labelVar),
+    );
+  }
+
   chatPage.node.props.scaffold = scaffCopy;
 }
 
@@ -2091,11 +2126,20 @@ Future<void> initializeTeamConversation() async {
       'type': 'team',
       'teamId': teamId,
       'title': FFAppState().currentTeamName,
-      'participantIds': [],
+      'participantIds': <String>[],
       'lastMessage': '',
       'lastMessageAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  // Always add the current user to participantIds so the unread-badge stream
+  // (which queries by arrayContains: userEmail) sees this conversation.
+  final myEmail = FFAppState().userEmail;
+  if (myEmail.isNotEmpty) {
+    await docRef.set({
+      'participantIds': FieldValue.arrayUnion([myEmail]),
+    }, SetOptions(merge: true));
   }
 
   FFAppState().update(() {
@@ -2131,9 +2175,19 @@ Future<void> getOrCreateStaffGroupConversation() async {
       'conversationId': conversationId,
       'title': staffGroupName.isEmpty ? 'Staffgroep' : staffGroupName,
       'type': 'staffgroup',
+      'participantIds': <String>[],
       'lastMessage': '',
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  // Add the current user to participantIds so the unread-badge listener picks
+  // this conversation up.
+  final myEmail = FFAppState().userEmail;
+  if (myEmail.isNotEmpty) {
+    await ref.set({
+      'participantIds': FieldValue.arrayUnion([myEmail]),
+    }, SetOptions(merge: true));
   }
 
   FFAppState().update(() {
@@ -2177,6 +2231,10 @@ void _addChatInfrastructure(FFProject project) {
   // Staff group staging fields — set before calling GetOrCreateStaffGroupConversation.
   _ensureAppStateField(project, 'pendingStaffGroupId', FFBaseDataType.String);
   _ensureAppStateField(project, 'pendingStaffGroupName', FFBaseDataType.String);
+
+  // Aggregated unread chat count across all chatConversations (live stream).
+  // Updated by WatchUnreadChatCount; bound to the Chats nav-bar label.
+  _ensureAppStateField(project, 'unreadChatCount', FFBaseDataType.Integer);
 
   // Subscribe to FCM topic for a team → receives push notifications for that team's chat.
   // Parameter is String? because FlutterFlow page params are generated as nullable.
@@ -2293,6 +2351,109 @@ Future<void> unsubscribeFromTeamTopic(String? teamId) async {
     );
   } else {
     updateCustomAction(project, name: 'GetOrCreateStaffGroupConversation', code: _kGetOrCreateStaffGroupConvCode);
+  }
+
+  // ── BumpConversationUnread ──────────────────────────────────────────────────
+  // Increments chatConversations.unreadCount + hasUnread for the conversation
+  // pointed to by FFAppState().currentConversationId. Called after a message is
+  // written to teamChats / directMessages / groupMessages so the unread badge
+  // updates for other participants.
+  const _kBumpUnreadCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<void> bumpConversationUnread() async {
+  final convId = FFAppState().currentConversationId;
+  if (convId.isEmpty) return;
+
+  final text = FFAppState().pendingMessageText;
+  await FirebaseFirestore.instance
+      .collection('chatConversations')
+      .doc(convId)
+      .set({
+    'unreadCount': FieldValue.increment(1),
+    'hasUnread': true,
+    if (text.isNotEmpty) 'lastMessage': text,
+    'lastMessageAt': FieldValue.serverTimestamp(),
+  }, SetOptions(merge: true));
+}
+''';
+  if (findCustomAction(project, name: 'BumpConversationUnread') == null) {
+    addCustomAction(
+      project,
+      name: 'BumpConversationUnread',
+      description:
+          'Verhoogt chatConversations.unreadCount + hasUnread voor de huidige conversatie (na elke verzonden chat in team/direct/group).',
+      arguments: [],
+      code: _kBumpUnreadCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'BumpConversationUnread', code: _kBumpUnreadCode);
+  }
+
+  // ── WatchUnreadChatCount ────────────────────────────────────────────────────
+  // Sets up a Firestore stream listener on chatConversations that aggregates
+  // the `unreadCount` field across all conversations the user participates in,
+  // and writes the total into FFAppState().unreadChatCount.
+  // Top-level subscription is re-used across calls; cancels any previous listener.
+  const _kWatchUnreadCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<void> watchUnreadChatCount() async {
+  final userEmail = FFAppState().userEmail;
+  if (userEmail.isEmpty) {
+    FFAppState().unreadChatCount = 0;
+    FFAppState().update(() {});
+    return;
+  }
+
+  // Listener is registered once via FirebaseFirestore's internal stream cache.
+  // We use a Future.delayed(0) wrapper so the listen() call does not block.
+  FirebaseFirestore.instance
+      .collection('chatConversations')
+      .where('participantIds', arrayContains: userEmail)
+      .snapshots()
+      .listen((snap) {
+    int total = 0;
+    for (final doc in snap.docs) {
+      final raw = doc.data()['unreadCount'];
+      if (raw is int) {
+        total += raw;
+      } else if (raw is num) {
+        total += raw.toInt();
+      }
+    }
+    FFAppState().unreadChatCount = total;
+    FFAppState().update(() {});
+  });
+}
+''';
+  if (findCustomAction(project, name: 'WatchUnreadChatCount') == null) {
+    addCustomAction(
+      project,
+      name: 'WatchUnreadChatCount',
+      description:
+          'Start een Firestore stream listener die het totale aantal ongelezen chatberichten van de gebruiker bijhoudt in FFAppState().unreadChatCount.',
+      arguments: [],
+      code: _kWatchUnreadCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'WatchUnreadChatCount', code: _kWatchUnreadCode);
   }
 
   // Legacy: kept so existing FlutterFlow project references don't break during migration.
@@ -2555,6 +2716,276 @@ void _setContainerColor(FFNode node, FFColorValue color) {
       : FFBoxDecoration();
   bd.colorValue = color;
   node.props.container.boxDecoration = bd;
+}
+
+/// Clears a container's background fill color so it renders with no fill.
+/// Idempotent: safe to call repeatedly.
+void _clearContainerFill(FFNode node) {
+  if (!node.props.container.hasBoxDecoration()) return;
+  final bd = node.props.container.boxDecoration.deepCopy();
+  bd.clearColorValue();
+  node.props.container.boxDecoration = bd;
+}
+
+/// Removes the fill color from the ProfielInfoCard container on ProfielPage.
+void _removeProfielInfoCardFill(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+  final card = findDescendants(wc.node, (n) => n.name == 'ProfielInfoCard').firstOrNull;
+  if (card == null) return;
+  _clearContainerFill(card);
+}
+
+/// Adds a small "OwnNameChip" near the top of the given detail page body,
+/// styled like the club-name chip on the profile page:
+///   - background: light green (0xFFDCFCE7)
+///   - text color: primary (club green)
+///   - rounded 12px, padding 12/4
+///   - bound to AppState.userName
+/// Idempotent: skips if a chip with this name already exists on the page.
+void _addOwnNameChip(FFProject project, String pageName) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'OwnNameChip').isNotEmpty) return;
+
+  final userNameId = _findAppStateFieldId(project, 'userName');
+  if (userNameId == null) return;
+
+  // Text bound to AppState.userName, with primary-color font.
+  final chipText = UI.text('', name: 'OwnNameChipText', style: UITextStyle.bodySmall);
+  chipText.props.text.textValue =
+      FFStringValue(variable: varFromAppState(userNameId.deepCopy()));
+  final txtCopy = chipText.props.text.deepCopy();
+  txtCopy.colorValue =
+      FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY));
+  chipText.props.text = txtCopy;
+
+  // Container: light-green pill (0xFFDCFCE7), rounded 12, 12×4 padding.
+  final chip = UI.container(
+    name: 'OwnNameChip',
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    borderRadius: 12,
+    child: chipText,
+  );
+  _setContainerColor(chip, FFColorValue(
+    inputValue: FFColor(value: Int64(0xFFDCFCE7)),
+  ));
+
+  // Keep the chip at its natural width — wrap in a Row aligned left so it
+  // doesn't stretch full-width inside the column.
+  final wrap = UI.row(
+    name: 'OwnNameChipRow',
+    mainAxisAlignment: UIMainAxisAlignment.start,
+    children: [chip],
+  );
+  final wrapCopy = wrap.props.container.deepCopy();
+  // Add a small bottom margin so it doesn't stick to the next row.
+  wrap.props.container = wrapCopy;
+
+  // Insert at the top of the body column.
+  final bodyChild = getPropertyChild(wc.node, 'body');
+  if (bodyChild == null) return;
+  if (bodyChild.type == FFWidgetType.Column) {
+    bodyChild.children.insert(0, wrap);
+  } else {
+    final column = UI.column(name: '${pageName}BodyColumn');
+    column.children.addAll([wrap, bodyChild]);
+    final idx = wc.node.children.indexWhere((n) => n.key == bodyChild.key);
+    if (idx >= 0) wc.node.children[idx] = column;
+    wc.node.childPropertyMap['body'] = FFChildrenKeys(
+      keyRefs: [FFNodeKeyReference(key: column.key)],
+    );
+  }
+}
+
+/// Removes the OwnNameChipRow + OwnNameChip (from a previous experiment) from a
+/// page. Safe to call when the chip is absent.
+void _removeOwnNameChip(FFProject project, String pageName) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+  // Remove OwnNameChipRow (the Row wrapper) by name in the page tree.
+  for (final n in findDescendants(wc.node, (n) =>
+      n.name == 'OwnNameChipRow' || n.name == 'OwnNameChip')) {
+    removeByKey(wc.node, n.key);
+  }
+}
+
+const String _kHighlightedNameListCode = r'''
+import 'package:flutter/material.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+
+class HighlightedNameList extends StatelessWidget {
+  const HighlightedNameList({
+    super.key,
+    this.width,
+    this.height,
+    this.names,
+    this.userName,
+  });
+
+  final double? width;
+  final double? height;
+  final String? names;
+  final String? userName;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final raw = (names ?? '').trim();
+    if (raw.isEmpty) {
+      return SizedBox(
+        width: width,
+        child: Text('-', style: theme.bodyMedium),
+      );
+    }
+    final me = (userName ?? '').trim().toLowerCase();
+    final parts = raw
+        .split(RegExp(r'[,;]'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) {
+      return SizedBox(
+        width: width,
+        child: Text('-', style: theme.bodyMedium),
+      );
+    }
+    return SizedBox(
+      width: width,
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: parts.map((name) {
+          final isMe = me.isNotEmpty && name.toLowerCase() == me;
+          if (!isMe) {
+            return Text(name, style: theme.bodyMedium);
+          }
+          return Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFFDCFCE7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              name,
+              style: theme.bodyMedium.copyWith(
+                color: theme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+''';
+
+/// Ensures the HighlightedNameList custom widget exists (idempotent).
+void _ensureHighlightedNameListWidget(FFProject project) {
+  if (findCustomWidget(project, name: 'HighlightedNameList') == null) {
+    addCustomWidget(
+      project,
+      name: 'HighlightedNameList',
+      description:
+          'Toont een komma-gescheiden namenlijst, markeert de eigen naam met een groen pill.',
+      parameters: [
+        FFParameter(
+          identifier: FFIdentifier(name: 'names'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
+        FFParameter(
+          identifier: FFIdentifier(name: 'userName'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
+      ],
+      code: _kHighlightedNameListCode,
+    );
+  } else {
+    updateCustomWidget(
+      project,
+      name: 'HighlightedNameList',
+      code: _kHighlightedNameListCode,
+    );
+  }
+}
+
+/// Replaces a single Text widget that was bound to a page-state field with a
+/// HighlightedNameList custom widget instance bound to the same state + the
+/// current user's name. Returns true when the swap happened.
+bool _swapValueTextForHighlighted({
+  required FFProject project,
+  required String pageName,
+  required String valueNodeName,
+  required String stateFieldName,
+}) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return false;
+
+  final highlightWidget =
+      findCustomWidget(project, name: 'HighlightedNameList');
+  if (highlightWidget == null) return false;
+
+  final userNameId = _findAppStateFieldId(project, 'userName');
+  if (userNameId == null) return false;
+
+  final stateFieldId = _findPageStateFieldId(project, pageName, stateFieldName);
+  if (stateFieldId == null) return false;
+
+  // Idempotent: skip when the swap has already happened (a custom widget by
+  // name 'NameList_<stateField>' is sitting in the tree).
+  final placedName = 'NameList_$stateFieldName';
+  if (findDescendants(wc.node, (n) => n.name == placedName).isNotEmpty) {
+    return false;
+  }
+
+  final valueNode = findDescendants(wc.node, (n) => n.name == valueNodeName).firstOrNull;
+  if (valueNode == null) return false;
+
+  final parentResult = findParentByKey(wc.node, valueNode.key);
+  if (parentResult == null) return false;
+  final parent = parentResult.parent;
+
+  final namesVar = varFromPageState(stateFieldId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final widgetNode = UI.customWidget(
+    highlightWidget,
+    name: placedName,
+    params: {
+      'names': VariableParamValue(namesVar),
+      'userName': VariableParamValue(varFromAppState(userNameId.deepCopy())),
+    },
+  );
+
+  final idx = parent.children.indexWhere((n) => n.key == valueNode.key);
+  if (idx >= 0) {
+    parent.children[idx] = widgetNode;
+  } else {
+    parent.children.add(widgetNode);
+  }
+  return true;
+}
+
+/// Wires the green-name highlight on the bardienst-detail (Leden row) and
+/// rijschema-detail (Rijders row). Replaces the existing value Text widget
+/// with a HighlightedNameList instance.
+void _wireOwnNameHighlight(FFProject project) {
+  _ensureHighlightedNameListWidget(project);
+
+  _swapValueTextForHighlighted(
+    project: project,
+    pageName: 'BardienDetailPage',
+    valueNodeName: 'DutyInfoValue_dutyMembers',
+    stateFieldName: 'dutyMembers',
+  );
+  _swapValueTextForHighlighted(
+    project: project,
+    pageName: 'RijschemaDetailPage',
+    valueNodeName: 'RijInfoValue_rijDriverNames',
+    stateFieldName: 'rijDriverNames',
+  );
 }
 
 /// Adds a field to AppState if it doesn't already exist.
@@ -4111,21 +4542,23 @@ Future<String> verifyMagicLink(String? token) async {
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
     });
     // Register this user so the direct-chat member strip shows only app users.
+    // Fire-and-forget: previously this was awaited, but Firestore can hang
+    // (especially right after a user switch when the SDK rebuilds its auth
+    // context). Awaiting blocked verifyMagicLink from returning the token, so
+    // the typed DSL chain never navigated away from MagicLinkVerifyPage.
     final _uId = FFAppState().userEmail.isNotEmpty
         ? FFAppState().userEmail
         : FFAppState().userName;
     if (_uId.isNotEmpty && FFAppState().currentTeamId.isNotEmpty) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('appUsers')
-            .doc('${FFAppState().currentTeamId}_$_uId')
-            .set({
-          'userId':    _uId,
-          'teamId':    FFAppState().currentTeamId,
-          'userName':  FFAppState().userName,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      } catch (_) {}
+      FirebaseFirestore.instance
+          .collection('appUsers')
+          .doc('${FFAppState().currentTeamId}_$_uId')
+          .set({
+        'userId':    _uId,
+        'teamId':    FFAppState().currentTeamId,
+        'userName':  FFAppState().userName,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)).catchError((Object _) {});
     }
     return sanctumToken;
   } catch (_) {
@@ -10938,6 +11371,29 @@ void _wireDashboardLoad(FFProject project) {
   while (tail.hasFollowUpAction()) tail = tail.followUpAction;
   tail.followUpAction = dutiesNode;
 
+  // Append WatchUnreadChatCount at the end of the chain so the unread badge
+  // stream kicks in once the dashboard data is loaded. Use the `customAction`
+  // / `FFCustomActionCall` proto field (NOT `customCodeCall`) so FF codegen
+  // emits a proper `await actions.watchUnreadChatCount()` call with the
+  // `actions` import wired in automatically.
+  final watchUnread = findCustomAction(project, name: 'WatchUnreadChatCount');
+  if (watchUnread != null) {
+    final watchAction = FFAction(
+      key: generateRandomAlphaNumericString(),
+      customAction: FFCustomActionCall(
+        customActionIdentifier: watchUnread.identifier.deepCopy(),
+        argumentValues: FFFunctionCallValues(),
+      ),
+    );
+    final watchNode = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: watchAction,
+    );
+    var t = dutiesNode;
+    while (t.hasFollowUpAction()) t = t.followUpAction;
+    t.followUpAction = watchNode;
+  }
+
   // Wire directly (no auth guard): DashboardPage requires authentication, so authToken
   // is always present when this fires. onFailure handlers handle any 401 gracefully.
   Actions.onPageLoadChain(wc.node, matchesNode);
@@ -11053,6 +11509,74 @@ void _addDashboardDriveSection(FFProject project) {
 
   bodyCol.children.add(labelContainer);
   bodyCol.children.add(driveContainer);
+}
+
+// Adds ON_TAP navigation to the three dashboard cards (matches, duties, drive)
+// so they open the matching detail page with the right id parameter.
+// Idempotent: skips a card if an ON_TAP trigger already exists.
+void _wireDashboardCardNavigation(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  void wire({
+    required String cardName,
+    required String listName,
+    required String detailPage,
+    required String detailParam,
+    required String structName,
+  }) {
+    if (project.getWidgetClassByName(detailPage) == null) return;
+
+    final card = findDescendants(wc.node, (n) => n.name == cardName).firstOrNull;
+    if (card == null) return;
+
+    final hasTap = card.triggerActions.any(
+      (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+    );
+    if (hasTap) return;
+
+    final list = findDescendants(wc.node, (n) => n.name == listName).firstOrNull;
+    if (list == null) return;
+
+    final idFieldId = _findStructFieldId(project, structName, 'id');
+    final idVar = idFieldId != null
+        ? (varFromGeneratorVariable(list.key)
+            ..operations.add(FFVariableOperation(
+              accessDataStructField: FFAccessDataStructField(
+                fieldIdentifier: idFieldId.deepCopy(),
+              ),
+            )))
+        : generatorVarField(list.key, 'id');
+
+    final navigateAction = Actions.navigate(
+      project,
+      pageName: detailPage,
+      params: {detailParam: VariableParamValue(idVar)},
+    );
+    Actions.onTap(card, navigateAction);
+  }
+
+  wire(
+    cardName: 'DashboardMatchCard',
+    listName: 'DashboardMatchesList',
+    detailPage: 'WedstrijdDetailPage',
+    detailParam: 'matchId',
+    structName: 'FootMatch',
+  );
+  wire(
+    cardName: 'DashboardDutyCard',
+    listName: 'DashboardDutiesList',
+    detailPage: 'BardienDetailPage',
+    detailParam: 'dutyId',
+    structName: 'BarDuty',
+  );
+  wire(
+    cardName: 'DashboardDriveCard',
+    listName: 'DashboardDriveList',
+    detailPage: 'RijschemaDetailPage',
+    detailParam: 'matchId',
+    structName: 'FootMatch',
+  );
 }
 
 // Adds "Niets gepland" placeholder text below each dashboard ListView.
@@ -13860,9 +14384,19 @@ void _addSoftDeleteDisplay(FFProject project) {
       setConditionalVisibility(node, variable: combined);
     }
 
-    // OwnBubble + OtherBubble: hide as deleted
+    // OwnBubbleRow + OtherBubbleRow: hide hele rij (incl. bubble + binnen-tekst)
+    // als bericht verwijderd. Belangrijk: voeg ook AND !deleted toe op de binnen-
+    // containers EN op de message-text nodes zodat zelfs als één visibility-laag
+    // niet door codegen wordt opgepikt, het bericht alsnog onzichtbaar blijft.
     for (final node in findDescendants(itemCol,
-        (n) => n.name == 'OwnBubble' || n.name == 'OtherBubble')) {
+        (n) => n.name == 'OwnBubbleRow' ||
+               n.name == 'OtherBubbleRow' ||
+               n.name == 'OwnBubble' ||
+               n.name == 'OtherBubble' ||
+               n.name == 'OwnMsgText' ||
+               n.name == 'OtherMsgText' ||
+               n.name == 'OwnMsgCol' ||
+               n.name == 'OtherMsgCol')) {
       _andNotDeleted(node);
     }
     // OwnActionsRow: hide as deleted (combined met bestaande "own message" check)
@@ -13893,6 +14427,231 @@ void _addSoftDeleteDisplay(FFProject project) {
     setConditionalVisibility(deletedBubble, variable: _deletedVar());
 
     itemCol.children.add(deletedBubble);
+  }
+}
+
+// ─── BumpConversationUnread wiring ───────────────────────────────────────────
+
+// Appends a BumpConversationUnread custom-action call at the end of the send
+// button's true-action chain on a chat page. Idempotent.
+void _appendBumpUnreadToChatSend({
+  required FFProject project,
+  required String pageName,
+  required String sendBtnKey,
+}) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+  final sendBtn = findByKey(wc.node, sendBtnKey);
+  if (sendBtn == null) return;
+
+  final bumpAction = findCustomAction(project, name: 'BumpConversationUnread');
+  if (bumpAction == null) return;
+
+  final tapIdx = sendBtn.triggerActions.indexWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+  if (tapIdx < 0) return;
+  final tap = sendBtn.triggerActions[tapIdx];
+  if (!tap.hasRootAction()) return;
+  final root = tap.rootAction;
+  if (!root.hasConditionActions()) return;
+  if (root.conditionActions.trueActions.isEmpty) return;
+  final trueEntry = root.conditionActions.trueActions.first;
+  if (!trueEntry.hasTrueAction()) return;
+
+  // Idempotent: walk chain, return if BumpConversationUnread already present.
+  bool hasBump(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasCustomAction() &&
+        n.action.customAction.customActionIdentifier.name ==
+            'BumpConversationUnread') {
+      return true;
+    }
+    if (n.hasFollowUpAction() && hasBump(n.followUpAction)) return true;
+    return false;
+  }
+  if (hasBump(trueEntry.trueAction)) return;
+
+  // Walk to chain tail and append the bump call.
+  FFActionNode tail = trueEntry.trueAction;
+  while (tail.hasFollowUpAction()) tail = tail.followUpAction;
+
+  final bumpNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      customAction: FFCustomActionCall(
+        customActionIdentifier: bumpAction.identifier.deepCopy(),
+        argumentValues: FFFunctionCallValues(),
+      ),
+    ),
+  );
+  tail.followUpAction = bumpNode;
+}
+
+void _wireBumpUnreadOnAllChatSends(FFProject project) {
+  _appendBumpUnreadToChatSend(
+    project: project,
+    pageName: 'TeamChatPage',
+    sendBtnKey: 'IconButton_l68mmxn6',
+  );
+  _appendBumpUnreadToChatSend(
+    project: project,
+    pageName: 'DirectChatPage',
+    sendBtnKey: 'IconButton_y4orjomc',
+  );
+  _appendBumpUnreadToChatSend(
+    project: project,
+    pageName: 'GroupChatPage',
+    sendBtnKey: 'IconButton_tgwfn8d7',
+  );
+}
+
+// ─── Hamburger menu / App Drawer ─────────────────────────────────────────────
+
+// Builds a fresh Drawer node with:
+//   - Header (avatar + userName + userEmail) on club-primary background
+//   - ListTiles for Home, Handleiding, Profiel, Bug melden
+// Each tile gets an ON_TAP Navigate action via Actions.onTap.
+FFNode _buildAppDrawerNode(FFProject project) {
+  final userNameId  = _findAppStateFieldId(project, 'userName');
+  final userEmailId = _findAppStateFieldId(project, 'userEmail');
+
+  // ── Header section ─────────────────────────────────────────────────────────
+  final avatar = UI.container(
+    name: 'DrawerHeaderAvatar',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    child: UI.icon('person', size: 28, color: UIColor.primaryBackground),
+  );
+  _setContainerColor(
+    avatar,
+    FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_BACKGROUND)),
+  );
+  // Use a lighter alpha overlay on the primary header
+  final avatarBd = avatar.props.container.boxDecoration.deepCopy();
+  avatarBd.colorValue = FFColorValue(
+    inputValue: FFColor(value: Int64(0x33FFFFFF)),
+  );
+  avatar.props.container.boxDecoration = avatarBd;
+
+  final nameText = UI.text('Naam', name: 'DrawerHeaderName', style: UITextStyle.titleMedium);
+  if (userNameId != null) {
+    nameText.props.text.textValue =
+        FFStringValue(variable: varFromAppState(userNameId.deepCopy()));
+  }
+  final nameTxt = nameText.props.text.deepCopy();
+  nameTxt.colorValue = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+  );
+  nameText.props.text = nameTxt;
+
+  final emailText = UI.text('E-mail', name: 'DrawerHeaderEmail', style: UITextStyle.bodySmall);
+  if (userEmailId != null) {
+    emailText.props.text.textValue =
+        FFStringValue(variable: varFromAppState(userEmailId.deepCopy()));
+  }
+  final emailTxt = emailText.props.text.deepCopy();
+  emailTxt.colorValue = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+  );
+  emailText.props.text = emailTxt;
+
+  final headerColumn = UI.column(
+    name: 'DrawerHeaderColumn',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 8,
+    children: [avatar, nameText, emailText],
+  );
+
+  final header = UI.container(
+    name: 'DrawerHeader',
+    padding: UIEdgeInsets.only(left: 16, top: 48, right: 16, bottom: 16),
+    width: double.infinity,
+    child: headerColumn,
+  );
+  _setContainerColor(
+    header,
+    FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY)),
+  );
+
+  // ── Menu tiles ─────────────────────────────────────────────────────────────
+  FFNode tile(String name, String label, String icon, String pageName) {
+    final t = UI.listTile(
+      name: name,
+      title: label,
+      leadingIconName: icon,
+    );
+    if (project.getWidgetClassByName(pageName) != null) {
+      Actions.onTap(
+        t,
+        Actions.navigate(project, pageName: pageName, replaceRoute: true),
+      );
+    }
+    return t;
+  }
+
+  final homeTile = tile('DrawerTileHome', 'Home', 'home', 'DashboardPage');
+  final docsTile = tile('DrawerTileDocs', 'Handleiding', 'menu_book', 'DocumentatiePage');
+  final profileTile = tile('DrawerTileProfiel', 'Profiel', 'person', 'ProfielPage');
+  final bugTile = tile('DrawerTileBug', 'Bug melden', 'bug_report', 'BugReportPage');
+
+  final menuColumn = UI.column(
+    name: 'DrawerMenuColumn',
+    spacing: 0,
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    children: [
+      header,
+      homeTile,
+      docsTile,
+      profileTile,
+      bugTile,
+    ],
+  );
+
+  return UI.drawer(name: 'AppDrawer', child: menuColumn);
+}
+
+// Attaches the app drawer to a Scaffold page. Idempotent: skips if a drawer
+// is already configured on the scaffold. Also flips the page's AppBar
+// `defaultBackButtonValue` to true so Flutter's automaticallyImplyLeading
+// renders the hamburger icon (NavBar pages have no pop-route, so no back
+// arrow appears — the drawer takes precedence).
+void _addAppDrawerToPage(FFProject project, String pageName) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+
+  // Ensure the AppBar has automaticallyImplyLeading enabled so the hamburger
+  // is rendered. Runs on every push so it stays correct even if the AppBar
+  // is rebuilt later.
+  final appBar = getPropertyChild(wc.node, 'appBar');
+  if (appBar != null && appBar.props.hasAppBar()) {
+    final appBarCopy = appBar.props.appBar.deepCopy();
+    appBarCopy.defaultBackButtonValue = FFBooleanValue(inputValue: true);
+    appBar.props.appBar = appBarCopy;
+  }
+
+  if (wc.node.childPropertyMap.containsKey('drawer')) return;
+
+  final drawer = _buildAppDrawerNode(project);
+  wc.node.children.add(drawer);
+  wc.node.childPropertyMap['drawer'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: drawer.key)],
+  );
+}
+
+void _wireAppDrawerOnAllMainPages(FFProject project) {
+  const pages = [
+    'DashboardPage',
+    'WedstrijdenPage',
+    'BardienPage',
+    'RijschemaPage',
+    'ChatsPage',
+    'ProfielPage',
+  ];
+  for (final p in pages) {
+    _addAppDrawerToPage(project, p);
   }
 }
 

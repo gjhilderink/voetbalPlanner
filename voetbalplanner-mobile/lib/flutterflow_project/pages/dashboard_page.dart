@@ -129,6 +129,9 @@ abstract final class DashboardPageWidgets {
                             type: "Container",
                             path: "DashboardPage.body[0].children[2].children[0].children[0].children[0]",
                             name: "DashboardMatchCard",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
                                 key: "Row_skqxbji9",
@@ -217,6 +220,9 @@ abstract final class DashboardPageWidgets {
                             type: "Container",
                             path: "DashboardPage.body[0].children[4].children[0].children[0].children[0]",
                             name: "DashboardDutyCard",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
                                 key: "Row_62qk9a5s",
@@ -305,6 +311,9 @@ abstract final class DashboardPageWidgets {
                             type: "Container",
                             path: "DashboardPage.body[0].children[6].children[0].children[0].children[0]",
                             name: "DashboardDriveCard",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
                                 key: "Row_17itoaq4",
@@ -351,6 +360,102 @@ abstract final class DashboardPageWidgets {
                         name: "DashboardDriveEmpty",
                         text: "Niets gepland",
                       ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+        "drawer": <ffai.ProjectWidgetHandle>[
+          ffai.ProjectWidgetHandle(
+            key: "Drawer_ooq069r9",
+            type: "Drawer",
+            path: "DashboardPage.drawer[0]",
+            name: "AppDrawer",
+            children: <ffai.ProjectWidgetHandle>[
+              ffai.ProjectWidgetHandle(
+                key: "Column_6g685x76",
+                type: "Column",
+                path: "DashboardPage.drawer[0].children[0]",
+                name: "DrawerMenuColumn",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "Container_qct56ebg",
+                    type: "Container",
+                    path: "DashboardPage.drawer[0].children[0].children[0]",
+                    name: "DrawerHeader",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Column_49jhncx9",
+                        type: "Column",
+                        path: "DashboardPage.drawer[0].children[0].children[0].children[0]",
+                        name: "DrawerHeaderColumn",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_qnp1d6m9",
+                            type: "Container",
+                            path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[0]",
+                            name: "DrawerHeaderAvatar",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Icon_z1t0rpkx",
+                                type: "Icon",
+                                path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
+                                name: "Icon",
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_vy50xh2g",
+                            type: "Text",
+                            path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[1]",
+                            name: "DrawerHeaderName",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_ojwqtaq6",
+                            type: "Text",
+                            path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[2]",
+                            name: "DrawerHeaderEmail",
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_io6h1eiz",
+                    type: "ListTile",
+                    path: "DashboardPage.drawer[0].children[0].children[1]",
+                    name: "DrawerTileHome",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_epajws4x",
+                    type: "ListTile",
+                    path: "DashboardPage.drawer[0].children[0].children[2]",
+                    name: "DrawerTileDocs",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_gdg5tzpi",
+                    type: "ListTile",
+                    path: "DashboardPage.drawer[0].children[0].children[3]",
+                    name: "DrawerTileProfiel",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_ocx5modr",
+                    type: "ListTile",
+                    path: "DashboardPage.drawer[0].children[0].children[4]",
+                    name: "DrawerTileBug",
+                    triggers: const <String>[
+                      "ON_TAP",
                     ],
                   ),
                 ],

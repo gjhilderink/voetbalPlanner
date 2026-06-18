@@ -143,6 +143,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const unreadChatCount = ffai.ProjectAppStateFieldHandle(
+    name: "unreadChatCount",
+    key: "6aqxbbzz",
+    typeName: "Integer",
+    persisted: false,
+  );
   static const userEmail = ffai.ProjectAppStateFieldHandle(
     name: "userEmail",
     key: "ea1g6u4n",
@@ -185,6 +191,7 @@ abstract final class AppState {
     profilePhotoUrl,
     relatiecode,
     secondaryColor,
+    unreadChatCount,
     userEmail,
     userName,
     userRoles,

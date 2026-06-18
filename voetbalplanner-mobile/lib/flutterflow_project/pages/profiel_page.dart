@@ -209,6 +209,102 @@ abstract final class ProfielPageWidgets {
             ],
           ),
         ],
+        "drawer": <ffai.ProjectWidgetHandle>[
+          ffai.ProjectWidgetHandle(
+            key: "Drawer_0d3kxzu2",
+            type: "Drawer",
+            path: "ProfielPage.drawer[0]",
+            name: "AppDrawer",
+            children: <ffai.ProjectWidgetHandle>[
+              ffai.ProjectWidgetHandle(
+                key: "Column_ib1biz4s",
+                type: "Column",
+                path: "ProfielPage.drawer[0].children[0]",
+                name: "DrawerMenuColumn",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "Container_bexvbz5c",
+                    type: "Container",
+                    path: "ProfielPage.drawer[0].children[0].children[0]",
+                    name: "DrawerHeader",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Column_2x1zmuig",
+                        type: "Column",
+                        path: "ProfielPage.drawer[0].children[0].children[0].children[0]",
+                        name: "DrawerHeaderColumn",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_f0qx8dpl",
+                            type: "Container",
+                            path: "ProfielPage.drawer[0].children[0].children[0].children[0].children[0]",
+                            name: "DrawerHeaderAvatar",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Icon_ypbn4ytj",
+                                type: "Icon",
+                                path: "ProfielPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
+                                name: "Icon",
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_v63ghxl6",
+                            type: "Text",
+                            path: "ProfielPage.drawer[0].children[0].children[0].children[0].children[1]",
+                            name: "DrawerHeaderName",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_0ldo7ksf",
+                            type: "Text",
+                            path: "ProfielPage.drawer[0].children[0].children[0].children[0].children[2]",
+                            name: "DrawerHeaderEmail",
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_gzxpbibi",
+                    type: "ListTile",
+                    path: "ProfielPage.drawer[0].children[0].children[1]",
+                    name: "DrawerTileHome",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_u268tpji",
+                    type: "ListTile",
+                    path: "ProfielPage.drawer[0].children[0].children[2]",
+                    name: "DrawerTileDocs",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_s4tbh4c0",
+                    type: "ListTile",
+                    path: "ProfielPage.drawer[0].children[0].children[3]",
+                    name: "DrawerTileProfiel",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "ListTile_36pfcmwq",
+                    type: "ListTile",
+                    path: "ProfielPage.drawer[0].children[0].children[4]",
+                    name: "DrawerTileBug",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       },
     ),
   );
