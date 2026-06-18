@@ -16,6 +16,8 @@ class BarDuty extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    public const REQUIRED_MEMBERS = 2;
+
     protected $fillable = [
         'club_id', 'team_id', 'date', 'shift', 'notes', 'status',
     ];
@@ -49,6 +51,6 @@ class BarDuty extends Model
         }
 
         $count = $this->members()->count();
-        $this->update(['status' => $count >= 2 ? 'bevestigd' : 'open']);
+        $this->update(['status' => $count >= self::REQUIRED_MEMBERS ? 'bevestigd' : 'open']);
     }
 }

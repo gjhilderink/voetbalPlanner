@@ -154,6 +154,67 @@ class BarDutyController extends Controller
         ]);
     }
 
+    /**
+     * PATCH /bar-duties/{barDuty}/self-assign
+     *
+     * Laat een ingelogde gebruiker zichzelf inschrijven voor een open bardienst.
+     * Voorwaarden:
+     *  - Gebruiker heeft een member-profiel en zit in het team van de bardienst
+     *  - Bardienst is nog niet vol (< BarDuty::REQUIRED_MEMBERS)
+     *  - Gebruiker staat nog niet op de bardienst
+     */
+    public function selfAssign(Request $request, BarDuty $barDuty): JsonResponse
+    {
+        $this->authorizeAccess($barDuty);
+
+        $user   = $request->user();
+        $member = $user?->member;
+
+        if (! $member) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je hebt geen lid-profiel om je aan te melden.',
+            ], 422);
+        }
+
+        if ($barDuty->team_id) {
+            $isInTeam = $member->teams()
+                ->whereKey($barDuty->team_id)
+                ->exists();
+            if (! $isInTeam) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Deze bardienst is voor een ander team.',
+                ], 403);
+            }
+        }
+
+        $current = $barDuty->members()->pluck('members.id');
+        if ($current->contains($member->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je bent al aangemeld voor deze bardienst.',
+            ], 422);
+        }
+
+        if ($current->count() >= BarDuty::REQUIRED_MEMBERS) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Deze bardienst is al vol.',
+            ], 422);
+        }
+
+        $barDuty->members()->attach($member->id);
+        $barDuty->refreshStatus();
+        $barDuty->load(['team', 'members']);
+
+        return response()->json([
+            'success' => true,
+            'data'    => new BarDutyResource($barDuty),
+            'message' => 'Je bent aangemeld voor deze bardienst.',
+        ]);
+    }
+
     private function authorizeAccess(BarDuty $barDuty): void
     {
         $user = request()->user();

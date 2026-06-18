@@ -24,11 +24,14 @@ abstract final class Structs {
   static final barDuty = ffai.StructHandle(
     "BarDuty",
     <String, ffai.DslType>{
+      "canSelfAssign": ffai.bool_,
       "date": ffai.string,
       "id": ffai.string,
       "isAssignedToMe": ffai.bool_,
+      "memberCount": ffai.int_,
       "members": ffai.string,
       "notes": ffai.string,
+      "requiredCount": ffai.int_,
       "shift": ffai.string,
       "status": ffai.string,
       "teamName": ffai.string,

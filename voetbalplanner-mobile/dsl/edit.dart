@@ -240,9 +240,9 @@ void buildEditFlow(App app) {
         page.update(page.findByKey(key), (p) => p.size(width: double.infinity));
       } catch (_) {}
     }
+    // Uitloggen — HandleidingButton/BugReportButton verhuisd naar AppDrawer.
     for (final key in const [
       'Button_wvz4j2lc', // Uitloggen
-      'Button_6scqjj2p', // HandleidingButton
     ]) {
       try {
         page.update(page.findByKey(key), (p) => p.size(width: double.infinity));
@@ -423,9 +423,11 @@ void buildEditFlow(App app) {
   app.raw((project) => _addDocumentationEndpoint(project));
   _buildDocumentatiePage(app, documentSection);
   app.raw((project) => _wireDocumentationPageLoad(project));
-  app.raw((project) => _addHandleidingButton(project));
+  // Handleiding + Bug-melden zijn naar de AppDrawer verhuisd; ruim eventuele
+  // bestaande knoppen op ProfielPage op.
+  app.raw((project) => _removeProfielButton(project, 'HandleidingButton'));
+  app.raw((project) => _removeProfielButton(project, 'BugReportButton'));
   app.raw((project) => _addGuardianButton(project));
-  app.raw((project) => _addBugReportButton(project));
   _buildBugReportPage(app);
   app.raw((project) => _ensureBugReportCustomAction(project));
   app.raw((project) => _buildBugReportPageBody(project));
@@ -759,6 +761,7 @@ void buildEditFlow(App app) {
   app.raw((project) {
     _wireBardienDetailPageLoad(project);
     _wireBardienDetailPageUI(project);
+    _addBardienAanmeldenButton(project);
     _addBardienNavigation(project);
   });
 
@@ -3295,7 +3298,8 @@ void _addDocumentatieAppBar(FFProject project) {
 }
 
 // Adds a "Handleiding" navigation button at the bottom of ProfielPage.
-// Re-wires the Navigate action on every push so the target is always fresh.
+// (Niet meer gebruikt — verplaatst naar AppDrawer.)
+// ignore: unused_element
 void _addHandleidingButton(FFProject project) {
   final wc = findPage(project, name: 'ProfielPage');
   if (wc == null) return;
@@ -3354,7 +3358,23 @@ void _addGuardianButton(FFProject project) {
   }
 }
 
+// Verwijdert alle nodes met de gegeven naam van ProfielPage (idempotent).
+// Gebruikt om historische Handleiding- en Bug-melden knoppen op te ruimen
+// nu die in de AppDrawer staan.
+void _removeProfielButton(FFProject project, String nodeName) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+  final keysToRemove = findDescendants(wc.node, (n) => n.name == nodeName)
+      .map((n) => n.key)
+      .toList();
+  for (final key in keysToRemove) {
+    removeByKey(wc.node, key);
+  }
+}
+
 // Voegt "Bug melden" knop toe aan ProfielPage. Navigeert naar BugReportPage.
+// (Niet meer gebruikt — verplaatst naar AppDrawer.)
+// ignore: unused_element
 void _addBugReportButton(FFProject project) {
   final wc = findPage(project, name: 'ProfielPage');
   if (wc == null) return;
@@ -5272,7 +5292,12 @@ String _requireValue(List<String> args, int index, String flag) {
 // Add isAssignedToMe to BarDuty struct + isFruitHero / isDriver / fruitHeroId to FootMatch.
 void _addSwapStructFields(FFProject project) {
   for (final entry in [
-    ('BarDuty',      [('isAssignedToMe', FFBaseDataType.Boolean)]),
+    ('BarDuty',      [
+      ('isAssignedToMe', FFBaseDataType.Boolean),
+      ('memberCount',    FFBaseDataType.Integer),
+      ('requiredCount',  FFBaseDataType.Integer),
+      ('canSelfAssign',  FFBaseDataType.Boolean),
+    ]),
     ('FootMatch',    [
       ('isFruitHero',  FFBaseDataType.Boolean),
       ('isDriver',     FFBaseDataType.Boolean),
@@ -5446,6 +5471,13 @@ void _addSwapEndpoints(FFProject project) {
       responseDataStructName: 'BarDuty',
     );
   }
+
+  addIfMissing(
+    name:      'SelfAssignBarDuty',
+    url:       '/bar-duties/[dutyId]/self-assign',
+    method:    FFApiEndpoint_CallType.PATCH,
+    variables: {'dutyId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+  );
 
   addIfMissing(
     name:                   'GetBranding',
@@ -7393,6 +7425,7 @@ void _wireBardienDetailPageLoad(FFProject project) {
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
+  _ensurePageStateField(wc, 'dutyCanSelfAssign', FFBaseDataType.Boolean);
 
   wc.node.triggerActions.removeWhere(
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
@@ -7427,6 +7460,11 @@ void _wireBardienDetailPageLoad(FFProject project) {
           final v = _jsonBodyVar(ctx, entry.value, wc.node.key);
           updates.add(StateFieldUpdate.setFromVariable(entry.key, v));
         }
+        // canSelfAssign (bool) — drives visibility of the "Aanmelden" button.
+        updates.add(StateFieldUpdate.setFromVariable(
+          'dutyCanSelfAssign',
+          _jsonBodyVar(ctx, r'$.canSelfAssign', wc.node.key),
+        ));
         return Actions.chain([
           Actions.updatePageState(
             project,
@@ -7873,6 +7911,83 @@ void _wireBardienDetailPageUI(FFProject project) {
     infoRow('Leden', 'dutyMembers'),
     infoRow('Notities', 'dutyNotes'),
   ]);
+}
+
+// Voegt een "Aanmelden" knop toe aan BardienDetailPage die zichtbaar is wanneer
+// dutyCanSelfAssign == true. onTap: roept SelfAssignBarDuty aan, herlaadt het
+// detail bij succes en toont een snackbar.
+void _addBardienAanmeldenButton(FFProject project) {
+  final wc = findPage(project, name: 'BardienDetailPage');
+  if (wc == null) return;
+  final infoColumn = findDescendants(wc.node, (n) => n.name == 'DutyInfoColumn').firstOrNull;
+  if (infoColumn == null) return;
+
+  // Idempotent: verwijder vorige instance zodat de chain bij elke push fris
+  // wordt opgebouwd (anders kunnen state-field keys verschuiven).
+  final existingBtnKeys = findDescendants(infoColumn, (n) => n.name == 'DutyAanmeldenButton')
+      .map((n) => n.key)
+      .toList();
+  for (final k in existingBtnKeys) {
+    removeByKey(wc.node, k);
+  }
+
+  // dutyId page param
+  FFIdentifier? dutyIdParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'dutyId') {
+      dutyIdParamId = param.identifier;
+      break;
+    }
+  }
+  if (dutyIdParamId == null) return;
+
+  // canSelfAssign state field (gezet door _wireBardienDetailPageLoad).
+  final canSelfAssignField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'dutyCanSelfAssign',
+          orElse: () => null);
+  if (canSelfAssignField == null) return;
+
+  final canSelfAssignVar = varFromPageState(
+    canSelfAssignField.parameter.identifier.deepCopy(),
+  )..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final visibleVar = conditionVar(
+    canSelfAssignVar,
+    FFCondition_Relation.EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+  ).variable;
+
+  final button = UI.button('Aanmelden', name: 'DutyAanmeldenButton');
+  setConditionalVisibility(button, variable: visibleVar);
+
+  // Build the API call AFTER the button exists so nodeKey points at the button.
+  final selfAssignNodeForBtn = Actions.apiCallNode(
+    project,
+    endpointName: 'SelfAssignBarDuty',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'dutyId': varFromPageParam(dutyIdParamId.deepCopy()),
+    },
+    outputVariableName: 'selfAssign',
+    nodeKey: button.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.snackBar('Je bent aangemeld voor deze bardienst.'),
+    ]),
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Aanmelden mislukt.'),
+    ]),
+  );
+  Actions.addTriggerChain(button, FFActionTriggerType.ON_TAP, selfAssignNodeForBtn);
+
+  // Container met padding zodat de knop wat ruimte heeft van de info-rijen.
+  final wrap = UI.container(
+    name: 'DutyAanmeldenWrap',
+    padding: UIEdgeInsets.symmetric(vertical: 12),
+    child: button,
+  );
+
+  infoColumn.children.add(wrap);
 }
 
 // Fix the timestamp format in TeamChatPage: show 'HH:mm' instead of full datetime.
@@ -14514,16 +14629,31 @@ void _wireBumpUnreadOnAllChatSends(FFProject project) {
 //   - ListTiles for Home, Handleiding, Profiel, Bug melden
 // Each tile gets an ON_TAP Navigate action via Actions.onTap.
 FFNode _buildAppDrawerNode(FFProject project) {
-  final userNameId  = _findAppStateFieldId(project, 'userName');
-  final userEmailId = _findAppStateFieldId(project, 'userEmail');
+  final userNameId        = _findAppStateFieldId(project, 'userName');
+  final userEmailId       = _findAppStateFieldId(project, 'userEmail');
+  final profilePhotoUrlId = _findAppStateFieldId(project, 'profilePhotoUrl');
 
   // ── Header section ─────────────────────────────────────────────────────────
+  // Person-icon fallback shown only when no profile photo URL is set.
+  final fallbackIcon = UI.icon('person', size: 28, color: UIColor.primaryBackground);
+  if (profilePhotoUrlId != null) {
+    setConditionalVisibility(
+      fallbackIcon,
+      variable: conditionVar(
+        varFromAppState(profilePhotoUrlId.deepCopy()),
+        FFCondition_Relation.EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+      ).variable,
+    );
+  }
+
   final avatar = UI.container(
     name: 'DrawerHeaderAvatar',
     width: 56,
     height: 56,
     borderRadius: 28,
-    child: UI.icon('person', size: 28, color: UIColor.primaryBackground),
+    clipContent: true,
+    child: fallbackIcon,
   );
   _setContainerColor(
     avatar,
@@ -14535,6 +14665,37 @@ FFNode _buildAppDrawerNode(FFProject project) {
     inputValue: FFColor(value: Int64(0x33FFFFFF)),
   );
   avatar.props.container.boxDecoration = avatarBd;
+
+  // CircleImage bound to AppState.profilePhotoUrl, visible when URL is set.
+  if (profilePhotoUrlId != null) {
+    final urlVar = varFromAppState(profilePhotoUrlId.deepCopy());
+    final photoNode = FFNode(
+      key: generateRandomAlphaNumericString(),
+      type: FFWidgetType.CircleImage,
+      name: 'DrawerHeaderPhoto',
+      props: FFWidgetProperties(
+        image: FFImage(
+          type:       FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+          pathValue:  FFStringValue(variable: urlVar.deepCopy()),
+          fit:        FFBoxFit.FF_BOX_FIT_COVER,
+          cached:     true,
+          dimensions: FFDimensions(
+            width:  FFDim(pixelsValue: FFDoubleValue(inputValue: 56.0)),
+            height: FFDim(pixelsValue: FFDoubleValue(inputValue: 56.0)),
+          ),
+        ),
+      ),
+    );
+    setConditionalVisibility(
+      photoNode,
+      variable: conditionVar(
+        urlVar.deepCopy(),
+        FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+      ).variable,
+    );
+    avatar.children.insert(0, photoNode);
+  }
 
   final nameText = UI.text('Naam', name: 'DrawerHeaderName', style: UITextStyle.titleMedium);
   if (userNameId != null) {
@@ -14613,11 +14774,11 @@ FFNode _buildAppDrawerNode(FFProject project) {
   return UI.drawer(name: 'AppDrawer', child: menuColumn);
 }
 
-// Attaches the app drawer to a Scaffold page. Idempotent: skips if a drawer
-// is already configured on the scaffold. Also flips the page's AppBar
-// `defaultBackButtonValue` to true so Flutter's automaticallyImplyLeading
-// renders the hamburger icon (NavBar pages have no pop-route, so no back
-// arrow appears — the drawer takes precedence).
+// Attaches the app drawer to a Scaffold page. Force-rebuilds on every push so
+// header changes (profile photo, name binding etc.) are picked up. Also flips
+// the page's AppBar `defaultBackButtonValue` to true so Flutter's
+// automaticallyImplyLeading renders the hamburger icon (NavBar pages have no
+// pop-route, so no back arrow appears — the drawer takes precedence).
 void _addAppDrawerToPage(FFProject project, String pageName) {
   final wc = findPage(project, name: pageName);
   if (wc == null) return;
@@ -14632,7 +14793,17 @@ void _addAppDrawerToPage(FFProject project, String pageName) {
     appBar.props.appBar = appBarCopy;
   }
 
-  if (wc.node.childPropertyMap.containsKey('drawer')) return;
+  // Remove any previously attached drawer node(s) so the rebuilt instance with
+  // the latest header structure (incl. profile photo) replaces the old one.
+  // Copy keys first to avoid concurrent-modification during removeByKey.
+  final existingRefs = wc.node.childPropertyMap['drawer'];
+  if (existingRefs != null) {
+    final keysToRemove = existingRefs.keyRefs.map((r) => r.key).toList();
+    wc.node.childPropertyMap.remove('drawer');
+    for (final key in keysToRemove) {
+      removeByKey(wc.node, key);
+    }
+  }
 
   final drawer = _buildAppDrawerNode(project);
   wc.node.children.add(drawer);

@@ -137,6 +137,7 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('bar-duties', BarDutyController::class)
             ->only(['index', 'show', 'store', 'update', 'destroy']);
         Route::patch('bar-duties/{barDuty}/members', [BarDutyController::class, 'assignMembers']);
+        Route::patch('bar-duties/{barDuty}/self-assign', [BarDutyController::class, 'selfAssign']);
 
         // Staff groups
         Route::apiResource('staff-groups', StaffGroupController::class)
