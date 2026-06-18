@@ -77,119 +77,141 @@ abstract final class BardienPageWidgets {
         ],
         "body": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "Column_mkqeztja",
+            key: "Column_0u3eqx2o",
             type: "Column",
             path: "BardienPage.body[0]",
             name: "BardienBodyColumn",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Container_qmhd6ab1",
-                type: "Container",
+                key: "2zj2y3f4",
+                type: "Stack",
                 path: "BardienPage.body[0].children[0]",
-                name: "BardienBannerContainer",
+                name: "BardienPageBodyStack",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Image_upif9iyg",
-                    type: "Image",
-                    path: "BardienPage.body[0].children[0].children[0]",
-                    name: "BardienBannerImage",
-                  ),
-                ],
-              ),
-              ffai.ProjectWidgetHandle(
-                key: "ConditionalBuilder_fwgqn2js",
-                type: "ConditionalBuilder",
-                path: "BardienPage.body[0].children[1]",
-                name: "ConditionalBuilder",
-                children: <ffai.ProjectWidgetHandle>[
-                  ffai.ProjectWidgetHandle(
-                    key: "Column_s7z9432t",
+                    key: "Column_mkqeztja",
                     type: "Column",
-                    path: "BardienPage.body[0].children[1].children[0]",
-                    name: "Column",
+                    path: "BardienPage.body[0].children[0].children[0]",
+                    name: "BardienBodyColumn",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "ProgressBar_p9icj8fs",
-                        type: "ProgressBar",
-                        path: "BardienPage.body[0].children[1].children[0].children[0]",
-                        name: "ProgressBar",
-                      ),
-                    ],
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "Container_2u86md6h",
-                    type: "Container",
-                    path: "BardienPage.body[0].children[1].children[1]",
-                    name: "ListViewWrapper",
-                    children: <ffai.ProjectWidgetHandle>[
-                      ffai.ProjectWidgetHandle(
-                        key: "ListView_tu54znnh",
-                        type: "ListView",
-                        path: "BardienPage.body[0].children[1].children[1].children[0]",
-                        name: "ListView",
+                        key: "Container_qmhd6ab1",
+                        type: "Container",
+                        path: "BardienPage.body[0].children[0].children[0].children[0]",
+                        name: "BardienBannerContainer",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_3x9tkqc6",
-                            type: "Container",
-                            path: "BardienPage.body[0].children[1].children[1].children[0].children[0]",
-                            name: "BarDutyCard",
-                            componentName: "BarDutyCard",
+                            key: "Image_upif9iyg",
+                            type: "Image",
+                            path: "BardienPage.body[0].children[0].children[0].children[0].children[0]",
+                            name: "BardienBannerImage",
                           ),
                         ],
                       ),
+                      ffai.ProjectWidgetHandle(
+                        key: "ConditionalBuilder_fwgqn2js",
+                        type: "ConditionalBuilder",
+                        path: "BardienPage.body[0].children[0].children[0].children[1]",
+                        name: "ConditionalBuilder",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Column_s7z9432t",
+                            type: "Column",
+                            path: "BardienPage.body[0].children[0].children[0].children[1].children[0]",
+                            name: "Column",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "ProgressBar_p9icj8fs",
+                                type: "ProgressBar",
+                                path: "BardienPage.body[0].children[0].children[0].children[1].children[0].children[0]",
+                                name: "ProgressBar",
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_2u86md6h",
+                            type: "Container",
+                            path: "BardienPage.body[0].children[0].children[0].children[1].children[1]",
+                            name: "ListViewWrapper",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "ListView_tu54znnh",
+                                type: "ListView",
+                                path: "BardienPage.body[0].children[0].children[0].children[1].children[1].children[0]",
+                                name: "ListView",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Container_3x9tkqc6",
+                                    type: "Container",
+                                    path: "BardienPage.body[0].children[0].children[0].children[1].children[1].children[0].children[0]",
+                                    name: "BarDutyCard",
+                                    componentName: "BarDutyCard",
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      ffai.ProjectWidgetHandle(
+                        key: "Text_7or0rnf7",
+                        type: "Text",
+                        path: "BardienPage.body[0].children[0].children[0].children[2]",
+                        name: "BardienNietGepland",
+                        text: "Niets gepland",
+                      ),
                     ],
                   ),
+                  ffai.ProjectWidgetHandle(
+                    key: "Container_7yxg1wuu",
+                    type: "Container",
+                    path: "BardienPage.body[0].children[0].children[1]",
+                    name: "ChatBadgeOverlay",
+                  ),
                 ],
-              ),
-              ffai.ProjectWidgetHandle(
-                key: "Text_7or0rnf7",
-                type: "Text",
-                path: "BardienPage.body[0].children[2]",
-                name: "BardienNietGepland",
-                text: "Niets gepland",
               ),
             ],
           ),
         ],
         "drawer": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "Drawer_ka9wis4f",
+            key: "Drawer_5fdaoo6h",
             type: "Drawer",
             path: "BardienPage.drawer[0]",
             name: "AppDrawer",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_092v3rvf",
+                key: "Column_wrvouk4r",
                 type: "Column",
                 path: "BardienPage.drawer[0].children[0]",
                 name: "DrawerMenuColumn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_t1gagwe6",
+                    key: "Container_0aeeswe6",
                     type: "Container",
                     path: "BardienPage.drawer[0].children[0].children[0]",
                     name: "DrawerHeader",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_4pn8m586",
+                        key: "Column_h3qalziz",
                         type: "Column",
                         path: "BardienPage.drawer[0].children[0].children[0].children[0]",
                         name: "DrawerHeaderColumn",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_xi0fsocy",
+                            key: "Container_uwlpbxvh",
                             type: "Container",
                             path: "BardienPage.drawer[0].children[0].children[0].children[0].children[0]",
                             name: "DrawerHeaderAvatar",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "clmb7kmd",
+                                key: "zdt9cd4z",
                                 type: "CircleImage",
                                 path: "BardienPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "DrawerHeaderPhoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_uqc06lwr",
+                                key: "Icon_yqgyvate",
                                 type: "Icon",
                                 path: "BardienPage.drawer[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "Icon",
@@ -197,13 +219,13 @@ abstract final class BardienPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_2llhsnzt",
+                            key: "Text_nrpyogt8",
                             type: "Text",
                             path: "BardienPage.drawer[0].children[0].children[0].children[0].children[1]",
                             name: "DrawerHeaderName",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_hf113hq8",
+                            key: "Text_2n5v6lgi",
                             type: "Text",
                             path: "BardienPage.drawer[0].children[0].children[0].children[0].children[2]",
                             name: "DrawerHeaderEmail",
@@ -213,7 +235,7 @@ abstract final class BardienPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_um3klzor",
+                    key: "ListTile_wo3ysdpb",
                     type: "ListTile",
                     path: "BardienPage.drawer[0].children[0].children[1]",
                     name: "DrawerTileHome",
@@ -222,7 +244,7 @@ abstract final class BardienPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_dln9u0jo",
+                    key: "ListTile_a2s9avw9",
                     type: "ListTile",
                     path: "BardienPage.drawer[0].children[0].children[2]",
                     name: "DrawerTileDocs",
@@ -231,7 +253,7 @@ abstract final class BardienPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_y0wvlmot",
+                    key: "ListTile_6qj7dn8t",
                     type: "ListTile",
                     path: "BardienPage.drawer[0].children[0].children[3]",
                     name: "DrawerTileProfiel",
@@ -240,7 +262,7 @@ abstract final class BardienPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_fsh6i22j",
+                    key: "ListTile_lv0ivla3",
                     type: "ListTile",
                     path: "BardienPage.drawer[0].children[0].children[4]",
                     name: "DrawerTileBug",

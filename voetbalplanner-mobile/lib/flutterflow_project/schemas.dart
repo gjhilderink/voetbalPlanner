@@ -1032,6 +1032,7 @@ abstract final class CustomCode {
     "WatchUnreadChatCount",
   ];
   static const widgets = <String>[
+    "ChatBadgeOverlay",
     "HighlightedNameList",
   ];
 }

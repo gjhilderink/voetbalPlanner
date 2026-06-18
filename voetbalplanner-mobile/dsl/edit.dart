@@ -850,6 +850,11 @@ void buildEditFlow(App app) {
   // are wired so Navigate-targets exist when the drawer tiles are built.
   app.raw((project) => _wireAppDrawerOnAllMainPages(project));
 
+  // Rood unread-bolletje overlay boven het Chats-icoon. Wrapt elke hoofdpage's
+  // body in een Stack zodat de ChatBadgeOverlay custom widget over de NavBar
+  // heen positioneert.
+  app.raw((project) => _wireChatBadgeOverlayOnAllMainPages(project));
+
   // WatchUnreadChatCount op alle hoofdpagina's zodat de Firestore-listener
   // start ongeacht waar de gebruiker cold-start of na user-switch arriveert.
   app.raw((project) {
@@ -1825,6 +1830,11 @@ void _resetTeamChatAppBar(FFProject project) {
 // Enables the global NavBar and registers the 6 main pages in canonical order.
 void _setupNavBar(FFProject project) {
   setNavBarEnabled(project, enabled: true);
+  // Labels uit: badge zit nu als echte rode overlay via ChatBadgeOverlay,
+  // dus tekst-labels onder iconen voegen niets meer toe en geven ruis.
+  project.ensureNavBar()
+    ..showSelectedLabels = false
+    ..showUnselectedLabels = false;
   // Remove stale TeamChatPage if still present from the old layout.
   try { removeNavBarPage(project, pageName: 'TeamChatPage'); } catch (_) {}
   // Ensure all 6 canonical pages are in the NavBar (idempotent appends, skip if present).
@@ -1877,27 +1887,11 @@ void _forceChatsNavBarItem(FFProject project) {
     ),
   );
 
-  // Dynamic label: "Chats" when unreadChatCount == 0, else "Chats (N)".
-  // Acts as the badge-count indicator within the FF NavBar (which doesn't
-  // expose a widget-level badge slot on FFNavBarItem).
-  final unreadId = _findAppStateFieldId(project, 'unreadChatCount');
-  if (unreadId != null) {
-    final labelVar = codeExpressionVar(
-      expression:
-          "(count ?? 0) > 0 ? 'Chats (' + (count ?? 0).toString() + ')' : 'Chats'",
-      arguments: [
-        CodeExpressionArg(
-          name: 'count',
-          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Integer),
-          value: FFValue(variable: varFromAppState(unreadId.deepCopy())),
-        ),
-      ],
-      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
-    );
-    navBarItem.label = FFText(
-      textValue: FFStringValue(variable: labelVar),
-    );
-  }
+  // Label is statisch "Chats" — de unread-indicator komt nu als rood
+  // overlay-bolletje boven het icoon via _wireChatBadgeOverlayOnAllMainPages.
+  navBarItem.label = FFText(
+    textValue: FFStringValue(inputValue: 'Chats'),
+  );
 
   chatPage.node.props.scaffold = scaffCopy;
 }
@@ -2567,8 +2561,9 @@ class _UnreadChatWatcher {
   static void _publish() {
     int total = 0;
     for (final v in _counts.values) total += v;
-    FFAppState().unreadChatCount = total;
-    FFAppState().update(() {});
+    FFAppState().update(() {
+      FFAppState().unreadChatCount = total;
+    });
   }
 
   static int _readCount(Map<String, dynamic> data) {
@@ -2590,8 +2585,9 @@ Future<void> watchUnreadChatCount() async {
     _UnreadChatWatcher._byParticipantsSub = null;
     _UnreadChatWatcher._byTeamSub = null;
     _UnreadChatWatcher._counts.clear();
-    FFAppState().unreadChatCount = 0;
-    FFAppState().update(() {});
+    FFAppState().update(() {
+      FFAppState().unreadChatCount = 0;
+    });
     return;
   }
 
@@ -3646,6 +3642,8 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 // Module-private store voor de gekozen screenshots tussen taps door.
 List<XFile> _bugScreenshots = [];
@@ -3660,6 +3658,49 @@ String _detectPlatform() {
     if (Platform.isLinux) return 'linux';
   } catch (_) {}
   return 'other';
+}
+
+Future<String> _detectAppVersion() async {
+  try {
+    final info = await PackageInfo.fromPlatform();
+    final v = info.version;
+    final b = info.buildNumber;
+    return b.isNotEmpty ? '$v+$b' : v;
+  } catch (_) {
+    return '';
+  }
+}
+
+Future<String> _detectDeviceInfo() async {
+  try {
+    final plugin = DeviceInfoPlugin();
+    if (kIsWeb) {
+      final wb = await plugin.webBrowserInfo;
+      final ua = wb.userAgent ?? '';
+      return ua.isNotEmpty ? ua.substring(0, ua.length > 240 ? 240 : ua.length) : 'web';
+    }
+    if (Platform.isAndroid) {
+      final a = await plugin.androidInfo;
+      return '${a.manufacturer} ${a.model} (Android ${a.version.release})';
+    }
+    if (Platform.isIOS) {
+      final i = await plugin.iosInfo;
+      return '${i.utsname.machine} (iOS ${i.systemVersion})';
+    }
+    if (Platform.isMacOS) {
+      final m = await plugin.macOsInfo;
+      return '${m.model} (macOS ${m.osRelease})';
+    }
+    if (Platform.isWindows) {
+      final w = await plugin.windowsInfo;
+      return '${w.computerName} (Windows ${w.displayVersion})';
+    }
+    if (Platform.isLinux) {
+      final l = await plugin.linuxInfo;
+      return '${l.prettyName.isNotEmpty ? l.prettyName : l.name}';
+    }
+  } catch (_) {}
+  return '';
 }
 
 Future<int> pickBugScreenshot(BuildContext context) async {
@@ -3712,6 +3753,10 @@ Future<bool> submitBugReport(
     return false;
   }
 
+  // Verzamel device + app info parallel om submit niet te vertragen.
+  final appVersion = await _detectAppVersion();
+  final deviceInfo = await _detectDeviceInfo();
+
   try {
     final uri = Uri.parse('https://voetbalplanner.nubix.nl/api/v1/bug-reports');
     final req = http.MultipartRequest('POST', uri)
@@ -3719,14 +3764,18 @@ Future<bool> submitBugReport(
       ..headers['Accept']        = 'application/json'
       ..fields['title']          = t
       ..fields['description']    = d
-      ..fields['platform']       = _detectPlatform();
+      ..fields['platform']       = _detectPlatform()
+      ..fields['app_version']    = appVersion
+      ..fields['device_info']    = deviceInfo;
 
     for (var i = 0; i < _bugScreenshots.length; i++) {
       final shot = _bugScreenshots[i];
       // Web-safe: lees bytes uit XFile (werkt zowel op web als mobiel).
       final bytes = await shot.readAsBytes();
+      // Multipart key zonder index — Laravel's $request->file('screenshots')
+      // bouwt automatisch een array van alle 'screenshots[]' entries.
       req.files.add(http.MultipartFile.fromBytes(
-        'screenshots[$i]',
+        'screenshots[]',
         bytes,
         filename: shot.name.isNotEmpty ? shot.name : 'screenshot_$i.jpg',
       ));
@@ -3838,8 +3887,10 @@ Future<bool> submitBugReport(
   }
 
   // Pub dependencies.
-  try { addPubDependency(project, name: 'image_picker', version: '^1.0.0'); } catch (_) {}
-  try { addPubDependency(project, name: 'http',         version: '^1.2.0'); } catch (_) {}
+  try { addPubDependency(project, name: 'image_picker',      version: '^1.0.0'); } catch (_) {}
+  try { addPubDependency(project, name: 'http',              version: '^1.2.0'); } catch (_) {}
+  try { addPubDependency(project, name: 'package_info_plus', version: '^8.0.0'); } catch (_) {}
+  try { addPubDependency(project, name: 'device_info_plus',  version: '^10.1.0'); } catch (_) {}
 }
 
 // Bouwt de body van BugReportPage met titel/omschrijving veld, screenshot
@@ -8218,6 +8269,46 @@ void _addBardienAanmeldenButton(FFProject project) {
     );
   }
 
+  // Build a GetBarDutyDetail reload node — fired bij success van self-assign
+  // zodat de UI direct de nieuwe member-lijst + status laat zien.
+  final reloadNode = Actions.apiCallNode(
+    project,
+    endpointName: 'GetBarDutyDetail',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'dutyId': varFromPageParam(dutyIdParamId.deepCopy()),
+    },
+    outputVariableName: 'dutyReload',
+    nodeKey: button.key,
+    onSuccess: (rctx) {
+      const fieldPaths = {
+        'dutyStatus':   r'$.status',
+        'dutyMembers':  r'$.members',
+      };
+      final updates = <StateFieldUpdate>[];
+      for (final entry in fieldPaths.entries) {
+        updates.add(StateFieldUpdate.setFromVariable(
+          entry.key,
+          _jsonBodyVar(rctx, entry.value, button.key),
+        ));
+      }
+      updates.add(StateFieldUpdate.setFromVariable(
+        'dutyCanSelfAssign',
+        _jsonBodyVar(rctx, r'$.canSelfAssign', button.key),
+      ));
+      return Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'BardienDetailPage',
+          updates: updates,
+        ),
+      ]);
+    },
+    onFailure: (_) => Actions.chain([
+      Actions.snackBar('Aangemeld, maar herladen mislukte — trek scherm naar beneden om te verversen.'),
+    ]),
+  );
+
   // Build the API call AFTER the button exists so nodeKey points at the button.
   final selfAssignNodeForBtn = Actions.apiCallNode(
     project,
@@ -8232,7 +8323,12 @@ void _addBardienAanmeldenButton(FFProject project) {
       final msg = interpolateVar([
         _jsonBodyVar(ctx, r'$.message', button.key),
       ]);
-      return Actions.chain([snackBarFrom(msg)]);
+      // Chain: snackbar (success message) → reload detail
+      final snackChain = Actions.chain([snackBarFrom(msg)]);
+      var tail = snackChain;
+      while (tail.hasFollowUpAction()) tail = tail.followUpAction;
+      tail.followUpAction = reloadNode;
+      return snackChain;
     },
     onFailure: (ctx) {
       // Toon HTTP status + raw body zodat we precies zien wat de server stuurt.
@@ -14940,6 +15036,177 @@ void _wireBumpUnreadOnAllChatSends(FFProject project) {
     pageName: 'GroupChatPage',
     sendBtnKey: 'IconButton_tgwfn8d7',
   );
+}
+
+// ─── Chat badge overlay (rood bolletje boven Chats nav-icoon) ────────────────
+
+const String _kChatBadgeOverlayCode = r'''
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '/auth/firebase_auth/auth_util.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/app_state.dart';
+
+class ChatBadgeOverlay extends StatelessWidget {
+  const ChatBadgeOverlay({
+    super.key,
+    this.width,
+    this.height,
+    this.count,
+  });
+
+  final double? width;
+  final double? height;
+  final int? count;
+
+  @override
+  Widget build(BuildContext context) {
+    // Self-subscribe to FFAppState so we re-render zonder afhankelijk te zijn
+    // van of de parent page `context.watch<FFAppState>()` heeft. Belangrijk:
+    // dit overschrijft de `count` param waarde — we lezen altijd live uit
+    // AppState.
+    final state = context.watch<FFAppState>();
+    return _buildBadge(context, state.unreadChatCount);
+  }
+
+  Widget _buildBadge(BuildContext context, int liveCount) {
+    if (liveCount <= 0) return const SizedBox.shrink();
+
+    final label = liveCount > 99 ? '99+' : '$liveCount';
+    final mq = MediaQuery.of(context);
+    final screenWidth = mq.size.width;
+    // 6 NavBar tabs: Dashboard, Wedstrijden, Rijschema, Bardienst, Chats, Profiel.
+    // Chats is index 4 (0-based). Tab center = (idx + 0.5) * tabWidth.
+    final tabWidth = screenWidth / 6.0;
+    final chatTabCenterX = tabWidth * 4.5;
+
+    return IgnorePointer(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: chatTabCenterX + 4,
+            bottom: 4,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white, width: 1.5),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 3, offset: Offset(0, 1)),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+''';
+
+void _ensureChatBadgeOverlayWidget(FFProject project) {
+  if (findCustomWidget(project, name: 'ChatBadgeOverlay') == null) {
+    addCustomWidget(
+      project,
+      name: 'ChatBadgeOverlay',
+      description:
+          'Rood unread-count bolletje boven het Chats-icoontje van de NavBar (overlay op page body via Stack).',
+      parameters: [
+        FFParameter(
+          identifier: FFIdentifier(name: 'count'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Integer),
+        ),
+      ],
+      code: _kChatBadgeOverlayCode,
+    );
+  } else {
+    updateCustomWidget(
+      project,
+      name: 'ChatBadgeOverlay',
+      code: _kChatBadgeOverlayCode,
+    );
+  }
+}
+
+// Wraps the page body in a Stack with the badge overlay as the second child.
+// Idempotent: skips if the overlay is already mounted on the page.
+void _addChatBadgeOverlayToPage(FFProject project, String pageName) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+
+  if (findDescendants(wc.node, (n) => n.name == 'ChatBadgeOverlay').isNotEmpty) {
+    return;
+  }
+
+  final widget = findCustomWidget(project, name: 'ChatBadgeOverlay');
+  if (widget == null) return;
+
+  final unreadId = _findAppStateFieldId(project, 'unreadChatCount');
+  if (unreadId == null) return;
+
+  final bodyChild = getPropertyChild(wc.node, 'body');
+  if (bodyChild == null) return;
+
+  final overlay = UI.customWidget(
+    widget,
+    name: 'ChatBadgeOverlay',
+    params: {
+      'count': VariableParamValue(varFromAppState(unreadId.deepCopy())),
+    },
+  );
+
+  // Als de body al een Stack is → gewoon toevoegen. Anders een wrappende
+  // Stack bouwen met [originele body, overlay].
+  if (bodyChild.type == FFWidgetType.Stack) {
+    bodyChild.children.add(overlay);
+    return;
+  }
+
+  final stack = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.Stack,
+    name: '${pageName}BodyStack',
+    props: FFWidgetProperties(),
+    children: [bodyChild, overlay],
+  );
+
+  final idx = wc.node.children.indexWhere((n) => n.key == bodyChild.key);
+  if (idx >= 0) {
+    wc.node.children[idx] = stack;
+  } else {
+    wc.node.children.add(stack);
+  }
+  wc.node.childPropertyMap['body'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: stack.key)],
+  );
+}
+
+void _wireChatBadgeOverlayOnAllMainPages(FFProject project) {
+  _ensureChatBadgeOverlayWidget(project);
+  const pages = [
+    'DashboardPage',
+    'WedstrijdenPage',
+    'BardienPage',
+    'RijschemaPage',
+    'ChatsPage',
+    'ProfielPage',
+  ];
+  for (final p in pages) {
+    _addChatBadgeOverlayToPage(project, p);
+  }
 }
 
 // ─── Hamburger menu / App Drawer ─────────────────────────────────────────────
