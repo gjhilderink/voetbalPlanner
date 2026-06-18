@@ -214,10 +214,11 @@ void buildEditFlow(App app) {
 
     // Highlight the user's own name within the "Leden" (bardienst) and
     // "Rijders" (rijschema) lists on the detail pages — green pill where
-    // the name appears.
+    // the name appears. (_wireOwnNameHighlight runs in a later raw block,
+    // AFTER _wireBardienDetailPageUI / _wireRijschemaDetailPageUI rebuild
+    // their info columns — otherwise the swap is overwritten each push.)
     _removeOwnNameChip(project, 'BardienDetailPage');
     _removeOwnNameChip(project, 'RijschemaDetailPage');
-    _wireOwnNameHighlight(project);
 
     // Bardiensten: filter by member's team + update onLoad
     _setupBardienFilter(project);
@@ -778,6 +779,10 @@ void buildEditFlow(App app) {
     _wireRijschemaCardDriverRow(project);
   });
 
+  // Highlight eigen naam in Leden / Rijders lijst — moet na de detail-page UI
+  // rebuilds lopen anders herschrijft die de gehighlighte tree weer terug.
+  app.raw((project) => _wireOwnNameHighlight(project));
+
   // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons into MatchInfoColumn.
   app.raw((project) => _wireMatchSwap(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
@@ -844,6 +849,22 @@ void buildEditFlow(App app) {
   // Hamburger menu / Drawer on every main NavBar page. Runs after all pages
   // are wired so Navigate-targets exist when the drawer tiles are built.
   app.raw((project) => _wireAppDrawerOnAllMainPages(project));
+
+  // WatchUnreadChatCount op alle hoofdpagina's zodat de Firestore-listener
+  // start ongeacht waar de gebruiker cold-start of na user-switch arriveert.
+  app.raw((project) {
+    const pages = [
+      'DashboardPage',
+      'WedstrijdenPage',
+      'BardienPage',
+      'RijschemaPage',
+      'ChatsPage',
+      'ProfielPage',
+    ];
+    for (final p in pages) {
+      _wireWatchUnreadOnPageLoad(project, p);
+    }
+  });
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
@@ -2356,6 +2377,90 @@ Future<void> unsubscribeFromTeamTopic(String? teamId) async {
     updateCustomAction(project, name: 'GetOrCreateStaffGroupConversation', code: _kGetOrCreateStaffGroupConvCode);
   }
 
+  // ── InitializeGroupConversation ──────────────────────────────────────────
+  // Voor reguliere chatgroepen (CreateChatGroup → chatGroups collectie).
+  // Wordt aangeroepen op GroupChatPage onLoad. Reads pendingGroupId from
+  // FFAppState (staged door de chip-tap die naar deze page navigeert), of
+  // valt terug op de huidige FFAppState().currentConversationId als die al
+  // op group_<id> formaat staat.
+  // - Ensures chatConversations/group_<groupId> bestaat met teamId +
+  //   participantIds zodat de WatchUnreadChatCount streams het oppikken.
+  // - Sets FFAppState().currentConversationId = 'group_<groupId>'.
+  const _kInitGroupConvCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<void> initializeGroupConversation(String? groupId) async {
+  final id = (groupId ?? '').trim();
+  if (id.isEmpty) return;
+
+  final convId  = 'group_$id';
+  final myEmail = FFAppState().userEmail;
+  final fs      = FirebaseFirestore.instance;
+
+  // Lookup chatGroups/{id} voor teamId + members.
+  String? teamId;
+  List<String> members = const [];
+  try {
+    final snap = await fs.collection('chatGroups').doc(id).get();
+    if (snap.exists) {
+      final data = snap.data() ?? {};
+      teamId = data['teamId'] as String?;
+      final raw = data['members'];
+      if (raw is List) {
+        members = raw.whereType<String>().toList();
+      }
+    }
+  } catch (_) {}
+
+  // Build payload — write een minimal complete doc; merge:true zorgt dat
+  // bestaande velden (unreadCount, lastMessage, ...) intact blijven.
+  final payload = <String, dynamic>{
+    'conversationId': convId,
+    'type':           'group',
+    if (teamId != null && teamId.isNotEmpty) 'teamId': teamId,
+  };
+  if (members.isNotEmpty) {
+    payload['participantIds'] = FieldValue.arrayUnion(members);
+  } else if (myEmail.isNotEmpty) {
+    payload['participantIds'] = FieldValue.arrayUnion([myEmail]);
+  }
+
+  try {
+    await fs.collection('chatConversations').doc(convId)
+        .set(payload, SetOptions(merge: true));
+  } catch (_) {}
+
+  FFAppState().update(() {
+    FFAppState().currentConversationId = convId;
+  });
+}
+''';
+  if (findCustomAction(project, name: 'InitializeGroupConversation') == null) {
+    addCustomAction(
+      project,
+      name: 'InitializeGroupConversation',
+      description:
+          'Initialiseert de chatConversations doc voor een reguliere chatgroep en zet currentConversationId.',
+      arguments: [
+        FFParameter(
+          identifier: FFIdentifier(name: 'groupId'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
+      ],
+      code: _kInitGroupConvCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'InitializeGroupConversation', code: _kInitGroupConvCode);
+  }
+
   // ── BumpConversationUnread ──────────────────────────────────────────────────
   // Increments chatConversations.unreadCount + hasUnread for the conversation
   // pointed to by FFAppState().currentConversationId. Called after a message is
@@ -2373,19 +2478,51 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> bumpConversationUnread() async {
-  final convId = FFAppState().currentConversationId;
+  final convId  = FFAppState().currentConversationId;
   if (convId.isEmpty) return;
 
-  final text = FFAppState().pendingMessageText;
-  await FirebaseFirestore.instance
-      .collection('chatConversations')
-      .doc(convId)
-      .set({
+  final text    = FFAppState().pendingMessageText;
+  final myEmail = FFAppState().userEmail;
+  final teamId  = FFAppState().currentTeamId;
+
+  final fs = FirebaseFirestore.instance;
+
+  // Voor reguliere groepschats (convId begint met 'group_'): probeer members
+  // op te halen uit chatGroups zodat participantIds breed wordt gevuld. Dit
+  // helpt de WatchUnreadChatCount listener bij ontvangers die nog niet in
+  // participantIds stonden.
+  final payload = <String, dynamic>{
     'unreadCount': FieldValue.increment(1),
     'hasUnread': true,
     if (text.isNotEmpty) 'lastMessage': text,
     'lastMessageAt': FieldValue.serverTimestamp(),
-  }, SetOptions(merge: true));
+    if (teamId.isNotEmpty) 'teamId': teamId,
+    if (myEmail.isNotEmpty) 'participantIds': FieldValue.arrayUnion([myEmail]),
+  };
+
+  if (convId.startsWith('group_')) {
+    final groupId = convId.substring('group_'.length);
+    try {
+      final snap = await fs.collection('chatGroups').doc(groupId).get();
+      if (snap.exists) {
+        final data = snap.data() ?? {};
+        final raw = data['members'];
+        if (raw is List) {
+          final members = raw.whereType<String>().toList();
+          if (members.isNotEmpty) {
+            payload['participantIds'] = FieldValue.arrayUnion(members);
+          }
+        }
+        final groupTeamId = data['teamId'];
+        if (groupTeamId is String && groupTeamId.isNotEmpty) {
+          payload['teamId'] = groupTeamId;
+        }
+      }
+    } catch (_) {}
+  }
+
+  await fs.collection('chatConversations').doc(convId)
+      .set(payload, SetOptions(merge: true));
 }
 ''';
   if (findCustomAction(project, name: 'BumpConversationUnread') == null) {
@@ -2415,35 +2552,103 @@ import 'package:flutter/material.dart';
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+class _UnreadChatWatcher {
+  static StreamSubscription? _byParticipantsSub;
+  static StreamSubscription? _byTeamSub;
+  static String _lastEmail = '';
+  static String _lastTeamId = '';
+
+  // Per stream cached counts; total is sum across streams (de-duped by docId).
+  static final Map<String, int> _counts = {};
+
+  static void _publish() {
+    int total = 0;
+    for (final v in _counts.values) total += v;
+    FFAppState().unreadChatCount = total;
+    FFAppState().update(() {});
+  }
+
+  static int _readCount(Map<String, dynamic> data) {
+    final raw = data['unreadCount'];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return 0;
+  }
+}
 
 Future<void> watchUnreadChatCount() async {
   final userEmail = FFAppState().userEmail;
+  final teamId    = FFAppState().currentTeamId;
+
+  // No user → reset and bail.
   if (userEmail.isEmpty) {
+    await _UnreadChatWatcher._byParticipantsSub?.cancel();
+    await _UnreadChatWatcher._byTeamSub?.cancel();
+    _UnreadChatWatcher._byParticipantsSub = null;
+    _UnreadChatWatcher._byTeamSub = null;
+    _UnreadChatWatcher._counts.clear();
     FFAppState().unreadChatCount = 0;
     FFAppState().update(() {});
     return;
   }
 
-  // Listener is registered once via FirebaseFirestore's internal stream cache.
-  // We use a Future.delayed(0) wrapper so the listen() call does not block.
-  FirebaseFirestore.instance
+  // Already watching for this user+team → keep existing listeners alive.
+  if (_UnreadChatWatcher._lastEmail == userEmail
+      && _UnreadChatWatcher._lastTeamId == teamId
+      && (_UnreadChatWatcher._byParticipantsSub != null
+          || _UnreadChatWatcher._byTeamSub != null)) {
+    return;
+  }
+
+  // User or team changed → reset and rebuild subscriptions.
+  await _UnreadChatWatcher._byParticipantsSub?.cancel();
+  await _UnreadChatWatcher._byTeamSub?.cancel();
+  _UnreadChatWatcher._byParticipantsSub = null;
+  _UnreadChatWatcher._byTeamSub = null;
+  _UnreadChatWatcher._counts.clear();
+  _UnreadChatWatcher._lastEmail = userEmail;
+  _UnreadChatWatcher._lastTeamId = teamId;
+
+  final fs = FirebaseFirestore.instance;
+
+  // Stream A — conversations I explicitly participate in (direct/group/staff
+  // chats once the user opens them once and gets added to participantIds).
+  _UnreadChatWatcher._byParticipantsSub = fs
       .collection('chatConversations')
       .where('participantIds', arrayContains: userEmail)
       .snapshots()
       .listen((snap) {
     int total = 0;
     for (final doc in snap.docs) {
-      final raw = doc.data()['unreadCount'];
-      if (raw is int) {
-        total += raw;
-      } else if (raw is num) {
-        total += raw.toInt();
-      }
+      total += _UnreadChatWatcher._readCount(doc.data());
     }
-    FFAppState().unreadChatCount = total;
-    FFAppState().update(() {});
-  });
+    _UnreadChatWatcher._counts['participants'] = total;
+    _UnreadChatWatcher._publish();
+  }, onError: (Object _) {});
+
+  // Stream B — team chats for my currentTeamId (catch-all in case the user
+  // is not yet in participantIds for the team conversation). Sums unreadCount
+  // for any conversation tagged with this team.
+  if (teamId.isNotEmpty) {
+    _UnreadChatWatcher._byTeamSub = fs
+        .collection('chatConversations')
+        .where('teamId', isEqualTo: teamId)
+        .snapshots()
+        .listen((snap) {
+      int total = 0;
+      for (final doc in snap.docs) {
+        // Skip conversations also covered by stream A to avoid double-counting.
+        final participants = doc.data()['participantIds'];
+        if (participants is List && participants.contains(userEmail)) continue;
+        total += _UnreadChatWatcher._readCount(doc.data());
+      }
+      _UnreadChatWatcher._counts['team'] = total;
+      _UnreadChatWatcher._publish();
+    }, onError: (Object _) {});
+  }
 }
 ''';
   if (findCustomAction(project, name: 'WatchUnreadChatCount') == null) {
@@ -2865,17 +3070,25 @@ class HighlightedNameList extends StatelessWidget {
           }
           return Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFBBF7D0),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: theme.primary, width: 1.5),
             ),
-            child: Text(
-              name,
-              style: theme.bodyMedium.copyWith(
-                color: theme.primary,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.person, size: 14, color: theme.primary),
+                const SizedBox(width: 4),
+                Text(
+                  name,
+                  style: theme.bodyMedium.copyWith(
+                    color: theme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           );
         }).toList(),
@@ -5475,9 +5688,19 @@ void _addSwapEndpoints(FFProject project) {
   addIfMissing(
     name:      'SelfAssignBarDuty',
     url:       '/bar-duties/[dutyId]/self-assign',
-    method:    FFApiEndpoint_CallType.PATCH,
+    method:    FFApiEndpoint_CallType.POST,
     variables: {'dutyId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
   );
+  // Idempotent: als endpoint al bestond met method PATCH (vorige push) →
+  // force-update naar POST.
+  if (existing.contains('SelfAssignBarDuty')) {
+    updateApiEndpoint(
+      project,
+      name:      'SelfAssignBarDuty',
+      groupName: 'VoetbalPlannerAPI',
+      method:    FFApiEndpoint_CallType.POST,
+    );
+  }
 
   addIfMissing(
     name:                   'GetBranding',
@@ -7961,6 +8184,40 @@ void _addBardienAanmeldenButton(FFProject project) {
   final button = UI.button('Aanmelden', name: 'DutyAanmeldenButton');
   setConditionalVisibility(button, variable: visibleVar);
 
+  // Build a snackBar action whose textMessage is a runtime variable (so we can
+  // surface the server-side error message). interpolateVar returns FFStringValue,
+  // FFValue accepts an FFVariable — extract it via .variable.
+  FFAction snackBarFrom(FFStringValue interpolated) => FFAction(
+        key: generateRandomAlphaNumericString(),
+        snackBar: FFSnackBarAction(
+          textMessage: FFValue(variable: interpolated.variable),
+          durationMillis: 6000,
+        ),
+      );
+
+  // Reads a single API-response-field variable (status code, raw body, etc.)
+  // from the running action's output for use inside a snackbar interpolation.
+  FFVariable apiField(
+      dynamic ctx, FFApiResponseField_ResponseField field, String nodeKey) {
+    final actionKey = (ctx as dynamic).actionKey as String;
+    final outputVarName = (ctx as dynamic).outputVarName as String;
+    return FFVariable(
+      source: FFVariableSource.ACTION_OUTPUTS,
+      baseVariable: FFBaseVariable(
+        actionOutput: FFActionOutputVariable(
+          actionKeyRef: FFActionKeyReference(key: actionKey),
+          outputVariableIdentifier: FFIdentifier(name: outputVarName),
+        ),
+      ),
+      operations: [
+        FFVariableOperation(
+          apiResponseField: FFApiResponseField(responseField: field),
+        ),
+      ],
+      nodeKeyRef: FFNodeKeyReference(key: nodeKey),
+    );
+  }
+
   // Build the API call AFTER the button exists so nodeKey points at the button.
   final selfAssignNodeForBtn = Actions.apiCallNode(
     project,
@@ -7971,12 +8228,22 @@ void _addBardienAanmeldenButton(FFProject project) {
     },
     outputVariableName: 'selfAssign',
     nodeKey: button.key,
-    onSuccess: (ctx) => Actions.chain([
-      Actions.snackBar('Je bent aangemeld voor deze bardienst.'),
-    ]),
-    onFailure: (ctx) => Actions.chain([
-      Actions.snackBar('Aanmelden mislukt.'),
-    ]),
+    onSuccess: (ctx) {
+      final msg = interpolateVar([
+        _jsonBodyVar(ctx, r'$.message', button.key),
+      ]);
+      return Actions.chain([snackBarFrom(msg)]);
+    },
+    onFailure: (ctx) {
+      // Toon HTTP status + raw body zodat we precies zien wat de server stuurt.
+      final msg = interpolateVar([
+        'Aanmelden mislukt [',
+        apiField(ctx, FFApiResponseField_ResponseField.STATUS_CODE, button.key),
+        ']: ',
+        apiField(ctx, FFApiResponseField_ResponseField.RAW_BODY_TEXT, button.key),
+      ]);
+      return Actions.chain([snackBarFrom(msg)]);
+    },
   );
   Actions.addTriggerChain(button, FFActionTriggerType.ON_TAP, selfAssignNodeForBtn);
 
@@ -14604,6 +14871,59 @@ void _appendBumpUnreadToChatSend({
   tail.followUpAction = bumpNode;
 }
 
+// Ensures the WatchUnreadChatCount custom action fires on a page's onLoad
+// (appended to an existing chain if present, otherwise as a single-node chain).
+// Idempotent: skips if the custom action is already invoked in the page's
+// ON_INIT_STATE chain.
+void _wireWatchUnreadOnPageLoad(FFProject project, String pageName) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+
+  final watch = findCustomAction(project, name: 'WatchUnreadChatCount');
+  if (watch == null) return;
+
+  bool chainHasWatch(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasCustomAction() &&
+        n.action.customAction.customActionIdentifier.name ==
+            'WatchUnreadChatCount') {
+      return true;
+    }
+    if (n.hasFollowUpAction() && chainHasWatch(n.followUpAction)) return true;
+    return false;
+  }
+
+  // Find existing ON_INIT_STATE trigger.
+  final initTriggerIdx = wc.node.triggerActions.indexWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  FFActionNode watchNode() => FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: watch.identifier.deepCopy(),
+            argumentValues: FFFunctionCallValues(),
+          ),
+        ),
+      );
+
+  if (initTriggerIdx < 0) {
+    Actions.onPageLoadChain(wc.node, watchNode());
+    return;
+  }
+
+  final tap = wc.node.triggerActions[initTriggerIdx];
+  if (!tap.hasRootAction()) return;
+  if (chainHasWatch(tap.rootAction)) return;
+
+  // Append at the tail of the existing chain.
+  FFActionNode tail = tap.rootAction;
+  while (tail.hasFollowUpAction()) tail = tail.followUpAction;
+  tail.followUpAction = watchNode();
+}
+
 void _wireBumpUnreadOnAllChatSends(FFProject project) {
   _appendBumpUnreadToChatSend(
     project: project,
@@ -14723,12 +15043,12 @@ FFNode _buildAppDrawerNode(FFProject project) {
     name: 'DrawerHeaderColumn',
     crossAxisAlignment: UICrossAxisAlignment.start,
     spacing: 8,
+    padding: UIEdgeInsets.all(5),
     children: [avatar, nameText, emailText],
   );
 
   final header = UI.container(
     name: 'DrawerHeader',
-    padding: UIEdgeInsets.only(left: 16, top: 48, right: 16, bottom: 16),
     width: double.infinity,
     child: headerColumn,
   );

@@ -1016,6 +1016,7 @@ abstract final class CustomCode {
     "GetAppUsersAsMembers",
     "GetOrCreateDirectConversation",
     "GetOrCreateStaffGroupConversation",
+    "InitializeGroupConversation",
     "InitializeTeamConversation",
     "LoadGroupMemberNames",
     "LoginWithCredentials",
