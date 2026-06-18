@@ -13,6 +13,7 @@ use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 
@@ -172,7 +173,7 @@ class BarDutyPlanner extends Page
                             ->label('Leden (max. 2)')
                             ->multiple()
                             ->maxItems(2)
-                            ->options(fn(Forms\Get $get) => Member::query()
+                            ->options(fn(Get $get) => Member::query()
                                 ->when(
                                     $get('team_id'),
                                     fn($q, $tid) => $q->whereHas('teams', fn($t) => $t->where('teams.id', $tid)),
@@ -231,14 +232,14 @@ class BarDutyPlanner extends Page
                         ->label('Leden (max. 2)')
                         ->multiple()
                         ->maxItems(2)
-                        ->options(fn(Forms\Get $get) => $get('duty_id')
+                        ->options(fn(Get $get) => $get('duty_id')
                             ? Member::whereHas('teams', fn($q) => $q->where(
                                 'teams.id',
                                 BarDuty::find($get('duty_id'))?->team_id
                             ))->where('is_active', true)->orderBy('name')->pluck('name', 'id')->all()
                             : []
                         )
-                        ->default(fn(Forms\Get $get) => $get('duty_id')
+                        ->default(fn(Get $get) => $get('duty_id')
                             ? BarDuty::find($get('duty_id'))?->members->pluck('id')->all()
                             : []
                         )
