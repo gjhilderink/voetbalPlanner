@@ -812,6 +812,28 @@ void buildEditFlow(App app) {
   app.raw((project) => _addBannerToWedstrijdenPage(project));
   app.raw((project) => _addBannerToBardienPage(project));
 
+  // ── Nieuwsfeed feature ────────────────────────────────────────────────────
+  try {
+    app.struct('NewsItem', {
+      'id':            string,
+      'title':         string,
+      'subtitle':      string,
+      'body':          string,
+      'imageUrl':      string,
+      'category':      string,
+      'categoryLabel': string,
+      'publishedAt':   string,
+      'daysOld':       int_,
+    });
+  } catch (_) {}
+  app.raw((project) => _addNewsEndpoint(project));
+  _buildNewsPage(app);
+  app.raw((project) {
+    _ensureNewsPageNewsItemsState(project);
+    _wireNewsPageLoad(project);
+    _buildNewsListBody(project);
+  });
+
   // ── Dashboard page ─────────────────────────────────────────────────────────────
   // Shows upcoming wedstrijden + bardiensten on one screen; home icon in NavBar.
   _buildDashboardPage(app, ff.Structs.footMatch, ff.Structs.barDuty);
@@ -9150,6 +9172,285 @@ void _addBannerEndpoint(FFProject project) {
   );
 }
 
+// ─── Nieuwsfeed feature ─────────────────────────────────────────────────────
+
+void _addNewsEndpoint(FFProject project) {
+  const groupName    = 'VoetbalPlannerAPI';
+  const endpointName = 'GetNews';
+  if (findApiEndpoint(project, name: endpointName, groupName: groupName) != null) return;
+
+  addEndpointToGroup(
+    project,
+    groupName:                groupName,
+    name:                     endpointName,
+    url:                      '/news',
+    method:                   FFApiEndpoint_CallType.GET,
+    bodyType:                 FFApiEndpoint_BodyType.NONE,
+    headers:                  ['Authorization: Bearer [bearerToken]'],
+    responseDataStructName:   'NewsItem',
+    responseDataStructIsList: true,
+  );
+}
+
+// Build NewsPage skeleton. State field 'newsItems' (List<NewsItem>) wordt via
+// raw mutation toegevoegd (_ensureNewsPageNewsItemsState) zodat de eerste push
+// niet afhankelijk is van een typed SDK refresh voor ff.Structs.newsItem.
+void _buildNewsPage(App app) {
+  app.ensurePage(
+    'NewsPage',
+    description: 'Nieuwsfeed van de club met titel, datum, categorie, afbeelding en tekst.',
+    route: 'nieuws',
+    state: {
+      'isLoading': bool_.withDefault(true),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Nieuws'),
+      body: Column(
+        name: 'NewsRootColumn',
+        children: [
+          Container(name: 'NewsBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+}
+
+// Ensures the NewsPage has a state field 'newsItems' typed as List<NewsItem>.
+void _ensureNewsPageNewsItemsState(FFProject project) {
+  final wc = findPage(project, name: 'NewsPage');
+  if (wc == null) return;
+  final exists = wc.classModel.stateFields.any(
+    (f) => f.parameter.identifier.name == 'newsItems',
+  );
+  if (exists) return;
+
+  final struct = findDataStruct(project, name: 'NewsItem');
+  if (struct == null) return;
+
+  final param = FFParameter(
+    identifier: FFIdentifier(
+      name: 'newsItems',
+      key: generateRandomAlphaNumericString(),
+    ),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  wc.classModel.stateFields.add(FFWidgetClassStateField(parameter: param));
+}
+
+// Wires GetNews onLoad: stores response in newsItems state + clears isLoading.
+void _wireNewsPageLoad(FFProject project) {
+  final wc = findPage(project, name: 'NewsPage');
+  if (wc == null) return;
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetNews',
+      groupName: 'VoetbalPlannerAPI',
+      outputVariableName: 'newsLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'NewsPage',
+          updates: [
+            StateFieldUpdate.set('isLoading', 'false'),
+            StateFieldUpdate.setFromVariable('newsItems', ctx.responseVar),
+          ],
+        ),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'NewsPage',
+          updates: [StateFieldUpdate.set('isLoading', 'false')],
+        ),
+        Actions.snackBar('Kon nieuws niet laden.'),
+      ]),
+    ),
+  );
+}
+
+// Build the body of NewsPage: scrollable Column with a dynamic ListView of news
+// cards (titel + dagen-oud subtitle + category-chip + image + body text).
+void _buildNewsListBody(FFProject project) {
+  final wc = findPage(project, name: 'NewsPage');
+  if (wc == null) return;
+  final rootCol = findDescendants(wc.node, (n) => n.name == 'NewsRootColumn').firstOrNull;
+  if (rootCol == null) return;
+
+  // Idempotent: skip when list already built.
+  if (findDescendants(wc.node, (n) => n.name == 'NewsList').isNotEmpty) return;
+
+  // Make the root column scrollable.
+  if (!rootCol.props.column.scrollable) {
+    final colCopy = rootCol.props.column.deepCopy();
+    colCopy.scrollable = true;
+    rootCol.props.column = colCopy;
+  }
+
+  final newsItemsId = _findPageStateFieldId(project, 'NewsPage', 'newsItems');
+  if (newsItemsId == null) return;
+
+  final newsVar = varFromPageState(newsItemsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final listView = UI.listView(
+    name: 'NewsList',
+    spacing: 12,
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    dynamicSource: DynamicSource(variable: newsVar, itemName: 'news'),
+  );
+  // shrinkWrap so it works inside a scrollable Column.
+  final lvCopy = listView.props.listView.deepCopy();
+  lvCopy.shrinkWrapValue = FFBooleanValue(inputValue: true);
+  listView.props.listView = lvCopy;
+
+  // Title (large, bold)
+  final titleText = UI.text('', name: 'NewsCardTitle', style: UITextStyle.titleMedium);
+  titleText.props.text.textValue = FFStringValue(
+    variable: generatorVarField(listView.key, 'title'),
+  );
+
+  // Subtitle (X dagen geleden)
+  final subtitleText = UI.text('', name: 'NewsCardSubtitle', style: UITextStyle.bodySmall);
+  subtitleText.props.text.textValue = FFStringValue(
+    variable: generatorVarField(listView.key, 'subtitle'),
+  );
+  final subTxt = subtitleText.props.text.deepCopy();
+  subTxt.colorValue = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT),
+  );
+  subtitleText.props.text = subTxt;
+
+  // Category chip — small pill with categoryLabel.
+  final categoryText = UI.text('', name: 'NewsCardCategoryText', style: UITextStyle.labelSmall);
+  categoryText.props.text.textValue = FFStringValue(
+    variable: generatorVarField(listView.key, 'categoryLabel'),
+  );
+  final catTxt = categoryText.props.text.deepCopy();
+  catTxt.colorValue = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY),
+  );
+  categoryText.props.text = catTxt;
+  final categoryChip = UI.container(
+    name: 'NewsCardCategoryChip',
+    padding: UIEdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    borderRadius: 10,
+    child: categoryText,
+  );
+  _setContainerColor(
+    categoryChip,
+    FFColorValue(inputValue: FFColor(value: Int64(0xFFDCFCE7))),
+  );
+  // Wrap in a Row so the chip doesn't stretch to full width.
+  final categoryRow = UI.row(
+    name: 'NewsCardCategoryRow',
+    mainAxisAlignment: UIMainAxisAlignment.start,
+    children: [categoryChip],
+  );
+
+  // Image — visible only when imageUrl is non-empty.
+  final imageNode = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.Image,
+    name: 'NewsCardImage',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type:       FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue:  FFStringValue(
+          variable: generatorVarField(listView.key, 'imageUrl'),
+        ),
+        fit:        FFBoxFit.FF_BOX_FIT_COVER,
+        cached:     true,
+        dimensions: FFDimensions(
+          width:  FFDim(pixelsValue: FFDoubleValue(inputValue: double.infinity)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 180.0)),
+        ),
+      ),
+    ),
+  );
+  setConditionalVisibility(
+    imageNode,
+    variable: conditionVar(
+      generatorVarField(listView.key, 'imageUrl'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable,
+  );
+
+  // Body text
+  final bodyText = UI.text('', name: 'NewsCardBody', style: UITextStyle.bodyMedium);
+  bodyText.props.text.textValue = FFStringValue(
+    variable: generatorVarField(listView.key, 'body'),
+  );
+
+  // Card container — secondary background with rounded corners.
+  final card = UI.container(
+    name: 'NewsCard',
+    padding: UIEdgeInsets.all(14),
+    borderRadius: 10,
+    color: UIColor.secondaryBackground,
+    child: UI.column(
+      name: 'NewsCardColumn',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 8,
+      children: [
+        titleText,
+        subtitleText,
+        categoryRow,
+        imageNode,
+        bodyText,
+      ],
+    ),
+  );
+
+  listView.children.add(card);
+
+  // Empty-state text — shown only when there are no items.
+  final emptyText = UI.text(
+    'Nog geen nieuws beschikbaar.',
+    name: 'NewsEmptyText',
+    style: UITextStyle.bodyMedium,
+  );
+  final emptyTxt = emptyText.props.text.deepCopy();
+  emptyTxt.colorValue = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT),
+  );
+  emptyText.props.text = emptyTxt;
+  final emptyContainer = UI.container(
+    name: 'NewsEmptyContainer',
+    padding: UIEdgeInsets.all(24),
+    child: emptyText,
+  );
+  final lengthVar = varFromPageState(newsItemsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)
+    ..operations.add(FFVariableOperation(listNumItems: FFListNumItems()));
+  final emptyVar = FFVariable(
+    source: FFVariableSource.FUNCTION_CALL,
+    functionCall: FFFunctionCall(
+      condition: FFCondition(relation: FFCondition_Relation.EQUAL_TO),
+      values: [
+        FFValue(variable: lengthVar),
+        FFValue(inputValue: FFParameterValue(serializedValue: '0')),
+      ],
+    ),
+  );
+  setConditionalVisibility(emptyContainer, variable: emptyVar);
+
+  // Replace placeholder with listView + empty-state.
+  final placeholder = findDescendants(rootCol, (n) => n.name == 'NewsBodyPlaceholder').firstOrNull;
+  if (placeholder != null) removeByKey(rootCol, placeholder.key);
+  rootCol.children.add(listView);
+  rootCol.children.add(emptyContainer);
+}
+
 // Adds bannerImageUrl/bannerLinkUrl state fields to WedstrijdenPage and inserts
 // a banner Image widget before WelcomeGreetingContainer. Wires the GetBanners
 // API call as an additive page-load trigger so the existing matches load is unaffected.
@@ -15341,6 +15642,7 @@ FFNode _buildAppDrawerNode(FFProject project) {
   }
 
   final homeTile = tile('DrawerTileHome', 'Home', 'home', 'DashboardPage');
+  final newsTile = tile('DrawerTileNews', 'Nieuws', 'newspaper', 'NewsPage');
   final docsTile = tile('DrawerTileDocs', 'Handleiding', 'menu_book', 'DocumentatiePage');
   final profileTile = tile('DrawerTileProfiel', 'Profiel', 'person', 'ProfielPage');
   final bugTile = tile('DrawerTileBug', 'Bug melden', 'bug_report', 'BugReportPage');
@@ -15352,6 +15654,7 @@ FFNode _buildAppDrawerNode(FFProject project) {
     children: [
       header,
       homeTile,
+      newsTile,
       docsTile,
       profileTile,
       bugTile,

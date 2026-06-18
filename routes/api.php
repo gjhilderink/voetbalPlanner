@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\NewsItemController;
 use App\Http\Controllers\Api\StaffGroupController;
 use App\Http\Controllers\Api\SwapRequestController;
 use App\Http\Controllers\Api\SyncController;
@@ -109,6 +110,10 @@ Route::prefix('v1')->group(function () {
 
         // Banners
         Route::get('/banners', [BannerController::class, 'index']);
+
+        // Nieuws
+        Route::get('/news', [NewsItemController::class, 'index']);
+        Route::get('/news/{newsItem}', [NewsItemController::class, 'show']);
 
         // Teams
         Route::get('/teams', [TeamController::class, 'index']);

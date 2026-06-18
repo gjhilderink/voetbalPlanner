@@ -182,6 +182,21 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final newsItem = ffai.StructHandle(
+    "NewsItem",
+    <String, ffai.DslType>{
+      "body": ffai.string,
+      "category": ffai.string,
+      "categoryLabel": ffai.string,
+      "daysOld": ffai.int_,
+      "id": ffai.string,
+      "imageUrl": ffai.string,
+      "publishedAt": ffai.string,
+      "subtitle": ffai.string,
+      "title": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final staffGroupItem = ffai.StructHandle(
     "StaffGroupItem",
     <String, ffai.DslType>{
@@ -241,6 +256,7 @@ abstract final class Structs {
     loginData,
     loginResponse,
     matchGoal,
+    newsItem,
     staffGroupItem,
     swapMember,
     swapRequest,
