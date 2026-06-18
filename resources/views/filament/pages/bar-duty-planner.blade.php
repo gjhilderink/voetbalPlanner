@@ -96,6 +96,18 @@
 .bdp-act-btn:hover { color:#2563eb; }
 .bdp-act-btn.del:hover { color:#dc2626; }
 .bdp-act-btn svg { width:12px; height:12px; }
+
+.bdp-search     { display:flex; align-items:center; gap:.35rem; margin:.5rem; padding:.35rem .5rem; border-radius:.4rem; border:1px solid #d1d5db; background:#f9fafb; }
+.dark .bdp-search { background:#374151; border-color:#4b5563; }
+.bdp-search svg { width:13px; height:13px; color:#9ca3af; flex-shrink:0; }
+.bdp-search input { border:none; background:transparent; outline:none; font-size:.8rem; color:#374151; width:100%; }
+.dark .bdp-search input { color:#d1d5db; }
+.bdp-search input::placeholder { color:#9ca3af; }
+.bdp-teams-list { padding:.35rem; display:flex; flex-direction:column; gap:.25rem; max-height:340px; overflow-y:auto; }
+.bdp-teams-list::-webkit-scrollbar { width:4px; }
+.bdp-teams-list::-webkit-scrollbar-track { background:transparent; }
+.bdp-teams-list::-webkit-scrollbar-thumb { background:#d1d5db; border-radius:2px; }
+.bdp-no-match   { font-size:.75rem; color:#9ca3af; padding:.25rem .5rem; text-align:center; }
 </style>
 
 {{-- Week navigation --}}
@@ -125,23 +137,44 @@
 >
     {{-- Sidebar --}}
     <div class="bdp-sidebar">
-        <div class="bdp-panel">
+        @php
+            $teamsJson = $this->teams->map(fn($t) => ['id' => $t->id, 'name' => $t->name])->values()->toJson();
+        @endphp
+        <div class="bdp-panel" x-data="{
+            search: '',
+            allTeams: {{ $teamsJson }},
+            get filtered() {
+                if (!this.search) return this.allTeams;
+                const q = this.search.toLowerCase();
+                return this.allTeams.filter(t => t.name.toLowerCase().includes(q));
+            }
+        }">
             <div class="bdp-panel-head" style="background:#16a34a;">Elftallen</div>
-            <div class="bdp-panel-body">
-                @forelse($this->teams as $team)
+            <div class="bdp-search">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 10.607z"/></svg>
+                <input
+                    type="text"
+                    placeholder="Zoeken..."
+                    x-model="search"
+                    autocomplete="off"
+                >
+            </div>
+            <div class="bdp-teams-list">
+                <template x-for="team in filtered" :key="team.id">
                     <div
                         class="bdp-team-chip"
                         draggable="true"
                         title="Sleep naar een blok om in te plannen"
-                        @dragstart="draggingTeamId = '{{ $team->id }}'; dragType = 'team'; $event.dataTransfer.effectAllowed = 'copy';"
+                        @dragstart="draggingTeamId = team.id; dragType = 'team'; $event.dataTransfer.effectAllowed = 'copy';"
                         @dragend="draggingTeamId = null; dragType = null;"
                     >
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
-                        <span>{{ $team->name }}</span>
+                        <span x-text="team.name"></span>
                     </div>
-                @empty
-                    <p style="font-size:.75rem;color:#9ca3af;padding:.25rem;">Geen elftallen</p>
-                @endforelse
+                </template>
+                <p class="bdp-no-match" x-show="filtered.length === 0">
+                    Geen elftallen gevonden
+                </p>
             </div>
         </div>
 
