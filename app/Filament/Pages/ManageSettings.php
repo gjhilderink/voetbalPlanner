@@ -50,8 +50,15 @@ class ManageSettings extends Page
         $clubId = $club?->id;
 
         $this->form->fill([
-            'registration_notification_email' => Setting::get('registration_notification_email', '', null),
-            'registration_notification_subject' => Setting::get('registration_notification_subject', '', null),
+            'registration_notification_email'    => Setting::get('registration_notification_email', '', null),
+            'registration_notification_subject'  => Setting::get('registration_notification_subject', '', null),
+            'smtp_host'         => Setting::get('smtp_host', config('mail.mailers.smtp.host', ''), null),
+            'smtp_port'         => Setting::get('smtp_port', config('mail.mailers.smtp.port', '587'), null),
+            'smtp_encryption'   => Setting::get('smtp_encryption', config('mail.mailers.smtp.encryption', 'tls'), null),
+            'smtp_username'     => Setting::get('smtp_username', config('mail.mailers.smtp.username', ''), null),
+            'smtp_password'     => Setting::get('smtp_password', '', null),
+            'smtp_from_address' => Setting::get('smtp_from_address', config('mail.from.address', ''), null),
+            'smtp_from_name'    => Setting::get('smtp_from_name', config('mail.from.name', ''), null),
             'mcp_enabled'         => filter_var(Setting::get('mcp_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
             'mcp_base_url'        => Setting::get('mcp_base_url', '', $clubId),
             'mcp_api_key'         => Setting::get('mcp_api_key', '', $clubId),
@@ -98,6 +105,44 @@ class ManageSettings extends Page
                             ->placeholder('Nieuwe clubaanvraag: {club_naam}')
                             ->helperText('Gebruik {club_naam} als variabele. Leeg = standaard onderwerp.'),
                     ]),
+
+                Section::make('E-mail / SMTP')
+                    ->description('SMTP-instellingen voor systeemmails (wachtwoord vergeten, notificaties).')
+                    ->visible(fn() => auth()->user()?->hasRole('super_admin') ?? false)
+                    ->schema([
+                        TextInput::make('smtp_host')
+                            ->label('SMTP host')
+                            ->placeholder('smtp.example.com')
+                            ->maxLength(255),
+                        TextInput::make('smtp_port')
+                            ->label('Poort')
+                            ->placeholder('587')
+                            ->numeric(),
+                        Forms\Components\Select::make('smtp_encryption')
+                            ->label('Encryptie')
+                            ->options([
+                                'tls'  => 'TLS (STARTTLS, poort 587)',
+                                'ssl'  => 'SSL (poort 465)',
+                                ''     => 'Geen',
+                            ])
+                            ->default('tls'),
+                        TextInput::make('smtp_username')
+                            ->label('Gebruikersnaam')
+                            ->maxLength(255),
+                        TextInput::make('smtp_password')
+                            ->label('Wachtwoord')
+                            ->password()
+                            ->revealable(),
+                        TextInput::make('smtp_from_address')
+                            ->label('Afzender e-mailadres')
+                            ->email()
+                            ->placeholder('noreply@jouwclub.nl')
+                            ->maxLength(255),
+                        TextInput::make('smtp_from_name')
+                            ->label('Afzender naam')
+                            ->placeholder('VoetbalPlanner')
+                            ->maxLength(255),
+                    ])->columns(2),
 
                 Section::make('Club informatie')
                     ->description('Basisinformatie over de club.')
@@ -288,8 +333,15 @@ class ManageSettings extends Page
         $clubId = filament()->getTenant()?->id;
 
         if (auth()->user()?->hasRole('super_admin')) {
-            Setting::set('registration_notification_email', $data['registration_notification_email'] ?? '', 'system', false, null);
+            Setting::set('registration_notification_email',   $data['registration_notification_email'] ?? '', 'system', false, null);
             Setting::set('registration_notification_subject', $data['registration_notification_subject'] ?? '', 'system', false, null);
+            Setting::set('smtp_host',         $data['smtp_host'] ?? '', 'smtp', false, null);
+            Setting::set('smtp_port',         $data['smtp_port'] ?? '587', 'smtp', false, null);
+            Setting::set('smtp_encryption',   $data['smtp_encryption'] ?? 'tls', 'smtp', false, null);
+            Setting::set('smtp_username',     $data['smtp_username'] ?? '', 'smtp', false, null);
+            Setting::set('smtp_password',     $data['smtp_password'] ?? '', 'smtp', true, null);
+            Setting::set('smtp_from_address', $data['smtp_from_address'] ?? '', 'smtp', false, null);
+            Setting::set('smtp_from_name',    $data['smtp_from_name'] ?? '', 'smtp', false, null);
         }
 
         Setting::set('mcp_enabled', $data['mcp_enabled'] ? '1' : '0', 'mcp', false, $clubId);
