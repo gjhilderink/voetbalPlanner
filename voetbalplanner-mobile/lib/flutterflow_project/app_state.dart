@@ -41,6 +41,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const directConvId = ffai.ProjectAppStateFieldHandle(
+    name: "directConvId",
+    key: "323k47xg",
+    typeName: "String",
+    persisted: false,
+  );
   static const editingChatDocPath = ffai.ProjectAppStateFieldHandle(
     name: "editingChatDocPath",
     key: "2u2thpp6",
@@ -143,6 +149,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const sharedBarDuties = ffai.ProjectAppStateFieldHandle(
+    name: "sharedBarDuties",
+    key: "i3f44xu8",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
   static const unreadChatCount = ffai.ProjectAppStateFieldHandle(
     name: "unreadChatCount",
     key: "6aqxbbzz",
@@ -174,6 +186,7 @@ abstract final class AppState {
     currentConversationId,
     currentTeamId,
     currentTeamName,
+    directConvId,
     editingChatDocPath,
     groupMemberNames,
     hasUnreadTeamChat,
@@ -191,6 +204,7 @@ abstract final class AppState {
     profilePhotoUrl,
     relatiecode,
     secondaryColor,
+    sharedBarDuties,
     unreadChatCount,
     userEmail,
     userName,

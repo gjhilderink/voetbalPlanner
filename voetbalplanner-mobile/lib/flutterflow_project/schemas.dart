@@ -209,6 +209,8 @@ abstract final class Structs {
     "SwapMember",
     <String, ffai.DslType>{
       "email": ffai.string,
+      "externalId": ffai.string,
+      "hasAppAccount": ffai.bool_,
       "id": ffai.string,
       "name": ffai.string,
     },
@@ -707,6 +709,13 @@ final class ChatMessagesFields extends MapBase<String, ffai.DslType> {
 }
 
 final class DirectMessagesFields extends MapBase<String, ffai.DslType> {
+  final conversationId = ffai.ProjectCollectionFieldHandle(
+    name: "conversationId",
+    key: "h3dvcrs7",
+    typeName: "String",
+    type: ffai.string,
+    description: "",
+  );
   final createdAt = ffai.ProjectCollectionFieldHandle(
     name: "createdAt",
     key: "14dp9wer",
@@ -752,6 +761,7 @@ final class DirectMessagesFields extends MapBase<String, ffai.DslType> {
 
   @override
   Iterable<String> get keys => const <String>[
+    "conversationId",
     "createdAt",
     "deleted",
     "receiverId",
@@ -762,6 +772,7 @@ final class DirectMessagesFields extends MapBase<String, ffai.DslType> {
 
   @override
   ffai.DslType? operator [](Object? key) => switch (key) {
+    "conversationId" => conversationId,
     "createdAt" => createdAt,
     "deleted" => deleted,
     "receiverId" => receiverId,
@@ -1027,6 +1038,7 @@ abstract final class CustomCode {
     "AuthenticateBiometric",
     "BumpConversationUnread",
     "ClearBugScreenshots",
+    "ComputeDirectConvId",
     "CreateChatGroup",
     "DeleteChatGroup",
     "GetAppUsersAsMembers",

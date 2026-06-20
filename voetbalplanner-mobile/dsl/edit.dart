@@ -127,7 +127,9 @@ void _buildEditFlowRemoveChatPage(App app) {
     _addUpcomingFilter(project);
     _addWelcomeGreeting(project);
     _setupProfielPage(project);
+    _ensureSharedBarDutiesAppStateField(project);
     _setupBardienFilter(project);
+    _rebindBardienListViewToAppState(project);
     _addChatPageAppBars(project);
     _setupNavBar(project);
     _addMagicLinkInfrastructure(project);
@@ -221,7 +223,9 @@ void buildEditFlow(App app) {
     _removeOwnNameChip(project, 'RijschemaDetailPage');
 
     // Bardiensten: filter by member's team + update onLoad
+    _ensureSharedBarDutiesAppStateField(project);
     _setupBardienFilter(project);
+    _rebindBardienListViewToAppState(project);
 
     // AppBar (+ back button) on chat sub-pages, global NavBar for main pages
     _addChatPageAppBars(project);
@@ -444,15 +448,24 @@ void buildEditFlow(App app) {
     // SwapMember already exists; email field added via raw mutation below.
   } catch (_) {}
 
-  // Ensure SwapMember has email field (needed for deterministic direct-chat conversationId).
+  // Ensure SwapMember has email + external_id + hasAppAccount fields. external_id
+  // (lidnummer) is altijd uniek per lid en wordt gebruikt voor de directe-chat
+  // conversationId zodat sender + ontvanger dezelfde id berekenen, ook als hun
+  // app-login-email afwijkt van Sportlink-email. hasAppAccount markeert leden
+  // die de app nog niet hebben geactiveerd.
   app.raw((project) {
     final s = findDataStruct(project, name: 'SwapMember');
     if (s == null) return;
-    if (s.fields.any((f) => f.identifier.name == 'email')) return;
-    s.fields.add(FFParameter(
-      identifier: FFIdentifier(name: 'email', key: generateRandomAlphaNumericString()),
-      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-    ));
+    void addField(String name, FFBaseDataType type) {
+      if (s.fields.any((f) => f.identifier.name == name)) return;
+      s.fields.add(FFParameter(
+        identifier: FFIdentifier(name: name, key: generateRandomAlphaNumericString()),
+        dataType: FFDataTypeV2(scalarType: type),
+      ));
+    }
+    addField('email',         FFBaseDataType.String);
+    addField('externalId',    FFBaseDataType.String);
+    addField('hasAppAccount', FFBaseDataType.Boolean);
   });
 
   // AppState intermediary for GetAppUsersAsMembers. Only declared if not yet present —
@@ -584,6 +597,10 @@ void buildEditFlow(App app) {
     _addUnreadFieldsToConversations(project);
     _addIsReadFieldToChatMessages(project);
     _addDeletedFieldToChatCollections(project);
+    // DirectChatPage was loading ALL directMessages docs (geen WHERE clause)
+    // waardoor iedereen elkaars 1-op-1 berichten zag. Scope alles via een
+    // deterministische conversationId per gebruikers-paar.
+    _scopeDirectChatToConversation(project);
     _addConversationBadges(project);
     // Reset unread count when user opens a conversation.
     _wireMarkConversationRead(project);
@@ -1551,6 +1568,49 @@ Future<bool> uploadProfilePhoto(BuildContext context) async {
   try { addPubDependency(project, name: 'http',         version: '^1.2.0'); } catch (_) {}
 }
 
+// AppState field `sharedBarDuties` = List<DataStruct<BarDuty>>. Wordt door
+// _wireBardienLoad + de Aanmelden-knop bijgewerkt zodat BardienPage's
+// ListView altijd de actuele lijst toont.
+void _ensureSharedBarDutiesAppStateField(FFProject project) {
+  if (project.appState.fields.any(
+    (f) => f.parameter.identifier.name == 'sharedBarDuties',
+  )) return;
+  final barDutyStruct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'BarDuty', orElse: () => null);
+  if (barDutyStruct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(
+      name: 'sharedBarDuties',
+      key: generateRandomAlphaNumericString(),
+    ),
+    dataType: dataStructType(barDutyStruct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+// Rebind BardienPage's ListView_tu54znnh van page-state.duties naar
+// AppState.sharedBarDuties. Idempotent — checkt op al-rebound staat.
+void _rebindBardienListViewToAppState(FFProject project) {
+  final sharedId = _findAppStateFieldId(project, 'sharedBarDuties');
+  if (sharedId == null) return;
+  final wc = findPage(project, name: 'BardienPage');
+  if (wc == null) return;
+  final listView = findByKey(wc.node, 'ListView_tu54znnh');
+  if (listView == null) return;
+  if (!listView.hasGeneratorVariable()) return;
+
+  // varFromAppState gebruikt FFVariableSource.LOCAL_STATE met
+  // stateVariableType=APP_STATE; voor ListView-generators eist FF expliciet
+  // een nodeKeyRef naar het bezittende scaffold ook bij AppState-bronnen.
+  final newSourceVar = varFromAppState(sharedId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  final gen = listView.generatorVariable.deepCopy();
+  gen.variable = newSourceVar;
+  listView.generatorVariable = gen;
+}
+
 // ─── BardienPage: filter by member's own team ────────────────────────────────
 
 void _setupBardienFilter(FFProject project) {
@@ -1603,16 +1663,31 @@ void _setupBardienFilter(FFProject project) {
       },
       outputVariableName: 'dutiesLoad',
       nodeKey: 'Scaffold_ljui3hun',
-      onSuccess: (ctx) => Actions.chain([
-        Actions.updatePageState(
-          project,
-          widgetClassName: 'BardienPage',
-          updates: [
-            StateFieldUpdate.setFromVariable('duties', ctx.responseVar),
-            StateFieldUpdate.set('isLoading', 'false'),
-          ],
-        ),
-      ]),
+      onSuccess: (ctx) {
+        // Schrijf óók naar AppState.sharedBarDuties — de ListView is gebonden
+        // aan AppState zodat updates van buiten (zoals SelfAssignBarDuty
+        // success) automatisch verschijnen zonder dat de page-state update
+        // hoeft te vuren.
+        final actions = <FFAction>[
+          Actions.updatePageState(
+            project,
+            widgetClassName: 'BardienPage',
+            updates: [
+              StateFieldUpdate.setFromVariable('duties', ctx.responseVar),
+              StateFieldUpdate.set('isLoading', 'false'),
+            ],
+          ),
+        ];
+        if (_findAppStateFieldId(project, 'sharedBarDuties') != null) {
+          actions.add(Actions.updateAppState(
+            project,
+            updates: [
+              StateFieldUpdate.setFromVariable('sharedBarDuties', ctx.responseVar),
+            ],
+          ));
+        }
+        return Actions.chain(actions);
+      },
       onFailure: (ctx) => Actions.chain([
         Actions.updatePageState(
           project,
@@ -2277,6 +2352,11 @@ void _addChatInfrastructure(FFProject project) {
   // Updated by WatchUnreadChatCount; bound to the Chats nav-bar label.
   _ensureAppStateField(project, 'unreadChatCount', FFBaseDataType.Integer);
 
+  // Deterministische conversation ID voor directe 1-op-1 chats. Wordt
+  // gezet door ComputeDirectConvId net voor navigatie naar DirectChatPage.
+  // Format: '<currentTeamId>_<sortedEmailA>_<sortedEmailB>'.
+  _ensureAppStateField(project, 'directConvId', FFBaseDataType.String);
+
   // Subscribe to FCM topic for a team → receives push notifications for that team's chat.
   // Parameter is String? because FlutterFlow page params are generated as nullable.
   const _subscribeCode = r'''
@@ -2476,6 +2556,57 @@ Future<void> initializeGroupConversation(String? groupId) async {
     );
   } else {
     updateCustomAction(project, name: 'InitializeGroupConversation', code: _kInitGroupConvCode);
+  }
+
+  // ── ComputeDirectConvId ────────────────────────────────────────────────────
+  // Berekent de deterministische conversation-id voor directe 1-op-1 chats
+  // en schrijft 'm naar FFAppState().directConvId. Wordt aangeroepen vóór
+  // navigatie naar DirectChatPage zodat de query/create de juiste id gebruikt.
+  const _kComputeDirectConvCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+Future<void> computeDirectConvId(String? other) async {
+  // Gebruik lidnummer (relatiecode/external_id) i.p.v. email — lidnummer is
+  // gegarandeerd uniek per lid en stabiel, terwijl email tussen Sportlink en
+  // de app-login soms afwijkt. Beide deelnemers berekenen zo dezelfde convId.
+  final me = FFAppState().relatiecode;
+  final team = FFAppState().currentTeamId;
+  final o = (other ?? '').trim();
+  if (me.isEmpty || o.isEmpty) {
+    FFAppState().update(() {
+      FFAppState().directConvId = '';
+    });
+    return;
+  }
+  final ids = [me, o]..sort();
+  final cid = '${team}_${ids[0]}_${ids[1]}';
+  FFAppState().update(() {
+    FFAppState().directConvId = cid;
+  });
+}
+''';
+  if (findCustomAction(project, name: 'ComputeDirectConvId') == null) {
+    addCustomAction(
+      project,
+      name: 'ComputeDirectConvId',
+      description:
+          'Berekent FFAppState().directConvId = "<teamId>_<sortedEmailA>_<sortedEmailB>" voor directe 1-op-1 chats.',
+      arguments: [
+        FFParameter(
+          identifier: FFIdentifier(name: 'other'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
+      ],
+      code: _kComputeDirectConvCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'ComputeDirectConvId', code: _kComputeDirectConvCode);
   }
 
   // ── BumpConversationUnread ──────────────────────────────────────────────────
@@ -4393,14 +4524,65 @@ void _addDirectChatMemberStripRaw(FFProject project) {
     ),
   );
 
-  // Navigate to DirectChatPage with member id + name from the list generator variable.
+  // Navigate to DirectChatPage met member's externalId (lidnummer) + naam.
+  // Lidnummer is altijd uniek en stabiel — zo berekenen verzender én ontvanger
+  // dezelfde conversationId via ComputeDirectConvId, ongeacht email-verschillen
+  // tussen Sportlink-data en app-login.
   final navigateAction = Actions.navigate(
     project,
     pageName: 'DirectChatPage',
     params: {
-      'memberId':   VariableParamValue(generatorVarField(memberList.key, 'id')),
+      'memberId':   VariableParamValue(generatorVarField(memberList.key, 'externalId')),
       'memberName': VariableParamValue(generatorVarField(memberList.key, 'name')),
     },
+  );
+
+  // Bouw chain: ComputeDirectConvId(member.externalId) → Navigate.
+  // Wrapped in If(hasAppAccount == true): leden zonder app-account krijgen
+  // een snackbar i.p.v. een lege convId waardoor iedereen elkaars fallback
+  // ziet. We gebruiken externalId (lidnummer) i.p.v. email omdat het lidnummer
+  // altijd uniek is, ook als de Sportlink-email afwijkt van de app-login email.
+  final hasAccountVar = conditionVar(
+    generatorVarField(memberList.key, 'hasAppAccount'),
+    FFCondition_Relation.EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+  ).variable;
+
+  FFActionNode buildTapChain() {
+    final compute = findCustomAction(project, name: 'ComputeDirectConvId');
+    final navigateNode = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: navigateAction,
+    );
+    if (compute == null) return navigateNode;
+    final computeArgs = FFFunctionCallValues();
+    // Map ComputeDirectConvId's 'other' param to member.externalId (lidnummer).
+    for (final arg in compute.arguments) {
+      if (arg.identifier.name == 'other') {
+        computeArgs.arguments[arg.identifier.key] =
+            FFFunctionCallValues_FFArgument(value: FFValue(
+              variable: generatorVarField(memberList.key, 'externalId'),
+            ));
+      }
+    }
+    return FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: compute.identifier.deepCopy(),
+          argumentValues: computeArgs,
+        ),
+      ),
+      followUpAction: navigateNode,
+    );
+  }
+  final tapChain = Actions.conditional(
+    condition: hasAccountVar,
+    trueActions: buildTapChain(),
+    falseActions: Actions.chain([
+      Actions.snackBar('Dit lid heeft de app nog niet geactiveerd — chatten lukt pas als ze ingelogd zijn.'),
+    ]),
   );
 
   // Member name text bound to generator variable 'name' field.
@@ -4411,16 +4593,35 @@ void _addDirectChatMemberStripRaw(FFProject project) {
   // Avatar placeholder (40×40 circle).
   final avatar = UI.container(name: 'MemberAvatar', width: 40, height: 40, borderRadius: 20);
 
-  // Column: avatar above name, vertically centered.
+  // "Nog niet online" indicator — zichtbaar wanneer member.hasAppAccount false is.
+  final noAccountVar = conditionVar(
+    generatorVarField(memberList.key, 'hasAppAccount'),
+    FFCondition_Relation.NOT_EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+  ).variable;
+  final offlineLabel = UI.text(
+    'Nog niet online',
+    name: 'MemberChipOfflineLabel',
+    style: UITextStyle.labelSmall,
+  );
+  final offlineCopy = offlineLabel.props.text.deepCopy();
+  offlineCopy.colorValue = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT),
+  );
+  offlineCopy.italicValue = FFBooleanValue(inputValue: true);
+  offlineLabel.props.text = offlineCopy;
+  setConditionalVisibility(offlineLabel, variable: noAccountVar);
+
+  // Column: avatar above name + optional offline label.
   final chipCol = UI.column(
     name: 'MemberChipColumn',
     mainAxisAlignment: UIMainAxisAlignment.center,
-    children: [avatar, nameText],
+    children: [avatar, nameText, offlineLabel],
   );
 
-  // Chip container (60px wide) — tap navigates to DirectChatPage.
+  // Chip container (60px wide) — tap eerst ComputeDirectConvId, dan Navigate.
   final chip = UI.container(name: 'MemberChip', width: 60, borderRadius: 8, child: chipCol);
-  Actions.onTap(chip, navigateAction);
+  Actions.onTapChain(chip, tapChain);
 
   memberList.children.add(chip);
 
@@ -8255,7 +8456,11 @@ void _addBardienAanmeldenButton(FFProject project) {
     varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
   ).variable;
 
-  final button = UI.button('Aanmelden', name: 'DutyAanmeldenButton');
+  final button = UI.button(
+    'Aanmelden',
+    name: 'DutyAanmeldenButton',
+    width: double.infinity,
+  );
   setConditionalVisibility(button, variable: visibleVar);
 
   // Build a snackBar action whose textMessage is a runtime variable (so we can
@@ -8292,6 +8497,38 @@ void _addBardienAanmeldenButton(FFProject project) {
     );
   }
 
+  // GetBarDuties refresh node — werkt AppState.sharedBarDuties bij zodat de
+  // ListView op BardienPage automatisch ververst zodra de gebruiker terug
+  // gaat. (BardienPage's ListView is gerebind aan AppState.sharedBarDuties.)
+  final authTokenIdBd      = _findAppStateFieldId(project, 'authToken');
+  final currentTeamIdIdBd  = _findAppStateFieldId(project, 'currentTeamId');
+  final sharedBarDutiesId  = _findAppStateFieldId(project, 'sharedBarDuties');
+  FFActionNode? listRefreshNode;
+  if (authTokenIdBd != null && sharedBarDutiesId != null) {
+    listRefreshNode = Actions.apiCallNode(
+      project,
+      endpointName: 'GetBarDuties',
+      groupName: 'VoetbalPlannerAPI',
+      variables: {'page': '1'},
+      dynamicVariables: {
+        'token': varFromAppState(authTokenIdBd.deepCopy()),
+        if (currentTeamIdIdBd != null)
+          'teamId': varFromAppState(currentTeamIdIdBd.deepCopy()),
+      },
+      outputVariableName: 'dutiesListRefresh',
+      nodeKey: button.key,
+      onSuccess: (lctx) => Actions.chain([
+        Actions.updateAppState(
+          project,
+          updates: [
+            StateFieldUpdate.setFromVariable('sharedBarDuties', lctx.responseVar),
+          ],
+        ),
+      ]),
+      onFailure: (_) => FFActionNode(key: generateRandomAlphaNumericString()),
+    );
+  }
+
   // Build a GetBarDutyDetail reload node — fired bij success van self-assign
   // zodat de UI direct de nieuwe member-lijst + status laat zien.
   final reloadNode = Actions.apiCallNode(
@@ -8319,13 +8556,22 @@ void _addBardienAanmeldenButton(FFProject project) {
         'dutyCanSelfAssign',
         _jsonBodyVar(rctx, r'$.canSelfAssign', button.key),
       ));
-      return Actions.chain([
+      final detailChain = Actions.chain([
         Actions.updatePageState(
           project,
           widgetClassName: 'BardienDetailPage',
           updates: updates,
         ),
       ]);
+      // Chain de listview-refresh na de detail-update zodat AppState.sharedBarDuties
+      // wordt bijgewerkt → BardienPage's ListView toont automatisch de
+      // nieuwe member-lijst + status zonder van tab te wisselen.
+      if (listRefreshNode != null) {
+        var tail = detailChain;
+        while (tail.hasFollowUpAction()) tail = tail.followUpAction;
+        tail.followUpAction = listRefreshNode;
+      }
+      return detailChain;
     },
     onFailure: (_) => Actions.chain([
       Actions.snackBar('Aangemeld, maar herladen mislukte — trek scherm naar beneden om te verversen.'),
@@ -9711,13 +9957,42 @@ void _wireBannerPageLoad(
   String widgetClassName,
   String position,
 ) {
+  // Idempotent: skip if the ON_INIT_STATE chain already contains a GetBanners
+  // API call. Without this, every push appends another call → output names
+  // (bannersLoad_<widget>) collide and the validator rejects the project.
+  final existingIdx = wc.node.triggerActions.indexWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+  if (existingIdx >= 0) {
+    bool hasGetBanners(FFActionNode n) {
+      if (n.hasAction() &&
+          n.action.hasDatabase() &&
+          n.action.database.hasApiCall() &&
+          n.action.database.apiCall.hasEndpointIdentifier() &&
+          n.action.database.apiCall.endpointIdentifier.name == 'GetBanners') {
+        return true;
+      }
+      if (n.hasFollowUpAction() && hasGetBanners(n.followUpAction)) return true;
+      if (n.hasConditionActions()) {
+        for (final ta in n.conditionActions.trueActions) {
+          if (ta.hasTrueAction() && hasGetBanners(ta.trueAction)) return true;
+        }
+      }
+      return false;
+    }
+    final trig = wc.node.triggerActions[existingIdx];
+    if (trig.hasRootAction() && hasGetBanners(trig.rootAction)) return;
+  }
+
   _appendToFirstPageLoadChain(
     wc.node,
     Actions.apiCallNode(
       project,
       endpointName: 'GetBanners',
       groupName: 'VoetbalPlannerAPI',
-      outputVariableName: 'bannersLoad',
+      // Page-specific output name vermijdt naam-conflicten als meerdere pages
+      // (Wedstrijden/Bardien/Rijschema) banner-calls hebben.
+      outputVariableName: 'bannersLoad_$widgetClassName',
       nodeKey: wc.node.key,
       variables: {'position': position},
       onSuccess: (ctx) {
@@ -9943,14 +10218,50 @@ void _wireChatsPageMemberStrip(FFProject project) {
       FFStringValue(variable: generatorVarField(memberList.key, 'name'));
 
   final avatar = UI.container(name: 'DirectMemberAvatar', width: 40, height: 40, borderRadius: 20);
+
+  // "Nog niet online" indicator — zichtbaar wanneer member.hasAppAccount false.
+  final hasEmailVar2 = conditionVar(
+    generatorVarField(memberList.key, 'hasAppAccount'),
+    FFCondition_Relation.EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+  ).variable;
+  final noEmailVar2 = conditionVar(
+    generatorVarField(memberList.key, 'hasAppAccount'),
+    FFCondition_Relation.NOT_EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+  ).variable;
+  final offlineLabel2 = UI.text(
+    'Nog niet online',
+    name: 'DirectMemberOfflineLabel',
+    style: UITextStyle.labelSmall,
+  );
+  final offlineCopy2 = offlineLabel2.props.text.deepCopy();
+  offlineCopy2.colorValue = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT),
+  );
+  offlineCopy2.italicValue = FFBooleanValue(inputValue: true);
+  offlineLabel2.props.text = offlineCopy2;
+  setConditionalVisibility(offlineLabel2, variable: noEmailVar2);
+
   final chipCol = UI.column(
     name: 'DirectMemberColumn',
     mainAxisAlignment: UIMainAxisAlignment.center,
-    children: [avatar, nameText],
+    children: [avatar, nameText, offlineLabel2],
   );
 
   final chip = UI.container(name: 'DirectMemberChip', width: 60, borderRadius: 8, child: chipCol);
-  Actions.onTapChain(chip, tapChain);
+  // Wrap tapChain in If(email != '') zodat offline leden een snackbar krijgen
+  // i.p.v. een lege conversationId te triggeren.
+  Actions.onTapChain(
+    chip,
+    Actions.conditional(
+      condition: hasEmailVar2,
+      trueActions: tapChain,
+      falseActions: Actions.chain([
+        Actions.snackBar('Dit lid heeft de app nog niet geactiveerd — chatten lukt pas als ze ingelogd zijn.'),
+      ]),
+    ),
+  );
   memberList.children.add(chip);
 
   final strip = UI.container(name: 'ChatsDirectStripInner', height: 88, child: memberList);
@@ -10641,6 +10952,125 @@ void _addDeletedFieldToChatCollections(FFProject project) {
     addCollectionField(project, collectionName: name, fieldName: 'deleted',
         type: FFDataTypeV2(scalarType: FFBaseDataType.Boolean));
   }
+}
+
+// Scopes DirectChatPage's directMessages query/create aan een deterministische
+// conversationId per gebruikers-paar zodat 1-op-1 chats niet meer iedereen
+// elkaars berichten laten zien.
+//
+//   conversationId = "<teamId>_<sortedEmailA>_<sortedEmailB>"
+//
+// Stappen:
+//  1. Add `conversationId` veld aan directMessages collection (idempotent)
+//  2. Bouw codeExpressionVar die de convId computeert uit AppState.currentTeamId,
+//     AppState.userEmail en PageParam.memberId
+//  3. FirestoreCreate op send-button: voeg conversationId-veld toe
+//  4. FirestoreQuery on page load (loadedMessages, single=false): voeg
+//     WHERE conversationId == ... toe
+//  5. FirestoreQuery op send-refresh (single=true): zelfde WHERE
+void _scopeDirectChatToConversation(FFProject project) {
+  // ── 1. Ensure conversationId field exists on directMessages ─────────────
+  final coll = findCollection(project, name: 'directMessages');
+  if (coll == null) return;
+  if (!coll.fields.values.any((f) => f.identifier.name == 'conversationId')) {
+    addCollectionField(
+      project,
+      collectionName: 'directMessages',
+      fieldName: 'conversationId',
+      type: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    );
+  }
+  final convIdField = findCollectionField(
+    project, collectionName: 'directMessages', fieldName: 'conversationId');
+  if (convIdField == null) return;
+
+  final wc = findPage(project, name: 'DirectChatPage');
+  if (wc == null) return;
+
+  // ── 2. Variable die de pre-computed AppState.directConvId leest ──────────
+  // Gebruikers schrijven directConvId in AppState via ComputeDirectConvId
+  // VOORDAT ze navigeren. De query en create lezen die hier. Bewust geen
+  // codeExpressionVar — die wordt niet betrouwbaar geaccepteerd als Firestore
+  // filter value door FF codegen.
+  final directConvIdId = _findAppStateFieldId(project, 'directConvId');
+  if (directConvIdId == null) return;
+
+  FFVariable buildConvIdVar() => varFromAppState(directConvIdId.deepCopy());
+
+  // ── 3. Add conversationId field to send-button FirestoreCreate ──────────
+  final sendBtn = findByKey(wc.node, 'IconButton_y4orjomc');
+  if (sendBtn == null) return;
+  final tapIdx = sendBtn.triggerActions.indexWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
+  if (tapIdx < 0) return;
+  final tap = sendBtn.triggerActions[tapIdx];
+  if (!tap.hasRootAction()) return;
+  final root = tap.rootAction;
+  if (!root.hasConditionActions()) return;
+  if (root.conditionActions.trueActions.isEmpty) return;
+  final trueEntry = root.conditionActions.trueActions.first;
+  if (!trueEntry.hasTrueAction()) return;
+
+  final createNode = trueEntry.trueAction;
+  if (createNode.hasAction() &&
+      createNode.action.hasDatabase() &&
+      createNode.action.database.hasCreateDocument()) {
+    final create = createNode.action.database.createDocument;
+    if (create.hasWrite()) {
+      // Voeg conversationId entry toe (idempotent — overschrijft elke push).
+      create.write.updates[convIdField.identifier.key] = FFFieldUpdate(
+        fieldIdentifier: convIdField.identifier.deepCopy(),
+        variable: buildConvIdVar(),
+      );
+    }
+  }
+
+  // ── 4 + 5. Add WHERE conversationId == ... to every FirestoreQuery ─────
+  void addConvIdWhere(FFFirestoreQuery query) {
+    query.where = FFFirestoreWhere(
+      isAnd: true,
+      filters: [
+        FFFirestoreWhere_NestedFilter(
+          baseFilter: FFFirestoreFilter(
+            collectionFieldIdentifier: convIdField.identifier.deepCopy(),
+            relation: FFFirestoreFilter_Relation.EQUAL_TO,
+            variable: buildConvIdVar(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Scope onLoad chain (singleTimeQuery: false stream).
+  void scopeChain(FFActionNode? n) {
+    if (n == null) return;
+    if (n.hasAction() &&
+        n.action.hasDatabase() &&
+        n.action.database.hasFirestoreQuery()) {
+      addConvIdWhere(n.action.database.firestoreQuery);
+    }
+    if (n.hasFollowUpAction()) scopeChain(n.followUpAction);
+    if (n.hasConditionActions()) {
+      for (final ta in n.conditionActions.trueActions) {
+        if (ta.hasTrueAction()) scopeChain(ta.trueAction);
+      }
+      if (n.conditionActions.hasFalseAction()) {
+        scopeChain(n.conditionActions.falseAction);
+      }
+    }
+  }
+
+  // ON_INIT_STATE chain has the loadedMessages query.
+  for (final t in wc.node.triggerActions) {
+    if (t.hasTrigger() &&
+        t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE &&
+        t.hasRootAction()) {
+      scopeChain(t.rootAction);
+    }
+  }
+  // Send-button ON_TAP chain has the refresh query.
+  scopeChain(trueEntry.trueAction);
 }
 
 // Adds a count badge to each conversation row in ChatsPage's ChatsConversationsList.
