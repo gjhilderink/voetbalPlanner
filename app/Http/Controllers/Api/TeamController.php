@@ -49,8 +49,10 @@ class TeamController extends Controller
     {
         $myMemberId = $request->user()?->member?->id;
 
+        // Toon iedereen in member_team pivot, ongeacht is_active. Voor de
+        // direct-chats lijst willen we het complete team zichtbaar. Leden
+        // zonder app-account krijgen client-side een "Nog niet online" label.
         $members = $team->members()
-            ->where('members.is_active', true)
             ->when($myMemberId, fn($q) => $q->where('members.id', '!=', $myMemberId))
             ->orderBy('members.name')
             ->get();
