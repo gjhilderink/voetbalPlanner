@@ -16392,6 +16392,140 @@ class ChatBadgeOverlay extends StatelessWidget {
 }
 ''';
 
+// ─── Per-conversation unread badge (rode bolletje met N per chat-item) ───────
+
+const String _kConvUnreadBadgeCode = r'''
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '/auth/firebase_auth/auth_util.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/app_state.dart';
+
+class ConvUnreadBadge extends StatefulWidget {
+  const ConvUnreadBadge({
+    super.key,
+    this.width,
+    this.height,
+    this.conversationId,
+  });
+
+  final double? width;
+  final double? height;
+  final String? conversationId;
+
+  @override
+  State<ConvUnreadBadge> createState() => _ConvUnreadBadgeState();
+}
+
+class _ConvUnreadBadgeState extends State<ConvUnreadBadge> {
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _sub;
+  int _count = 0;
+  String _watching = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribe();
+  }
+
+  @override
+  void didUpdateWidget(covariant ConvUnreadBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.conversationId != widget.conversationId) {
+      _subscribe();
+    }
+  }
+
+  void _subscribe() {
+    final convId = widget.conversationId ?? '';
+    if (convId == _watching) return;
+    _sub?.cancel();
+    _watching = convId;
+    if (convId.isEmpty) {
+      if (mounted) setState(() => _count = 0);
+      return;
+    }
+    _sub = FirebaseFirestore.instance
+        .collection('chatConversations').doc(convId)
+        .snapshots()
+        .listen((snap) {
+      int c = 0;
+      if (snap.exists) {
+        final data = snap.data() ?? {};
+        final raw = data['unreadByUser'];
+        if (raw is Map) {
+          final myEmail = FFAppState().userEmail;
+          final v = raw[myEmail];
+          if (v is int) c = v;
+          else if (v is num) c = v.toInt();
+        }
+      }
+      if (mounted) setState(() => _count = c);
+    }, onError: (Object _) {});
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch FFAppState so dat veranderingen aan userEmail (login wissel) ook
+    // herevalueren — _count update via stream gebeurt automatisch maar resync
+    // moet wel triggeren bij identity change.
+    context.watch<FFAppState>();
+    if (_count <= 0) return const SizedBox.shrink();
+    final label = _count > 99 ? '99+' : '$_count';
+    return Container(
+      constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEF4444),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          height: 1.1,
+        ),
+      ),
+    );
+  }
+}
+''';
+
+void _ensureConvUnreadBadgeWidget(FFProject project) {
+  if (findCustomWidget(project, name: 'ConvUnreadBadge') == null) {
+    addCustomWidget(
+      project,
+      name: 'ConvUnreadBadge',
+      description:
+          'Rode badge met N ongelezen voor een specifieke conversationId (per-user). Streamt chatConversations/<id>.unreadByUser[myEmail].',
+      parameters: [
+        FFParameter(
+          identifier: FFIdentifier(name: 'conversationId'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
+      ],
+      code: _kConvUnreadBadgeCode,
+    );
+  } else {
+    updateCustomWidget(
+      project,
+      name: 'ConvUnreadBadge',
+      code: _kConvUnreadBadgeCode,
+    );
+  }
+}
+
 void _ensureChatBadgeOverlayWidget(FFProject project) {
   if (findCustomWidget(project, name: 'ChatBadgeOverlay') == null) {
     addCustomWidget(
@@ -16471,6 +16605,7 @@ void _addChatBadgeOverlayToPage(FFProject project, String pageName) {
 
 void _wireChatBadgeOverlayOnAllMainPages(FFProject project) {
   _ensureChatBadgeOverlayWidget(project);
+  _ensureConvUnreadBadgeWidget(project);
   const pages = [
     'DashboardPage',
     'WedstrijdenPage',
@@ -16482,6 +16617,162 @@ void _wireChatBadgeOverlayOnAllMainPages(FFProject project) {
   for (final p in pages) {
     _addChatBadgeOverlayToPage(project, p);
   }
+  // Per-conversation badges in ChatsPage list sections.
+  _addConvBadgeToGroupChip(project);
+  _addConvBadgeToStaffGroupChip(project);
+  _addConvBadgeToDirectMemberChip(project);
+}
+
+// Plaatst een ConvUnreadBadge in elke groep-tile op ChatsPage. ConvId =
+// 'group_<groupId>'. Idempotent: skipt als badge er al in zit.
+void _addConvBadgeToGroupChip(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+  final convList = findDescendants(wc.node, (n) => n.name == 'ChatsGroupsList').firstOrNull;
+  if (convList == null) return;
+  final row = findDescendants(wc.node, (n) => n.name == 'GroupChipRow').firstOrNull;
+  if (row == null) return;
+  if (findDescendants(row, (n) => n.name == 'GroupConvUnreadBadge').isNotEmpty) return;
+
+  final widget = findCustomWidget(project, name: 'ConvUnreadBadge');
+  if (widget == null) return;
+
+  // ConvId via codeExpression: 'group_' + group.id (de Firestore doc id staat
+  // niet in een veld; we gebruiken de doc-ref-id via _docField). Eenvoudiger:
+  // we lezen 'conversationId' veld op chatGroups (als die bestaat) of fallback
+  // op naam (huidige convention in code).
+  final groupNameField = findCollectionField(project, collectionName: 'chatGroups', fieldName: 'name');
+  if (groupNameField == null) return;
+  final nameVar = varFromGeneratorVariable(convList.key)
+    ..operations.add(FFVariableOperation(
+      accessDocumentField: FFAccessDocumentField(
+        fieldIdentifier: groupNameField.identifier.deepCopy(),
+      ),
+    ));
+
+  final convIdVar = codeExpressionVar(
+    expression: "'group_' + (n ?? '')",
+    arguments: [
+      CodeExpressionArg(
+        name: 'n',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: nameVar),
+      ),
+    ],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+  );
+
+  final badge = UI.customWidget(
+    widget,
+    name: 'GroupConvUnreadBadge',
+    params: {
+      'conversationId': VariableParamValue(convIdVar),
+    },
+  );
+  // Insert vóór de chevron (laatste child).
+  final lastIdx = row.children.length - 1;
+  row.children.insert(lastIdx, badge);
+}
+
+void _addConvBadgeToStaffGroupChip(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+  final convList = findDescendants(wc.node, (n) => n.name == 'ChatsStaffGroupsList').firstOrNull;
+  if (convList == null) return;
+  final row = findDescendants(wc.node, (n) => n.name == 'StaffGroupChipRow').firstOrNull;
+  if (row == null) return;
+  if (findDescendants(row, (n) => n.name == 'StaffGroupConvUnreadBadge').isNotEmpty) return;
+
+  final widget = findCustomWidget(project, name: 'ConvUnreadBadge');
+  if (widget == null) return;
+
+  // staffGroup.id is een StaffGroupItem struct field.
+  final idVar = generatorVarField(convList.key, 'id');
+
+  final convIdVar = codeExpressionVar(
+    expression: "'staffgroup_' + (i ?? '')",
+    arguments: [
+      CodeExpressionArg(
+        name: 'i',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: idVar),
+      ),
+    ],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+  );
+
+  final badge = UI.customWidget(
+    widget,
+    name: 'StaffGroupConvUnreadBadge',
+    params: {
+      'conversationId': VariableParamValue(convIdVar),
+    },
+  );
+  final lastIdx = row.children.length - 1;
+  row.children.insert(lastIdx, badge);
+}
+
+void _addConvBadgeToDirectMemberChip(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+  final convList = findDescendants(wc.node, (n) => n.name == 'ChatsDirectMemberList').firstOrNull;
+  if (convList == null) return;
+  final row = findDescendants(wc.node, (n) => n.name == 'DirectMemberRow').firstOrNull;
+  if (row == null) return;
+  if (findDescendants(row, (n) => n.name == 'DirectConvUnreadBadge').isNotEmpty) return;
+
+  final widget = findCustomWidget(project, name: 'ConvUnreadBadge');
+  if (widget == null) return;
+
+  final teamIdField    = _findAppStateFieldId(project, 'currentTeamId');
+  final relatieField   = _findAppStateFieldId(project, 'relatiecode');
+  final emailField     = _findAppStateFieldId(project, 'userEmail');
+  if (teamIdField == null || relatieField == null || emailField == null) return;
+
+  final externalIdVar = generatorVarField(convList.key, 'externalId');
+  final emailVar      = generatorVarField(convList.key, 'email');
+
+  final convIdVar = codeExpressionVar(
+    expression: r"() { final my = ((rc ?? '').isNotEmpty ? (rc ?? '') : (me ?? '')); final ot = ((ex ?? '').isNotEmpty ? (ex ?? '') : (em ?? '')); final ids = [my, ot]..sort(); return (t ?? '') + '_' + ids[0] + '_' + ids[1]; }()",
+    arguments: [
+      CodeExpressionArg(
+        name: 't',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: varFromAppState(teamIdField.deepCopy())),
+      ),
+      CodeExpressionArg(
+        name: 'rc',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: varFromAppState(relatieField.deepCopy())),
+      ),
+      CodeExpressionArg(
+        name: 'me',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: varFromAppState(emailField.deepCopy())),
+      ),
+      CodeExpressionArg(
+        name: 'ex',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: externalIdVar),
+      ),
+      CodeExpressionArg(
+        name: 'em',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: emailVar),
+      ),
+    ],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+  );
+
+  final badge = UI.customWidget(
+    widget,
+    name: 'DirectConvUnreadBadge',
+    params: {
+      'conversationId': VariableParamValue(convIdVar),
+    },
+  );
+  final lastIdx = row.children.length - 1;
+  row.children.insert(lastIdx, badge);
 }
 
 // ─── Hamburger menu / App Drawer ─────────────────────────────────────────────

@@ -1062,6 +1062,7 @@ abstract final class CustomCode {
   ];
   static const widgets = <String>[
     "ChatBadgeOverlay",
+    "ConvUnreadBadge",
     "HighlightedNameList",
   ];
 }
