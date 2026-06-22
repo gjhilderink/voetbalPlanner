@@ -22,6 +22,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Mail;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
@@ -385,6 +387,64 @@ class ManageSettings extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('testSmtp')
+                ->label('Test e-mail')
+                ->icon('heroicon-o-envelope')
+                ->color('info')
+                ->visible(fn() => auth()->user()?->hasRole('super_admin') ?? false)
+                ->form([
+                    \Filament\Forms\Components\TextInput::make('to')
+                        ->label('Stuur testmail naar')
+                        ->email()
+                        ->default(fn() => auth()->user()?->email)
+                        ->required(),
+                ])
+                ->action(function (array $data): void {
+                    // Apply current DB/env SMTP settings on-the-fly
+                    $host     = Setting::get('smtp_host', config('mail.mailers.smtp.host'), null);
+                    $port     = Setting::get('smtp_port', config('mail.mailers.smtp.port', 587), null);
+                    $enc      = Setting::get('smtp_encryption', config('mail.mailers.smtp.encryption', 'tls'), null);
+                    $user     = Setting::get('smtp_username', config('mail.mailers.smtp.username'), null);
+                    $pass     = Setting::get('smtp_password', null, null);
+                    $fromAddr = Setting::get('smtp_from_address', config('mail.from.address'), null);
+                    $fromName = Setting::get('smtp_from_name', config('mail.from.name', 'VoetbalPlanner'), null);
+
+                    if ($host) {
+                        Config::set('mail.mailers.smtp.host',       $host);
+                        Config::set('mail.mailers.smtp.port',       (int) $port);
+                        Config::set('mail.mailers.smtp.encryption', $enc ?: null);
+                        Config::set('mail.mailers.smtp.username',   $user);
+                        Config::set('mail.mailers.smtp.password',   $pass);
+                        Config::set('mail.default', 'smtp');
+                        if ($fromAddr) {
+                            Config::set('mail.from.address', $fromAddr);
+                            Config::set('mail.from.name',    $fromName);
+                        }
+                    }
+
+                    try {
+                        Mail::raw(
+                            'Dit is een testmail van VoetbalPlanner om de SMTP-verbinding te verifiëren.',
+                            fn($msg) => $msg
+                                ->to($data['to'])
+                                ->subject('VoetbalPlanner — SMTP test')
+                        );
+
+                        Notification::make()
+                            ->success()
+                            ->title('Testmail verstuurd naar ' . $data['to'])
+                            ->send();
+
+                    } catch (\Throwable $e) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Versturen mislukt')
+                            ->body($e->getMessage())
+                            ->persistent()
+                            ->send();
+                    }
+                }),
+
             Action::make('debugWhatsApp')
                 ->label('Debug WhatsApp')
                 ->icon('heroicon-o-magnifying-glass')
