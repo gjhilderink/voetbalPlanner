@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\Setting;
+use App\Notifications\ResetPasswordNotification;
 use App\Services\SportlinkMcpService;
+use Filament\Auth\Notifications\ResetPassword as FilamentResetPassword;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 
@@ -17,6 +19,11 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(SportlinkMcpService::class);
+
+        // Filament's ResetPassword notification implements ShouldQueue, which means
+        // it requires a queue worker. Bind our synchronous version so emails are
+        // sent immediately, just like the magic link mail.
+        $this->app->bind(FilamentResetPassword::class, ResetPasswordNotification::class);
     }
 
     /**
