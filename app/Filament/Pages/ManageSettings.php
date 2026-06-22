@@ -84,6 +84,11 @@ class ManageSettings extends Page
             'email_intro_text'    => $club?->email_intro_text,
             'email_footer_text'   => $club?->email_footer_text,
             'email_subject'       => $club?->email_subject,
+            'reset_email_subject'     => Setting::get('reset_email_subject', '', $clubId),
+            'reset_email_header_text' => Setting::get('reset_email_header_text', '', $clubId),
+            'reset_email_intro_text'  => Setting::get('reset_email_intro_text', '', $clubId),
+            'reset_email_button_text' => Setting::get('reset_email_button_text', '', $clubId),
+            'reset_email_footer_text' => Setting::get('reset_email_footer_text', '', $clubId),
         ]);
     }
 
@@ -233,6 +238,36 @@ class ManageSettings extends Page
                     ])
                     ->columns(2),
 
+                Section::make('Wachtwoord reset e-mail')
+                    ->description('Pas de tekst aan van de e-mail die verstuurd wordt wanneer een gebruiker een nieuw wachtwoord aanvraagt.')
+                    ->schema([
+                        TextInput::make('reset_email_subject')
+                            ->label('Onderwerp')
+                            ->placeholder('Wachtwoord opnieuw instellen')
+                            ->maxLength(255)
+                            ->helperText('Leeg = standaard Dutch tekst.'),
+                        TextInput::make('reset_email_header_text')
+                            ->label('Koptekst')
+                            ->placeholder('Wachtwoord opnieuw instellen')
+                            ->maxLength(255)
+                            ->helperText('Tekst in de gekleurde balk bovenaan (leeg = clubnaam).'),
+                        Textarea::make('reset_email_intro_text')
+                            ->label('Introductietekst')
+                            ->rows(3)
+                            ->maxLength(1000)
+                            ->helperText('Inleidende alinea in de mail (leeg = standaard).'),
+                        TextInput::make('reset_email_button_text')
+                            ->label('Knoptekst')
+                            ->placeholder('Wachtwoord opnieuw instellen')
+                            ->maxLength(100)
+                            ->helperText('Tekst op de actieknop (leeg = standaard).'),
+                        TextInput::make('reset_email_footer_text')
+                            ->label('Voettekst')
+                            ->maxLength(255)
+                            ->helperText('Tekst onderaan de mail (leeg = standaard).'),
+                    ])
+                    ->columns(2),
+
                 Section::make('Verbindingsinstellingen')
                     ->description('Configureer de verbinding met de Sportlink MCP API.')
                     ->schema([
@@ -345,6 +380,12 @@ class ManageSettings extends Page
             Setting::set('smtp_from_address', $data['smtp_from_address'] ?? '', 'smtp', false, null);
             Setting::set('smtp_from_name',    $data['smtp_from_name'] ?? '', 'smtp', false, null);
         }
+
+        Setting::set('reset_email_subject',     $data['reset_email_subject'] ?? '',     'email', false, $clubId);
+        Setting::set('reset_email_header_text', $data['reset_email_header_text'] ?? '', 'email', false, $clubId);
+        Setting::set('reset_email_intro_text',  $data['reset_email_intro_text'] ?? '',  'email', false, $clubId);
+        Setting::set('reset_email_button_text', $data['reset_email_button_text'] ?? '', 'email', false, $clubId);
+        Setting::set('reset_email_footer_text', $data['reset_email_footer_text'] ?? '', 'email', false, $clubId);
 
         Setting::set('mcp_enabled', $data['mcp_enabled'] ? '1' : '0', 'mcp', false, $clubId);
         Setting::set('mcp_base_url', $data['mcp_base_url'], 'mcp', false, $clubId);
