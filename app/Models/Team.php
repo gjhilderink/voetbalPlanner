@@ -36,6 +36,16 @@ class Team extends Model
             ->withTimestamps();
     }
 
+    /**
+     * User-accounts gekoppeld via user_team pivot. Wordt gebruikt om
+     * app-gebruikers (zoals bardienst@..., coaches zonder Member-record,
+     * staff-leiders) óók in de team-leden-API te tonen.
+     */
+    public function users(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'user_team')->withTimestamps();
+    }
+
     public function matches(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(FootballMatch::class);
