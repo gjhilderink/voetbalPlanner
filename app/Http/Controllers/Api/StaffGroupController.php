@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\MemberResource;
 use App\Http\Resources\StaffGroupResource;
 use App\Models\StaffGroup;
 use Illuminate\Http\JsonResponse;
@@ -112,6 +113,21 @@ class StaffGroupController extends Controller
             'data'    => null,
             'message' => 'Staffgroep verwijderd.',
         ]);
+    }
+
+    /**
+     * Returns the full member list (SwapMember shape) of a staff group.
+     * Wordt gebruikt door de mobile TeamMembersPage voor staffgroup chats:
+     * de hoofdshow() retourneert {id,name} per lid; deze endpoint geeft de
+     * volledige struct met email, externalId en hasAppAccount.
+     */
+    public function fullMembers(StaffGroup $staffGroup): JsonResponse
+    {
+        $this->authorizeAccess($staffGroup);
+        $staffGroup->load('members');
+        return response()->json(
+            MemberResource::collection($staffGroup->members)->resolve()
+        );
     }
 
     public function syncMembers(Request $request, StaffGroup $staffGroup): JsonResponse

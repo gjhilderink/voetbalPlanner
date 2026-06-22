@@ -83,6 +83,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const pendingDirectUserEmail = ffai.ProjectAppStateFieldHandle(
+    name: "pendingDirectUserEmail",
+    key: "6efgp4vw",
+    typeName: "String",
+    persisted: false,
+  );
   static const pendingDirectUserId = ffai.ProjectAppStateFieldHandle(
     name: "pendingDirectUserId",
     key: "l1xairjb",
@@ -155,6 +161,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<?>>",
     persisted: false,
   );
+  static const sharedTeamMembers = ffai.ProjectAppStateFieldHandle(
+    name: "sharedTeamMembers",
+    key: "wzszy9iv",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
   static const unreadChatCount = ffai.ProjectAppStateFieldHandle(
     name: "unreadChatCount",
     key: "6aqxbbzz",
@@ -193,6 +205,7 @@ abstract final class AppState {
     loginEmail,
     loginError,
     loginPassword,
+    pendingDirectUserEmail,
     pendingDirectUserId,
     pendingDirectUserName,
     pendingGroupName,
@@ -205,6 +218,7 @@ abstract final class AppState {
     relatiecode,
     secondaryColor,
     sharedBarDuties,
+    sharedTeamMembers,
     unreadChatCount,
     userEmail,
     userName,

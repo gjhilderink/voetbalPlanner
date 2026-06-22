@@ -150,6 +150,10 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('staff-groups', StaffGroupController::class)
             ->only(['index', 'show', 'store', 'update', 'destroy']);
         Route::patch('staff-groups/{staffGroup}/members', [StaffGroupController::class, 'syncMembers']);
+        // Volledig SwapMember-shape (incl. email + lidnummer + hasAppAccount) voor
+        // de mobile TeamMembersPage. Aparte endpoint zodat de bestaande show()
+        // response (kleine member-shape) niet breekt.
+        Route::get('staff-groups/{staffGroup}/members-full', [StaffGroupController::class, 'fullMembers']);
 
         // Swap requests
         Route::get('swap-requests/incoming', [SwapRequestController::class, 'incoming']);

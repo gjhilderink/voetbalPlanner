@@ -1041,6 +1041,7 @@ abstract final class CustomCode {
     "ComputeDirectConvId",
     "CreateChatGroup",
     "DeleteChatGroup",
+    "FilterChatMembersByConv",
     "GetAppUsersAsMembers",
     "GetOrCreateDirectConversation",
     "GetOrCreateStaffGroupConversation",

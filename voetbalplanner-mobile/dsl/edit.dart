@@ -11,7 +11,7 @@ import 'package:flutterflow_ai/src/helpers/collection_helpers.dart'
 import 'package:flutterflow_ai/src/helpers/data_schema_helpers.dart'
     show addDataStruct, structField, findDataStruct;
 import 'package:flutterflow_ai/src/helpers/project_helpers.dart'
-    show addPage, addStateField;
+    show addPage, addStateField, removePage;
 import 'package:flutterflow_ai/src/helpers/data_type_helpers.dart'
     show dataStructType, stringType;
 import 'package:flutterflow_ai/src/helpers/ensure_helpers.dart'
@@ -571,6 +571,10 @@ void buildEditFlow(App app) {
     _addMemberNamesFieldToChatGroups(project);
     // Build GroupMembersPage if not yet present.
     _buildGroupMembersPageRaw(project);
+    // Build TeamMembersPage (lijst van team leden).
+    _buildTeamMembersPage(project);
+    // Voeg "Toon leden" subtitle + tap-naar-leden toe aan ChatDetailPage + TeamChatPage AppBars.
+    _addTeamMembersSubtitleToChatDetail(project);
     // Rebuild GroupChatPage AppBar with the title param and delete button.
     _resetGroupChatPageAppBar(project);
     // Fix GroupChatPage: senderId authToken→userEmail, bubble visibility, and send refresh wait.
@@ -601,6 +605,8 @@ void buildEditFlow(App app) {
     // waardoor iedereen elkaars 1-op-1 berichten zag. Scope alles via een
     // deterministische conversationId per gebruikers-paar.
     _scopeDirectChatToConversation(project);
+    // DEBUG: toon live AppState.directConvId bovenaan DirectChatPage.
+    _addDirectChatConvIdDebug(project);
     _addConversationBadges(project);
     // Reset unread count when user opens a conversation.
     _wireMarkConversationRead(project);
@@ -2182,14 +2188,21 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> getOrCreateDirectConversation() async {
-  final myId    = FFAppState().userEmail;
-  final otherId = FFAppState().pendingDirectUserId;
-  final otherName = FFAppState().pendingDirectUserName;
-  final teamId  = FFAppState().currentTeamId;
+  // Beide kanten van de chat moeten DEZELFDE convId computeren, ongeacht of
+  // ze inloggen via lidnummer (sportlink-lid) of email (admin zonder relatie).
+  // Strategie: "best available ID" = externalId-if-nonempty-else-email, voor beide.
+  final myRelatiecode = FFAppState().relatiecode;
+  final myEmail       = FFAppState().userEmail;
+  final myId          = myRelatiecode.isNotEmpty ? myRelatiecode : myEmail;
+
+  final otherExternalId = FFAppState().pendingDirectUserId;    // member.externalId
+  final otherEmail      = FFAppState().pendingDirectUserEmail; // member.email fallback
+  final otherId         = otherExternalId.isNotEmpty ? otherExternalId : otherEmail;
+  final otherName       = FFAppState().pendingDirectUserName;
+  final teamId          = FFAppState().currentTeamId;
 
   if (myId.isEmpty || otherId.isEmpty || teamId.isEmpty) return;
 
-  // Canonical ID: sorted user IDs + teamId for uniqueness across teams.
   final ids = [myId, otherId]..sort();
   final convId = '${teamId}_${ids[0]}_${ids[1]}';
 
@@ -2273,7 +2286,9 @@ import 'package:flutter/material.dart';
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 
 Future<void> getOrCreateStaffGroupConversation() async {
   final staffGroupId   = FFAppState().pendingStaffGroupId;
@@ -2305,6 +2320,36 @@ Future<void> getOrCreateStaffGroupConversation() async {
       'participantIds': FieldValue.arrayUnion([myEmail]),
     }, SetOptions(merge: true));
   }
+
+  // Fetch volledige ledenlijst van Laravel en seed participantIds met alle
+  // staffgroup-leden (ongeacht of ze de chat al hebben geopend). Hiermee
+  // toont TeamMembersPage (via FilterChatMembersByConv) de complete groep.
+  try {
+    final token = FFAppState().authToken;
+    if (token.isNotEmpty) {
+      final resp = await http.get(
+        Uri.parse('https://voetbalplanner.nubix.nl/api/v1/staff-groups/$staffGroupId/members-full'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (resp.statusCode == 200) {
+        final decoded = jsonDecode(resp.body);
+        if (decoded is List) {
+          final emails = <String>[];
+          for (final m in decoded) {
+            if (m is Map) {
+              final e = m['email'];
+              if (e is String && e.isNotEmpty) emails.add(e);
+            }
+          }
+          if (emails.isNotEmpty) {
+            await ref.set({
+              'participantIds': FieldValue.arrayUnion(emails),
+            }, SetOptions(merge: true));
+          }
+        }
+      }
+    }
+  } catch (_) {}
 
   FFAppState().update(() {
     FFAppState().currentConversationId = conversationId;
@@ -2356,6 +2401,11 @@ void _addChatInfrastructure(FFProject project) {
   // gezet door ComputeDirectConvId net voor navigatie naar DirectChatPage.
   // Format: '<currentTeamId>_<sortedEmailA>_<sortedEmailB>'.
   _ensureAppStateField(project, 'directConvId', FFBaseDataType.String);
+
+  // Email-fallback voor direct-chat target: nodig wanneer member.externalId
+  // (lidnummer) leeg is — admins zijn niet altijd sportlink-leden. Wordt
+  // gezet door chip-tap chain naast pendingDirectUserId (= externalId).
+  _ensureAppStateField(project, 'pendingDirectUserEmail', FFBaseDataType.String);
 
   // Subscribe to FCM topic for a team → receives push notifications for that team's chat.
   // Parameter is String? because FlutterFlow page params are generated as nullable.
@@ -2572,10 +2622,15 @@ import 'package:flutter/material.dart';
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
 Future<void> computeDirectConvId(String? other) async {
-  // Gebruik lidnummer (relatiecode/external_id) i.p.v. email — lidnummer is
-  // gegarandeerd uniek per lid en stabiel, terwijl email tussen Sportlink en
-  // de app-login soms afwijkt. Beide deelnemers berekenen zo dezelfde convId.
-  final me = FFAppState().relatiecode;
+  // Primair: lidnummer (relatiecode/external_id) — gegarandeerd uniek + stabiel.
+  // Fallback: userEmail (voor admins/beheerders zonder member-relatie zodat
+  // chat tussen 2 admins óók consistent gescoped is).
+  // Beide deelnemers MOETEN dezelfde key-soort gebruiken anders mismatcht convId
+  // → om dat te garanderen werkt deze fallback alleen als ÓÓK de other-partij
+  // geen lidnummer heeft (in dat geval is de ontvangende kant ook admin).
+  final relatiecode = FFAppState().relatiecode;
+  final userEmail   = FFAppState().userEmail;
+  final me = relatiecode.isNotEmpty ? relatiecode : userEmail;
   final team = FFAppState().currentTeamId;
   final o = (other ?? '').trim();
   if (me.isEmpty || o.isEmpty) {
@@ -2635,19 +2690,21 @@ Future<void> bumpConversationUnread() async {
 
   final fs = FirebaseFirestore.instance;
 
-  // Voor reguliere groepschats (convId begint met 'group_'): probeer members
-  // op te halen uit chatGroups zodat participantIds breed wordt gevuld. Dit
-  // helpt de WatchUnreadChatCount listener bij ontvangers die nog niet in
-  // participantIds stonden.
-  final payload = <String, dynamic>{
-    'unreadCount': FieldValue.increment(1),
-    'hasUnread': true,
-    if (text.isNotEmpty) 'lastMessage': text,
-    'lastMessageAt': FieldValue.serverTimestamp(),
-    if (teamId.isNotEmpty) 'teamId': teamId,
-    if (myEmail.isNotEmpty) 'participantIds': FieldValue.arrayUnion([myEmail]),
-  };
+  // Verzamel participants — dit zijn de gebruikers wiens per-user unread teller
+  // we moeten verhogen. De afzender (myEmail) is uitgesloten.
+  final participants = <String>{};
+  try {
+    final snap = await fs.collection('chatConversations').doc(convId).get();
+    if (snap.exists) {
+      final data = snap.data() ?? {};
+      final raw = data['participantIds'];
+      if (raw is List) participants.addAll(raw.whereType<String>());
+    }
+  } catch (_) {}
+  if (myEmail.isNotEmpty) participants.add(myEmail);
 
+  // Voor reguliere chatgroepen ook chatGroups.members oppakken — zo krijgen
+  // nieuwe leden die nog niet in participantIds stonden óók een teller.
   if (convId.startsWith('group_')) {
     final groupId = convId.substring('group_'.length);
     try {
@@ -2655,19 +2712,31 @@ Future<void> bumpConversationUnread() async {
       if (snap.exists) {
         final data = snap.data() ?? {};
         final raw = data['members'];
-        if (raw is List) {
-          final members = raw.whereType<String>().toList();
-          if (members.isNotEmpty) {
-            payload['participantIds'] = FieldValue.arrayUnion(members);
-          }
-        }
+        if (raw is List) participants.addAll(raw.whereType<String>());
         final groupTeamId = data['teamId'];
         if (groupTeamId is String && groupTeamId.isNotEmpty) {
-          payload['teamId'] = groupTeamId;
+          // teamId schrijven we los hieronder.
         }
       }
     } catch (_) {}
   }
+
+  // Build unreadByUser map met increments voor elke participant behalve afzender.
+  // Met set(merge:true) + geneste map worden alleen deze keys binnen unreadByUser
+  // gewijzigd; bestaande keys (andere gebruikers) blijven intact.
+  final unreadIncrements = <String, dynamic>{};
+  for (final p in participants) {
+    if (p == myEmail || p.isEmpty) continue;
+    unreadIncrements[p] = FieldValue.increment(1);
+  }
+
+  final payload = <String, dynamic>{
+    if (text.isNotEmpty) 'lastMessage': text,
+    'lastMessageAt': FieldValue.serverTimestamp(),
+    if (teamId.isNotEmpty) 'teamId': teamId,
+    if (participants.isNotEmpty) 'participantIds': FieldValue.arrayUnion(participants.toList()),
+    if (unreadIncrements.isNotEmpty) 'unreadByUser': unreadIncrements,
+  };
 
   await fs.collection('chatConversations').doc(convId)
       .set(payload, SetOptions(merge: true));
@@ -2720,10 +2789,15 @@ class _UnreadChatWatcher {
     });
   }
 
-  static int _readCount(Map<String, dynamic> data) {
-    final raw = data['unreadCount'];
-    if (raw is int) return raw;
-    if (raw is num) return raw.toInt();
+  static int _readCount(Map<String, dynamic> data, String myEmail) {
+    // Per-gebruiker model: unreadByUser is een Map<String,int> waar de key
+    // het email-adres van de ontvanger is. Lezen we alleen onze eigen entry.
+    final raw = data['unreadByUser'];
+    if (raw is Map) {
+      final v = raw[myEmail];
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+    }
     return 0;
   }
 }
@@ -2773,15 +2847,14 @@ Future<void> watchUnreadChatCount() async {
       .listen((snap) {
     int total = 0;
     for (final doc in snap.docs) {
-      total += _UnreadChatWatcher._readCount(doc.data());
+      total += _UnreadChatWatcher._readCount(doc.data(), userEmail);
     }
     _UnreadChatWatcher._counts['participants'] = total;
     _UnreadChatWatcher._publish();
   }, onError: (Object _) {});
 
   // Stream B — team chats for my currentTeamId (catch-all in case the user
-  // is not yet in participantIds for the team conversation). Sums unreadCount
-  // for any conversation tagged with this team.
+  // is not yet in participantIds for the team conversation).
   if (teamId.isNotEmpty) {
     _UnreadChatWatcher._byTeamSub = fs
         .collection('chatConversations')
@@ -2793,7 +2866,7 @@ Future<void> watchUnreadChatCount() async {
         // Skip conversations also covered by stream A to avoid double-counting.
         final participants = doc.data()['participantIds'];
         if (participants is List && participants.contains(userEmail)) continue;
-        total += _UnreadChatWatcher._readCount(doc.data());
+        total += _UnreadChatWatcher._readCount(doc.data(), userEmail);
       }
       _UnreadChatWatcher._counts['team'] = total;
       _UnreadChatWatcher._publish();
@@ -2998,6 +3071,67 @@ Future<void> loadGroupMemberNames() async {
     updateCustomAction(project, name: 'LoadGroupMemberNames', code: _loadGroupMemberNamesCode);
   }
 
+  // ── FilterChatMembersByConv ──────────────────────────────────────────────────
+  // Voor staffgroup / direct / group chats: filtert AppState.sharedTeamMembers
+  // (gevuld door GetTeamMembers) op chatConversations.participantIds zodat
+  // TeamMembersPage alleen de relevante deelnemers toont, niet het hele team.
+  // Voor team chats: no-op (behoudt volledige team-lijst).
+  const _kFilterChatMembersByConvCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<void> filterChatMembersByConv() async {
+  final convId = FFAppState().currentConversationId;
+  if (convId.isEmpty) return;
+
+  String convType = '';
+  List<String> participantEmails = const [];
+  try {
+    final snap = await FirebaseFirestore.instance
+        .collection('chatConversations').doc(convId).get();
+    if (snap.exists) {
+      final data = snap.data() ?? {};
+      final t = data['type'];
+      if (t is String) convType = t;
+      final raw = data['participantIds'];
+      if (raw is List) participantEmails = raw.whereType<String>().toList();
+    }
+  } catch (_) {}
+
+  // Team chat → toon volledige team-lijst, geen filter.
+  // Onbekende type → ook geen filter (defensive, voorkomt lege lijst).
+  if (convType.isEmpty || convType == 'team') return;
+
+  // Voor direct/staffgroup/group: filter sharedTeamMembers op participantIds.
+  final current = FFAppState().sharedTeamMembers;
+  final filtered = current.where((m) {
+    return participantEmails.contains(m.email);
+  }).toList();
+  FFAppState().update(() {
+    FFAppState().sharedTeamMembers = filtered;
+  });
+}
+''';
+  if (findCustomAction(project, name: 'FilterChatMembersByConv') == null) {
+    addCustomAction(
+      project,
+      name: 'FilterChatMembersByConv',
+      description:
+          'Filtert AppState.sharedTeamMembers op chatConversations.participantIds voor non-team chats (staffgroup/direct/group).',
+      arguments: [],
+      code: _kFilterChatMembersByConvCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'FilterChatMembersByConv', code: _kFilterChatMembersByConvCode);
+  }
+
   // ── MarkConversationRead ─────────────────────────────────────────────────────
   // Resets unreadCount to 0 and hasUnread to false for the current conversation
   // (staged in AppState.currentConversationId before calling).
@@ -3014,8 +3148,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> markConversationRead() async {
   final conversationId = FFAppState().currentConversationId;
-  final myId          = FFAppState().userEmail;
-  if (conversationId.isEmpty) return;
+  final myId           = FFAppState().userEmail;
+  if (conversationId.isEmpty || myId.isEmpty) return;
   try {
     final db = FirebaseFirestore.instance;
 
@@ -3032,10 +3166,13 @@ Future<void> markConversationRead() async {
         batch.update(doc.reference, {'isRead': true});
       }
     }
-    // Reset conversation unread counters.
-    batch.update(
+    // Reset alleen MIJN per-user unread teller — overige deelnemers blijven hun
+    // eigen tellers behouden. unreadByUser is een Map<String, int> waarvan we
+    // alleen myId nullen via set(merge:true) met een geneste map.
+    batch.set(
       db.collection('chatConversations').doc(conversationId),
-      {'unreadCount': 0, 'hasUnread': false},
+      {'unreadByUser': {myId: 0}},
+      SetOptions(merge: true),
     );
     await batch.commit();
   } catch (_) {}
@@ -4044,7 +4181,9 @@ Future<bool> submitBugReport(
   try { addPubDependency(project, name: 'image_picker',      version: '^1.0.0'); } catch (_) {}
   try { addPubDependency(project, name: 'http',              version: '^1.2.0'); } catch (_) {}
   try { addPubDependency(project, name: 'package_info_plus', version: '^8.0.0'); } catch (_) {}
-  try { addPubDependency(project, name: 'device_info_plus',  version: '^10.1.0'); } catch (_) {}
+  try { addPubDependency(project, name: 'device_info_plus',  version: '^11.5.0'); } catch (_) {}
+  // Ook actief upgraden als hij al stond op een oudere versie (anders blokkeert build).
+  try { updatePubDependency(project, name: 'device_info_plus', newVersion: '^11.5.0'); } catch (_) {}
 }
 
 // Bouwt de body van BugReportPage met titel/omschrijving veld, screenshot
@@ -5907,6 +6046,14 @@ void _addSwapEndpoints(FFProject project) {
     name:                     'GetTeamMembers',
     url:                      '/teams/[teamId]/members',
     variables:                {'teamId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+    responseDataStructName:   'SwapMember',
+    responseDataStructIsList: true,
+  );
+
+  addIfMissing(
+    name:                     'GetStaffGroupMembers',
+    url:                      '/staff-groups/[staffGroupId]/members-full',
+    variables:                {'staffGroupId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
     responseDataStructName:   'SwapMember',
     responseDataStructIsList: true,
   );
@@ -10148,9 +10295,10 @@ void _wireChatsPageMemberStrip(FFProject project) {
   if (teamMembersId == null) return;
 
   final pendingUserIdId    = _findAppStateFieldId(project, 'pendingDirectUserId');
+  final pendingUserEmailId = _findAppStateFieldId(project, 'pendingDirectUserEmail');
   final pendingUserNameId  = _findAppStateFieldId(project, 'pendingDirectUserName');
   final currentConvId      = _findAppStateFieldId(project, 'currentConversationId');
-  if (pendingUserIdId == null || pendingUserNameId == null || currentConvId == null) return;
+  if (pendingUserIdId == null || pendingUserEmailId == null || pendingUserNameId == null || currentConvId == null) return;
 
   final getOrCreate = findCustomAction(project, name: 'GetOrCreateDirectConversation');
   if (getOrCreate == null) return;
@@ -10167,20 +10315,25 @@ void _wireChatsPageMemberStrip(FFProject project) {
   );
 
   // Tap chain:
-  //   1. UpdateAppState pendingDirectUserId = member.EMAIL (not UUID!)
-  //   2. UpdateAppState pendingDirectUserName = member.name
-  //   3. CallCustomAction GetOrCreateDirectConversation
-  //   4. Navigate to ChatDetailPage
+  //   1. UpdateAppState pendingDirectUserId    = member.externalId (lidnummer)
+  //   2. UpdateAppState pendingDirectUserEmail = member.email (fallback)
+  //   3. UpdateAppState pendingDirectUserName  = member.name
+  //   4. CallCustomAction GetOrCreateDirectConversation (kiest best of externalId/email)
+  //   5. Navigate to ChatDetailPage
   final tapChain = FFActionNode(
     key: generateRandomAlphaNumericString(),
     action: FFAction(
       key: generateRandomAlphaNumericString(),
       localStateUpdate: FFLocalStateUpdate(
         updates: [
-          // Store EMAIL so getOrCreateDirectConversation produces the same
-          // conversationId from both sides: team_${sorted(emailA, emailB)}.
+          // Beide identifiers doorgeven — custom action kiest welke. Symmetrie:
+          // chat tussen lid-met-lidnummer en admin-met-email werkt beide kanten op.
           FFLocalStateFieldUpdate(
             fieldIdentifier: pendingUserIdId.deepCopy(),
+            setValue: FFValue(variable: generatorVarField(memberList.key, 'externalId')),
+          ),
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: pendingUserEmailId.deepCopy(),
             setValue: FFValue(variable: generatorVarField(memberList.key, 'email')),
           ),
           FFLocalStateFieldUpdate(
@@ -10288,10 +10441,11 @@ void _fixMemberStripTapAction(FFProject project) {
   // from member UUID to member EMAIL (fix for "only see own messages" bug where
   // myId=email but otherId=uuid gave different conversationIds per direction).
 
-  final pendingUserIdId   = _findAppStateFieldId(project, 'pendingDirectUserId');
-  final pendingUserNameId = _findAppStateFieldId(project, 'pendingDirectUserName');
-  final currentConvId     = _findAppStateFieldId(project, 'currentConversationId');
-  if (pendingUserIdId == null || pendingUserNameId == null || currentConvId == null) return;
+  final pendingUserIdId    = _findAppStateFieldId(project, 'pendingDirectUserId');
+  final pendingUserEmailId = _findAppStateFieldId(project, 'pendingDirectUserEmail');
+  final pendingUserNameId  = _findAppStateFieldId(project, 'pendingDirectUserName');
+  final currentConvId      = _findAppStateFieldId(project, 'currentConversationId');
+  if (pendingUserIdId == null || pendingUserEmailId == null || pendingUserNameId == null || currentConvId == null) return;
 
   final getOrCreate = findCustomAction(project, name: 'GetOrCreateDirectConversation');
   if (getOrCreate == null) return;
@@ -10306,10 +10460,13 @@ void _fixMemberStripTapAction(FFProject project) {
       key: generateRandomAlphaNumericString(),
       localStateUpdate: FFLocalStateUpdate(
         updates: [
-          // Use EMAIL (not UUID) so both chat participants share the same
-          // conversationId: team_${sorted(emailA, emailB)}.
+          // Stuur beide identifiers door — custom action kiest "best of".
           FFLocalStateFieldUpdate(
             fieldIdentifier: pendingUserIdId.deepCopy(),
+            setValue: FFValue(variable: generatorVarField(memberList.key, 'externalId')),
+          ),
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: pendingUserEmailId.deepCopy(),
             setValue: FFValue(variable: generatorVarField(memberList.key, 'email')),
           ),
           FFLocalStateFieldUpdate(
@@ -10952,6 +11109,20 @@ void _addDeletedFieldToChatCollections(FFProject project) {
     addCollectionField(project, collectionName: name, fieldName: 'deleted',
         type: FFDataTypeV2(scalarType: FFBaseDataType.Boolean));
   }
+}
+
+// Verwijdert eerder geïnjecteerde debug-marker bovenaan DirectChatPage.body.
+// Idempotent: no-op zodra er niets meer te verwijderen valt. Was eerder een
+// gele/rode debug-balk om convId-bug te diagnostiseren; nu gefixt, dus weg.
+void _addDirectChatConvIdDebug(FFProject project) {
+  final wc = findPage(project, name: 'DirectChatPage');
+  if (wc == null) return;
+  final bodyChild = getPropertyChild(wc.node, 'body');
+  if (bodyChild == null || bodyChild.type != FFWidgetType.Column) return;
+  bodyChild.children.removeWhere((n) =>
+    n.name == 'DirectChatConvIdDebugWrap' ||
+    n.name == 'DirectChatConvIdMarker',
+  );
 }
 
 // Scopes DirectChatPage's directMessages query/create aan een deterministische
@@ -13714,6 +13885,334 @@ void _buildGroupMembersPageRaw(FFProject project) {
       ));
     }
   }
+}
+
+// ─── TeamMembersPage ──────────────────────────────────────────────────────────
+
+// AppState field `sharedTeamMembers` = List<DataStruct<SwapMember>>. Wordt door
+// TeamMembersPage onInit gevuld; TeamMembersPage ListView binds direct hieraan.
+void _ensureSharedTeamMembersAppStateField(FFProject project) {
+  if (project.appState.fields.any(
+    (f) => f.parameter.identifier.name == 'sharedTeamMembers',
+  )) return;
+  final memberStruct = findDataStruct(project, name: 'SwapMember');
+  if (memberStruct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(
+      name: 'sharedTeamMembers',
+      key: generateRandomAlphaNumericString(),
+    ),
+    dataType: dataStructType(memberStruct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+// Creates TeamMembersPage: shows all team members with name + "Nog niet online"
+// indicator. Loaded via GetTeamMembers → AppState.sharedTeamMembers.
+// Reached vanuit ChatDetailPage AppBar (tap op subtitle → naar deze page).
+void _buildTeamMembersPage(FFProject project) {
+  _ensureSharedTeamMembersAppStateField(project);
+  if (findPage(project, name: 'TeamMembersPage') != null) return;
+
+  final sharedId = _findAppStateFieldId(project, 'sharedTeamMembers');
+  if (sharedId == null) return;
+
+  // Content nodes.
+  final nameTxt = UI.text('', name: 'TeamMemberNameText', style: UITextStyle.bodyMedium);
+  final offlineLabel = UI.text(
+    'Nog niet online',
+    name: 'TeamMemberOfflineLabel',
+    style: UITextStyle.labelSmall,
+  );
+  final offlineCopy = offlineLabel.props.text.deepCopy();
+  offlineCopy.colorValue = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT),
+  );
+  offlineCopy.italicValue = FFBooleanValue(inputValue: true);
+  offlineLabel.props.text = offlineCopy;
+
+  final col = UI.column(name: 'TeamMemberCol', spacing: 2, children: [nameTxt, offlineLabel]);
+  final memberCard = UI.container(
+    name: 'TeamMemberCard',
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    borderRadius: 8,
+    color: UIColor.secondaryBackground,
+    child: col,
+  );
+  final memberList = UI.listView(
+    name: 'TeamMemberList',
+    spacing: 6,
+    shrinkWrap: true,
+  );
+  memberList.children.add(memberCard);
+
+  final scrollCol = UI.column(
+    name: 'TeamMembersBodyCol',
+    padding: UIEdgeInsets.all(16),
+    spacing: 8,
+  );
+  scrollCol.children.add(memberList);
+
+  addPage(
+    project,
+    name: 'TeamMembersPage',
+    route: 'team-members',
+    description: 'Toont de leden van het huidige team.',
+    body: scrollCol,
+  );
+
+  final wc = findPage(project, name: 'TeamMembersPage');
+  if (wc == null) return;
+  final scaffold = wc.node;
+
+  // AppBar.
+  final titleNode = UI.text('Teamleden', name: 'TeamMembersTitle', style: UITextStyle.titleLarge);
+  final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: true);
+  scaffold.children.add(appBarNode);
+  scaffold.childPropertyMap['appBar'] = FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: appBarNode.key)]);
+
+  // Wire ListView source naar AppState.sharedTeamMembers.
+  // varFromAppState gebruikt FFVariableSource.LOCAL_STATE; ListView-generators
+  // eisen nodeKeyRef naar het scaffold OOK voor AppState-bronnen, anders breekt codegen.
+  final listNode = findDescendants(scaffold, (n) => n.name == 'TeamMemberList').firstOrNull;
+  if (listNode != null) {
+    final sourceVar = varFromAppState(sharedId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffold.key);
+    listNode.generatorVariable = DynamicSource(
+      variable: sourceVar,
+      itemName: 'teamMember',
+    ).toGeneratorVariable(listNode.key);
+    final txtNode = findDescendants(scaffold, (n) => n.name == 'TeamMemberNameText').firstOrNull;
+    if (txtNode != null) {
+      txtNode.props.text.textValue = FFStringValue(
+        variable: generatorVarField(listNode.key, 'name'),
+      );
+    }
+    final offlineNode = findDescendants(scaffold, (n) => n.name == 'TeamMemberOfflineLabel').firstOrNull;
+    if (offlineNode != null) {
+      final noAppVar = conditionVar(
+        generatorVarField(listNode.key, 'hasAppAccount'),
+        FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+      ).variable;
+      setConditionalVisibility(offlineNode, variable: noAppVar);
+    }
+  }
+
+  // ON_INIT_STATE: GetTeamMembers(currentTeamId) → AppState.sharedTeamMembers.
+  final currentTeamIdFieldId = _findAppStateFieldId(project, 'currentTeamId');
+  if (currentTeamIdFieldId == null) return;
+
+  final filterAction = findCustomAction(project, name: 'FilterChatMembersByConv');
+
+  _appendToFirstPageLoadChain(
+    scaffold,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetTeamMembers',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'teamId': varFromAppState(currentTeamIdFieldId.deepCopy()),
+      },
+      outputVariableName: 'teamMembersResp',
+      nodeKey: scaffold.key,
+      onSuccess: (ctx) {
+        final actions = <FFAction>[
+          Actions.updateAppState(
+            project,
+            updates: [StateFieldUpdate.setFromVariable('sharedTeamMembers', ctx.responseVar)],
+          ),
+        ];
+        if (filterAction != null) {
+          actions.add(Actions.callCustomAction(
+            identifier: filterAction.identifier.deepCopy(),
+          ));
+        }
+        return Actions.chain(actions);
+      },
+    ),
+  );
+}
+
+// Force-reset ChatDetailPage AppBar naar simpele text-title (titel param).
+// Wist eerder geïnjecteerde Column-with-subtitle die de build brak.
+void _resetChatDetailAppBarSimple(FFProject project) {
+  final wc = findPage(project, name: 'ChatDetailPage');
+  if (wc == null) return;
+  final existing = getPropertyChild(wc.node, 'appBar');
+  if (existing != null) removeByKey(wc.node, existing.key);
+  wc.node.childPropertyMap.remove('appBar');
+
+  FFIdentifier? titleParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'title') {
+      titleParamId = param.identifier.deepCopy();
+      break;
+    }
+  }
+  final titleNode = UI.text('Chat', name: 'AppBar Title', style: UITextStyle.titleLarge);
+  if (titleParamId != null) {
+    titleNode.props.text.textValue = FFStringValue(variable: varFromPageParam(titleParamId));
+  }
+  final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: true);
+  wc.node.children.add(appBarNode);
+  wc.node.childPropertyMap['appBar'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: appBarNode.key)],
+  );
+}
+
+// Voegt een tappable subtitle "Toon leden" onder de title toe in de
+// ChatDetailPage AppBar. Tap navigeert naar TeamMembersPage.
+void _addTeamMembersSubtitleToChatDetail(FFProject project) {
+  _addTeamMembersSubtitleToChatPage(
+    project,
+    pageName: 'ChatDetailPage',
+    subtitleName: 'ChatDetailMembersSubtitle',
+    titleName: 'ChatDetailTitleText',
+    colName: 'ChatDetailAppBarTitleCol',
+    titleParamName: 'title',
+  );
+  // TeamChatPage gebruikt geen page-param maar AppState.currentTeamName.
+  _addTeamMembersSubtitleToTeamChat(project);
+  // Verwijder verouderde MemberStripList op TeamChatPage — Toon leden vervangt 'm.
+  _removeTeamChatMemberStrip(project);
+}
+
+void _addTeamMembersSubtitleToTeamChat(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'TeamChatMembersSubtitle').isNotEmpty) return;
+
+  final appBarNode = getPropertyChild(wc.node, 'appBar');
+  if (appBarNode == null) return;
+  final titleNode = getPropertyChild(appBarNode, 'title');
+  if (titleNode == null) return;
+
+  final currentTeamNameId = _findAppStateFieldId(project, 'currentTeamName');
+
+  final newTitle = UI.text('Teamchat', name: 'TeamChatTitleText', style: UITextStyle.titleLarge);
+  if (currentTeamNameId != null) {
+    newTitle.props.text.textValue =
+        FFStringValue(variable: varFromAppState(currentTeamNameId.deepCopy()));
+  }
+
+  final subtitle = UI.text('Toon leden', name: 'TeamChatMembersSubtitle', style: UITextStyle.labelSmall);
+  final subCopy = subtitle.props.text.deepCopy();
+  subCopy.colorValue = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+  );
+  subtitle.props.text = subCopy;
+
+  final col = UI.column(
+    name: 'TeamChatAppBarTitleCol',
+    mainAxisAlignment: UIMainAxisAlignment.center,
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    children: [newTitle, subtitle],
+  );
+
+  Actions.onTapChain(
+    col,
+    Actions.chain([
+      Actions.navigate(project, pageName: 'TeamMembersPage'),
+    ]),
+  );
+
+  removeByKey(appBarNode, titleNode.key);
+  appBarNode.children.add(col);
+  appBarNode.childPropertyMap['title'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: col.key)],
+  );
+}
+
+void _removeTeamChatMemberStrip(FFProject project) {
+  final wc = findPage(project, name: 'TeamChatPage');
+  if (wc == null) return;
+  // Verwijder de hele wrapper container — meegenomen: MemberStripList, alle chips.
+  for (final n in findDescendants(wc.node, (n) => n.name == 'DirectChatMemberStrip')) {
+    removeByKey(wc.node, n.key);
+  }
+}
+
+void _addTeamMembersSubtitleToChatPage(
+  FFProject project, {
+  required String pageName,
+  required String subtitleName,
+  required String titleName,
+  required String colName,
+  required String titleParamName,
+}) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == subtitleName).isNotEmpty) return;
+
+  final appBarNode = getPropertyChild(wc.node, 'appBar');
+  if (appBarNode == null) return;
+  final titleNode = getPropertyChild(appBarNode, 'title');
+  if (titleNode == null) return;
+
+  FFIdentifier? titleParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == titleParamName) {
+      titleParamId = param.identifier.deepCopy();
+      break;
+    }
+  }
+  if (titleParamId == null) return;
+
+  final newTitle = UI.text('', name: titleName, style: UITextStyle.titleLarge);
+  newTitle.props.text.textValue = FFStringValue(variable: varFromPageParam(titleParamId));
+
+  final subtitle = UI.text('Toon leden', name: subtitleName, style: UITextStyle.labelSmall);
+  final subCopy = subtitle.props.text.deepCopy();
+  subCopy.colorValue = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+  );
+  subtitle.props.text = subCopy;
+
+  // Verberg subtitle op direct chats (convId zonder team_/staffgroup_/group_ prefix
+  // = 1-op-1 paar, geen ledenlijst nodig).
+  FFIdentifier? convIdParamId;
+  for (final p in wc.params.values) {
+    if (p.hasIdentifier() && p.identifier.name == 'conversationId') {
+      convIdParamId = p.identifier.deepCopy();
+      break;
+    }
+  }
+  if (convIdParamId != null) {
+    final showVar = codeExpressionVar(
+      expression: r'convId.startsWith("team_") || convId.startsWith("staffgroup_") || convId.startsWith("group_")',
+      arguments: [
+        CodeExpressionArg(
+          name: 'convId',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: varFromPageParam(convIdParamId)),
+        ),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+    );
+    setConditionalVisibility(subtitle, variable: showVar);
+  }
+
+  final col = UI.column(
+    name: colName,
+    mainAxisAlignment: UIMainAxisAlignment.center,
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    children: [newTitle, subtitle],
+  );
+
+  Actions.onTapChain(
+    col,
+    Actions.chain([
+      Actions.navigate(project, pageName: 'TeamMembersPage'),
+    ]),
+  );
+
+  removeByKey(appBarNode, titleNode.key);
+  appBarNode.children.add(col);
+  appBarNode.childPropertyMap['title'] = FFChildrenKeys(
+    keyRefs: [FFNodeKeyReference(key: col.key)],
+  );
 }
 
 // ─── Chat send refresh ────────────────────────────────────────────────────────

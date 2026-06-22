@@ -26,6 +26,7 @@ import 'pages/profiel_page.dart' show profielPageHandle;
 import 'pages/rijschema_detail_page.dart' show rijschemaDetailPageHandle;
 import 'pages/rijschema_page.dart' show rijschemaPageHandle;
 import 'pages/team_chat_page.dart' show teamChatPageHandle;
+import 'pages/team_members_page.dart' show teamMembersPageHandle;
 import 'pages/wedstrijd_detail_page.dart' show wedstrijdDetailPageHandle;
 import 'pages/wedstrijden_page.dart' show wedstrijdenPageHandle;
 import 'pages/wissel_aanvraag_page.dart' show wisselAanvraagPageHandle;
@@ -55,6 +56,7 @@ abstract final class Pages {
   static final rijschemaDetailPage = rijschemaDetailPageHandle;
   static final rijschemaPage = rijschemaPageHandle;
   static final teamChatPage = teamChatPageHandle;
+  static final teamMembersPage = teamMembersPageHandle;
   static final wedstrijdDetailPage = wedstrijdDetailPageHandle;
   static final wedstrijdenPage = wedstrijdenPageHandle;
   static final wisselAanvraagPage = wisselAanvraagPageHandle;
@@ -83,6 +85,7 @@ abstract final class Pages {
     rijschemaDetailPage,
     rijschemaPage,
     teamChatPage,
+    teamMembersPage,
     wedstrijdDetailPage,
     wedstrijdenPage,
     wisselAanvraagPage,
