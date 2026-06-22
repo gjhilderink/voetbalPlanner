@@ -19,6 +19,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -125,7 +126,7 @@ class ManageSettings extends Page
                             ->label('Poort')
                             ->placeholder('587')
                             ->numeric(),
-                        Forms\Components\Select::make('smtp_encryption')
+                        Select::make('smtp_encryption')
                             ->label('Encryptie')
                             ->options([
                                 'tls'  => 'TLS (STARTTLS, poort 587)',
