@@ -3954,6 +3954,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:image_picker/image_picker.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -4083,14 +4084,15 @@ Future<bool> submitBugReport(
 
     for (var i = 0; i < _bugScreenshots.length; i++) {
       final shot = _bugScreenshots[i];
-      // Web-safe: lees bytes uit XFile (werkt zowel op web als mobiel).
       final bytes = await shot.readAsBytes();
-      // Multipart key zonder index — Laravel's $request->file('screenshots')
-      // bouwt automatisch een array van alle 'screenshots[]' entries.
+      // image_picker re-encodeert naar JPEG (imageQuality:80), maar XFile.name
+      // kan een verkeerde extensie hebben (bv. .heic op iOS). Forceer .jpg +
+      // expliciete content-type zodat Laravel's mimes-validatie 'm accepteert.
       req.files.add(http.MultipartFile.fromBytes(
         'screenshots[]',
         bytes,
-        filename: shot.name.isNotEmpty ? shot.name : 'screenshot_$i.jpg',
+        filename: 'screenshot_$i.jpg',
+        contentType: MediaType('image', 'jpeg'),
       ));
     }
 
@@ -4202,6 +4204,7 @@ Future<bool> submitBugReport(
   // Pub dependencies.
   try { addPubDependency(project, name: 'image_picker',      version: '^1.0.0'); } catch (_) {}
   try { addPubDependency(project, name: 'http',              version: '^1.2.0'); } catch (_) {}
+  try { addPubDependency(project, name: 'http_parser',       version: '^4.0.0'); } catch (_) {}
   try { addPubDependency(project, name: 'package_info_plus', version: '^8.0.0'); } catch (_) {}
   try { addPubDependency(project, name: 'device_info_plus',  version: '^11.5.0'); } catch (_) {}
   // Ook actief upgraden als hij al stond op een oudere versie (anders blokkeert build).
@@ -8725,22 +8728,13 @@ void _addBardienAanmeldenButton(FFProject project) {
         'dutyCanSelfAssign',
         _jsonBodyVar(rctx, r'$.canSelfAssign', button.key),
       ));
-      final detailChain = Actions.chain([
+      return Actions.chain([
         Actions.updatePageState(
           project,
           widgetClassName: 'BardienDetailPage',
           updates: updates,
         ),
       ]);
-      // Chain de listview-refresh na de detail-update zodat AppState.sharedBarDuties
-      // wordt bijgewerkt → BardienPage's ListView toont automatisch de
-      // nieuwe member-lijst + status zonder van tab te wisselen.
-      if (listRefreshNode != null) {
-        var tail = detailChain;
-        while (tail.hasFollowUpAction()) tail = tail.followUpAction;
-        tail.followUpAction = listRefreshNode;
-      }
-      return detailChain;
     },
     onFailure: (_) => Actions.chain([
       Actions.snackBar('Aangemeld, maar herladen mislukte — trek scherm naar beneden om te verversen.'),
@@ -8761,11 +8755,18 @@ void _addBardienAanmeldenButton(FFProject project) {
       final msg = interpolateVar([
         _jsonBodyVar(ctx, r'$.message', button.key),
       ]);
-      // Chain: snackbar (success message) → reload detail
+      // Chain: snackbar → reload detail → refresh lijst (sharedBarDuties).
+      // listRefreshNode hangt nu OP HET SAMEMSTE NIVEAU als reloadNode, dus
+      // ververst de hoofdlijst ook als detail-reload faalt. Hierdoor verschijnt
+      // de Wissel-knop in de BardienPage list direct na aanmelden.
       final snackChain = Actions.chain([snackBarFrom(msg)]);
       var tail = snackChain;
       while (tail.hasFollowUpAction()) tail = tail.followUpAction;
       tail.followUpAction = reloadNode;
+      if (listRefreshNode != null) {
+        while (tail.hasFollowUpAction()) tail = tail.followUpAction;
+        tail.followUpAction = listRefreshNode;
+      }
       return snackChain;
     },
     onFailure: (ctx) {
@@ -9448,29 +9449,20 @@ void _applyBrandingToAllButtons(FFProject project) {
 
 // Applies the club's primary color (from app state) to every AppBar background
 // and sets the back button + title text color to white for maximum contrast.
-// Runs idempotently: overwrites on every push so color changes in the portal
-// take effect after the next DSL push.
+// Itereert over ALLE pagina's met een AppBar — geen hardcoded lijst, zodat
+// nieuwe pages automatisch consistent zijn met de club-branding.
 void _applyBrandingToAllAppBars(FFProject project) {
   final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
   if (primaryColorId == null) return;
 
   final brandingBg = colorFromStringVar(varFromAppState(primaryColorId.deepCopy()));
-  // White uses SECONDARY_BACKGROUND theme token (#FFFFFF in the current theme).
   final whiteColor = FFColorValue(
     inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_BACKGROUND),
   );
 
-  for (final pageName in const [
-    // Main NavBar pages (have their own AppBar with page title)
-    'DashboardPage', 'WedstrijdenPage', 'BardienPage', 'RijschemaPage', 'ProfielPage',
-    // Detail / sub-pages (back button + dynamic title)
-    'WedstrijdDetailPage', 'BardienDetailPage', 'RijschemaDetailPage',
-    'DirectChatPage', 'DocumentatiePage', 'TeamChatPage',
-    'ChatsPage', 'GroupChatPage', 'CreateGroupPage', 'ChatDetailPage',
-    'WisselAanvraagPage',
-  ]) {
-    final wc = findPage(project, name: pageName);
-    if (wc == null) continue;
+  for (final wc in project.widgetClasses.values) {
+    // Skip non-pages (components) — pages hebben een pageRouteSettings veld.
+    if (!wc.hasPageRouteSettings()) continue;
     final appBarNode = getPropertyChild(wc.node, 'appBar');
     if (appBarNode == null) continue;
 
@@ -9479,7 +9471,7 @@ void _applyBrandingToAllAppBars(FFProject project) {
     proto.backButtonColorValue = whiteColor.deepCopy();
     appBarNode.props.appBar = proto;
 
-    // Title text → white so it contrasts against the dark primary background.
+    // Title text → wit voor contrast tegen donkere primary-bg.
     final titleNode = getPropertyChild(appBarNode, 'title');
     if (titleNode != null && titleNode.props.hasText()) {
       final textProto = titleNode.props.text.deepCopy();
@@ -16655,9 +16647,49 @@ void _wireChatBadgeOverlayOnAllMainPages(FFProject project) {
     _addChatBadgeOverlayToPage(project, p);
   }
   // Per-conversation badges in ChatsPage list sections.
+  _addConvBadgeToTeamchatTile(project);
   _addConvBadgeToGroupChip(project);
   _addConvBadgeToStaffGroupChip(project);
   _addConvBadgeToDirectMemberChip(project);
+}
+
+// Plaatst ConvUnreadBadge naast de "Teamchat" header op ChatsPage.
+// ConvId = 'team_' + currentTeamId.
+void _addConvBadgeToTeamchatTile(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+  // De "Teamchat" tekst-Row staat op pad ChatsPage.body[0].children[0].children[0].children[0]
+  // (key Row_mcdmlgr2). Voeg badge daar als 2e child.
+  final row = findByKey(wc.node, 'Row_mcdmlgr2');
+  if (row == null) return;
+  if (findDescendants(row, (n) => n.name == 'TeamchatConvUnreadBadge').isNotEmpty) return;
+
+  final widget = findCustomWidget(project, name: 'ConvUnreadBadge');
+  if (widget == null) return;
+
+  final teamIdField = _findAppStateFieldId(project, 'currentTeamId');
+  if (teamIdField == null) return;
+
+  final convIdVar = codeExpressionVar(
+    expression: "'team_' + (t ?? '')",
+    arguments: [
+      CodeExpressionArg(
+        name: 't',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: varFromAppState(teamIdField.deepCopy())),
+      ),
+    ],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+  );
+
+  final badge = UI.customWidget(
+    widget,
+    name: 'TeamchatConvUnreadBadge',
+    params: {
+      'conversationId': VariableParamValue(convIdVar),
+    },
+  );
+  row.children.add(badge);
 }
 
 // Plaatst een ConvUnreadBadge in elke groep-tile op ChatsPage. ConvId =
