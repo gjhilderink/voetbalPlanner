@@ -11,6 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Idempotent: de tabel wordt al aangemaakt door de eerdere migratie
+        // 2026_05_27_160000_create_personal_access_tokens_table (mét guard).
+        // Deze (per ongeluk dubbel toegevoegde) Sanctum-default-migratie zou
+        // anders `php artisan migrate` laten klappen met "table already exists",
+        // waardoor de deploy faalt en latere migraties niet draaien.
+        if (Schema::hasTable('personal_access_tokens')) {
+            return;
+        }
+
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
             $table->uuidMorphs('tokenable');
