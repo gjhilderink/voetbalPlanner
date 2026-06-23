@@ -385,6 +385,10 @@ void buildEditFlow(App app) {
   // editPageOnLoad replaces the trigger on every push so it is always up-to-date.
   app.editPageOnLoad(ff.Pages.chatsPage, [
     CallCustomAction.named('InitializeTeamConversation', arguments: {}),
+    // Abonneer op chat-push-topics (user_<email> + team_<teamId>). Idempotent:
+    // FCM dedupliceert dubbele subscribeToTopic-calls. Re-subscribet ook na een
+    // FCM-token-refresh van een terugkerende gebruiker.
+    CallCustomAction.named('SubscribeToChatTopics', arguments: {}),
     FirestoreQuery(
       chatConversations,
       limit: 50,
@@ -410,6 +414,7 @@ void buildEditFlow(App app) {
     _fixLoginPageLabels(project);
     _addDocumentatieAppBar(project);
     _wireChatBadge(project);
+    _wireChatTopicSubscription(project);
   });
 
   // Chat navigation button on WedstrijdenPage → ChatsPage.
@@ -2502,6 +2507,69 @@ Future<void> unsubscribeFromTeamTopic(String? teamId) async {
     );
   } else {
     updateCustomAction(project, name: 'UnsubscribeFromTeamTopic', code: _unsubscribeCode);
+  }
+
+  // ── SubscribeToChatTopics ────────────────────────────────────────────────────
+  // Abonneert het toestel op de FCM-topics waarvoor de ingelogde gebruiker
+  // chat-push moet ontvangen:
+  //   - user_<sanitize(userEmail)>  → directe + staffgroep-berichten
+  //   - team_<currentTeamId>        → teamchat
+  // De Cloud Function (firebase-chat-functions/index.js) pusht naar exact deze
+  // topics. De sanitize() hieronder MOET identiek zijn aan die in de CF.
+  // Geen argumenten: leest userEmail + currentTeamId uit FFAppState (vermijdt de
+  // FF-validator-issues met scalar String custom-action args).
+  const _subscribeChatTopicsCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+// Houd identiek aan sanitize() in firebase-chat-functions/index.js zodat client
+// en Cloud Function exact dezelfde topicnaam produceren.
+String _sanitizeTopicEmail(String email) =>
+    email.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+
+Future<void> subscribeToChatTopics() async {
+  final email = FFAppState().userEmail;
+  final teamId = FFAppState().currentTeamId;
+  try {
+    final messaging = FirebaseMessaging.instance;
+    final settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+        settings.authorizationStatus != AuthorizationStatus.provisional) {
+      return;
+    }
+    if (email.isNotEmpty) {
+      await messaging.subscribeToTopic('user_${_sanitizeTopicEmail(email)}');
+    }
+    if (teamId.isNotEmpty) {
+      await messaging.subscribeToTopic('team_$teamId');
+    }
+  } catch (_) {
+    // FCM topic subscription wordt op web niet ondersteund — sla netjes over.
+  }
+}
+''';
+  if (findCustomAction(project, name: 'SubscribeToChatTopics') == null) {
+    addCustomAction(
+      project,
+      name: 'SubscribeToChatTopics',
+      description:
+          'Abonneert het toestel op user_<email> + team_<teamId> FCM-topics voor chat push-notificaties.',
+      arguments: [],
+      code: _subscribeChatTopicsCode,
+    );
+  } else {
+    updateCustomAction(project, name: 'SubscribeToChatTopics', code: _subscribeChatTopicsCode);
   }
 
   // ── SendMessage ──────────────────────────────────────────────────────────────
@@ -10106,6 +10174,61 @@ void _appendToFirstPageLoadChain(FFNode node, FFActionNode actionToAppend) {
   node.triggerActions[existingIdx] = FFTriggerActions(
     trigger: existingTrigger.trigger.deepCopy(),
     rootAction: chainCopy,
+  );
+}
+
+// Hangt een SubscribeToChatTopics-call achter de WedstrijdenPage page-load chain.
+// WedstrijdenPage is de universele post-login landingspagina (zowel admin-login
+// als magic-link navigeren ernaartoe), dus een vers ingelogde gebruiker is meteen
+// geabonneerd op zijn chat-push-topics — ook vóór hij de Chats-tab opent.
+// Idempotent: skipt als de ON_INIT_STATE chain de call al bevat (anders dupliceert
+// elke push de call → FF-validator-conflicten).
+void _wireChatTopicSubscription(FFProject project) {
+  final action = findCustomAction(project, name: 'SubscribeToChatTopics');
+  if (action == null) return;
+  final wc = findPage(project, name: 'WedstrijdenPage');
+  if (wc == null) return;
+
+  bool callsSubscribe(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasCustomAction() &&
+        n.action.customAction.customActionIdentifier.name == action.identifier.name) {
+      return true;
+    }
+    if (n.hasFollowUpAction() && callsSubscribe(n.followUpAction)) return true;
+    if (n.hasConditionActions()) {
+      for (final ta in n.conditionActions.trueActions) {
+        if (ta.hasTrueAction() && callsSubscribe(ta.trueAction)) return true;
+      }
+      if (n.conditionActions.hasFalseAction() &&
+          callsSubscribe(n.conditionActions.falseAction)) return true;
+    }
+    return false;
+  }
+
+  final existingIdx = wc.node.triggerActions.indexWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+  if (existingIdx >= 0) {
+    final trig = wc.node.triggerActions[existingIdx];
+    if (trig.hasRootAction() && callsSubscribe(trig.rootAction)) return;
+  }
+
+  // Bouw de node met FFCustomActionCall (customAction-veld) — consistent met de
+  // rest van de codebase (login/getOrCreate) én met de callsSubscribe-check
+  // hierboven. (Actions.callCustomAction zou customCodeCall produceren, waardoor
+  // de idempotency-check niet matcht en elke push een duplicaat toevoegt.)
+  _appendToFirstPageLoadChain(
+    wc.node,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: action.identifier.deepCopy(),
+        ),
+      ),
+    ),
   );
 }
 

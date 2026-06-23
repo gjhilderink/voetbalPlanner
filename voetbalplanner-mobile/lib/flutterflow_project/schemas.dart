@@ -1054,6 +1054,7 @@ abstract final class CustomCode {
     "SendMagicLink",
     "SendMessage",
     "SubmitBugReport",
+    "SubscribeToChatTopics",
     "SubscribeToTeamTopic",
     "UnsubscribeFromTeamTopic",
     "UploadProfilePhoto",
