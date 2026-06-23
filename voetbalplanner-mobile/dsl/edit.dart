@@ -2527,6 +2527,7 @@ import 'package:flutter/material.dart';
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
+import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Houd identiek aan sanitize() in firebase-chat-functions/index.js zodat client
@@ -2535,6 +2536,15 @@ String _sanitizeTopicEmail(String email) =>
     email.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
 
 Future<void> subscribeToChatTopics() async {
+  // Fire-and-forget: deze action wordt aangeroepen ín page-load chains
+  // (ChatsPage, WedstrijdenPage). NOOIT blokkeren op de notificatie-permissie-
+  // prompt of trage FCM-calls — anders draaien de daaropvolgende load-acties
+  // (gesprekken laden, leden laden) niet meer en blijft de pagina leeg.
+  // Daarom kicken we het echte werk los en keert deze functie meteen terug.
+  unawaited(_doSubscribeChatTopics());
+}
+
+Future<void> _doSubscribeChatTopics() async {
   final email = FFAppState().userEmail;
   final teamId = FFAppState().currentTeamId;
   try {
