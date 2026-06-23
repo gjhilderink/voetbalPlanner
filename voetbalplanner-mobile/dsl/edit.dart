@@ -430,6 +430,9 @@ void buildEditFlow(App app) {
       'body':     string,
     });
   } catch (_) {}
+  // Fix de FlutterFlow web-deploy: twee FF-default packages compileren niet meer
+  // op recente Flutter (de deploy faalde hierop). Forceer compatibele versies.
+  app.raw((project) => _fixIncompatiblePubVersions(project));
   app.raw((project) => _addDocumentationEndpoint(project));
   _buildDocumentatiePage(app, documentSection);
   app.raw((project) => _wireDocumentationPageLoad(project));
@@ -10185,6 +10188,36 @@ void _appendToFirstPageLoadChain(FFNode node, FFActionNode actionToAppend) {
     trigger: existingTrigger.trigger.deepCopy(),
     rootAction: chainCopy,
   );
+}
+
+// Forceert compatibele versies van twee FlutterFlow-default packages die niet
+// meer compileren op recente Flutter (Flutter 3.44) — hierop faalde de web-deploy:
+//   - font_awesome_flutter 10.7.0: extte IconData, dat nu een `final` class is
+//     → 11.0.0 stopt met IconData extenden. Dit project gebruikt 0 FA-iconen,
+//     dus de 11.0.0 breaking change (FaIcon vereist FaIconData) raakt niets.
+//   - page_transition 2.1.0: gebruikte de verwijderde CupertinoPageTransitionsBuilder
+//     → 2.2.2 gefixt. FF gebruikt alleen PageTransition/PageTransitionType (stabiel).
+// Toegevoegd als custom pubspec-dependency (dependency_overrides via customCode
+// kwam niet in de gegenereerde pubspec terecht; addPubDependency wél). FF merget
+// custom deps over de base-versie. Idempotent: update als hij al in de custom-
+// lijst staat, anders toevoegen.
+void _fixIncompatiblePubVersions(FFProject project) {
+  // page_transition 2.1.0 gebruikt de verwijderde CupertinoPageTransitionsBuilder
+  // → 2.2.2 gefixt. FF gebruikt alleen PageTransition/PageTransitionType (stabiel).
+  _ensurePubDepVersion(project, 'page_transition', '^2.2.2');
+  // font_awesome_flutter NIET bumpen: 11.0.0 (de enige versie met de IconData-
+  // final-fix) breekt FF's eigen base-code (FaIcon vereist dan FaIconData i.p.v.
+  // IconData). Verwijder een eerder toegevoegde custom-override zodat de
+  // FF-default (10.7.0) weer geldt.
+  try { removePubDependency(project, name: 'font_awesome_flutter'); } catch (_) {}
+}
+
+void _ensurePubDepVersion(FFProject project, String name, String version) {
+  if (findPubDependency(project, name: name) != null) {
+    updatePubDependency(project, name: name, newVersion: version);
+  } else {
+    addPubDependency(project, name: name, version: version);
+  }
 }
 
 // Hangt een SubscribeToChatTopics-call achter de WedstrijdenPage page-load chain.
