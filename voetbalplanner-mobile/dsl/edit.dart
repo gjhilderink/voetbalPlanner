@@ -2206,6 +2206,14 @@ Future<void> getOrCreateDirectConversation() async {
   final ids = [myId, otherId]..sort();
   final convId = '${teamId}_${ids[0]}_${ids[1]}';
 
+  // participantIds: ALTIJD emails (WatchUnreadChatCount filtert op
+  // participantIds arrayContains userEmail, en unreadByUser keys zijn emails).
+  // ConvId kan via externalId/lidnummer zijn, maar participantIds moet emails
+  // hebben anders krijgt geen enkele recipient z'n badge update.
+  final participantEmails = <String>{};
+  if (myEmail.isNotEmpty) participantEmails.add(myEmail);
+  if (otherEmail.isNotEmpty) participantEmails.add(otherEmail);
+
   final db = FirebaseFirestore.instance;
   final docRef = db.collection('chatConversations').doc(convId);
   final doc = await docRef.get();
@@ -2216,11 +2224,17 @@ Future<void> getOrCreateDirectConversation() async {
       'type': 'direct',
       'teamId': teamId,
       'title': otherName,
-      'participantIds': [myId, otherId],
+      'participantIds': participantEmails.toList(),
       'lastMessage': '',
       'lastMessageAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     });
+  } else if (participantEmails.isNotEmpty) {
+    // Bestaande oude docs hadden mogelijk lidnummers in participantIds —
+    // arrayUnion voegt emails toe zonder bestaande entries weg te halen.
+    await docRef.set({
+      'participantIds': FieldValue.arrayUnion(participantEmails.toList()),
+    }, SetOptions(merge: true));
   }
 
   FFAppState().update(() {
@@ -2689,12 +2703,12 @@ Future<void> bumpConversationUnread() async {
   final teamId  = FFAppState().currentTeamId;
 
   final fs = FirebaseFirestore.instance;
+  final docRef = fs.collection('chatConversations').doc(convId);
 
-  // Verzamel participants — dit zijn de gebruikers wiens per-user unread teller
-  // we moeten verhogen. De afzender (myEmail) is uitgesloten.
+  // Verzamel participants — gebruikers wiens unread teller verhoogd moet worden.
   final participants = <String>{};
   try {
-    final snap = await fs.collection('chatConversations').doc(convId).get();
+    final snap = await docRef.get();
     if (snap.exists) {
       final data = snap.data() ?? {};
       final raw = data['participantIds'];
@@ -2703,8 +2717,7 @@ Future<void> bumpConversationUnread() async {
   } catch (_) {}
   if (myEmail.isNotEmpty) participants.add(myEmail);
 
-  // Voor reguliere chatgroepen ook chatGroups.members oppakken — zo krijgen
-  // nieuwe leden die nog niet in participantIds stonden óók een teller.
+  // Reguliere chatgroepen: ook chatGroups.members meenemen.
   if (convId.startsWith('group_')) {
     final groupId = convId.substring('group_'.length);
     try {
@@ -2713,33 +2726,42 @@ Future<void> bumpConversationUnread() async {
         final data = snap.data() ?? {};
         final raw = data['members'];
         if (raw is List) participants.addAll(raw.whereType<String>());
-        final groupTeamId = data['teamId'];
-        if (groupTeamId is String && groupTeamId.isNotEmpty) {
-          // teamId schrijven we los hieronder.
-        }
       }
     } catch (_) {}
   }
 
-  // Build unreadByUser map met increments voor elke participant behalve afzender.
-  // Met set(merge:true) + geneste map worden alleen deze keys binnen unreadByUser
-  // gewijzigd; bestaande keys (andere gebruikers) blijven intact.
-  final unreadIncrements = <String, dynamic>{};
-  for (final p in participants) {
-    if (p == myEmail || p.isEmpty) continue;
-    unreadIncrements[p] = FieldValue.increment(1);
-  }
-
+  // Stap 1: schrijf basis-metadata met set+merge (creëert doc als nodig).
   final payload = <String, dynamic>{
     if (text.isNotEmpty) 'lastMessage': text,
     'lastMessageAt': FieldValue.serverTimestamp(),
     if (teamId.isNotEmpty) 'teamId': teamId,
     if (participants.isNotEmpty) 'participantIds': FieldValue.arrayUnion(participants.toList()),
-    if (unreadIncrements.isNotEmpty) 'unreadByUser': unreadIncrements,
   };
+  await docRef.set(payload, SetOptions(merge: true));
 
-  await fs.collection('chatConversations').doc(convId)
-      .set(payload, SetOptions(merge: true));
+  // Stap 2: atomically increment unreadByUser.<email> voor elke recipient via
+  // FieldPath. FieldValue.increment werkt NIET binnen een nested map bij
+  // set+merge — daarom is een aparte update() met FieldPath nodig.
+  final updates = <Object, Object?>{};
+  for (final p in participants) {
+    if (p == myEmail || p.isEmpty) continue;
+    updates[FieldPath(['unreadByUser', p])] = FieldValue.increment(1);
+  }
+  if (updates.isNotEmpty) {
+    try {
+      await docRef.update(updates);
+    } catch (_) {
+      // Doc bestaat maar unreadByUser ontbreekt → init met literale 1's.
+      final init = <String, dynamic>{};
+      for (final p in participants) {
+        if (p == myEmail || p.isEmpty) continue;
+        init[p] = 1;
+      }
+      try {
+        await docRef.set({'unreadByUser': init}, SetOptions(merge: true));
+      } catch (_) {}
+    }
+  }
 }
 ''';
   if (findCustomAction(project, name: 'BumpConversationUnread') == null) {
@@ -14144,12 +14166,20 @@ void _addTeamMembersSubtitleToChatPage(
 }) {
   final wc = findPage(project, name: pageName);
   if (wc == null) return;
-  if (findDescendants(wc.node, (n) => n.name == subtitleName).isNotEmpty) return;
 
   final appBarNode = getPropertyChild(wc.node, 'appBar');
   if (appBarNode == null) return;
   final titleNode = getPropertyChild(appBarNode, 'title');
   if (titleNode == null) return;
+
+  // Niet idempotent skippen — wist eerder geïnjecteerde Col-with-subtitle uit
+  // zodat de visibility-binding altijd vers wordt geapplied. Daarna bouwen
+  // we de title fresh op.
+  final existingCol = findDescendants(appBarNode, (n) => n.name == colName).firstOrNull;
+  if (existingCol != null) {
+    removeByKey(appBarNode, existingCol.key);
+    appBarNode.childPropertyMap.remove('title');
+  }
 
   FFIdentifier? titleParamId;
   for (final param in wc.params.values) {
@@ -14181,7 +14211,7 @@ void _addTeamMembersSubtitleToChatPage(
   }
   if (convIdParamId != null) {
     final showVar = codeExpressionVar(
-      expression: r'convId.startsWith("team_") || convId.startsWith("staffgroup_") || convId.startsWith("group_")',
+      expression: r'(convId ?? "").startsWith("team_") || (convId ?? "").startsWith("staffgroup_") || (convId ?? "").startsWith("group_")',
       arguments: [
         CodeExpressionArg(
           name: 'convId',
@@ -16305,6 +16335,13 @@ void _wireBumpUnreadOnAllChatSends(FFProject project) {
     project: project,
     pageName: 'DirectChatPage',
     sendBtnKey: 'IconButton_y4orjomc',
+  );
+  // ChatDetailPage = universele chat-pagina (team / direct / staffgroep). Was
+  // vergeten — zonder deze wiring werd unreadByUser nooit verhoogd → geen badges.
+  _appendBumpUnreadToChatSend(
+    project: project,
+    pageName: 'ChatDetailPage',
+    sendBtnKey: 'IconButton_nnsnoc98',
   );
   _appendBumpUnreadToChatSend(
     project: project,
