@@ -121,6 +121,13 @@ class BannerResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\ImageColumn::make('image_url')
+                    ->label('Afbeelding')
+                    ->height(48)
+                    ->extraImgAttributes(['style' => 'object-fit:cover;border-radius:4px;'])
+                    ->alignCenter()
+                    ->width(80),
+
                 Tables\Columns\TextColumn::make('title')
                     ->label('Naam')
                     ->searchable()
