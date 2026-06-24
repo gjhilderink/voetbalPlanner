@@ -17317,12 +17317,17 @@ FFNode _buildAppDrawerNode(FFProject project) {
   final header = UI.container(
     name: 'DrawerHeader',
     width: double.infinity,
-    padding: UIEdgeInsets.only(top: 30),
+    padding: UIEdgeInsets.only(top: 60),
     child: headerColumn,
   );
+  // Achtergrond = club-primaryColor via color-from-string (AppState), net als de
+  // AppBar-branding. Fallback op de theme-PRIMARY-token als het veld ontbreekt.
+  final drawerPrimaryId = _findAppStateFieldId(project, 'primaryColor');
   _setContainerColor(
     header,
-    FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY)),
+    drawerPrimaryId != null
+        ? colorFromStringVar(varFromAppState(drawerPrimaryId.deepCopy()))
+        : FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY)),
   );
 
   // ── Menu tiles ─────────────────────────────────────────────────────────────
