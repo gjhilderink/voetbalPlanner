@@ -9201,7 +9201,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
   for (final name in const [
     'matchOpponent', 'matchDatetime', 'matchLocation',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchNotes',
-    'apiStatus', 'matchStatus',
+    'apiStatus', 'matchStatus', 'matchMagAfmelden',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -9232,6 +9232,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchFruitHeroName': r'$.fruitHeroName',
           'matchNotes':         r'$.notes',
           'matchStatus':        r'$.mijn_status',
+          'matchMagAfmelden':   r'$.mag_afmelden',
         };
         final updates = <StateFieldUpdate>[
           StateFieldUpdate.set('isLoading', 'false'),
@@ -19059,23 +19060,39 @@ void _wireWedstrijdAfmelden(FFProject project) {
   if (statusField == null) return;
   final statusId = statusField.parameter.identifier;
 
+  // matchMagAfmelden ('true'/'false'): is de gebruiker als lid/ouder aan het
+  // team van deze wedstrijd gekoppeld? Knoppen alleen tonen als 'true'.
+  _ensurePageStateField(wc, 'matchMagAfmelden', FFBaseDataType.String);
+  final magField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'matchMagAfmelden', orElse: () => null);
+  if (magField == null) return;
+  final magId = magField.parameter.identifier;
+
   final authTokenId = _findAppStateFieldId(project, 'authToken');
   if (authTokenId == null) return;
 
   String gen() => generateRandomAlphaNumericString();
   FFVariable statusVar() =>
       varFromPageState(statusId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  FFVariable magVar() =>
+      varFromPageState(magId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
 
   final reasonField =
       UI.textField(name: 'MatchReasonField', labelText: 'Reden (bij afmelden)', maxLines: 2);
 
   FFVariable showWhen(String status) => codeExpressionVar(
-        expression: "s == '$status'",
+        expression: "s == '$status' && m == 'true'",
         arguments: [
           CodeExpressionArg(
             name: 's',
             dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
             value: FFValue(variable: statusVar()),
+          ),
+          CodeExpressionArg(
+            name: 'm',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: magVar()),
           ),
         ],
         returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),

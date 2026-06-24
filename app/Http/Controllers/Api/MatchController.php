@@ -56,6 +56,11 @@ class MatchController extends Controller
             'reden' => $a->reason,
         ])->values();
 
+        // Af-/aanmelden alleen tonen als je (als lid/coach óf als ouder) aan het
+        // team van deze wedstrijd gekoppeld bent.
+        $accessibleTeamIds = $request->user()?->accessibleTeams()->pluck('id') ?? collect();
+        $data['mag_afmelden'] = $accessibleTeamIds->contains($match->team_id);
+
         return response()->json($data);
     }
 
