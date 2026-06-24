@@ -18794,11 +18794,30 @@ void _wireTrainingDetailPage(FFProject project) {
   setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
   setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
 
-  void wireButton(FFNode btn, FFCustomAction action) {
-    // Na de af-/aanmeld-actie: de detailpagina sluiten (terug). Het verversen van
-    // FFAppState().trainings gebeurt in de custom action zelf (na de POST), zodat
-    // het dashboard (context.watch) de bijgewerkte status/aantallen toont.
-    final afterAction = FFActionNode(key: gen(), action: Actions.navigateBack());
+  void wireButton(FFNode btn, FFCustomAction action, String okMsg) {
+    // De custom action returnt true/false. Bij succes: melding + pagina sluiten
+    // (de action ververst zelf FFAppState().trainings na de POST). Bij mislukken:
+    // foutmelding tonen en op de pagina blijven.
+    final actionKey = gen();
+    final outName = '${btn.name}Result';
+    final actionCall = FFAction(
+      key: actionKey,
+      customAction: FFCustomActionCall(customActionIdentifier: action.identifier.deepCopy()),
+    )..outputVariableName = outName;
+
+    final okVar = varFromActionOutput(actionKey: actionKey, outputName: outName)
+      ..nodeKeyRef = FFNodeKeyReference(key: btn.key);
+
+    final conditional = Actions.conditional(
+      condition: okVar,
+      trueActions: Actions.chain([
+        Actions.snackBar(okMsg),
+        Actions.navigateBack(),
+      ]),
+      falseActions: Actions.chain([
+        Actions.snackBar('Er ging iets mis — probeer het opnieuw of controleer je verbinding.'),
+      ]),
+    );
 
     final pendingNode = FFActionNode(
       key: gen(),
@@ -18809,11 +18828,8 @@ void _wireTrainingDetailPage(FFProject project) {
       ]),
       followUpAction: FFActionNode(
         key: gen(),
-        action: FFAction(
-          key: gen(),
-          customAction: FFCustomActionCall(customActionIdentifier: action.identifier.deepCopy()),
-        ),
-        followUpAction: afterAction,
+        action: actionCall,
+        followUpAction: conditional,
       ),
     );
     btn.triggerActions.removeWhere(
@@ -18825,8 +18841,8 @@ void _wireTrainingDetailPage(FFProject project) {
     ));
   }
 
-  wireButton(afmeldBtn, afmeldAction);
-  wireButton(aanmeldBtn, aanmeldAction);
+  wireButton(afmeldBtn, afmeldAction, 'Je bent afgemeld voor deze training.');
+  wireButton(aanmeldBtn, aanmeldAction, 'Je bent weer aangemeld voor deze training.');
 
   // Afmeldlijst (naam + reden) — gevuld vanuit de afmeldingen-param.
   final afmeldChildren = <FFNode>[];
@@ -18976,7 +18992,34 @@ void _wireWedstrijdAfmelden(FFProject project) {
   setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
   setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
 
-  void wireButton(FFNode btn, FFCustomAction action, String newStatus) {
+  void wireButton(FFNode btn, FFCustomAction action, String newStatus, String okMsg) {
+    // Resultaat (bool) checken: bij succes melding + status bijwerken; bij
+    // mislukken foutmelding tonen en status ongewijzigd laten.
+    final actionKey = gen();
+    final outName = '${btn.name}Result';
+    final actionCall = FFAction(
+      key: actionKey,
+      customAction: FFCustomActionCall(customActionIdentifier: action.identifier.deepCopy()),
+    )..outputVariableName = outName;
+
+    final okVar = varFromActionOutput(actionKey: actionKey, outputName: outName)
+      ..nodeKeyRef = FFNodeKeyReference(key: btn.key);
+
+    final conditional = Actions.conditional(
+      condition: okVar,
+      trueActions: Actions.chain([
+        Actions.snackBar(okMsg),
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [StateFieldUpdate.set('matchStatus', newStatus)],
+        ),
+      ]),
+      falseActions: Actions.chain([
+        Actions.snackBar('Er ging iets mis — probeer het opnieuw of controleer je verbinding.'),
+      ]),
+    );
+
     final pendingNode = FFActionNode(
       key: gen(),
       action: Actions.updateAppState(project, updates: [
@@ -18988,18 +19031,8 @@ void _wireWedstrijdAfmelden(FFProject project) {
       ]),
       followUpAction: FFActionNode(
         key: gen(),
-        action: FFAction(
-          key: gen(),
-          customAction: FFCustomActionCall(customActionIdentifier: action.identifier.deepCopy()),
-        ),
-        followUpAction: FFActionNode(
-          key: gen(),
-          action: Actions.updatePageState(
-            project,
-            widgetClassName: 'WedstrijdDetailPage',
-            updates: [StateFieldUpdate.set('matchStatus', newStatus)],
-          ),
-        ),
+        action: actionCall,
+        followUpAction: conditional,
       ),
     );
     btn.triggerActions.removeWhere(
@@ -19011,8 +19044,8 @@ void _wireWedstrijdAfmelden(FFProject project) {
     ));
   }
 
-  wireButton(afmeldBtn, afmeldAction, 'afgemeld');
-  wireButton(aanmeldBtn, aanmeldAction, 'aangemeld');
+  wireButton(afmeldBtn, afmeldAction, 'afgemeld', 'Je bent afgemeld voor deze wedstrijd.');
+  wireButton(aanmeldBtn, aanmeldAction, 'aangemeld', 'Je bent weer aangemeld voor deze wedstrijd.');
 
   infoColumn.children.addAll([
     UI.text('Af-/aanmelden', name: 'MatchAfmeldHeader', style: UITextStyle.titleSmall),
