@@ -356,6 +356,11 @@ void buildEditFlow(App app) {
   try { app.state('pendingDirectUserId', string); } catch (_) {}
   try { app.state('pendingDirectUserName', string); } catch (_) {}
   try { app.state('groupMemberNames', listOf(string)); } catch (_) {}
+  // Gedeelde lijst van gekozen bug-screenshot-paden. Móét AppState zijn: de
+  // PickBugScreenshot- en SubmitBugReport-custom-actions zijn aparte gegenereerde
+  // bestanden met elk hun eigen module-globals, dus een gewone Dart-global wordt
+  // NIET gedeeld tussen pick en submit (screenshots gingen daardoor verloren).
+  try { app.state('bugScreenshotPaths', listOf(string)); } catch (_) {}
 
   // ── Chat custom actions ───────────────────────────────────────────────────────
   // Declared at DSL level so CallCustomAction.named(...) in _buildChatDetailPage
@@ -4088,8 +4093,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-// Module-private store voor de gekozen screenshots tussen taps door.
-List<XFile> _bugScreenshots = [];
+// Screenshots worden gedeeld via FFAppState().bugScreenshotPaths (List<String>).
+// Een module-global zou NIET gedeeld worden tussen de losse custom-action-
+// bestanden (pick / clear / submit) — vandaar AppState.
 
 String _detectPlatform() {
   if (kIsWeb) return 'web';
@@ -4148,11 +4154,11 @@ Future<String> _detectDeviceInfo() async {
 
 Future<int> pickBugScreenshot(BuildContext context) async {
   try {
-    if (_bugScreenshots.length >= 5) {
+    if (FFAppState().bugScreenshotPaths.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Maximaal 5 schermafbeeldingen.')),
       );
-      return _bugScreenshots.length;
+      return FFAppState().bugScreenshotPaths.length;
     }
     final picker = ImagePicker();
     final picked = await picker.pickImage(
@@ -4161,17 +4167,20 @@ Future<int> pickBugScreenshot(BuildContext context) async {
       maxHeight: 1600,
       imageQuality: 80,
     );
-    if (picked == null) return _bugScreenshots.length;
-    _bugScreenshots.add(picked);
-    return _bugScreenshots.length;
+    if (picked == null) return FFAppState().bugScreenshotPaths.length;
+    // Reassign (niet in-place muteren) zodat de AppState-setter de wijziging
+    // oppikt en submit dezelfde lijst ziet.
+    final paths = List<String>.from(FFAppState().bugScreenshotPaths)..add(picked.path);
+    FFAppState().bugScreenshotPaths = paths;
+    return paths.length;
   } catch (e) {
     debugPrint('[BugReport pick] $e');
-    return _bugScreenshots.length;
+    return FFAppState().bugScreenshotPaths.length;
   }
 }
 
 Future<bool> clearBugScreenshots() async {
-  _bugScreenshots.clear();
+  FFAppState().bugScreenshotPaths = [];
   return true;
 }
 
@@ -4211,9 +4220,9 @@ Future<bool> submitBugReport(
       ..fields['app_version']    = appVersion
       ..fields['device_info']    = deviceInfo;
 
-    for (var i = 0; i < _bugScreenshots.length; i++) {
-      final shot = _bugScreenshots[i];
-      final bytes = await shot.readAsBytes();
+    final shotPaths = FFAppState().bugScreenshotPaths;
+    for (var i = 0; i < shotPaths.length; i++) {
+      final bytes = await XFile(shotPaths[i]).readAsBytes();
       // image_picker re-encodeert naar JPEG (imageQuality:80), maar XFile.name
       // kan een verkeerde extensie hebben (bv. .heic op iOS). Forceer .jpg +
       // expliciete content-type zodat Laravel's mimes-validatie 'm accepteert.
@@ -4244,7 +4253,7 @@ Future<bool> submitBugReport(
       return false;
     }
 
-    _bugScreenshots.clear();
+    FFAppState().bugScreenshotPaths = [];
     messenger.showSnackBar(const SnackBar(
       content: Text('Melding verstuurd! Bedankt.'),
     ));

@@ -23,6 +23,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<?>>",
     persisted: false,
   );
+  static const bugScreenshotPaths = ffai.ProjectAppStateFieldHandle(
+    name: "bugScreenshotPaths",
+    key: "6qb354oy",
+    typeName: "List<String>",
+    persisted: false,
+  );
   static const clubName = ffai.ProjectAppStateFieldHandle(
     name: "clubName",
     key: "e298h9gr",
@@ -201,6 +207,7 @@ abstract final class AppState {
     accentColor,
     authToken,
     availableTeams,
+    bugScreenshotPaths,
     clubName,
     currentConversationId,
     currentTeamId,
