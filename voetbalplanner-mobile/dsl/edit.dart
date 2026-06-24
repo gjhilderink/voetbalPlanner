@@ -10207,9 +10207,16 @@ void _fixIncompatiblePubVersions(FFProject project) {
   _ensurePubDepVersion(project, 'page_transition', '^2.2.2');
   // font_awesome_flutter NIET bumpen: 11.0.0 (de enige versie met de IconData-
   // final-fix) breekt FF's eigen base-code (FaIcon vereist dan FaIconData i.p.v.
-  // IconData). Verwijder een eerder toegevoegde custom-override zodat de
-  // FF-default (10.7.0) weer geldt.
+  // IconData). Verwijder een eerder toegevoegde custom-dep zodat de FF-default
+  // (10.7.0) weer geldt.
   try { removePubDependency(project, name: 'font_awesome_flutter'); } catch (_) {}
+  // BELANGRIJK: verwijder ook achtergebleven dependency_OVERRIDES. Die worden
+  // NIET in de lokale snapshot-pubspec gerenderd, maar WEL door FF's deploy
+  // toegepast — en overrides winnen áltijd. Een eerdere addDependencyOverride
+  // voor font_awesome 11.0.0 bleef hangen waardoor FF's deploy met 11.0.0 bouwde
+  // (FaIconData-fout in flutter_flow_icon_button/widgets).
+  try { removeDependencyOverride(project, name: 'font_awesome_flutter'); } catch (_) {}
+  try { removeDependencyOverride(project, name: 'page_transition'); } catch (_) {}
 }
 
 void _ensurePubDepVersion(FFProject project, String name, String version) {
@@ -16817,6 +16824,52 @@ void _wireChatBadgeOverlayOnAllMainPages(FFProject project) {
   _addConvBadgeToGroupChip(project);
   _addConvBadgeToStaffGroupChip(project);
   _addConvBadgeToDirectMemberChip(project);
+  // Verberg de teamchat-ingang voor accounts zonder team (currentTeamId leeg).
+  _hideTeamchatWhenNoTeam(project);
+}
+
+// Verbergt de teamchat-header + teamchat-knop op ChatsPage wanneer de gebruiker
+// geen team heeft (currentTeamId == ''). Bv. een ouder/zonder-team-account: dan
+// is teamchat zinloos en zou het een lege/kapotte ingang tonen. Direct-chats en
+// groepen blijven staan. Idempotent: zet de visible-conditie elke push opnieuw.
+void _hideTeamchatWhenNoTeam(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+  final teamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  if (teamIdId == null) return;
+
+  FFVariable cond() => conditionVar(
+        varFromAppState(teamIdId.deepCopy()),
+        FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+      ).variable;
+
+  // Klim van de Teamchat-header-Row omhoog naar de container die een directe
+  // child is van de body-Column.
+  final headerRow = findByKey(wc.node, 'Row_mcdmlgr2');
+  if (headerRow == null) return;
+
+  FFNode? bodyChild = headerRow;
+  for (var i = 0; i < 12; i++) {
+    final hit = findParentByKey(wc.node, bodyChild!.key);
+    if (hit == null) { bodyChild = null; break; }
+    if (hit.parent.props.hasColumn()) { bodyChild = hit.child; break; }
+    bodyChild = hit.parent;
+  }
+  if (bodyChild == null) return;
+  final headerContainer = bodyChild;
+
+  // De teamchat-knop-container is de volgende sibling in dezelfde body-Column.
+  final colHit = findParentByKey(wc.node, headerContainer.key);
+  if (colHit == null) return;
+  final col = colHit.parent;
+  final idx = col.children.indexWhere((c) => c.key == headerContainer.key);
+  if (idx < 0) return;
+
+  setConditionalVisibility(headerContainer, variable: cond());
+  if (idx + 1 < col.children.length) {
+    setConditionalVisibility(col.children[idx + 1], variable: cond());
+  }
 }
 
 // Plaatst ConvUnreadBadge naast de "Teamchat" header op ChatsPage.
