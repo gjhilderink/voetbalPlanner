@@ -19025,6 +19025,9 @@ void _wireWedstrijdAfmelden(FFProject project) {
   if (statusField == null) return;
   final statusId = statusField.parameter.identifier;
 
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (authTokenId == null) return;
+
   String gen() => generateRandomAlphaNumericString();
   FFVariable statusVar() =>
       varFromPageState(statusId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
@@ -19049,22 +19052,25 @@ void _wireWedstrijdAfmelden(FFProject project) {
   setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
   setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
 
-  void wireButton(FFNode btn, FFCustomAction action, String newStatus, String okMsg) {
-    // Resultaat (bool) checken: bij succes melding + status bijwerken; bij
-    // mislukken foutmelding tonen en status ongewijzigd laten.
-    final actionKey = gen();
-    final outName = '${btn.name}Result';
-    final actionCall = FFAction(
-      key: actionKey,
-      customAction: FFCustomActionCall(customActionIdentifier: action.identifier.deepCopy()),
-    )..outputVariableName = outName;
+  void wireButton(FFNode btn, String endpoint, String newStatus, String okMsg, {required bool needsReason}) {
+    // Via een NATIVE FF-endpoint (server-side geproxied -> geen browser-CORS).
+    // Bij succes: melding + status bijwerken; bij mislukken: foutmelding, status blijft.
+    final dynVars = <String, FFVariable>{
+      'token':   varFromAppState(authTokenId.deepCopy()),
+      'matchId': varFromPageParam(matchId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+    };
+    if (needsReason) {
+      dynVars['reason'] = varFromTextFieldValue(reasonField.key);
+    }
 
-    final okVar = varFromActionOutput(actionKey: actionKey, outputName: outName)
-      ..nodeKeyRef = FFNodeKeyReference(key: btn.key);
-
-    final conditional = Actions.conditional(
-      condition: okVar,
-      trueActions: Actions.chain([
+    final apiNode = Actions.apiCallNode(
+      project,
+      endpointName: endpoint,
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: dynVars,
+      outputVariableName: '${btn.name}Out',
+      nodeKey: btn.key,
+      onSuccess: (ctx) => Actions.chain([
         Actions.snackBar(okMsg),
         Actions.updatePageState(
           project,
@@ -19072,37 +19078,47 @@ void _wireWedstrijdAfmelden(FFProject project) {
           updates: [StateFieldUpdate.set('matchStatus', newStatus)],
         ),
       ]),
-      falseActions: Actions.chain([
+      onFailure: (ctx) => Actions.chain([
         Actions.snackBar('Er ging iets mis — probeer het opnieuw of controleer je verbinding.'),
       ]),
     );
 
-    final pendingNode = FFActionNode(
-      key: gen(),
-      action: Actions.updateAppState(project, updates: [
-        StateFieldUpdate.setFromVariable(
-          'pendingMatchId',
-          varFromPageParam(matchId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+    FFActionNode rootNode;
+    if (needsReason) {
+      final reasonEmpty = codeExpressionVar(
+        expression: "(r ?? '').trim().isEmpty",
+        arguments: [
+          CodeExpressionArg(
+            name: 'r',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: varFromTextFieldValue(reasonField.key)),
+          ),
+        ],
+        returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+      );
+      rootNode = Actions.conditional(
+        condition: reasonEmpty,
+        trueActions: FFActionNode(
+          key: gen(),
+          action: Actions.snackBar('Vul een reden in om je af te melden.'),
         ),
-        StateFieldUpdate.setFromVariable('pendingAfmeldReason', varFromTextFieldValue(reasonField.key)),
-      ]),
-      followUpAction: FFActionNode(
-        key: gen(),
-        action: actionCall,
-        followUpAction: conditional,
-      ),
-    );
+        falseActions: apiNode,
+      );
+    } else {
+      rootNode = apiNode;
+    }
+
     btn.triggerActions.removeWhere(
       (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
     );
     btn.triggerActions.add(FFTriggerActions(
       trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
-      rootAction: pendingNode,
+      rootAction: rootNode,
     ));
   }
 
-  wireButton(afmeldBtn, afmeldAction, 'afgemeld', 'Je bent afgemeld voor deze wedstrijd.');
-  wireButton(aanmeldBtn, aanmeldAction, 'aangemeld', 'Je bent weer aangemeld voor deze wedstrijd.');
+  wireButton(afmeldBtn, 'AfmeldenMatchApi', 'afgemeld', 'Je bent afgemeld voor deze wedstrijd.', needsReason: true);
+  wireButton(aanmeldBtn, 'AanmeldenMatchApi', 'aangemeld', 'Je bent weer aangemeld voor deze wedstrijd.', needsReason: false);
 
   infoColumn.children.addAll([
     UI.text('Af-/aanmelden', name: 'MatchAfmeldHeader', style: UITextStyle.titleSmall),
