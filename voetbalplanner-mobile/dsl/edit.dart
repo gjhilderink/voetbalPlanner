@@ -836,6 +836,8 @@ void buildEditFlow(App app) {
     _addBardienWisselButton(project);
     _addBardienNavigation(project);
   });
+  // Status-badge per waarde kleuren (status eigen kleur; dagdeel blijft primary).
+  app.raw((project) => _colorStatusBadgeByValue(project));
 
   // RijschemaDetailPage: new page for driving assignment details.
   _buildRijschemaDetailPage(app);
@@ -8491,7 +8493,23 @@ void _wireRijschemaDetailPageUI(FFProject project) {
   FFNode infoRow(String label, String stateFieldName) {
     final valueText = UI.text('-', name: 'RijInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
     final v = stateVar(stateFieldName);
-    if (v != null) valueText.props.text.textValue = FFStringValue(variable: v);
+    // Bind via "x ?? ''" zodat de waarde nooit null is — anders genereert FF
+    // _model.X! en crasht de pagina op een null-veld (bv. bardienst zonder notities).
+    if (v != null) {
+      valueText.props.text.textValue = FFStringValue(
+        variable: codeExpressionVar(
+          expression: "x ?? ''",
+          arguments: [
+            CodeExpressionArg(
+              name: 'x',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: v),
+            ),
+          ],
+          returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+        ),
+      );
+    }
     return UI.container(
       name: 'RijInfoRow_$stateFieldName',
       padding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
@@ -8770,7 +8788,23 @@ void _wireBardienDetailPageUI(FFProject project) {
   FFNode infoRow(String label, String stateFieldName) {
     final valueText = UI.text('-', name: 'DutyInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
     final v = stateVar(stateFieldName);
-    if (v != null) valueText.props.text.textValue = FFStringValue(variable: v);
+    // Bind via "x ?? ''" zodat de waarde nooit null is — anders genereert FF
+    // _model.X! en crasht de pagina op een null-veld (bv. bardienst zonder notities).
+    if (v != null) {
+      valueText.props.text.textValue = FFStringValue(
+        variable: codeExpressionVar(
+          expression: "x ?? ''",
+          arguments: [
+            CodeExpressionArg(
+              name: 'x',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: v),
+            ),
+          ],
+          returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+        ),
+      );
+    }
     return UI.container(
       name: 'DutyInfoRow_$stateFieldName',
       padding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
@@ -9613,7 +9647,23 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
   FFNode infoRow(String label, String stateFieldName) {
     final valueText = UI.text('-', name: 'MatchInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
     final v = stateVar(stateFieldName);
-    if (v != null) valueText.props.text.textValue = FFStringValue(variable: v);
+    // Bind via "x ?? ''" zodat de waarde nooit null is — anders genereert FF
+    // _model.X! en crasht de pagina op een null-veld (bv. bardienst zonder notities).
+    if (v != null) {
+      valueText.props.text.textValue = FFStringValue(
+        variable: codeExpressionVar(
+          expression: "x ?? ''",
+          arguments: [
+            CodeExpressionArg(
+              name: 'x',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: v),
+            ),
+          ],
+          returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+        ),
+      );
+    }
     return UI.container(
       name: 'MatchInfoRow_$stateFieldName',
       padding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
@@ -18156,6 +18206,46 @@ Options:
                             after a Firebase project was deleted and recreated.
   --help, -h                Show this help.
 ''');
+}
+
+// Kleurt de StatusBadge-component (gebruikt voor zowel dagdeel als status in de
+// BarDutyCard) op basis van de label-waarde: status open -> oranje, bevestigd/
+// vervuld -> groen, geannuleerd -> rood; al het andere (de dagdelen) houdt de
+// club-primary, zodat het dagdeel onveranderd blijft.
+void _colorStatusBadgeByValue(FFProject project) {
+  final comp = findComponent(project, name: 'StatusBadge');
+  if (comp == null) return;
+  final container = findByKey(comp.node, 'Container_ti73bj7i') ?? comp.node;
+  final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
+  if (primaryColorId == null) return;
+
+  final labelVar = varFromPageParam(FFIdentifier(name: 'label', key: '0786ttph'))
+    ..nodeKeyRef = FFNodeKeyReference(key: comp.node.key);
+  final primVar = varFromAppState(primaryColorId.deepCopy());
+
+  const expr =
+      "((l ?? '').toLowerCase().contains('open')) ? '#F59E0B' : "
+      "(((l ?? '').toLowerCase().contains('bevestig') || (l ?? '').toLowerCase().contains('vervuld')) ? '#16A34A' : "
+      "(((l ?? '').toLowerCase().contains('geannuleerd') || (l ?? '').toLowerCase().contains('vervallen')) ? '#DC2626' : prim))";
+
+  final colorExpr = codeExpressionVar(
+    expression: expr,
+    arguments: [
+      CodeExpressionArg(
+        name: 'l',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: labelVar),
+      ),
+      CodeExpressionArg(
+        name: 'prim',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: primVar),
+      ),
+    ],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+  );
+
+  _setContainerColor(container, colorFromStringVar(colorExpr));
 }
 
 // ─── Trainingen: custom actions (ophalen + af-/aanmelden) ────────────────────

@@ -294,43 +294,43 @@ abstract final class RijschemaPageWidgets {
         ],
         "drawer": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "Drawer_4frd426f",
+            key: "Drawer_dopnywyc",
             type: "Drawer",
             path: "RijschemaPage.drawer[0]",
             name: "AppDrawer",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_qqlakc8y",
+                key: "Column_jru8daxu",
                 type: "Column",
                 path: "RijschemaPage.drawer[0].children[0]",
                 name: "DrawerMenuColumn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_dda4mq4h",
+                    key: "Container_t8b52epx",
                     type: "Container",
                     path: "RijschemaPage.drawer[0].children[0].children[0]",
                     name: "DrawerHeader",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_5ydmay96",
+                        key: "Column_sv71wxoo",
                         type: "Column",
                         path: "RijschemaPage.drawer[0].children[0].children[0].children[0]",
                         name: "DrawerHeaderColumn",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_xnh596ne",
+                            key: "Container_hmedrrof",
                             type: "Container",
                             path: "RijschemaPage.drawer[0].children[0].children[0].children[0].children[0]",
                             name: "DrawerHeaderAvatar",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "2q4dow96",
+                                key: "8vsm5s6o",
                                 type: "CircleImage",
                                 path: "RijschemaPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "DrawerHeaderPhoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_o540b0rn",
+                                key: "Icon_np2j5bcs",
                                 type: "Icon",
                                 path: "RijschemaPage.drawer[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "Icon",
@@ -338,13 +338,13 @@ abstract final class RijschemaPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_doa7wn72",
+                            key: "Text_zi8jurd6",
                             type: "Text",
                             path: "RijschemaPage.drawer[0].children[0].children[0].children[0].children[1]",
                             name: "DrawerHeaderName",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_51bgui8v",
+                            key: "Text_f79u9nf8",
                             type: "Text",
                             path: "RijschemaPage.drawer[0].children[0].children[0].children[0].children[2]",
                             name: "DrawerHeaderEmail",
@@ -354,7 +354,7 @@ abstract final class RijschemaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_k638bxgp",
+                    key: "ListTile_8oir7s8y",
                     type: "ListTile",
                     path: "RijschemaPage.drawer[0].children[0].children[1]",
                     name: "DrawerTileHome",
@@ -363,7 +363,7 @@ abstract final class RijschemaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_soruoevw",
+                    key: "ListTile_5wpuq01r",
                     type: "ListTile",
                     path: "RijschemaPage.drawer[0].children[0].children[2]",
                     name: "DrawerTileNews",
@@ -372,7 +372,7 @@ abstract final class RijschemaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_h1ol4nq5",
+                    key: "ListTile_gdn59691",
                     type: "ListTile",
                     path: "RijschemaPage.drawer[0].children[0].children[3]",
                     name: "DrawerTileDocs",
@@ -381,7 +381,7 @@ abstract final class RijschemaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_nm2wp0c6",
+                    key: "ListTile_bqpalp2v",
                     type: "ListTile",
                     path: "RijschemaPage.drawer[0].children[0].children[4]",
                     name: "DrawerTileProfiel",
@@ -390,7 +390,7 @@ abstract final class RijschemaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_qifpfglq",
+                    key: "ListTile_j7kle2f3",
                     type: "ListTile",
                     path: "RijschemaPage.drawer[0].children[0].children[5]",
                     name: "DrawerTileBug",
