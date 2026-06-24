@@ -97,6 +97,12 @@ final class WedstrijdDetailPageState {
         key: "896j2ic9",
         typeName: "String",
       );
+  ffai.ProjectStateFieldHandle get matchStatus =>
+      const ffai.ProjectStateFieldHandle(
+        name: "matchStatus",
+        key: "tcszu5pw",
+        typeName: "String",
+      );
 }
 
 abstract final class WedstrijdDetailPageWidgets {
@@ -384,6 +390,40 @@ abstract final class WedstrijdDetailPageWidgets {
                                       ),
                                     ],
                                   ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_b0q5uydx",
+                                type: "Text",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8]",
+                                name: "MatchAfmeldHeader",
+                                text: "Af-/aanmelden",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "TextField_304976vl",
+                                type: "TextField",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[9]",
+                                name: "MatchReasonField",
+                                text: "Reden (bij afmelden)",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Button_3dsioc8s",
+                                type: "Button",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[10]",
+                                name: "MatchAfmeldButton",
+                                text: "Afmelden",
+                                triggers: const <String>[
+                                  "ON_TAP",
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Button_5wz9en7f",
+                                type: "Button",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[11]",
+                                name: "MatchAanmeldButton",
+                                text: "Aanmelden",
+                                triggers: const <String>[
+                                  "ON_TAP",
                                 ],
                               ),
                             ],

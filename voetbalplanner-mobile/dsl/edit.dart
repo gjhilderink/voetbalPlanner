@@ -856,6 +856,8 @@ void buildEditFlow(App app) {
 
   // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons into MatchInfoColumn.
   app.raw((project) => _wireMatchSwap(project));
+  // Af-/aanmelden met reden op WedstrijdDetailPage (ná de info-kolom + swap-knoppen).
+  app.raw((project) => _wireWedstrijdAfmelden(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
   app.raw((project) {
     _fixListViewItemNameByNodeName(project, 'WisselAanvraagPage',  'TeamMembersListView',  'member');
@@ -9164,7 +9166,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
   for (final name in const [
     'matchOpponent', 'matchDatetime', 'matchLocation',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchNotes',
-    'apiStatus',
+    'apiStatus', 'matchStatus',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -9194,6 +9196,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchCoachName':     r'$.coachName',
           'matchFruitHeroName': r'$.fruitHeroName',
           'matchNotes':         r'$.notes',
+          'matchStatus':        r'$.mijn_status',
         };
         final updates = <StateFieldUpdate>[
           StateFieldUpdate.set('isLoading', 'false'),
@@ -18778,4 +18781,120 @@ void _wireTrainingCardNavigation(FFProject project) {
       'afmeldingen': VariableParamValue(generatorVarField(listView.key, 'afmeldingen')),
     }),
   );
+}
+
+// ─── WedstrijdDetailPage: af-/aanmelden met reden ────────────────────────────
+// Voegt reden-veld + Afmelden/Aanmelden knoppen toe aan MatchInfoColumn. Status
+// komt uit matchStatus (gemapt uit $.mijn_status); knoppen wisselen erop.
+void _wireWedstrijdAfmelden(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  // MatchInfoColumn verliest z'n naam na de ConditionalBuilder-unwrap in
+  // _bindWedstrijdDetailInfoTexts; val daarom terug op de kolom die de
+  // opponent-infoRow bevat (zelfde fallback als die functie gebruikt).
+  var infoColumn =
+      findDescendants(wc.node, (n) => n.name == 'MatchInfoColumn').firstOrNull;
+  infoColumn ??= findDescendants(
+    wc.node,
+    (n) => n.children.any((c) => c.name == 'MatchInfoRow_opponent'),
+  ).firstOrNull;
+  if (infoColumn == null) return;
+  final afmeldAction  = findCustomAction(project, name: 'AfmeldenMatch');
+  final aanmeldAction = findCustomAction(project, name: 'AanmeldenMatch');
+  if (afmeldAction == null || aanmeldAction == null) return;
+
+  // Idempotent: verwijder vorige instances.
+  for (final k in findDescendants(
+    infoColumn,
+    (n) => const {
+      'MatchAfmeldButton', 'MatchAanmeldButton', 'MatchReasonField', 'MatchAfmeldHeader',
+    }.contains(n.name),
+  ).map((n) => n.key).toList()) {
+    removeByKey(wc.node, k);
+  }
+
+  FFIdentifier? matchIdP;
+  for (final p in wc.params.values) {
+    if (p.hasIdentifier() && p.identifier.name == 'matchId') {
+      matchIdP = p.identifier;
+      break;
+    }
+  }
+  if (matchIdP == null) return;
+  final matchId = matchIdP;
+
+  final statusField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'matchStatus', orElse: () => null);
+  if (statusField == null) return;
+  final statusId = statusField.parameter.identifier;
+
+  String gen() => generateRandomAlphaNumericString();
+  FFVariable statusVar() =>
+      varFromPageState(statusId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final reasonField =
+      UI.textField(name: 'MatchReasonField', labelText: 'Reden (bij afmelden)', maxLines: 2);
+
+  FFVariable showWhen(String status) => codeExpressionVar(
+        expression: "s == '$status'",
+        arguments: [
+          CodeExpressionArg(
+            name: 's',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: statusVar()),
+          ),
+        ],
+        returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+      );
+
+  final afmeldBtn  = UI.button('Afmelden', name: 'MatchAfmeldButton', width: double.infinity);
+  final aanmeldBtn = UI.button('Aanmelden', name: 'MatchAanmeldButton', width: double.infinity);
+  setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
+  setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
+
+  void wireButton(FFNode btn, FFCustomAction action, String newStatus) {
+    final pendingNode = FFActionNode(
+      key: gen(),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable(
+          'pendingMatchId',
+          varFromPageParam(matchId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        ),
+        StateFieldUpdate.setFromVariable('pendingAfmeldReason', varFromTextFieldValue(reasonField.key)),
+      ]),
+      followUpAction: FFActionNode(
+        key: gen(),
+        action: FFAction(
+          key: gen(),
+          customAction: FFCustomActionCall(customActionIdentifier: action.identifier.deepCopy()),
+        ),
+        followUpAction: FFActionNode(
+          key: gen(),
+          action: Actions.updatePageState(
+            project,
+            widgetClassName: 'WedstrijdDetailPage',
+            updates: [StateFieldUpdate.set('matchStatus', newStatus)],
+          ),
+        ),
+      ),
+    );
+    btn.triggerActions.removeWhere(
+      (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+    );
+    btn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: pendingNode,
+    ));
+  }
+
+  wireButton(afmeldBtn, afmeldAction, 'afgemeld');
+  wireButton(aanmeldBtn, aanmeldAction, 'aangemeld');
+
+  infoColumn.children.addAll([
+    UI.text('Af-/aanmelden', name: 'MatchAfmeldHeader', style: UITextStyle.titleSmall),
+    reasonField,
+    afmeldBtn,
+    aanmeldBtn,
+  ]);
 }
