@@ -64,6 +64,13 @@ class MatchController extends Controller
         // Opstelling + score beheren mag alleen de coach van het team (of beheerder).
         $data['mag_opstelling'] = $request->user()?->canManageLineup($match->team_id) ?? false;
 
+        // Korte doelpunten-samenvatting voor het coach-scherm ("12' Jan, 45' Piet").
+        $data['goals_summary'] = $match->goals->isEmpty()
+            ? 'Nog geen doelpunten.'
+            : $match->goals->sortBy('minute')
+                ->map(fn ($g) => ($g->minute ? $g->minute . "' " : '') . ($g->scorer?->name ?? '?'))
+                ->join(', ');
+
         return response()->json($data);
     }
 

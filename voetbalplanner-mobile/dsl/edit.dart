@@ -563,6 +563,8 @@ void buildEditFlow(App app) {
   // idempotente helper (app.state-ensure botst met een al bestaand veld met
   // afwijkende payload).
   app.raw((project) => _ensureTrainingsAppStateField(project));
+  // AppState 'matchGoals' = List<GoalItem> (coach-scorebeheer), gevuld door GetMatchGoals.
+  app.raw((project) => _ensureMatchGoalsAppStateField(project));
   // Custom actions: trainingen ophalen + af-/aanmelden (training & wedstrijd).
   app.raw((project) => _addTrainingsCustomActions(project));
   // Native FF POST-endpoints voor af-/aanmelden (CORS-proof, i.t.t. custom http).
@@ -872,6 +874,8 @@ void buildEditFlow(App app) {
   app.raw((project) => _wireMatchSwap(project));
   // Af-/aanmelden met reden op WedstrijdDetailPage (ná de info-kolom + swap-knoppen).
   app.raw((project) => _wireWedstrijdAfmelden(project));
+  // Coach: doelpunten/score-sectie op de wedstrijddetail (ná afmelden, zelfde kolom).
+  app.raw((project) => _addWedstrijdScoreSection(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
   app.raw((project) {
     _fixListViewItemNameByNodeName(project, 'WisselAanvraagPage',  'TeamMembersListView',  'member');
@@ -9214,6 +9218,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
     'matchOpponent', 'matchDatetime', 'matchLocation',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchNotes',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
+    'matchGoalsSummary',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -9246,6 +9251,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchStatus':        r'$.mijn_status',
           'matchMagAfmelden':   r'$.mag_afmelden',
           'matchMagOpstelling': r'$.mag_opstelling',
+          'matchGoalsSummary':  r'$.goals_summary',
         };
         final updates = <StateFieldUpdate>[
           StateFieldUpdate.set('isLoading', 'false'),
@@ -18454,6 +18460,23 @@ void _ensureTrainingsAppStateField(FFProject project) {
   project.appState.fields.add(FFAppStateField(parameter: param));
 }
 
+// AppState 'matchGoals' = List<GoalItem>, gevuld door GetMatchGoals (scorebeheer).
+void _ensureMatchGoalsAppStateField(FFProject project) {
+  if (project.appState.fields.any(
+    (f) => f.parameter.identifier.name == 'matchGoals',
+  )) return;
+  final struct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'GoalItem', orElse: () => null);
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(name: 'matchGoals', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
 // Voegt de telling-velden (aangemeld/afgemeld, string) toe aan de bestaande
 // TrainingItem-struct. Raw, idempotent — er is geen addDataStructField-helper en
 // app.struct/ensure botst op een gewijzigde payload.
@@ -18596,6 +18619,77 @@ void _addScoreEndpoints(FFProject project) {
       headers: ['Authorization: Bearer [token]'],
     );
   }
+}
+
+// Coach-sectie op de WedstrijdDetailPage met de doelpunten-samenvatting (uit
+// $.goals_summary). Alleen zichtbaar als matchMagOpstelling == 'true'. Een
+// samenvatting-string i.p.v. een dynamische ListView houdt de binding robuust
+// (toevoegen/verwijderen van losse doelpunten volgt als interactief increment).
+void _addWedstrijdScoreSection(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'ScoreSectionContainer').isNotEmpty) return;
+
+  FFVariable? stateVar(String name) {
+    final f = wc.classModel.stateFields
+        .cast<FFWidgetClassStateField?>()
+        .firstWhere((x) => x?.parameter.identifier.name == name, orElse: () => null);
+    if (f == null) return null;
+    return varFromPageState(f.parameter.identifier.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  }
+
+  final magVar     = stateVar('matchMagOpstelling');
+  final summaryVar  = stateVar('matchGoalsSummary');
+  if (magVar == null || summaryVar == null) return;
+
+  // Zelfde kolom als de Afmelden-knop (die bestaat na _wireWedstrijdAfmelden).
+  final afmeldBtn = findDescendants(wc.node, (n) => n.name == 'MatchAfmeldButton').firstOrNull;
+  if (afmeldBtn == null) return;
+  final parentCol = findDescendants(wc.node, (_) => true)
+      .where((n) => n.children.any((c) => identical(c, afmeldBtn)))
+      .firstOrNull;
+  if (parentCol == null) return;
+
+  final header = UI.text('Doelpunten', name: 'ScoreSectionHeader', style: UITextStyle.titleMedium);
+  final summaryText = UI.text('-', name: 'ScoreSummaryText', style: UITextStyle.bodyMedium);
+  // Null-safe binden ("s ?? ''") — anders genereert FF _model.matchGoalsSummary!
+  // en crasht de pagina als de waarde nog null is (vóór de API-load).
+  summaryText.props.text.textValue = FFStringValue(
+    variable: codeExpressionVar(
+      expression: "s ?? ''",
+      arguments: [
+        CodeExpressionArg(
+          name: 's',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: summaryVar),
+        ),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    ),
+  );
+
+  final container = UI.column(
+    name: 'ScoreSectionContainer',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 6,
+    children: [header, summaryText],
+  );
+  setConditionalVisibility(
+    container,
+    variable: codeExpressionVar(
+      expression: "m == 'true'",
+      arguments: [
+        CodeExpressionArg(
+          name: 'm',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: magVar),
+        ),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+    ),
+  );
+  parentCol.children.add(container);
 }
 
 // ─── Dashboard: trainingen-sectie ────────────────────────────────────────────

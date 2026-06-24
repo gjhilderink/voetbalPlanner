@@ -95,6 +95,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const matchGoals = ffai.ProjectAppStateFieldHandle(
+    name: "matchGoals",
+    key: "01d8gbk7",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
   static const pendingAfmeldReason = ffai.ProjectAppStateFieldHandle(
     name: "pendingAfmeldReason",
     key: "26g499m2",
@@ -249,6 +255,7 @@ abstract final class AppState {
     loginEmail,
     loginError,
     loginPassword,
+    matchGoals,
     pendingAfmeldReason,
     pendingDirectUserEmail,
     pendingDirectUserId,

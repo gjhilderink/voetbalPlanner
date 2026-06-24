@@ -79,6 +79,12 @@ final class WedstrijdDetailPageState {
         key: "gr2oniw0",
         typeName: "String",
       );
+  ffai.ProjectStateFieldHandle get matchGoalsSummary =>
+      const ffai.ProjectStateFieldHandle(
+        name: "matchGoalsSummary",
+        key: "qtj8nhbq",
+        typeName: "String",
+      );
   ffai.ProjectStateFieldHandle get matchLocation =>
       const ffai.ProjectStateFieldHandle(
         name: "matchLocation",
@@ -405,23 +411,44 @@ abstract final class WedstrijdDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_ncwl9ckd",
-                                type: "Text",
+                                key: "Column_790bmei9",
+                                type: "Column",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8]",
+                                name: "ScoreSectionContainer",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_kl9595af",
+                                    type: "Text",
+                                    path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8].children[0]",
+                                    name: "ScoreSectionHeader",
+                                    text: "Doelpunten",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_qutj5dmv",
+                                    type: "Text",
+                                    path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8].children[1]",
+                                    name: "ScoreSummaryText",
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_ttfnlc4p",
+                                type: "Text",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[9]",
                                 name: "MatchAfmeldHeader",
                                 text: "Af-/aanmelden",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "TextField_jd4wso6z",
+                                key: "TextField_gu28kk7t",
                                 type: "TextField",
-                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[9]",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[10]",
                                 name: "MatchReasonField",
                                 text: "Reden (bij afmelden)",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Button_2glwtylp",
+                                key: "Button_9yuhs39o",
                                 type: "Button",
-                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[10]",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[11]",
                                 name: "MatchAfmeldButton",
                                 text: "Afmelden",
                                 triggers: const <String>[
@@ -429,9 +456,9 @@ abstract final class WedstrijdDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Button_2a46anfk",
+                                key: "Button_vhczh1on",
                                 type: "Button",
-                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[11]",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[12]",
                                 name: "MatchAanmeldButton",
                                 text: "Aanmelden",
                                 triggers: const <String>[
