@@ -95,6 +95,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const pendingAfmeldReason = ffai.ProjectAppStateFieldHandle(
+    name: "pendingAfmeldReason",
+    key: "26g499m2",
+    typeName: "String",
+    persisted: false,
+  );
   static const pendingDirectUserEmail = ffai.ProjectAppStateFieldHandle(
     name: "pendingDirectUserEmail",
     key: "6efgp4vw",
@@ -116,6 +122,12 @@ abstract final class AppState {
   static const pendingGroupName = ffai.ProjectAppStateFieldHandle(
     name: "pendingGroupName",
     key: "caw2nxp1",
+    typeName: "String",
+    persisted: false,
+  );
+  static const pendingMatchId = ffai.ProjectAppStateFieldHandle(
+    name: "pendingMatchId",
+    key: "pt034q0k",
     typeName: "String",
     persisted: false,
   );
@@ -141,6 +153,18 @@ abstract final class AppState {
     name: "pendingTeamMembers",
     key: "1vok8wo7",
     typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
+  static const pendingTrainingDate = ffai.ProjectAppStateFieldHandle(
+    name: "pendingTrainingDate",
+    key: "hyfaim2z",
+    typeName: "String",
+    persisted: false,
+  );
+  static const pendingTrainingScheduleId = ffai.ProjectAppStateFieldHandle(
+    name: "pendingTrainingScheduleId",
+    key: "wdf44yfu",
+    typeName: "String",
     persisted: false,
   );
   static const primaryColor = ffai.ProjectAppStateFieldHandle(
@@ -176,6 +200,12 @@ abstract final class AppState {
   static const sharedTeamMembers = ffai.ProjectAppStateFieldHandle(
     name: "sharedTeamMembers",
     key: "wzszy9iv",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
+  static const trainings = ffai.ProjectAppStateFieldHandle(
+    name: "trainings",
+    key: "ff2yon21",
     typeName: "List<DataStruct<?>>",
     persisted: false,
   );
@@ -219,20 +249,25 @@ abstract final class AppState {
     loginEmail,
     loginError,
     loginPassword,
+    pendingAfmeldReason,
     pendingDirectUserEmail,
     pendingDirectUserId,
     pendingDirectUserName,
     pendingGroupName,
+    pendingMatchId,
     pendingMessageText,
     pendingStaffGroupId,
     pendingStaffGroupName,
     pendingTeamMembers,
+    pendingTrainingDate,
+    pendingTrainingScheduleId,
     primaryColor,
     profilePhotoUrl,
     relatiecode,
     secondaryColor,
     sharedBarDuties,
     sharedTeamMembers,
+    trainings,
     unreadChatCount,
     userEmail,
     userName,

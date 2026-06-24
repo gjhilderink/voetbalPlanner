@@ -361,6 +361,13 @@ void buildEditFlow(App app) {
   // bestanden met elk hun eigen module-globals, dus een gewone Dart-global wordt
   // NIET gedeeld tussen pick en submit (screenshots gingen daardoor verloren).
   try { app.state('bugScreenshotPaths', listOf(string)); } catch (_) {}
+  // Trainingen + af-/aanmeld-parameters (gestaged in AppState; custom actions
+  // lezen ze zodat we geen scalar-String-args nodig hebben — die geven FF-
+  // validator-issues).
+  try { app.state('pendingTrainingScheduleId', string); } catch (_) {}
+  try { app.state('pendingTrainingDate',       string); } catch (_) {}
+  try { app.state('pendingAfmeldReason',       string); } catch (_) {}
+  try { app.state('pendingMatchId',            string); } catch (_) {}
 
   // ── Chat custom actions ───────────────────────────────────────────────────────
   // Declared at DSL level so CallCustomAction.named(...) in _buildChatDetailPage
@@ -531,6 +538,44 @@ void buildEditFlow(App app) {
   try {
     app.struct('TeamOption', {'id': string, 'name': string});
   } catch (_) {}
+
+  // Trainingen: structs voor de GetTrainings-response. Veldnamen = exact de
+  // (snake_case) JSON-keys uit TrainingController, zodat maybeFromMap direct mapt.
+  final afmeldingHandle = StructHandle(
+    'Afmelding',
+    {'naam': string, 'reden': string},
+    description: generatedProjectStructDescription,
+  );
+  try {
+    app.struct('Afmelding', {'naam': string, 'reden': string});
+  } catch (_) {}
+  try {
+    app.struct('TrainingItem', {
+      'schedule_id': string,
+      'date':        string,
+      'day_label':   string,
+      'start_time':  string,
+      'end_time':    string,
+      'location':    string,
+      'team_name':   string,
+      'mijn_status': string,
+      'afmeldingen': listOf(afmeldingHandle),
+    });
+  } catch (_) {}
+  // AppState 'trainings' = List<TrainingItem>, gevuld door de GetTrainings custom action.
+  final trainingItemHandle = StructHandle(
+    'TrainingItem',
+    {
+      'schedule_id': string, 'date': string, 'day_label': string,
+      'start_time': string, 'end_time': string, 'location': string,
+      'team_name': string, 'mijn_status': string,
+      'afmeldingen': listOf(afmeldingHandle),
+    },
+    description: generatedProjectStructDescription,
+  );
+  try { app.state('trainings', listOf(trainingItemHandle)); } catch (_) {}
+  // Custom actions: trainingen ophalen + af-/aanmelden (training & wedstrijd).
+  app.raw((project) => _addTrainingsCustomActions(project));
 
   // Ensure 'staffGroups' state field exists on ChatsPage.
   // Using app.editPageState (DSL compile phase) so the struct reference is
@@ -18014,4 +18059,185 @@ Options:
                             after a Firebase project was deleted and recreated.
   --help, -h                Show this help.
 ''');
+}
+
+// ─── Trainingen: custom actions (ophalen + af-/aanmelden) ────────────────────
+
+const _kTrainingsActionHeader = '''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+const _kApiBase = 'https://voetbalplanner.nubix.nl/api/v1';
+''';
+
+const _kGetTrainingsCode = '''
+$_kTrainingsActionHeader
+
+Future<bool> getTrainings() async {
+  final token  = FFAppState().authToken;
+  final teamId = FFAppState().currentTeamId;
+  if (token.isEmpty || teamId.isEmpty) {
+    FFAppState().trainings = [];
+    return false;
+  }
+  try {
+    final uri  = Uri.parse('\$_kApiBase/trainings?team_id=\$teamId&days=21');
+    final resp = await http.get(uri, headers: {
+      'Authorization': 'Bearer \$token',
+      'Accept': 'application/json',
+    });
+    if (resp.statusCode != 200) return false;
+    final decoded = jsonDecode(resp.body);
+    final items = <TrainingItemStruct>[];
+    if (decoded is List) {
+      for (final m in decoded) {
+        final t = TrainingItemStruct.maybeFromMap(m);
+        if (t != null) items.add(t);
+      }
+    }
+    FFAppState().trainings = items;
+    return true;
+  } catch (e) {
+    debugPrint('[GetTrainings] \$e');
+    return false;
+  }
+}
+''';
+
+const _kAfmeldenTrainingCode = '''
+$_kTrainingsActionHeader
+
+Future<bool> afmeldenTraining() async {
+  final token  = FFAppState().authToken;
+  final sid    = FFAppState().pendingTrainingScheduleId;
+  final date   = FFAppState().pendingTrainingDate;
+  final reason = FFAppState().pendingAfmeldReason;
+  if (token.isEmpty || sid.isEmpty || date.isEmpty) return false;
+  try {
+    final uri  = Uri.parse('\$_kApiBase/trainings/\$sid/\$date/afmelden');
+    final resp = await http.post(uri,
+      headers: {
+        'Authorization': 'Bearer \$token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'reason': reason}));
+    return resp.statusCode == 200;
+  } catch (e) {
+    debugPrint('[AfmeldenTraining] \$e');
+    return false;
+  }
+}
+''';
+
+const _kAanmeldenTrainingCode = '''
+$_kTrainingsActionHeader
+
+Future<bool> aanmeldenTraining() async {
+  final token = FFAppState().authToken;
+  final sid   = FFAppState().pendingTrainingScheduleId;
+  final date  = FFAppState().pendingTrainingDate;
+  if (token.isEmpty || sid.isEmpty || date.isEmpty) return false;
+  try {
+    final uri  = Uri.parse('\$_kApiBase/trainings/\$sid/\$date/aanmelden');
+    final resp = await http.post(uri, headers: {
+      'Authorization': 'Bearer \$token',
+      'Accept': 'application/json',
+    });
+    return resp.statusCode == 200;
+  } catch (e) {
+    debugPrint('[AanmeldenTraining] \$e');
+    return false;
+  }
+}
+''';
+
+const _kAfmeldenMatchCode = '''
+$_kTrainingsActionHeader
+
+Future<bool> afmeldenMatch() async {
+  final token  = FFAppState().authToken;
+  final mid    = FFAppState().pendingMatchId;
+  final reason = FFAppState().pendingAfmeldReason;
+  if (token.isEmpty || mid.isEmpty) return false;
+  try {
+    final uri  = Uri.parse('\$_kApiBase/matches/\$mid/afmelden');
+    final resp = await http.post(uri,
+      headers: {
+        'Authorization': 'Bearer \$token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'reason': reason}));
+    return resp.statusCode == 200;
+  } catch (e) {
+    debugPrint('[AfmeldenMatch] \$e');
+    return false;
+  }
+}
+''';
+
+const _kAanmeldenMatchCode = '''
+$_kTrainingsActionHeader
+
+Future<bool> aanmeldenMatch() async {
+  final token = FFAppState().authToken;
+  final mid   = FFAppState().pendingMatchId;
+  if (token.isEmpty || mid.isEmpty) return false;
+  try {
+    final uri  = Uri.parse('\$_kApiBase/matches/\$mid/aanmelden');
+    final resp = await http.post(uri, headers: {
+      'Authorization': 'Bearer \$token',
+      'Accept': 'application/json',
+    });
+    return resp.statusCode == 200;
+  } catch (e) {
+    debugPrint('[AanmeldenMatch] \$e');
+    return false;
+  }
+}
+''';
+
+void _addTrainingsCustomActions(FFProject project) {
+  FFParameter boolReturn() => FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+      );
+
+  void ensure(String name, String description, String code) {
+    if (findCustomAction(project, name: name) == null) {
+      addCustomAction(
+        project,
+        name: name,
+        description: description,
+        arguments: const [],
+        returnParameter: boolReturn(),
+        includeContext: false,
+        code: code,
+      );
+    } else {
+      updateCustomAction(
+        project,
+        name: name,
+        code: code,
+        arguments: const [],
+        includeContext: false,
+      );
+    }
+  }
+
+  ensure('GetTrainings', 'Haalt de komende trainingen voor het huidige team op in AppState.trainings.', _kGetTrainingsCode);
+  ensure('AfmeldenTraining', 'Meldt het ingelogde lid af voor een training (pending* AppState-velden + reden).', _kAfmeldenTrainingCode);
+  ensure('AanmeldenTraining', 'Meldt het ingelogde lid weer aan voor een training.', _kAanmeldenTrainingCode);
+  ensure('AfmeldenMatch', 'Meldt het ingelogde lid af voor een wedstrijd (pendingMatchId + reden).', _kAfmeldenMatchCode);
+  ensure('AanmeldenMatch', 'Meldt het ingelogde lid weer aan voor een wedstrijd.', _kAanmeldenMatchCode);
+
+  try { addPubDependency(project, name: 'http', version: '^1.2.0'); } catch (_) {}
 }

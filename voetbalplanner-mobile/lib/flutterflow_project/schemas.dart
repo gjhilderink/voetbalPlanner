@@ -11,6 +11,14 @@ abstract final class Enums {
 }
 
 abstract final class Structs {
+  static final afmelding = ffai.StructHandle(
+    "Afmelding",
+    <String, ffai.DslType>{
+      "naam": ffai.string,
+      "reden": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final banner = ffai.StructHandle(
     "Banner",
     <String, ffai.DslType>{
@@ -240,6 +248,21 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final trainingItem = ffai.StructHandle(
+    "TrainingItem",
+    <String, ffai.DslType>{
+      "afmeldingen": ffai.listOf(Structs.afmelding),
+      "date": ffai.string,
+      "day_label": ffai.string,
+      "end_time": ffai.string,
+      "location": ffai.string,
+      "mijn_status": ffai.string,
+      "schedule_id": ffai.string,
+      "start_time": ffai.string,
+      "team_name": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final userRef = ffai.StructHandle(
     "UserRef",
     <String, ffai.DslType>{
@@ -252,6 +275,7 @@ abstract final class Structs {
     description: ffai.generatedProjectStructDescription,
   );
   static final all = <ffai.StructHandle>[
+    afmelding,
     banner,
     barDuty,
     clubBranding,
@@ -271,6 +295,7 @@ abstract final class Structs {
     swapMember,
     swapRequest,
     teamOption,
+    trainingItem,
     userRef,
   ];
 }
@@ -1043,7 +1068,11 @@ abstract final class CustomCode {
     "hasStoredToken",
   ];
   static const actions = <String>[
+    "AanmeldenMatch",
+    "AanmeldenTraining",
     "AddEventToCalendar",
+    "AfmeldenMatch",
+    "AfmeldenTraining",
     "AuthenticateBiometric",
     "BumpConversationUnread",
     "ClearBugScreenshots",
@@ -1054,6 +1083,7 @@ abstract final class CustomCode {
     "GetAppUsersAsMembers",
     "GetOrCreateDirectConversation",
     "GetOrCreateStaffGroupConversation",
+    "GetTrainings",
     "InitializeGroupConversation",
     "InitializeTeamConversation",
     "LoadGroupMemberNames",
