@@ -18762,6 +18762,16 @@ void _addWedstrijdScoreSection(FFProject project) {
 
   // Plaatst ontbrekende coach-controls (toevoeg-form + verwijder-knop) in de sectie.
   void ensureControls(FFNode container) {
+    // Samenvatting-tekst (null-safe nu matchGoalsSummary default '' heeft), net na de kop.
+    if (findDescendants(container, (n) => n.name == 'ScoreSummaryText').isEmpty) {
+      final sv = stateVar('matchGoalsSummary');
+      if (sv != null) {
+        final summaryText = UI.text('-', name: 'ScoreSummaryText', style: UITextStyle.bodyMedium);
+        summaryText.props.text.textValue = FFStringValue(variable: sv);
+        final hIdx = container.children.indexWhere((n) => n.name == 'ScoreSectionHeader');
+        container.children.insert(hIdx >= 0 ? hIdx + 1 : 0, summaryText);
+      }
+    }
     if (findDescendants(container, (n) => n.name == 'ScoreAddButton').isEmpty) {
       container.children.addAll(buildAddForm());
     }
@@ -18771,16 +18781,9 @@ void _addWedstrijdScoreSection(FFProject project) {
     }
   }
 
-  // Sectie bestaat al (eerdere push) -> opruimen: de crashende samenvatting-tekst
-  // (Text(_model.matchGoalsSummary!) crasht vóór de load op null) en de oude
-  // add-form-widgets (verwezen naar de stukke AddGoal) weghalen, daarna controls
-  // opnieuw (met AddGoalV2) bijplaatsen.
+  // Sectie bestaat al -> ontbrekende onderdelen bijplaatsen (samenvatting is nu
+  // null-safe omdat matchGoalsSummary default '' heeft).
   if (existingContainer != null) {
-    existingContainer.children.removeWhere((n) =>
-        n.name == 'ScoreSummaryText' ||
-        n.name == 'ScoreScorerField' ||
-        n.name == 'ScoreMinuteField' ||
-        n.name == 'ScoreAddButton');
     ensureControls(existingContainer);
     return;
   }
