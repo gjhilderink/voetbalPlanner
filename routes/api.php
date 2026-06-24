@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\TrainingController;
 use App\Http\Controllers\Api\NewsItemController;
 use App\Http\Controllers\Api\StaffGroupController;
 use App\Http\Controllers\Api\SwapRequestController;
@@ -128,6 +129,14 @@ Route::prefix('v1')->group(function () {
         Route::get('/matches', [MatchController::class, 'index']);
         Route::get('/matches/{match}', [MatchController::class, 'show']);
         Route::patch('/matches/{match}', [MatchController::class, 'update']);
+        // Af-/aanmelden wedstrijd (POST i.p.v. DELETE/PATCH; shared-host-veilig)
+        Route::post('/matches/{match}/afmelden', [MatchController::class, 'afmelden']);
+        Route::post('/matches/{match}/aanmelden', [MatchController::class, 'aanmelden']);
+
+        // Trainingen (herhaal-schema's per team → berekende occurrences)
+        Route::get('/trainings', [TrainingController::class, 'index']);
+        Route::post('/trainings/{schedule}/{date}/afmelden', [TrainingController::class, 'afmelden']);
+        Route::post('/trainings/{schedule}/{date}/aanmelden', [TrainingController::class, 'aanmelden']);
 
         // Lineups
         Route::get('/matches/{match}/lineup', [LineupController::class, 'show']);
