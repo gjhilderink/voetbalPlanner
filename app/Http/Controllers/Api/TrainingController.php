@@ -51,7 +51,7 @@ class TrainingController extends Controller
             ->get()
             ->groupBy(fn ($a) => $a->training_schedule_id . '|' . $a->training_date->toDateString());
 
-        $myMemberId = $request->user()?->member?->id;
+        $myMemberId = $request->user()?->resolveMember()?->id;
 
         // Aantal teamleden (voor 'aangemeld' = leden - afmeldingen). Eén query;
         // alle schema's horen bij hetzelfde team (team_id-filter).
@@ -106,7 +106,7 @@ class TrainingController extends Controller
      */
     public function afmelden(Request $request, TrainingSchedule $schedule, string $date): JsonResponse
     {
-        $member = $request->user()?->member;
+        $member = $request->user()?->resolveMember();
         if (!$member) {
             return response()->json(['success' => false, 'message' => 'Alleen leden kunnen zich afmelden.'], 403);
         }
@@ -138,7 +138,7 @@ class TrainingController extends Controller
      */
     public function aanmelden(Request $request, TrainingSchedule $schedule, string $date): JsonResponse
     {
-        $member = $request->user()?->member;
+        $member = $request->user()?->resolveMember();
         if (!$member) {
             return response()->json(['success' => false, 'message' => 'Alleen leden kunnen zich aanmelden.'], 403);
         }

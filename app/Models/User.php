@@ -102,6 +102,17 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         return $this->hasOne(Member::class);
     }
 
+    /**
+     * Het lid bij dit account: via de directe koppeling (user_id) óf, als die
+     * ontbreekt, via een e-mail-match. Voorkomt 'Alleen leden'-403's bij leden
+     * waarvan de Member-User-koppeling niet (goed) is gezet.
+     */
+    public function resolveMember(): ?Member
+    {
+        return $this->member
+            ?? ($this->email ? Member::where('email', $this->email)->first() : null);
+    }
+
     public function managedTeams(): BelongsToMany
     {
         return $this->belongsToMany(Team::class, 'user_team');

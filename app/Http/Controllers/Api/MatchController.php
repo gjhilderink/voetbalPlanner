@@ -44,7 +44,7 @@ class MatchController extends Controller
             ->where('match_id', $match->id)
             ->with('member:id,name')
             ->get();
-        $myMemberId = $request->user()?->member?->id;
+        $myMemberId = $request->user()?->resolveMember()?->id;
 
         $data['mijn_status'] = ($myMemberId && $absences->firstWhere('member_id', $myMemberId)) ? 'afgemeld' : 'aangemeld';
         $data['afmeldingen'] = $absences->map(fn ($a) => [
@@ -60,7 +60,7 @@ class MatchController extends Controller
      */
     public function afmelden(Request $request, FootballMatch $match): JsonResponse
     {
-        $member = $request->user()?->member;
+        $member = $request->user()?->resolveMember();
         if (!$member) {
             return response()->json(['success' => false, 'message' => 'Alleen leden kunnen zich afmelden.'], 403);
         }
@@ -89,7 +89,7 @@ class MatchController extends Controller
      */
     public function aanmelden(Request $request, FootballMatch $match): JsonResponse
     {
-        $member = $request->user()?->member;
+        $member = $request->user()?->resolveMember();
         if (!$member) {
             return response()->json(['success' => false, 'message' => 'Alleen leden kunnen zich aanmelden.'], 403);
         }
