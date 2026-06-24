@@ -18503,26 +18503,39 @@ void _addAfmeldEndpoints(FFProject project) {
         type: FFBaseDataType.String,
       );
 
-  void ensure(String name, String url, List<String> varNames, {bool reason = false}) {
-    if (findApiEndpoint(project, name: name, groupName: 'VoetbalPlannerAPI') != null) return;
+  // FF interpoleert [var] alleen in de URL (niet in de JSON-body), dus de reden
+  // gaat als query-param mee. Laravel's validate() leest query-params ook.
+  void ensure(String name, String url, List<String> varNames) {
+    final existing = findApiEndpoint(project, name: name, groupName: 'VoetbalPlannerAPI');
+    if (existing != null) {
+      existing.url = url;
+      existing.body = '';
+      existing.bodyType = FFApiEndpoint_BodyType.NONE;
+      for (final vn in varNames) {
+        if (!existing.variables.any((v) => v.hasIdentifier() && v.identifier.name == vn)) {
+          existing.variables.add(mkVar(vn));
+        }
+      }
+      return;
+    }
     group.endpoints.add(FFApiEndpoint(
       identifier: FFIdentifier(name: name, key: generateRandomAlphaNumericString()),
       url: url,
       callType: FFApiEndpoint_CallType.POST,
-      bodyType: reason ? FFApiEndpoint_BodyType.JSON : FFApiEndpoint_BodyType.NONE,
-      body: reason ? '{"reason": "[reason]"}' : '',
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      body: '',
       variables: varNames.map(mkVar).toList(),
       headers: ['Authorization: Bearer [token]'],
       groupIdentifier: group.identifier.deepCopy(),
     ));
   }
 
-  ensure('AfmeldenTrainingApi', '/trainings/[scheduleId]/[date]/afmelden',
-      ['token', 'scheduleId', 'date', 'reason'], reason: true);
+  ensure('AfmeldenTrainingApi', '/trainings/[scheduleId]/[date]/afmelden?reason=[reason]',
+      ['token', 'scheduleId', 'date', 'reason']);
   ensure('AanmeldenTrainingApi', '/trainings/[scheduleId]/[date]/aanmelden',
       ['token', 'scheduleId', 'date']);
-  ensure('AfmeldenMatchApi', '/matches/[matchId]/afmelden',
-      ['token', 'matchId', 'reason'], reason: true);
+  ensure('AfmeldenMatchApi', '/matches/[matchId]/afmelden?reason=[reason]',
+      ['token', 'matchId', 'reason']);
   ensure('AanmeldenMatchApi', '/matches/[matchId]/aanmelden',
       ['token', 'matchId']);
 }
@@ -18778,8 +18791,9 @@ void _wireTrainingDetailPage(FFProject project) {
   if (localStatusField == null) return;
   final localStatusId = localStatusField.parameter.identifier;
 
-  final authTokenId = _findAppStateFieldId(project, 'authToken');
-  if (authTokenId == null) return;
+  final authTokenId     = _findAppStateFieldId(project, 'authToken');
+  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  if (authTokenId == null || currentTeamIdId == null) return;
 
   String gen() => generateRandomAlphaNumericString();
   FFVariable pParam(FFIdentifier id) =>
@@ -18854,10 +18868,30 @@ void _wireTrainingDetailPage(FFProject project) {
       dynamicVariables: dynVars,
       outputVariableName: '${btn.name}Out',
       nodeKey: btn.key,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.snackBar(okMsg),
-        Actions.navigateBack(),
-      ]),
+      // Succes: melding -> trainingen herladen (zodat dashboard-teller/namen
+      // direct kloppen) -> pagina sluiten. Mislukt: foutmelding, blijven.
+      onSuccess: (ctx) => FFActionNode(
+        key: gen(),
+        action: Actions.snackBar(okMsg),
+        followUpAction: Actions.apiCallNode(
+          project,
+          endpointName: 'GetTrainingsList',
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: {
+            'token':  varFromAppState(authTokenId.deepCopy()),
+            'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+          },
+          outputVariableName: '${btn.name}Refresh',
+          nodeKey: btn.key,
+          onSuccess: (ctx2) => Actions.chain([
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable('trainings', ctx2.responseVar),
+            ]),
+            Actions.navigateBack(),
+          ]),
+          onFailure: (ctx2) => Actions.chain([Actions.navigateBack()]),
+        ),
+      ),
       onFailure: (ctx) => Actions.chain([
         Actions.snackBar('Er ging iets mis — probeer het opnieuw of controleer je verbinding.'),
       ]),
