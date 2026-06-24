@@ -562,6 +562,9 @@ void buildEditFlow(App app) {
       'afmeldingen': listOf(afmeldingHandle),
     });
   } catch (_) {}
+  // Voeg de telling-velden (aangemeld/afgemeld) toe aan de bestaande struct via
+  // een raw update-helper (app.struct/ensure botst op een gewijzigde payload).
+  app.raw((project) => _ensureTrainingItemCountFields(project));
   // AppState 'trainings' = List<TrainingItem>, gevuld door GetTrainings. Via raw
   // idempotente helper (app.state-ensure botst met een al bestaand veld met
   // afwijkende payload).
@@ -934,6 +937,8 @@ void buildEditFlow(App app) {
     _wireDashboardDriveScheduleLoad(project);
     // Trainingen-sectie + GetTrainings op de on-load-chain (idem: ná _wireDashboardLoad).
     _addDashboardTrainingsSection(project);
+    // Status-iconen (aangemeld/afgemeld) onder de trainingskaart.
+    _addTrainingCardStatusIcons(project);
     // Tap on a dashboard card → open the corresponding detail page.
     _wireDashboardCardNavigation(project);
   });
@@ -18184,7 +18189,7 @@ Future<bool> getTrainings() async {
   final token  = FFAppState().authToken;
   final teamId = FFAppState().currentTeamId;
   if (token.isEmpty || teamId.isEmpty) {
-    FFAppState().trainings = [];
+    FFAppState().update(() => FFAppState().trainings = []);
     return false;
   }
   try {
@@ -18202,7 +18207,9 @@ Future<bool> getTrainings() async {
         if (t != null) items.add(t);
       }
     }
-    FFAppState().trainings = items;
+    // update() i.p.v. plain assignment: de FFAppState-setter notificeert niet,
+    // dus zonder update() herbouwt het dashboard (context.watch) niet.
+    FFAppState().update(() => FFAppState().trainings = items);
     return true;
   } catch (e) {
     debugPrint('[GetTrainings] \$e');
@@ -18358,6 +18365,23 @@ void _ensureTrainingsAppStateField(FFProject project) {
   project.appState.fields.add(FFAppStateField(parameter: param));
 }
 
+// Voegt de telling-velden (aangemeld/afgemeld, string) toe aan de bestaande
+// TrainingItem-struct. Raw, idempotent — er is geen addDataStructField-helper en
+// app.struct/ensure botst op een gewijzigde payload.
+void _ensureTrainingItemCountFields(FFProject project) {
+  final ds = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'TrainingItem', orElse: () => null);
+  if (ds == null) return;
+  for (final fieldName in const ['aangemeld', 'afgemeld']) {
+    if (ds.fields.any((f) => f.identifier.name == fieldName)) continue;
+    ds.fields.add(FFParameter(
+      identifier: FFIdentifier(name: fieldName, key: generateRandomAlphaNumericString()),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ));
+  }
+}
+
 // ─── Dashboard: trainingen-sectie ────────────────────────────────────────────
 // Voegt een "Trainingen"-sectie toe onderaan de dashboard-kolom met een ListView
 // gebonden aan AppState.trainings, en triggert GetTrainings op page-load.
@@ -18478,4 +18502,39 @@ void _addDashboardTrainingsSection(FFProject project) {
   );
 
   parentCol.children.add(section);
+}
+
+// Voegt onder elke trainingskaart een rij met aanmeld-status-iconen toe:
+// groen vinkje + aantal aangemeld, rood kruisje + aantal afgemeld. Aparte patch
+// (de sectie-build hierboven is idempotent en wordt niet herbouwd).
+void _addTrainingCardStatusIcons(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  final listView =
+      findDescendants(wc.node, (n) => n.name == 'DashboardTrainingsList').firstOrNull;
+  if (listView == null) return;
+  final info = findDescendants(wc.node, (n) => n.name == 'DashTrainInfo').firstOrNull;
+  if (info == null) return;
+  // Idempotent.
+  if (findDescendants(info, (n) => n.name == 'DashTrainStatusRow').isNotEmpty) return;
+
+  FFNode countText(String name, String field, UIColor color) {
+    final t = UI.text('0', name: name, style: UITextStyle.bodySmall, color: color);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(listView.key, field));
+    return t;
+  }
+
+  final row = UI.row(
+    name: 'DashTrainStatusRow',
+    spacing: 6,
+    children: [
+      UI.icon('check_circle', size: 16, color: UIColor.success),
+      countText('DashTrainAangemeld', 'aangemeld', UIColor.success),
+      UI.icon('cancel', size: 16, color: UIColor.error),
+      countText('DashTrainAfgemeld', 'afgemeld', UIColor.error),
+    ],
+  );
+
+  info.children.add(row);
 }

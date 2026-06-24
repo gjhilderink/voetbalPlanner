@@ -251,6 +251,8 @@ abstract final class Structs {
   static final trainingItem = ffai.StructHandle(
     "TrainingItem",
     <String, ffai.DslType>{
+      "aangemeld": ffai.string,
+      "afgemeld": ffai.string,
       "afmeldingen": ffai.listOf(Structs.afmelding),
       "date": ffai.string,
       "day_label": ffai.string,

@@ -53,6 +53,11 @@ class TrainingController extends Controller
 
         $myMemberId = $request->user()?->member?->id;
 
+        // Aantal teamleden (voor 'aangemeld' = leden - afmeldingen). Eén query;
+        // alle schema's horen bij hetzelfde team (team_id-filter).
+        $team        = $schedules->first()?->team;
+        $memberCount = $team ? (int) $team->members()->count() : 0;
+
         $occurrences = [];
         foreach ($schedules as $schedule) {
             // Eerste datum >= start die op de juiste weekdag valt.
@@ -73,6 +78,9 @@ class TrainingController extends Controller
                     'location'    => $schedule->location ?? '',
                     'team_name'   => $schedule->team?->name ?? '',
                     'mijn_status' => ($myMemberId && $abs->firstWhere('member_id', $myMemberId)) ? 'afgemeld' : 'aangemeld',
+                    // Telling voor de status-iconen op de kaart.
+                    'afgemeld'    => (string) $abs->count(),
+                    'aangemeld'   => (string) max(0, $memberCount - $abs->count()),
                     'afmeldingen' => $abs->map(fn ($a) => [
                         'naam'  => $a->member?->name ?? '',
                         'reden' => $a->reason,
