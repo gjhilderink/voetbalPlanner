@@ -31,9 +31,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/magic-link', [AuthController::class, 'sendMagicLink']);
     Route::post('/auth/verify-magic-link', [AuthController::class, 'verifyMagicLink']);
 
-    // Guardian: ouder/verzorger self-registratie (publiek, throttled)
+    // Guardian: ouder/verzorger self-registratie (publiek, throttled).
+    // 10 per minuut: ruim genoeg voor legitieme herpogingen (validatiefouten,
+    // testen) maar nog steeds anti-spam.
     Route::post('/guardian/self-register', [GuardianController::class, 'selfRegister'])
-         ->middleware(['throttle:3,1']);
+         ->middleware(['throttle:10,1']);
 
     // Health
     Route::get('/health', fn() => response()->json(['status' => 'ok', 'timestamp' => now()]));
