@@ -42,13 +42,17 @@ class MatchController extends Controller
         $absences = Absence::query()
             ->where('type', Absence::TYPE_MATCH)
             ->where('match_id', $match->id)
-            ->with('member:id,name')
+            ->with(['member:id,name', 'user:id,name'])
             ->get();
         $myMemberId = $request->user()?->resolveMember()?->id;
+        $myUserId   = $request->user()?->id;
 
-        $data['mijn_status'] = ($myMemberId && $absences->firstWhere('member_id', $myMemberId)) ? 'afgemeld' : 'aangemeld';
+        $data['mijn_status'] = $absences->first(fn ($a) =>
+            ($myMemberId && $a->member_id === $myMemberId) ||
+            ($myUserId && $a->user_id === $myUserId)
+        ) ? 'afgemeld' : 'aangemeld';
         $data['afmeldingen'] = $absences->map(fn ($a) => [
-            'naam'  => $a->member?->name ?? '',
+            'naam'  => $a->member?->name ?? $a->user?->name ?? '',
             'reden' => $a->reason,
         ])->values();
 
@@ -60,26 +64,23 @@ class MatchController extends Controller
      */
     public function afmelden(Request $request, FootballMatch $match): JsonResponse
     {
-        $member = $request->user()?->resolveMember();
-        if (!$member) {
-            return response()->json(['success' => false, 'message' => 'Alleen leden kunnen zich afmelden.'], 403);
-        }
+        $user   = $request->user();
+        $member = $user?->resolveMember();
 
         $validated = $request->validate([
             'reason' => 'required|string|max:255',
         ]);
 
-        Absence::updateOrCreate(
-            [
-                'type'      => Absence::TYPE_MATCH,
-                'member_id' => $member->id,
-                'match_id'  => $match->id,
-            ],
-            [
-                'club_id' => $request->user()->club_id,
-                'reason'  => $validated['reason'] ?? '',
-            ],
-        );
+        $matchAttrs = [
+            'type'     => Absence::TYPE_MATCH,
+            'match_id' => $match->id,
+        ];
+        $matchAttrs += $member ? ['member_id' => $member->id] : ['user_id' => $user->id];
+
+        Absence::updateOrCreate($matchAttrs, [
+            'club_id' => $user->club_id,
+            'reason'  => $validated['reason'],
+        ]);
 
         return response()->json(['success' => true, 'message' => 'Je bent afgemeld voor deze wedstrijd.']);
     }
@@ -89,16 +90,14 @@ class MatchController extends Controller
      */
     public function aanmelden(Request $request, FootballMatch $match): JsonResponse
     {
-        $member = $request->user()?->resolveMember();
-        if (!$member) {
-            return response()->json(['success' => false, 'message' => 'Alleen leden kunnen zich aanmelden.'], 403);
-        }
+        $user   = $request->user();
+        $member = $user?->resolveMember();
 
-        Absence::query()
+        $q = Absence::query()
             ->where('type', Absence::TYPE_MATCH)
-            ->where('member_id', $member->id)
-            ->where('match_id', $match->id)
-            ->delete();
+            ->where('match_id', $match->id);
+        $member ? $q->where('member_id', $member->id) : $q->where('user_id', $user->id);
+        $q->delete();
 
         return response()->json(['success' => true, 'message' => 'Je bent weer aangemeld voor deze wedstrijd.']);
     }

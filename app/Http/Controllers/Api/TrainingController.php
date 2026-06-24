@@ -47,11 +47,12 @@ class TrainingController extends Controller
             ->where('type', Absence::TYPE_TRAINING)
             ->whereIn('training_schedule_id', $schedules->pluck('id'))
             ->whereBetween('training_date', [$start->toDateString(), $end->toDateString()])
-            ->with('member:id,name')
+            ->with(['member:id,name', 'user:id,name'])
             ->get()
             ->groupBy(fn ($a) => $a->training_schedule_id . '|' . $a->training_date->toDateString());
 
         $myMemberId = $request->user()?->resolveMember()?->id;
+        $myUserId   = $request->user()?->id;
 
         // Aantal teamleden (voor 'aangemeld' = leden - afmeldingen). Eén query;
         // alle schema's horen bij hetzelfde team (team_id-filter).
@@ -77,12 +78,15 @@ class TrainingController extends Controller
                     'end_time'    => $schedule->end_time ? substr((string) $schedule->end_time, 0, 5) : '',
                     'location'    => $schedule->location ?? '',
                     'team_name'   => $schedule->team?->name ?? '',
-                    'mijn_status' => ($myMemberId && $abs->firstWhere('member_id', $myMemberId)) ? 'afgemeld' : 'aangemeld',
+                    'mijn_status' => $abs->first(fn ($a) =>
+                        ($myMemberId && $a->member_id === $myMemberId) ||
+                        ($myUserId && $a->user_id === $myUserId)
+                    ) ? 'afgemeld' : 'aangemeld',
                     // Telling voor de status-iconen op de kaart.
                     'afgemeld'    => (string) $abs->count(),
                     'aangemeld'   => (string) max(0, $memberCount - $abs->count()),
                     'afmeldingen' => $abs->map(fn ($a) => [
-                        'naam'  => $a->member?->name ?? '',
+                        'naam'  => $a->member?->name ?? $a->user?->name ?? '',
                         'reden' => $a->reason,
                     ])->values(),
                 ];
@@ -106,10 +110,8 @@ class TrainingController extends Controller
      */
     public function afmelden(Request $request, TrainingSchedule $schedule, string $date): JsonResponse
     {
-        $member = $request->user()?->resolveMember();
-        if (!$member) {
-            return response()->json(['success' => false, 'message' => 'Alleen leden kunnen zich afmelden.'], 403);
-        }
+        $user   = $request->user();
+        $member = $user?->resolveMember();
 
         $validated = $request->validate([
             'reason' => 'required|string|max:255',
@@ -117,18 +119,19 @@ class TrainingController extends Controller
 
         $day = Carbon::parse($date)->toDateString();
 
-        Absence::updateOrCreate(
-            [
-                'type'                 => Absence::TYPE_TRAINING,
-                'member_id'            => $member->id,
-                'training_schedule_id' => $schedule->id,
-                'training_date'        => $day,
-            ],
-            [
-                'club_id' => $schedule->club_id,
-                'reason'  => $validated['reason'] ?? '',
-            ],
-        );
+        // Een lid hangt aan member_id; een los account (User zonder lidnummer)
+        // aan user_id.
+        $match = [
+            'type'                 => Absence::TYPE_TRAINING,
+            'training_schedule_id' => $schedule->id,
+            'training_date'        => $day,
+        ];
+        $match += $member ? ['member_id' => $member->id] : ['user_id' => $user->id];
+
+        Absence::updateOrCreate($match, [
+            'club_id' => $schedule->club_id,
+            'reason'  => $validated['reason'],
+        ]);
 
         return response()->json(['success' => true, 'message' => 'Je bent afgemeld voor deze training.']);
     }
@@ -138,17 +141,15 @@ class TrainingController extends Controller
      */
     public function aanmelden(Request $request, TrainingSchedule $schedule, string $date): JsonResponse
     {
-        $member = $request->user()?->resolveMember();
-        if (!$member) {
-            return response()->json(['success' => false, 'message' => 'Alleen leden kunnen zich aanmelden.'], 403);
-        }
+        $user   = $request->user();
+        $member = $user?->resolveMember();
 
-        Absence::query()
+        $q = Absence::query()
             ->where('type', Absence::TYPE_TRAINING)
-            ->where('member_id', $member->id)
             ->where('training_schedule_id', $schedule->id)
-            ->whereDate('training_date', Carbon::parse($date)->toDateString())
-            ->delete();
+            ->whereDate('training_date', Carbon::parse($date)->toDateString());
+        $member ? $q->where('member_id', $member->id) : $q->where('user_id', $user->id);
+        $q->delete();
 
         return response()->json(['success' => true, 'message' => 'Je bent weer aangemeld voor deze training.']);
     }

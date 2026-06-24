@@ -48,7 +48,7 @@ class AbsenceResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query  = parent::getEloquentQuery()->with(['member', 'match', 'trainingSchedule.team']);
+        $query  = parent::getEloquentQuery()->with(['member', 'user', 'match', 'trainingSchedule.team']);
         $tenant = filament()->getTenant();
         if ($tenant) {
             $query->where('club_id', $tenant->id);
@@ -60,10 +60,9 @@ class AbsenceResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('member.name')
-                    ->label('Lid')
-                    ->searchable()
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('wie')
+                    ->label('Lid / account')
+                    ->getStateUsing(fn(Absence $r) => $r->member?->name ?? $r->user?->name ?? '—'),
 
                 Tables\Columns\TextColumn::make('type')
                     ->label('Type')

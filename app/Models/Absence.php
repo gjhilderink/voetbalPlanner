@@ -16,7 +16,7 @@ class Absence extends Model
     public const TYPE_MATCH    = 'match';
 
     protected $fillable = [
-        'member_id', 'club_id', 'type',
+        'member_id', 'user_id', 'club_id', 'type',
         'match_id', 'training_schedule_id', 'training_date',
         'reason',
     ];
@@ -31,6 +31,11 @@ class Absence extends Model
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function match(): BelongsTo
