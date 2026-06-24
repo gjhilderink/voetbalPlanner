@@ -5318,11 +5318,21 @@ Future<String> verifyMagicLink(String? token) async {
       FFAppState().clubName        = (club['name']   as String?) ?? '';
       FFAppState().currentTeamId   = (user['team_id']   as String?) ?? '';
       FFAppState().currentTeamName = (user['team_name'] as String?) ?? '';
-      FFAppState().availableTeams  = ((user['teams'] as List?) ?? const [])
+      var _teams = ((user['teams'] as List?) ?? const [])
           .map<TeamOptionStruct?>((t) => TeamOptionStruct.maybeFromMap(t))
           .where((t) => t != null)
           .cast<TeamOptionStruct>()
           .toList();
+      // Fallback (oude backend zonder teams[]): toon tenminste het huidige team.
+      if (_teams.isEmpty) {
+        final _tid = (user['team_id'] as String?) ?? '';
+        if (_tid.isNotEmpty) {
+          final _fb = TeamOptionStruct.maybeFromMap(
+              {'id': _tid, 'name': (user['team_name'] as String?) ?? ''});
+          if (_fb != null) _teams = [_fb];
+        }
+      }
+      FFAppState().availableTeams = _teams;
       FFAppState().primaryColor    = (club['primary_color']   as String?) ?? '#1e3a5f';
       FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
@@ -5495,11 +5505,18 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().clubName        = (club['name'] as String?) ?? '';
       FFAppState().currentTeamId   = firstTeamId;
       FFAppState().currentTeamName = (user['team_name'] as String?) ?? '';
-      FFAppState().availableTeams  = ((user['teams'] as List?) ?? const [])
+      var _teams = ((user['teams'] as List?) ?? const [])
           .map<TeamOptionStruct?>((t) => TeamOptionStruct.maybeFromMap(t))
           .where((t) => t != null)
           .cast<TeamOptionStruct>()
           .toList();
+      // Fallback (oude backend zonder teams[]): toon tenminste het huidige team.
+      if (_teams.isEmpty && firstTeamId.isNotEmpty) {
+        final _fb = TeamOptionStruct.maybeFromMap(
+            {'id': firstTeamId, 'name': (user['team_name'] as String?) ?? ''});
+        if (_fb != null) _teams = [_fb];
+      }
+      FFAppState().availableTeams = _teams;
       FFAppState().primaryColor    = (club['primary_color']   as String?) ?? '#1e3a5f';
       FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
@@ -16911,8 +16928,17 @@ void _wireChatsPageTeamchatPicker(FFProject project) {
   final idx = col.children.indexWhere((c) => c.key == hdr.key);
   if (idx < 0) return;
 
-  // Idempotent: lijst al aanwezig → klaar (knop is dan al vervangen).
-  if (findDescendants(wc.node, (n) => n.name == 'TeamchatTeamList').isNotEmpty) return;
+  // Idempotent: lijst al aanwezig → zorg dat shrinkWrap aanstaat en stop.
+  // (Een verticale ListView in een scrollbare Column MOET shrinkWrap hebben,
+  // anders krijgt-ie onbegrensde hoogte → render-exception → leeg scherm.)
+  final existingList =
+      findDescendants(wc.node, (n) => n.name == 'TeamchatTeamList').firstOrNull;
+  if (existingList != null) {
+    final lv = existingList.props.listView.deepCopy();
+    lv.shrinkWrapValue = FFBooleanValue(inputValue: true);
+    existingList.props.listView = lv;
+    return;
+  }
 
   // Verwijder de oude enkele "Teamchat"-knop (volgende sibling van de header).
   if (idx + 1 < col.children.length) {
@@ -16928,6 +16954,11 @@ void _wireChatsPageTeamchatPicker(FFProject project) {
     padding: UIEdgeInsets.symmetric(horizontal: 12),
     dynamicSource: DynamicSource(variable: teamsVar, itemName: 'team'),
   );
+  // shrinkWrap zodat de verticale ListView in de scrollbare body-Column werkt
+  // (anders onbegrensde hoogte → render-exception → leeg scherm).
+  final teamLv = teamList.props.listView.deepCopy();
+  teamLv.shrinkWrapValue = FFBooleanValue(inputValue: true);
+  teamList.props.listView = teamLv;
 
   final nameText = UI.text('', name: 'TeamchatTeamName', style: UITextStyle.bodyMedium);
   nameText.props.text.textValue =
