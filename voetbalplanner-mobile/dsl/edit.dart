@@ -783,6 +783,17 @@ void buildEditFlow(App app) {
 
   // WedstrijdDetailPage must exist before match navigation can be set up.
   _buildWedstrijdDetailPage(app);
+  // Geef alle waarde-velden een default '' zodat de info-teksten (Text(_model.X!))
+  // nooit op null crashen — ook niet vóór/zonder een geslaagde API-load.
+  app.editPageState(ff.Pages.wedstrijdDetailPage, (state) {
+    for (final f in const [
+      'matchOpponent', 'matchDatetime', 'matchLocation', 'matchArrivalTime',
+      'matchCoachName', 'matchFruitHeroName', 'matchNotes', 'apiStatus',
+      'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
+    ]) {
+      state.ensureField(f, string.withDefault(''));
+    }
+  });
   // Bind matchId + coachName on the MatchCard instance via the DSL compile path.
   app.editPage(ff.Pages.wedstrijdenPage, (page) {
     page.setComponentParam(
