@@ -41,7 +41,7 @@ class DocumentationSeeder extends Seeder
                 'category'   => 'app',
                 'sort_order' => 5,
                 'title'      => 'Teamchat',
-                'body'       => "Via de teamchat wissel je berichten uit met alle leden van jouw elftal. De chat werkt in real-time.\n\nJouw eigen berichten verschijnen aan de rechterkant in de primaire clubkleur. Berichten van anderen verschijnen links, met de naam van de afzender erboven.\n\nStuur een bericht door een tekst te typen en op het verstuur-icoon te tikken. Je kunt ook directe berichten sturen naar individuele teamleden via de drie puntjes rechtsboven.",
+                'body'       => "Via de teamchat wissel je berichten uit met alle leden van jouw elftal. De chat werkt in real-time.\n\nJouw eigen berichten verschijnen aan de rechterkant in de primaire clubkleur. Berichten van anderen verschijnen links, met de naam van de afzender erboven.\n\nStuur een bericht door een tekst te typen en op het verstuur-icoon te tikken. Je kunt ook directe berichten sturen naar individuele teamleden en in staffgroepen chatten via de Chats-pagina.\n\nJe ontvangt een push-melding op je telefoon bij nieuwe berichten (zie \"Meldingen op je telefoon\"). Hoor je bij meerdere teams, dan kies je op de Chats-pagina welk team je wilt openen (zie \"Meerdere teams & teamkeuze\").",
             ],
             [
                 'category'   => 'app',
@@ -96,6 +96,25 @@ class DocumentationSeeder extends Seeder
                 'sort_order' => 36,
                 'title'      => 'Bug melden',
                 'body'       => "Via menu → Bug melden geef je problemen, vragen of suggesties door aan de ontwikkelaars.\n\nVul in:\n- Een korte titel (waar gaat het over?)\n- Een omschrijving (wat ging er mis of wat verwacht je?)\n- Voeg optioneel schermafbeeldingen toe (max 5 stuks, max 5 MB per stuk)\n\nDe app stuurt automatisch je app-versie, platform (Android/iOS/web) en apparaatinfo mee — zo kunnen wij het probleem sneller reproduceren. Je krijgt een bevestiging zodra de melding succesvol is verstuurd.",
+            ],
+
+            [
+                'category'   => 'app',
+                'sort_order' => 37,
+                'title'      => 'Meldingen op je telefoon (push)',
+                'body'       => "Je ontvangt een push-melding op je telefoon zodra iemand je een chatbericht stuurt — in de teamchat, een direct bericht of een staffgroep. Zo mis je niets, ook als de app dicht is.\n\nDe eerste keer dat je een chat opent vraagt de app toestemming voor meldingen. Geef die toestemming om push-notificaties te ontvangen.\n\nTik op een melding om direct naar het juiste gesprek te gaan.\n\nMeldingen werken op Android en iOS (niet in de browser-/webversie).",
+            ],
+            [
+                'category'   => 'app',
+                'sort_order' => 38,
+                'title'      => 'Meerdere teams & teamkeuze',
+                'body'       => "Hoor je bij meerdere teams — bijvoorbeeld als ouder met kinderen in verschillende elftallen, of als coach/staflid van meer dan één team — dan wissel je eenvoudig in de app.\n\nOp de Chats-pagina zie je onder \"Teamchat\" een keuze met al jouw teams. Tik op een team om de teamchat van dat team te openen; de app schakelt dan ook de rest (wedstrijden, bardiensten) naar dat team.\n\nHoor je maar bij één team, dan zie je gewoon dat ene team — er verandert niets. Heb je (nog) geen team gekoppeld, dan wordt de teamchat-ingang niet getoond.",
+            ],
+            [
+                'category'   => 'app',
+                'sort_order' => 39,
+                'title'      => 'Badge op het app-icoon',
+                'body'       => "Naast het rode bolletje in de app toont ook het app-icoon op je startscherm een badge met het aantal ongelezen chatberichten. Zo zie je in één oogopslag of er nieuwe berichten zijn, zonder de app te openen.\n\nDe badge telt alle ongelezen chats samen (team, direct én groepen) en verdwijnt zodra je alles gelezen hebt.\n\nDit werkt op iOS en op Android-toestellen waarvan de launcher app-badges ondersteunt.",
             ],
 
             // ── Het Platform ─────────────────────────────────────────────────
@@ -195,7 +214,7 @@ class DocumentationSeeder extends Seeder
                 'category'   => 'koppelingen',
                 'sort_order' => 24,
                 'title'      => 'Push Notificaties',
-                'body'       => "De app ondersteunt push notificaties via Firebase Cloud Messaging (FCM).\n\nTeamberichten: bij het openen van de teamchat abonneert de app zich op het FCM-topic van het team (team-{teamId}). Alle teamleden ontvangen zo notificaties bij nieuwe berichten.\n\nTechnische werking: het platform stuurt berichten naar een FCM-topic of naar individuele apparaat-tokens. Alle apparaten die op het topic zijn geabonneerd ontvangen de notificatie, ook als de app op de achtergrond is.\n\nToestemming: bij de eerste installatie vraagt de app toestemming voor het ontvangen van notificaties.",
+                'body'       => "Chat push-notificaties werken via Firebase Cloud Messaging (FCM), topic-based.\n\nAbonneren: na het inloggen abonneert elk toestel zich op twee topics — een persoonlijk topic (user_<gesanitiseerde-email>) voor directe en staffgroep-berichten, en het teamtopic (team_<teamId>) voor de teamchat. De app vraagt bij het eerste gebruik van de chat toestemming voor meldingen.\n\nVersturen: gebeurt via Firebase Cloud Functions (project voetbalplanner-b4062). Twee triggers:\n- notifyOnChatMessage — vuurt op nieuwe documenten in chatMessages (direct/staffgroep), zoekt de deelnemers op in chatConversations en pusht naar elk persoonlijk topic, behalve dat van de afzender.\n- notifyOnTeamChat — vuurt op nieuwe documenten in teamChats en pusht naar het teamtopic team_<teamId>.\n\nApparaten die op het topic zijn geabonneerd ontvangen de melding ook als de app op de achtergrond of gesloten is. Tikken op de melding opent het juiste gesprek. Push-topics werken op Android en iOS, niet op web.\n\nLet op: de Firestore-beveiligingsregels voor de chat-collecties moeten gepubliceerd blijven (request.auth != null) — anders falen chat-reads/writes met permission-denied.",
             ],
         ];
 
