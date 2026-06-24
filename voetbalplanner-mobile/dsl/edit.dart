@@ -792,6 +792,7 @@ void buildEditFlow(App app) {
       'matchOpponent', 'matchDatetime', 'matchLocation', 'matchArrivalTime',
       'matchCoachName', 'matchFruitHeroName', 'matchNotes', 'apiStatus',
       'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
+      'matchTeamId',
     ]) {
       state.ensureField(f, string.withDefault(''));
     }
@@ -9231,7 +9232,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
     'matchOpponent', 'matchDatetime', 'matchLocation',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchNotes',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
-    'matchGoalsSummary',
+    'matchGoalsSummary', 'matchTeamId',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -9265,6 +9266,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchMagAfmelden':   r'$.mag_afmelden',
           'matchMagOpstelling': r'$.mag_opstelling',
           'matchGoalsSummary':  r'$.goals_summary',
+          'matchTeamId':        r'$.teamId',
         };
         final updates = <StateFieldUpdate>[
           StateFieldUpdate.set('isLoading', 'false'),
@@ -18698,10 +18700,12 @@ void _addWedstrijdScoreSection(FFProject project) {
   final hasAddEp = findApiEndpoint(
       project, name: 'AddGoalV2', groupName: 'VoetbalPlannerAPI') != null;
 
-  // Teamleden laden (current team) -> AppState.scoreTeamMembers voor de maker-keuze.
-  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  // Teamleden laden (van het TEAM VAN DE WEDSTRIJD, niet het current team) ->
+  // AppState.scoreTeamMembers voor de maker-keuze. matchTeamId is gezet door
+  // GetMatchDetail (eerder in de page-load-chain).
   final scoreMembersId = _findAppStateFieldId(project, 'scoreTeamMembers');
-  if (authTokenId != null && currentTeamIdId != null && scoreMembersId != null &&
+  final matchTeamIdVar = stateVar('matchTeamId');
+  if (authTokenId != null && matchTeamIdVar != null && scoreMembersId != null &&
       findApiEndpoint(project, name: 'GetTeamMembers', groupName: 'VoetbalPlannerAPI') != null) {
     bool hasLoad(FFActionNode n) {
       if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
@@ -18718,7 +18722,7 @@ void _addWedstrijdScoreSection(FFProject project) {
           project,
           endpointName: 'GetTeamMembers',
           groupName: 'VoetbalPlannerAPI',
-          dynamicVariables: {'teamId': varFromAppState(currentTeamIdId.deepCopy())},
+          dynamicVariables: {'teamId': stateVar('matchTeamId')!},
           outputVariableName: 'scoreMembersLoad',
           nodeKey: wc.node.key,
           onSuccess: (ctx) => Actions.chain([

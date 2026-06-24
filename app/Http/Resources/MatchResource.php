@@ -35,6 +35,7 @@ class MatchResource extends JsonResource
             'scoreHome'      => $this->score_home ?? 0,
             'scoreAway'      => $this->score_away ?? 0,
             'teamName'       => $this->team?->name ?? '',
+            'teamId'         => $this->team_id ?? '',
             'coachName'      => $this->whenLoaded(
                 'coaches',
                 fn() => $this->coaches->isNotEmpty()
