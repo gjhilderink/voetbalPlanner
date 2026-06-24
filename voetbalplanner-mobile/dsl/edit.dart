@@ -541,29 +541,13 @@ void buildEditFlow(App app) {
 
   // Trainingen: structs voor de GetTrainings-response. Veldnamen = exact de
   // (snake_case) JSON-keys uit TrainingController, zodat maybeFromMap direct mapt.
-  final afmeldingHandle = StructHandle(
-    'Afmelding',
-    {'naam': string, 'reden': string},
-    description: generatedProjectStructDescription,
-  );
   try {
     app.struct('Afmelding', {'naam': string, 'reden': string});
   } catch (_) {}
-  try {
-    app.struct('TrainingItem', {
-      'schedule_id': string,
-      'date':        string,
-      'day_label':   string,
-      'start_time':  string,
-      'end_time':    string,
-      'location':    string,
-      'team_name':   string,
-      'mijn_status': string,
-      'afmeldingen': listOf(afmeldingHandle),
-    });
-  } catch (_) {}
-  // Voeg de telling-velden (aangemeld/afgemeld) toe aan de bestaande struct via
-  // een raw update-helper (app.struct/ensure botst op een gewijzigde payload).
+  // De TrainingItem-struct bestaat al op de backend (incl. de telling-velden
+  // aangemeld/afgemeld). 'm hier opnieuw declareren via app.struct/ensure botst
+  // op de uitgebreide payload, dus dat doen we niet. _ensureTrainingItemCountFields
+  // houdt de telling-velden idempotent aanwezig.
   app.raw((project) => _ensureTrainingItemCountFields(project));
   // AppState 'trainings' = List<TrainingItem>, gevuld door GetTrainings. Via raw
   // idempotente helper (app.state-ensure botst met een al bestaand veld met
@@ -925,6 +909,8 @@ void buildEditFlow(App app) {
   // ── Dashboard page ─────────────────────────────────────────────────────────────
   // Shows upcoming wedstrijden + bardiensten on one screen; home icon in NavBar.
   _buildDashboardPage(app, ff.Structs.footMatch, ff.Structs.barDuty);
+  // Detailpagina voor een training (af-/aanmelden met reden).
+  _buildTrainingDetailPage(app);
   app.raw((project) {
     _addDashboardAppBar(project);
     _buildDashboardContent(project);
@@ -939,6 +925,9 @@ void buildEditFlow(App app) {
     _addDashboardTrainingsSection(project);
     // Status-iconen (aangemeld/afgemeld) onder de trainingskaart.
     _addTrainingCardStatusIcons(project);
+    // TrainingDetailPage-inhoud + kaart aantikbaar maken.
+    _wireTrainingDetailPage(project);
+    _wireTrainingCardNavigation(project);
     // Tap on a dashboard card → open the corresponding detail page.
     _wireDashboardCardNavigation(project);
   });
@@ -18207,9 +18196,12 @@ Future<bool> getTrainings() async {
         if (t != null) items.add(t);
       }
     }
+    // Alleen de eerstvolgende 2 trainingen op het dashboard (lijst is al op
+    // datum/tijd gesorteerd door de backend).
+    final next = items.take(2).toList();
     // update() i.p.v. plain assignment: de FFAppState-setter notificeert niet,
     // dus zonder update() herbouwt het dashboard (context.watch) niet.
-    FFAppState().update(() => FFAppState().trainings = items);
+    FFAppState().update(() => FFAppState().trainings = next);
     return true;
   } catch (e) {
     debugPrint('[GetTrainings] \$e');
@@ -18537,4 +18529,191 @@ void _addTrainingCardStatusIcons(FFProject project) {
   );
 
   info.children.add(row);
+}
+
+// ─── TrainingDetailPage: af-/aanmelden met reden ─────────────────────────────
+void _buildTrainingDetailPage(App app) {
+  app.ensurePage(
+    'TrainingDetailPage',
+    description: 'Trainingdetail: af- en aanmelden met reden.',
+    route: 'training-detail',
+    params: {
+      'scheduleId': string.withDefault(''),
+      'date':       string.withDefault(''),
+      'dayLabel':   string.withDefault(''),
+      'startTime':  string.withDefault(''),
+      'location':   string.withDefault(''),
+      'mijnStatus': string.withDefault('aangemeld'),
+    },
+    state: {
+      'localStatus': string.withDefault('aangemeld'),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Training'),
+      body: Column(
+        name: 'TrainingDetailColumn',
+        children: [Container(name: 'TrainingDetailPlaceholder')],
+      ),
+    ),
+  );
+}
+
+void _wireTrainingDetailPage(FFProject project) {
+  final wc = findPage(project, name: 'TrainingDetailPage');
+  if (wc == null) return;
+  final col = findDescendants(wc.node, (n) => n.name == 'TrainingDetailColumn').firstOrNull;
+  if (col == null) return;
+  final afmeldAction  = findCustomAction(project, name: 'AfmeldenTraining');
+  final aanmeldAction = findCustomAction(project, name: 'AanmeldenTraining');
+  if (afmeldAction == null || aanmeldAction == null) return;
+
+  FFIdentifier? paramId(String name) {
+    for (final p in wc.params.values) {
+      if (p.hasIdentifier() && p.identifier.name == name) return p.identifier;
+    }
+    return null;
+  }
+  final schedIdP    = paramId('scheduleId');
+  final dateP       = paramId('date');
+  final dayLabelP   = paramId('dayLabel');
+  final startTimeP  = paramId('startTime');
+  final locationP   = paramId('location');
+  final mijnStatusP = paramId('mijnStatus');
+  if (schedIdP == null || dateP == null || mijnStatusP == null ||
+      dayLabelP == null || startTimeP == null || locationP == null) return;
+
+  final localStatusField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'localStatus', orElse: () => null);
+  if (localStatusField == null) return;
+  final localStatusId = localStatusField.parameter.identifier;
+
+  String gen() => generateRandomAlphaNumericString();
+  FFVariable pParam(FFIdentifier id) =>
+      varFromPageParam(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  FFVariable pState(FFIdentifier id) =>
+      varFromPageState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  // onLoad: localStatus = mijnStatus-param.
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+  Actions.onPageLoadChain(
+    wc.node,
+    FFActionNode(
+      key: gen(),
+      action: Actions.updatePageState(
+        project,
+        widgetClassName: 'TrainingDetailPage',
+        updates: [StateFieldUpdate.setFromVariable('localStatus', pParam(mijnStatusP))],
+      ),
+    ),
+  );
+
+  // Content (clear + rebuild elke push).
+  col.children.clear();
+
+  FFNode infoText(FFIdentifier pId, String name, UITextStyle style) {
+    final t = UI.text('', name: name, style: style);
+    t.props.text.textValue = FFStringValue(variable: pParam(pId));
+    return t;
+  }
+
+  final reasonField =
+      UI.textField(name: 'TrainReasonField', labelText: 'Reden (bij afmelden)', maxLines: 2);
+
+  final statusText = UI.text('', name: 'TrainStatusText', style: UITextStyle.titleSmall);
+  statusText.props.text.textValue = FFStringValue(variable: pState(localStatusId));
+
+  FFVariable showWhen(String status) => codeExpressionVar(
+        expression: "s == '$status'",
+        arguments: [
+          CodeExpressionArg(
+            name: 's',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: pState(localStatusId)),
+          ),
+        ],
+        returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+      );
+
+  final afmeldBtn  = UI.button('Afmelden', name: 'TrainAfmeldButton', width: double.infinity);
+  final aanmeldBtn = UI.button('Aanmelden', name: 'TrainAanmeldButton', width: double.infinity);
+  setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
+  setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
+
+  void wireButton(FFNode btn, FFCustomAction action, String newStatus) {
+    final pendingNode = FFActionNode(
+      key: gen(),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable('pendingTrainingScheduleId', pParam(schedIdP)),
+        StateFieldUpdate.setFromVariable('pendingTrainingDate', pParam(dateP)),
+        StateFieldUpdate.setFromVariable('pendingAfmeldReason', varFromTextFieldValue(reasonField.key)),
+      ]),
+      followUpAction: FFActionNode(
+        key: gen(),
+        action: FFAction(
+          key: gen(),
+          customAction: FFCustomActionCall(customActionIdentifier: action.identifier.deepCopy()),
+        ),
+        followUpAction: FFActionNode(
+          key: gen(),
+          action: Actions.updatePageState(
+            project,
+            widgetClassName: 'TrainingDetailPage',
+            updates: [StateFieldUpdate.set('localStatus', newStatus)],
+          ),
+        ),
+      ),
+    );
+    btn.triggerActions.removeWhere(
+      (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+    );
+    btn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: pendingNode,
+    ));
+  }
+
+  wireButton(afmeldBtn, afmeldAction, 'afgemeld');
+  wireButton(aanmeldBtn, aanmeldAction, 'aangemeld');
+
+  col.children.addAll([
+    infoText(dayLabelP, 'TrainDetailDay', UITextStyle.titleLarge),
+    infoText(dateP, 'TrainDetailDate', UITextStyle.bodyMedium),
+    infoText(startTimeP, 'TrainDetailTime', UITextStyle.bodyMedium),
+    infoText(locationP, 'TrainDetailLoc', UITextStyle.bodyMedium),
+    statusText,
+    reasonField,
+    afmeldBtn,
+    aanmeldBtn,
+  ]);
+}
+
+// Maakt de dashboard-trainingskaart aantikbaar → TrainingDetailPage met params.
+void _wireTrainingCardNavigation(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  if (project.getWidgetClassByName('TrainingDetailPage') == null) return;
+  final listView =
+      findDescendants(wc.node, (n) => n.name == 'DashboardTrainingsList').firstOrNull;
+  if (listView == null) return;
+  final card =
+      findDescendants(wc.node, (n) => n.name == 'DashboardTrainingCard').firstOrNull;
+  if (card == null) return;
+  if (card.triggerActions.any(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  )) return;
+
+  Actions.onTap(
+    card,
+    Actions.navigate(project, pageName: 'TrainingDetailPage', params: {
+      'scheduleId': VariableParamValue(generatorVarField(listView.key, 'schedule_id')),
+      'date':       VariableParamValue(generatorVarField(listView.key, 'date')),
+      'dayLabel':   VariableParamValue(generatorVarField(listView.key, 'day_label')),
+      'startTime':  VariableParamValue(generatorVarField(listView.key, 'start_time')),
+      'location':   VariableParamValue(generatorVarField(listView.key, 'location')),
+      'mijnStatus': VariableParamValue(generatorVarField(listView.key, 'mijn_status')),
+    }),
+  );
 }
