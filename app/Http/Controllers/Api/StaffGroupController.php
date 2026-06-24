@@ -18,16 +18,20 @@ class StaffGroupController extends Controller
         $user = $request->user();
 
         $groups = StaffGroup::query()
-            ->with(['team', 'members'])
+            ->with(['team', 'members', 'users'])
             ->where('club_id', $user->club_id)
             ->when(
                 !$user->hasAnyRole(['super_admin', 'club_admin']),
                 function ($q) use ($user) {
-                    // Regular users only see groups they are a member of.
+                    // Regular users only see groups they belong to — either as a
+                    // member (Member) or as a directly linked account (User).
                     $memberId = $user->member?->id;
-                    $memberId
-                        ? $q->whereHas('members', fn($m) => $m->where('members.id', $memberId))
-                        : $q->whereRaw('0 = 1');
+                    $q->where(function ($sub) use ($user, $memberId) {
+                        $sub->whereHas('users', fn($u) => $u->where('users.id', $user->id));
+                        if ($memberId) {
+                            $sub->orWhereHas('members', fn($m) => $m->where('members.id', $memberId));
+                        }
+                    });
                 }
             )
             ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
@@ -43,7 +47,7 @@ class StaffGroupController extends Controller
     {
         $this->authorizeAccess($staffGroup);
 
-        $staffGroup->load(['team', 'members']);
+        $staffGroup->load(['team', 'members', 'users']);
 
         return response()->json(new StaffGroupResource($staffGroup));
     }
@@ -71,7 +75,7 @@ class StaffGroupController extends Controller
             $group->members()->sync($validated['member_ids']);
         }
 
-        $group->load(['team', 'members']);
+        $group->load(['team', 'members', 'users']);
 
         return response()->json([
             'success' => true,
@@ -92,7 +96,7 @@ class StaffGroupController extends Controller
         ]);
 
         $staffGroup->update($validated);
-        $staffGroup->load(['team', 'members']);
+        $staffGroup->load(['team', 'members', 'users']);
 
         return response()->json([
             'success' => true,
@@ -124,10 +128,27 @@ class StaffGroupController extends Controller
     public function fullMembers(StaffGroup $staffGroup): JsonResponse
     {
         $this->authorizeAccess($staffGroup);
-        $staffGroup->load('members');
-        return response()->json(
-            MemberResource::collection($staffGroup->members)->resolve()
-        );
+        $staffGroup->load(['members.teams', 'users']);
+
+        $memberList = MemberResource::collection($staffGroup->members)->resolve();
+
+        // Gekoppelde accounts (User) in dezelfde SwapMember-shape: ze hebben per
+        // definitie een app-account, dus hasAppAccount = true.
+        $userList = $staffGroup->users->map(fn($u) => [
+            'id'            => $u->id,
+            'name'          => $u->name,
+            'email'         => $u->email,
+            'phone'         => $u->phone,
+            'role'          => null,
+            'profile_photo' => $u->profile_photo,
+            'is_active'     => $u->is_active ?? true,
+            'external_id'   => $u->external_id,
+            'externalId'    => $u->external_id,
+            'hasAppAccount' => true,
+            'teams'         => [],
+        ])->values()->all();
+
+        return response()->json(array_merge($memberList, $userList));
     }
 
     public function syncMembers(Request $request, StaffGroup $staffGroup): JsonResponse
@@ -141,7 +162,7 @@ class StaffGroupController extends Controller
         ]);
 
         $staffGroup->members()->sync($validated['member_ids']);
-        $staffGroup->load(['team', 'members']);
+        $staffGroup->load(['team', 'members', 'users']);
 
         return response()->json([
             'success' => true,
@@ -158,10 +179,13 @@ class StaffGroupController extends Controller
             abort(403, 'Geen toegang.');
         }
 
-        // Non-admins may only view groups they belong to.
+        // Non-admins may only view groups they belong to — als gekoppeld lid
+        // (Member) of als direct gekoppeld account (User).
         if (!$user->hasAnyRole(['super_admin', 'club_admin'])) {
-            $memberId = $user->member?->id;
-            if (!$memberId || !$staffGroup->members()->where('members.id', $memberId)->exists()) {
+            $isLinkedUser = $staffGroup->users()->where('users.id', $user->id)->exists();
+            $memberId     = $user->member?->id;
+            $isMember     = $memberId && $staffGroup->members()->where('members.id', $memberId)->exists();
+            if (!$isLinkedUser && !$isMember) {
                 abort(403, 'Geen toegang.');
             }
         }

@@ -51,7 +51,7 @@ class StaffGroupResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query  = parent::getEloquentQuery()->with(['team', 'members']);
+        $query  = parent::getEloquentQuery()->with(['team', 'members', 'users']);
         $tenant = filament()->getTenant();
 
         if ($tenant) {
@@ -100,6 +100,24 @@ class StaffGroupResource extends Resource
                             return $query->where('is_active', true)->orderBy('name');
                         },
                     )
+                    ->columnSpanFull(),
+                Forms\Components\Select::make('users')
+                    ->label('Accounts (zonder lidnummer)')
+                    ->helperText('Losse accounts zonder lidnummer, bijv. bardienst-coördinatoren.')
+                    ->multiple()
+                    ->searchable()
+                    ->relationship(
+                        name: 'users',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: function (Builder $query): Builder {
+                            $tenant = filament()->getTenant();
+                            if ($tenant) {
+                                $query->where('club_id', $tenant->id);
+                            }
+                            return $query->orderBy('name');
+                        },
+                    )
+                    ->getOptionLabelFromRecordUsing(fn($record) => trim(($record->name ?? '') . ' (' . ($record->email ?? '') . ')'))
                     ->columnSpanFull(),
             ])->columns(2),
         ]);

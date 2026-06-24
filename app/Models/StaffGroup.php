@@ -34,4 +34,12 @@ class StaffGroup extends Model
     {
         return $this->belongsToMany(Member::class, 'staff_group_member');
     }
+
+    /**
+     * Losse accounts (User) die geen Member zijn, bijv. bardienst-coordinatoren.
+     */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'staff_group_user');
+    }
 }
