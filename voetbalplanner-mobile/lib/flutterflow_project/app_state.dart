@@ -17,6 +17,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const availableTeams = ffai.ProjectAppStateFieldHandle(
+    name: "availableTeams",
+    key: "rx96978y",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
   static const clubName = ffai.ProjectAppStateFieldHandle(
     name: "clubName",
     key: "e298h9gr",
@@ -194,6 +200,7 @@ abstract final class AppState {
   static const all = <ffai.ProjectAppStateFieldHandle>[
     accentColor,
     authToken,
+    availableTeams,
     clubName,
     currentConversationId,
     currentTeamId,

@@ -232,6 +232,14 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final teamOption = ffai.StructHandle(
+    "TeamOption",
+    <String, ffai.DslType>{
+      "id": ffai.string,
+      "name": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final userRef = ffai.StructHandle(
     "UserRef",
     <String, ffai.DslType>{
@@ -262,6 +270,7 @@ abstract final class Structs {
     staffGroupItem,
     swapMember,
     swapRequest,
+    teamOption,
     userRef,
   ];
 }

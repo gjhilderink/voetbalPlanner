@@ -128,6 +128,7 @@ void _buildEditFlowRemoveChatPage(App app) {
     _addWelcomeGreeting(project);
     _setupProfielPage(project);
     _ensureSharedBarDutiesAppStateField(project);
+    _ensureAvailableTeamsAppStateField(project);
     _setupBardienFilter(project);
     _rebindBardienListViewToAppState(project);
     _addChatPageAppBars(project);
@@ -224,6 +225,7 @@ void buildEditFlow(App app) {
 
     // Bardiensten: filter by member's team + update onLoad
     _ensureSharedBarDutiesAppStateField(project);
+    _ensureAvailableTeamsAppStateField(project);
     _setupBardienFilter(project);
     _rebindBardienListViewToAppState(project);
 
@@ -517,6 +519,12 @@ void buildEditFlow(App app) {
   );
   try {
     app.struct('StaffGroupItem', {'id': string, 'name': string});
+  } catch (_) {}
+
+  // TeamOption: één optie in de teamkeuze (multi-team, bv. ouder met kinderen
+  // in meerdere teams). Gevuld uit de backend-response user['teams'] (id+name).
+  try {
+    app.struct('TeamOption', {'id': string, 'name': string});
   } catch (_) {}
 
   // Ensure 'staffGroups' state field exists on ChatsPage.
@@ -1599,6 +1607,28 @@ void _ensureSharedBarDutiesAppStateField(FFProject project) {
       key: generateRandomAlphaNumericString(),
     ),
     dataType: dataStructType(barDutyStruct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+// AppState field `availableTeams` = List<DataStruct<TeamOption>>. Gevuld uit de
+// login-response user['teams']. Gebruikt voor de teamkeuze in de teamchat
+// (multi-team, bv. een ouder met kinderen in meerdere teams).
+void _ensureAvailableTeamsAppStateField(FFProject project) {
+  if (project.appState.fields.any(
+    (f) => f.parameter.identifier.name == 'availableTeams',
+  )) return;
+  final teamStruct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'TeamOption', orElse: () => null);
+  if (teamStruct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(
+      name: 'availableTeams',
+      key: generateRandomAlphaNumericString(),
+    ),
+    dataType: dataStructType(teamStruct.identifier.deepCopy()),
   );
   param.isList = true;
   project.appState.fields.add(FFAppStateField(parameter: param));
@@ -5288,6 +5318,11 @@ Future<String> verifyMagicLink(String? token) async {
       FFAppState().clubName        = (club['name']   as String?) ?? '';
       FFAppState().currentTeamId   = (user['team_id']   as String?) ?? '';
       FFAppState().currentTeamName = (user['team_name'] as String?) ?? '';
+      FFAppState().availableTeams  = ((user['teams'] as List?) ?? const [])
+          .map<TeamOptionStruct?>((t) => TeamOptionStruct.maybeFromMap(t))
+          .where((t) => t != null)
+          .cast<TeamOptionStruct>()
+          .toList();
       FFAppState().primaryColor    = (club['primary_color']   as String?) ?? '#1e3a5f';
       FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
@@ -5460,6 +5495,11 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().clubName        = (club['name'] as String?) ?? '';
       FFAppState().currentTeamId   = firstTeamId;
       FFAppState().currentTeamName = (user['team_name'] as String?) ?? '';
+      FFAppState().availableTeams  = ((user['teams'] as List?) ?? const [])
+          .map<TeamOptionStruct?>((t) => TeamOptionStruct.maybeFromMap(t))
+          .where((t) => t != null)
+          .cast<TeamOptionStruct>()
+          .toList();
       FFAppState().primaryColor    = (club['primary_color']   as String?) ?? '#1e3a5f';
       FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
@@ -16824,52 +16864,118 @@ void _wireChatBadgeOverlayOnAllMainPages(FFProject project) {
   _addConvBadgeToGroupChip(project);
   _addConvBadgeToStaffGroupChip(project);
   _addConvBadgeToDirectMemberChip(project);
-  // Verberg de teamchat-ingang voor accounts zonder team (currentTeamId leeg).
-  _hideTeamchatWhenNoTeam(project);
+  // Teamchat-ingang: dynamische teamkeuze (multi-team) + verbergen zonder team.
+  _wireChatsPageTeamchatPicker(project);
 }
 
-// Verbergt de teamchat-header + teamchat-knop op ChatsPage wanneer de gebruiker
-// geen team heeft (currentTeamId == ''). Bv. een ouder/zonder-team-account: dan
-// is teamchat zinloos en zou het een lege/kapotte ingang tonen. Direct-chats en
-// groepen blijven staan. Idempotent: zet de visible-conditie elke push opnieuw.
-void _hideTeamchatWhenNoTeam(FFProject project) {
+// Teamchat-ingang op ChatsPage. Vervangt de enkele "Teamchat"-knop door een
+// dynamische lijst van teams (uit AppState.availableTeams): bij één team één
+// item (zoals voorheen), bij meerdere teams (bv. een ouder met kinderen in
+// verschillende teams) toont het ze allemaal — zo zie je de keuze meteen op de
+// chat-pagina. Tik op een team → zet currentTeamId/currentTeamName op dat team
+// en open de teamchat. De "Teamchat"-header is alleen zichtbaar als er een team
+// is. Idempotent: skipt zodra de lijst er al staat.
+void _wireChatsPageTeamchatPicker(FFProject project) {
   final wc = findPage(project, name: 'ChatsPage');
   if (wc == null) return;
-  final teamIdId = _findAppStateFieldId(project, 'currentTeamId');
-  if (teamIdId == null) return;
+  final teamIdId     = _findAppStateFieldId(project, 'currentTeamId');
+  final teamNameId   = _findAppStateFieldId(project, 'currentTeamName');
+  final availTeamsId = _findAppStateFieldId(project, 'availableTeams');
+  if (teamIdId == null || teamNameId == null || availTeamsId == null) return;
 
-  FFVariable cond() => conditionVar(
-        varFromAppState(teamIdId.deepCopy()),
-        FFCondition_Relation.NOT_EQUAL_TO,
-        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
-      ).variable;
+  // "Teamchat"-header zichtbaar zolang de gebruiker een team heeft.
+  final hasTeam = conditionVar(
+    varFromAppState(teamIdId.deepCopy()),
+    FFCondition_Relation.NOT_EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable;
 
-  // Klim van de Teamchat-header-Row omhoog naar de container die een directe
-  // child is van de body-Column.
+  // Klim van de Teamchat-header-Row naar de container die directe child is van
+  // de body-Column.
   final headerRow = findByKey(wc.node, 'Row_mcdmlgr2');
   if (headerRow == null) return;
-
-  FFNode? bodyChild = headerRow;
+  FFNode? headerContainer = headerRow;
   for (var i = 0; i < 12; i++) {
-    final hit = findParentByKey(wc.node, bodyChild!.key);
-    if (hit == null) { bodyChild = null; break; }
-    if (hit.parent.props.hasColumn()) { bodyChild = hit.child; break; }
-    bodyChild = hit.parent;
+    final hit = findParentByKey(wc.node, headerContainer!.key);
+    if (hit == null) { headerContainer = null; break; }
+    if (hit.parent.props.hasColumn()) { headerContainer = hit.child; break; }
+    headerContainer = hit.parent;
   }
-  if (bodyChild == null) return;
-  final headerContainer = bodyChild;
+  if (headerContainer == null) return;
+  final hdr = headerContainer;
+  setConditionalVisibility(hdr, variable: hasTeam);
 
-  // De teamchat-knop-container is de volgende sibling in dezelfde body-Column.
-  final colHit = findParentByKey(wc.node, headerContainer.key);
+  final colHit = findParentByKey(wc.node, hdr.key);
   if (colHit == null) return;
   final col = colHit.parent;
-  final idx = col.children.indexWhere((c) => c.key == headerContainer.key);
+  final idx = col.children.indexWhere((c) => c.key == hdr.key);
   if (idx < 0) return;
 
-  setConditionalVisibility(headerContainer, variable: cond());
+  // Idempotent: lijst al aanwezig → klaar (knop is dan al vervangen).
+  if (findDescendants(wc.node, (n) => n.name == 'TeamchatTeamList').isNotEmpty) return;
+
+  // Verwijder de oude enkele "Teamchat"-knop (volgende sibling van de header).
   if (idx + 1 < col.children.length) {
-    setConditionalVisibility(col.children[idx + 1], variable: cond());
+    col.children.removeAt(idx + 1);
   }
+
+  // Dynamische teamlijst gebonden aan AppState.availableTeams.
+  final teamsVar = varFromAppState(availTeamsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  final teamList = UI.listView(
+    name: 'TeamchatTeamList',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12),
+    dynamicSource: DynamicSource(variable: teamsVar, itemName: 'team'),
+  );
+
+  final nameText = UI.text('', name: 'TeamchatTeamName', style: UITextStyle.bodyMedium);
+  nameText.props.text.textValue =
+      FFStringValue(variable: generatorVarField(teamList.key, 'name'));
+
+  final tile = UI.container(
+    name: 'TeamchatTeamTile',
+    height: 44,
+    borderRadius: 8,
+    child: nameText,
+  );
+
+  // Tap: zet currentTeamId/Name op het gekozen team, dan open TeamChatPage.
+  final tap = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      localStateUpdate: FFLocalStateUpdate(
+        updates: [
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: teamIdId.deepCopy(),
+            setValue: FFValue(variable: generatorVarField(teamList.key, 'id')),
+          ),
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: teamNameId.deepCopy(),
+            setValue: FFValue(variable: generatorVarField(teamList.key, 'name')),
+          ),
+        ],
+        stateVariableType: FFStateVariableType.APP_STATE,
+      ),
+    ),
+    followUpAction: FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(
+        project,
+        pageName: 'TeamChatPage',
+        params: {
+          'teamId':   VariableParamValue(generatorVarField(teamList.key, 'id')),
+          'teamName': VariableParamValue(generatorVarField(teamList.key, 'name')),
+        },
+      ),
+    ),
+  );
+  Actions.onTapChain(tile, tap);
+
+  teamList.children.add(tile);
+  final listContainer = UI.container(name: 'TeamchatTeamListContainer', child: teamList);
+  col.children.insert(idx + 1, listContainer);
 }
 
 // Plaatst ConvUnreadBadge naast de "Teamchat" header op ChatsPage.
