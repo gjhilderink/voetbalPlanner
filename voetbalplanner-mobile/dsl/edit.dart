@@ -18597,16 +18597,30 @@ void _addScoreEndpoints(FFProject project) {
       responseDataStructIsList: true,
     );
   }
-  if (!has('AddGoal')) {
-    addEndpointToGroup(
-      project,
-      groupName: 'VoetbalPlannerAPI',
-      name: 'AddGoal',
-      url: '/matches/[matchId]/goals?scorer_id=[scorerId]&minute=[minute]',
-      method: FFApiEndpoint_CallType.POST,
-      variables: {'token': str(), 'matchId': str(), 'scorerId': str(), 'minute': str()},
-      headers: ['Authorization: Bearer [token]'],
-    );
+  {
+    // Maker via naam (query-param) — FF interpoleert geen body-vars.
+    const addUrl = '/matches/[matchId]/goals?scorer_name=[scorerName]&minute=[minute]';
+    final addGoal = findApiEndpoint(project, name: 'AddGoal', groupName: 'VoetbalPlannerAPI');
+    if (addGoal == null) {
+      addEndpointToGroup(
+        project,
+        groupName: 'VoetbalPlannerAPI',
+        name: 'AddGoal',
+        url: addUrl,
+        method: FFApiEndpoint_CallType.POST,
+        variables: {'token': str(), 'matchId': str(), 'scorerName': str(), 'minute': str()},
+        headers: ['Authorization: Bearer [token]'],
+      );
+    } else {
+      // Bestond al (increment 1, met scorer_id) -> bijwerken naar scorer_name.
+      addGoal.url = addUrl;
+      addGoal.variables.clear();
+      addGoal.variables.addAll(['token', 'matchId', 'scorerName', 'minute'].map((n) =>
+          FFApiValue(
+            identifier: FFIdentifier(name: n, key: generateRandomAlphaNumericString()),
+            type: FFBaseDataType.String,
+          )));
+    }
   }
   if (!has('DeleteGoal')) {
     addEndpointToGroup(
@@ -18662,6 +18676,8 @@ void _addWedstrijdScoreSection(FFProject project) {
           orElse: () => null);
   final hasDeleteEp = findApiEndpoint(
       project, name: 'DeleteLastGoal', groupName: 'VoetbalPlannerAPI') != null;
+  final hasAddEp = findApiEndpoint(
+      project, name: 'AddGoal', groupName: 'VoetbalPlannerAPI') != null;
 
   // Bouwt de "Laatste doelpunt verwijderen"-knop (coach-actie) -> DeleteLastGoal
   // -> samenvatting bijwerken uit de response (geen re-fetch nodig). Null als de
@@ -18703,13 +18719,62 @@ void _addWedstrijdScoreSection(FFProject project) {
     return delBtn;
   }
 
-  // Sectie bestaat al (van een eerdere push) -> alleen de knop toevoegen indien nog niet aanwezig.
-  if (existingContainer != null) {
-    final hasBtn = findDescendants(existingContainer, (n) => n.name == 'ScoreDeleteLastButton').isNotEmpty;
-    if (!hasBtn) {
-      final b = buildDelBtn();
-      if (b != null) existingContainer.children.add(b);
+  // Toevoeg-form: maker-naam + minuut + knop -> AddGoal -> samenvatting bijwerken
+  // uit de response. Leeg als token/param/endpoint ontbreekt.
+  List<FFNode> buildAddForm() {
+    if (authTokenId == null || matchIdParam == null || !hasAddEp) return <FFNode>[];
+    final scorerField = UI.textField(name: 'ScoreScorerField', labelText: 'Maker (naam speler)');
+    final minuteField = UI.textField(name: 'ScoreMinuteField', labelText: 'Minuut (optioneel)');
+    final addBtn = UI.button('Doelpunt toevoegen', name: 'ScoreAddButton', width: double.infinity);
+    final apiNode = Actions.apiCallNode(
+      project,
+      endpointName: 'AddGoal',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        'scorerName': varFromTextFieldValue(scorerField.key),
+        'minute': varFromTextFieldValue(minuteField.key),
+      },
+      outputVariableName: 'addGoalOut',
+      nodeKey: addBtn.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [
+            StateFieldUpdate.setFromVariable(
+                'matchGoalsSummary', _jsonBodyVar(ctx, r'$.goals_summary', addBtn.key)),
+          ],
+        ),
+        Actions.snackBar('Doelpunt toegevoegd.'),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Toevoegen mislukt — controleer de spelernaam.'),
+      ]),
+    );
+    addBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: apiNode,
+    ));
+    return [scorerField, minuteField, addBtn];
+  }
+
+  // Plaatst ontbrekende coach-controls (toevoeg-form + verwijder-knop) in de sectie.
+  void ensureControls(FFNode container) {
+    if (findDescendants(container, (n) => n.name == 'ScoreAddButton').isEmpty) {
+      container.children.addAll(buildAddForm());
     }
+    if (findDescendants(container, (n) => n.name == 'ScoreDeleteLastButton').isEmpty) {
+      final b = buildDelBtn();
+      if (b != null) container.children.add(b);
+    }
+  }
+
+  // Sectie bestaat al (eerdere push) -> ontbrekende controls bijplaatsen.
+  if (existingContainer != null) {
+    ensureControls(existingContainer);
     return;
   }
 
@@ -18739,16 +18804,13 @@ void _addWedstrijdScoreSection(FFProject project) {
     ),
   );
 
-  final sectionChildren = <FFNode>[header, summaryText];
-  final delBtn = buildDelBtn();
-  if (delBtn != null) sectionChildren.add(delBtn);
-
   final container = UI.column(
     name: 'ScoreSectionContainer',
     crossAxisAlignment: UICrossAxisAlignment.start,
     spacing: 6,
-    children: sectionChildren,
+    children: [header, summaryText],
   );
+  ensureControls(container);
   setConditionalVisibility(
     container,
     variable: codeExpressionVar(
