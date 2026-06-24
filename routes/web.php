@@ -22,6 +22,8 @@ Route::get('/', function () {
         : redirect('/admin/login');
 });
 
+Route::view('/privacy', 'privacy')->name('privacy');
+
 Route::get('/aanmelden', [ClubRequestController::class, 'create'])->name('club-request.create');
 Route::post('/aanmelden', [ClubRequestController::class, 'store'])->name('club-request.store');
 Route::get('/aanmelden/bedankt', [ClubRequestController::class, 'success'])->name('club-request.success');

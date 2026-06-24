@@ -252,7 +252,10 @@
             <span class="font-semibold text-white">VoetbalPlanner</span>
         </div>
         <span>&copy; {{ date('Y') }} VoetbalPlanner. Alle rechten voorbehouden.</span>
-        <a href="/admin/login" class="hover:text-white transition-colors">Inloggen</a>
+        <div class="flex items-center gap-5">
+            <a href="{{ route('privacy') }}" class="hover:text-white transition-colors">Privacyverklaring</a>
+            <a href="/admin/login" class="hover:text-white transition-colors">Inloggen</a>
+        </div>
     </div>
 </footer>
 
