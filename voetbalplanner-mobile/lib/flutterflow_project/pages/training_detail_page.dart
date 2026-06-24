@@ -15,6 +15,12 @@ final trainingDetailPageHandle = ffai.ProjectPageHandle<TrainingDetailPageParams
 
 final class TrainingDetailPageParams {
   const TrainingDetailPageParams();
+  ffai.ProjectParamHandle get afmeldingen =>
+      const ffai.ProjectParamHandle(
+        name: "afmeldingen",
+        key: "dvk0551g",
+        typeName: "List<DataStruct<?>>",
+      );
   ffai.ProjectParamHandle get date =>
       const ffai.ProjectParamHandle(
         name: "date",
@@ -101,44 +107,44 @@ abstract final class TrainingDetailPageWidgets {
             name: "TrainingDetailColumn",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Text_2y3j7319",
+                key: "Text_o5nf6byb",
                 type: "Text",
                 path: "TrainingDetailPage.body[0].children[0]",
                 name: "TrainDetailDay",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Text_cxweczrz",
+                key: "Text_8dsq0dgm",
                 type: "Text",
                 path: "TrainingDetailPage.body[0].children[1]",
                 name: "TrainDetailDate",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Text_8ajovex3",
+                key: "Text_s6z4sajq",
                 type: "Text",
                 path: "TrainingDetailPage.body[0].children[2]",
                 name: "TrainDetailTime",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Text_z9a2edhu",
+                key: "Text_bwb21vg5",
                 type: "Text",
                 path: "TrainingDetailPage.body[0].children[3]",
                 name: "TrainDetailLoc",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Text_s7s99pji",
+                key: "Text_l7cds7kz",
                 type: "Text",
                 path: "TrainingDetailPage.body[0].children[4]",
                 name: "TrainStatusText",
               ),
               ffai.ProjectWidgetHandle(
-                key: "TextField_gosrt06b",
+                key: "TextField_qno5u7to",
                 type: "TextField",
                 path: "TrainingDetailPage.body[0].children[5]",
                 name: "TrainReasonField",
                 text: "Reden (bij afmelden)",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Button_zvagubh5",
+                key: "Button_xkgg42ol",
                 type: "Button",
                 path: "TrainingDetailPage.body[0].children[6]",
                 name: "TrainAfmeldButton",
@@ -148,13 +154,56 @@ abstract final class TrainingDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Button_pqqa945i",
+                key: "Button_7tqcnafl",
                 type: "Button",
                 path: "TrainingDetailPage.body[0].children[7]",
                 name: "TrainAanmeldButton",
                 text: "Aanmelden",
                 triggers: const <String>[
                   "ON_TAP",
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "Text_508wh8xi",
+                type: "Text",
+                path: "TrainingDetailPage.body[0].children[8]",
+                name: "TrainAfmHeader",
+                text: "Afmeldingen",
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "ListView_7o7v29di",
+                type: "ListView",
+                path: "TrainingDetailPage.body[0].children[9]",
+                name: "TrainAfmeldList",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "Container_q8jdc2g7",
+                    type: "Container",
+                    path: "TrainingDetailPage.body[0].children[9].children[0]",
+                    name: "TrainAfmItem",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Column_gq1ofk2r",
+                        type: "Column",
+                        path: "TrainingDetailPage.body[0].children[9].children[0].children[0]",
+                        name: "TrainAfmItemCol",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_dcgdcdis",
+                            type: "Text",
+                            path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0]",
+                            name: "TrainAfmNaam",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_2pm5jdkc",
+                            type: "Text",
+                            path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1]",
+                            name: "TrainAfmReden",
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ],

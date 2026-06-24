@@ -18533,17 +18533,23 @@ void _addTrainingCardStatusIcons(FFProject project) {
 
 // ─── TrainingDetailPage: af-/aanmelden met reden ─────────────────────────────
 void _buildTrainingDetailPage(App app) {
+  final afmeldingHandle = StructHandle(
+    'Afmelding',
+    {'naam': string, 'reden': string},
+    description: generatedProjectStructDescription,
+  );
   app.ensurePage(
     'TrainingDetailPage',
     description: 'Trainingdetail: af- en aanmelden met reden.',
     route: 'training-detail',
     params: {
-      'scheduleId': string.withDefault(''),
-      'date':       string.withDefault(''),
-      'dayLabel':   string.withDefault(''),
-      'startTime':  string.withDefault(''),
-      'location':   string.withDefault(''),
-      'mijnStatus': string.withDefault('aangemeld'),
+      'scheduleId':  string.withDefault(''),
+      'date':        string.withDefault(''),
+      'dayLabel':    string.withDefault(''),
+      'startTime':   string.withDefault(''),
+      'location':    string.withDefault(''),
+      'mijnStatus':  string.withDefault('aangemeld'),
+      'afmeldingen': listOf(afmeldingHandle),
     },
     state: {
       'localStatus': string.withDefault('aangemeld'),
@@ -18567,6 +18573,23 @@ void _wireTrainingDetailPage(FFProject project) {
   final aanmeldAction = findCustomAction(project, name: 'AanmeldenTraining');
   if (afmeldAction == null || aanmeldAction == null) return;
 
+  // Voeg de afmeldingen-param (List<Afmelding>) idempotent toe — ensurePage doet
+  // dat niet voor een al bestaande pagina.
+  if (!wc.params.values.any((p) => p.hasIdentifier() && p.identifier.name == 'afmeldingen')) {
+    final afmStruct = project.backend.dataSchemaConfig.dataStructs
+        .cast<FFDataStruct?>()
+        .firstWhere((s) => s?.identifier.name == 'Afmelding', orElse: () => null);
+    if (afmStruct != null) {
+      final id = FFIdentifier(name: 'afmeldingen', key: generateRandomAlphaNumericString());
+      final p = FFParameter(
+        identifier: id,
+        dataType: dataStructType(afmStruct.identifier.deepCopy()),
+      );
+      p.isList = true;
+      wc.params[id.key] = p;
+    }
+  }
+
   FFIdentifier? paramId(String name) {
     for (final p in wc.params.values) {
       if (p.hasIdentifier() && p.identifier.name == name) return p.identifier;
@@ -18578,7 +18601,8 @@ void _wireTrainingDetailPage(FFProject project) {
   final dayLabelP   = paramId('dayLabel');
   final startTimeP  = paramId('startTime');
   final locationP   = paramId('location');
-  final mijnStatusP = paramId('mijnStatus');
+  final mijnStatusP  = paramId('mijnStatus');
+  final afmeldingenP = paramId('afmeldingen');
   if (schedIdP == null || dateP == null || mijnStatusP == null ||
       dayLabelP == null || startTimeP == null || locationP == null) return;
 
@@ -18678,6 +18702,40 @@ void _wireTrainingDetailPage(FFProject project) {
   wireButton(afmeldBtn, afmeldAction, 'afgemeld');
   wireButton(aanmeldBtn, aanmeldAction, 'aangemeld');
 
+  // Afmeldlijst (naam + reden) — gevuld vanuit de afmeldingen-param.
+  final afmeldChildren = <FFNode>[];
+  if (afmeldingenP != null) {
+    final afmLv = UI.listView(
+      name: 'TrainAfmeldList',
+      spacing: 4,
+      dynamicSource: DynamicSource(variable: pParam(afmeldingenP), itemName: 'afm'),
+    );
+    afmLv.props.listView.shrinkWrapValue = FFBooleanValue(inputValue: true);
+
+    final naamText = UI.text('', name: 'TrainAfmNaam', style: UITextStyle.bodyMedium);
+    naamText.props.text.textValue =
+        FFStringValue(variable: generatorVarField(afmLv.key, 'naam'));
+    final redenText = UI.text('', name: 'TrainAfmReden',
+        style: UITextStyle.bodySmall, color: UIColor.secondaryText);
+    redenText.props.text.textValue =
+        FFStringValue(variable: generatorVarField(afmLv.key, 'reden'));
+
+    afmLv.children.add(UI.container(
+      name: 'TrainAfmItem',
+      padding: UIEdgeInsets.symmetric(vertical: 4),
+      child: UI.column(
+        name: 'TrainAfmItemCol',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 1,
+        children: [naamText, redenText],
+      ),
+    ));
+
+    afmeldChildren.add(
+        UI.text('Afmeldingen', name: 'TrainAfmHeader', style: UITextStyle.titleSmall));
+    afmeldChildren.add(afmLv);
+  }
+
   col.children.addAll([
     infoText(dayLabelP, 'TrainDetailDay', UITextStyle.titleLarge),
     infoText(dateP, 'TrainDetailDate', UITextStyle.bodyMedium),
@@ -18687,6 +18745,7 @@ void _wireTrainingDetailPage(FFProject project) {
     reasonField,
     afmeldBtn,
     aanmeldBtn,
+    ...afmeldChildren,
   ]);
 }
 
@@ -18701,9 +18760,11 @@ void _wireTrainingCardNavigation(FFProject project) {
   final card =
       findDescendants(wc.node, (n) => n.name == 'DashboardTrainingCard').firstOrNull;
   if (card == null) return;
-  if (card.triggerActions.any(
+  // Herbouw de onTap elke push (zodat nieuwe nav-params zoals 'afmeldingen' mee
+  // komen i.p.v. dat we skippen omdat er al een onTap staat).
+  card.triggerActions.removeWhere(
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
-  )) return;
+  );
 
   Actions.onTap(
     card,
@@ -18712,8 +18773,9 @@ void _wireTrainingCardNavigation(FFProject project) {
       'date':       VariableParamValue(generatorVarField(listView.key, 'date')),
       'dayLabel':   VariableParamValue(generatorVarField(listView.key, 'day_label')),
       'startTime':  VariableParamValue(generatorVarField(listView.key, 'start_time')),
-      'location':   VariableParamValue(generatorVarField(listView.key, 'location')),
-      'mijnStatus': VariableParamValue(generatorVarField(listView.key, 'mijn_status')),
+      'location':    VariableParamValue(generatorVarField(listView.key, 'location')),
+      'mijnStatus':  VariableParamValue(generatorVarField(listView.key, 'mijn_status')),
+      'afmeldingen': VariableParamValue(generatorVarField(listView.key, 'afmeldingen')),
     }),
   );
 }
