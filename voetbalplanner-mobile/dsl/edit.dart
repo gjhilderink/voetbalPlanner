@@ -2904,6 +2904,7 @@ import 'package:flutter/material.dart';
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:app_badge_plus/app_badge_plus.dart';
 
 class _UnreadChatWatcher {
   static StreamSubscription? _byParticipantsSub;
@@ -2920,6 +2921,11 @@ class _UnreadChatWatcher {
     FFAppState().update(() {
       FFAppState().unreadChatCount = total;
     });
+    // App-icon badge bijwerken (iOS + ondersteunende Android-launchers).
+    // 0 = badge weg. Web/niet-ondersteund faalt stil.
+    try {
+      AppBadgePlus.updateBadge(total);
+    } catch (_) {}
   }
 
   static int _readCount(Map<String, dynamic> data, String myEmail) {
@@ -3019,6 +3025,9 @@ Future<void> watchUnreadChatCount() async {
   } else {
     updateCustomAction(project, name: 'WatchUnreadChatCount', code: _kWatchUnreadCode);
   }
+  // App-icon badge voor ongelezen chats (gebruikt in WatchUnreadChatCount._publish).
+  try { addPubDependency(project, name: 'app_badge_plus', version: '^1.3.1'); } catch (_) {}
+  try { updatePubDependency(project, name: 'app_badge_plus', newVersion: '^1.3.1'); } catch (_) {}
 
   // Legacy: kept so existing FlutterFlow project references don't break during migration.
   const _createChatGroupCode = r'''
