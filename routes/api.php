@@ -147,6 +147,7 @@ Route::prefix('v1')->group(function () {
         // Goals
         Route::get('/matches/{match}/goals', [GoalController::class, 'index']);
         Route::post('/matches/{match}/goals', [GoalController::class, 'store']);
+        Route::post('/matches/{match}/goals/delete-last', [GoalController::class, 'destroyLast']);
         Route::delete('/matches/{match}/goals/{goal}', [GoalController::class, 'destroy']);
 
         // Bar duties

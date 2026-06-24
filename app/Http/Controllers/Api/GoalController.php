@@ -44,6 +44,7 @@ class GoalController extends Controller
         return response()->json([
             'success' => true,
             'data' => new GoalResource($goal->load(['scorer', 'assist'])),
+            'goals_summary' => $match->goalsSummary(),
             'message' => 'Doelpunt geregistreerd.',
         ], 201);
     }
@@ -59,7 +60,31 @@ class GoalController extends Controller
         return response()->json([
             'success' => true,
             'data' => null,
+            'goals_summary' => $match->goalsSummary(),
             'message' => 'Doelpunt verwijderd.',
+        ]);
+    }
+
+    /**
+     * POST /v1/matches/{match}/goals/delete-last
+     * Verwijdert het laatst toegevoegde doelpunt (coach-only). POST i.p.v. DELETE
+     * zodat shared hosts 'm niet blokkeren.
+     */
+    public function destroyLast(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json(['success' => false, 'message' => 'Alleen de coach mag de score beheren.'], 403);
+        }
+
+        $last = $match->goals()->latest()->first();
+        if ($last) {
+            $last->delete();
+        }
+
+        return response()->json([
+            'success' => true,
+            'goals_summary' => $match->goalsSummary(),
+            'message' => $last ? 'Laatste doelpunt verwijderd.' : 'Er zijn geen doelpunten.',
         ]);
     }
 }

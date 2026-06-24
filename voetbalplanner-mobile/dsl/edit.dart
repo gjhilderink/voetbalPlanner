@@ -18619,6 +18619,17 @@ void _addScoreEndpoints(FFProject project) {
       headers: ['Authorization: Bearer [token]'],
     );
   }
+  if (!has('DeleteLastGoal')) {
+    addEndpointToGroup(
+      project,
+      groupName: 'VoetbalPlannerAPI',
+      name: 'DeleteLastGoal',
+      url: '/matches/[matchId]/goals/delete-last',
+      method: FFApiEndpoint_CallType.POST,
+      variables: {'token': str(), 'matchId': str()},
+      headers: ['Authorization: Bearer [token]'],
+    );
+  }
 }
 
 // Coach-sectie op de WedstrijdDetailPage met de doelpunten-samenvatting (uit
@@ -18628,7 +18639,8 @@ void _addScoreEndpoints(FFProject project) {
 void _addWedstrijdScoreSection(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdDetailPage');
   if (wc == null) return;
-  if (findDescendants(wc.node, (n) => n.name == 'ScoreSectionContainer').isNotEmpty) return;
+  final existingContainer =
+      findDescendants(wc.node, (n) => n.name == 'ScoreSectionContainer').firstOrNull;
 
   FFVariable? stateVar(String name) {
     final f = wc.classModel.stateFields
@@ -18643,7 +18655,65 @@ void _addWedstrijdScoreSection(FFProject project) {
   final summaryVar  = stateVar('matchGoalsSummary');
   if (magVar == null || summaryVar == null) return;
 
-  // Zelfde kolom als de Afmelden-knop (die bestaat na _wireWedstrijdAfmelden).
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.hasIdentifier() == true && p?.identifier.name == 'matchId',
+          orElse: () => null);
+  final hasDeleteEp = findApiEndpoint(
+      project, name: 'DeleteLastGoal', groupName: 'VoetbalPlannerAPI') != null;
+
+  // Bouwt de "Laatste doelpunt verwijderen"-knop (coach-actie) -> DeleteLastGoal
+  // -> samenvatting bijwerken uit de response (geen re-fetch nodig). Null als de
+  // benodigde token/param/endpoint ontbreekt.
+  FFNode? buildDelBtn() {
+    if (authTokenId == null || matchIdParam == null || !hasDeleteEp) return null;
+    final delBtn = UI.button('Laatste doelpunt verwijderen',
+        name: 'ScoreDeleteLastButton', width: double.infinity);
+    final apiNode = Actions.apiCallNode(
+      project,
+      endpointName: 'DeleteLastGoal',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      },
+      outputVariableName: 'delLastGoalOut',
+      nodeKey: delBtn.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [
+            StateFieldUpdate.setFromVariable(
+                'matchGoalsSummary', _jsonBodyVar(ctx, r'$.goals_summary', delBtn.key)),
+          ],
+        ),
+        Actions.snackBar('Laatste doelpunt verwijderd.'),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Verwijderen mislukt — alleen de coach mag dit.'),
+      ]),
+    );
+    delBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: apiNode,
+    ));
+    return delBtn;
+  }
+
+  // Sectie bestaat al (van een eerdere push) -> alleen de knop toevoegen indien nog niet aanwezig.
+  if (existingContainer != null) {
+    final hasBtn = findDescendants(existingContainer, (n) => n.name == 'ScoreDeleteLastButton').isNotEmpty;
+    if (!hasBtn) {
+      final b = buildDelBtn();
+      if (b != null) existingContainer.children.add(b);
+    }
+    return;
+  }
+
+  // Nieuwe sectie bouwen (zelfde kolom als de Afmelden-knop).
   final afmeldBtn = findDescendants(wc.node, (n) => n.name == 'MatchAfmeldButton').firstOrNull;
   if (afmeldBtn == null) return;
   final parentCol = findDescendants(wc.node, (_) => true)
@@ -18669,11 +18739,15 @@ void _addWedstrijdScoreSection(FFProject project) {
     ),
   );
 
+  final sectionChildren = <FFNode>[header, summaryText];
+  final delBtn = buildDelBtn();
+  if (delBtn != null) sectionChildren.add(delBtn);
+
   final container = UI.column(
     name: 'ScoreSectionContainer',
     crossAxisAlignment: UICrossAxisAlignment.start,
     spacing: 6,
-    children: [header, summaryText],
+    children: sectionChildren,
   );
   setConditionalVisibility(
     container,

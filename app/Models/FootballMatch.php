@@ -73,4 +73,15 @@ class FootballMatch extends Model
     {
         return $this->hasMany(Goal::class, 'match_id');
     }
+
+    /** Korte doelpunten-samenvatting voor het coach-scherm ("12' Jan, 45' Piet"). */
+    public function goalsSummary(): string
+    {
+        $goals = $this->goals()->with('scorer')->orderBy('minute')->get();
+
+        return $goals->isEmpty()
+            ? 'Nog geen doelpunten.'
+            : $goals->map(fn ($g) => ($g->minute ? $g->minute . "' " : '') . ($g->scorer?->name ?? '?'))
+                ->join(', ');
+    }
 }
