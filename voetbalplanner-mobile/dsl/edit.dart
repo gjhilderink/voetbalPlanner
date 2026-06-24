@@ -18597,30 +18597,18 @@ void _addScoreEndpoints(FFProject project) {
       responseDataStructIsList: true,
     );
   }
-  {
-    // Maker via naam (query-param) — FF interpoleert geen body-vars.
-    const addUrl = '/matches/[matchId]/goals?scorer_name=[scorerName]&minute=[minute]';
-    final addGoal = findApiEndpoint(project, name: 'AddGoal', groupName: 'VoetbalPlannerAPI');
-    if (addGoal == null) {
-      addEndpointToGroup(
-        project,
-        groupName: 'VoetbalPlannerAPI',
-        name: 'AddGoal',
-        url: addUrl,
-        method: FFApiEndpoint_CallType.POST,
-        variables: {'token': str(), 'matchId': str(), 'scorerName': str(), 'minute': str()},
-        headers: ['Authorization: Bearer [token]'],
-      );
-    } else {
-      // Bestond al (increment 1, met scorer_id) -> bijwerken naar scorer_name.
-      addGoal.url = addUrl;
-      addGoal.variables.clear();
-      addGoal.variables.addAll(['token', 'matchId', 'scorerName', 'minute'].map((n) =>
-          FFApiValue(
-            identifier: FFIdentifier(name: n, key: generateRandomAlphaNumericString()),
-            type: FFBaseDataType.String,
-          )));
-    }
+  // Maker via naam (query-param). Vers endpoint (de oude AddGoal met scorer_id
+  // niet muteren — variables.clear brak de structuur).
+  if (!has('AddGoalV2')) {
+    addEndpointToGroup(
+      project,
+      groupName: 'VoetbalPlannerAPI',
+      name: 'AddGoalV2',
+      url: '/matches/[matchId]/goals?scorer_name=[scorerName]&minute=[minute]',
+      method: FFApiEndpoint_CallType.POST,
+      variables: {'token': str(), 'matchId': str(), 'scorerName': str(), 'minute': str()},
+      headers: ['Authorization: Bearer [token]'],
+    );
   }
   if (!has('DeleteGoal')) {
     addEndpointToGroup(
@@ -18677,7 +18665,7 @@ void _addWedstrijdScoreSection(FFProject project) {
   final hasDeleteEp = findApiEndpoint(
       project, name: 'DeleteLastGoal', groupName: 'VoetbalPlannerAPI') != null;
   final hasAddEp = findApiEndpoint(
-      project, name: 'AddGoal', groupName: 'VoetbalPlannerAPI') != null;
+      project, name: 'AddGoalV2', groupName: 'VoetbalPlannerAPI') != null;
 
   // Bouwt de "Laatste doelpunt verwijderen"-knop (coach-actie) -> DeleteLastGoal
   // -> samenvatting bijwerken uit de response (geen re-fetch nodig). Null als de
@@ -18728,7 +18716,7 @@ void _addWedstrijdScoreSection(FFProject project) {
     final addBtn = UI.button('Doelpunt toevoegen', name: 'ScoreAddButton', width: double.infinity);
     final apiNode = Actions.apiCallNode(
       project,
-      endpointName: 'AddGoal',
+      endpointName: 'AddGoalV2',
       groupName: 'VoetbalPlannerAPI',
       dynamicVariables: {
         'token': varFromAppState(authTokenId.deepCopy()),
@@ -18772,8 +18760,16 @@ void _addWedstrijdScoreSection(FFProject project) {
     }
   }
 
-  // Sectie bestaat al (eerdere push) -> ontbrekende controls bijplaatsen.
+  // Sectie bestaat al (eerdere push) -> opruimen: de crashende samenvatting-tekst
+  // (Text(_model.matchGoalsSummary!) crasht vóór de load op null) en de oude
+  // add-form-widgets (verwezen naar de stukke AddGoal) weghalen, daarna controls
+  // opnieuw (met AddGoalV2) bijplaatsen.
   if (existingContainer != null) {
+    existingContainer.children.removeWhere((n) =>
+        n.name == 'ScoreSummaryText' ||
+        n.name == 'ScoreScorerField' ||
+        n.name == 'ScoreMinuteField' ||
+        n.name == 'ScoreAddButton');
     ensureControls(existingContainer);
     return;
   }
@@ -18787,28 +18783,12 @@ void _addWedstrijdScoreSection(FFProject project) {
   if (parentCol == null) return;
 
   final header = UI.text('Doelpunten', name: 'ScoreSectionHeader', style: UITextStyle.titleMedium);
-  final summaryText = UI.text('-', name: 'ScoreSummaryText', style: UITextStyle.bodyMedium);
-  // Null-safe binden ("s ?? ''") — anders genereert FF _model.matchGoalsSummary!
-  // en crasht de pagina als de waarde nog null is (vóór de API-load).
-  summaryText.props.text.textValue = FFStringValue(
-    variable: codeExpressionVar(
-      expression: "s ?? ''",
-      arguments: [
-        CodeExpressionArg(
-          name: 's',
-          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-          value: FFValue(variable: summaryVar),
-        ),
-      ],
-      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
-    ),
-  );
 
   final container = UI.column(
     name: 'ScoreSectionContainer',
     crossAxisAlignment: UICrossAxisAlignment.start,
     spacing: 6,
-    children: [header, summaryText],
+    children: [header],
   );
   ensureControls(container);
   setConditionalVisibility(
