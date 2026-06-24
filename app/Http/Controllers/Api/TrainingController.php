@@ -92,6 +92,12 @@ class TrainingController extends Controller
         // Sorteer op datum + begintijd.
         usort($occurrences, fn ($a, $b) => [$a['date'], $a['start_time']] <=> [$b['date'], $b['start_time']]);
 
+        // Optioneel: beperk tot de eerstvolgende N (bijv. dashboard toont er 2).
+        $limit = (int) $request->query('limit', 0);
+        if ($limit > 0) {
+            $occurrences = array_slice($occurrences, 0, $limit);
+        }
+
         return response()->json($occurrences);
     }
 

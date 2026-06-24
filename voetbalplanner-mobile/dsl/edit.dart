@@ -923,7 +923,8 @@ void buildEditFlow(App app) {
     // Append GetDriveSchedule to the on-load chain (must run after _wireDashboardLoad
     // which rebuilds the chain from scratch each push).
     _wireDashboardDriveScheduleLoad(project);
-    // Trainingen-sectie + GetTrainings op de on-load-chain (idem: ná _wireDashboardLoad).
+    // Native trainingen-endpoint (testmode-proof) + sectie/on-load (ná _wireDashboardLoad).
+    _addGetTrainingsEndpoint(project);
     _addDashboardTrainingsSection(project);
     // Status-iconen (aangemeld/afgemeld) onder de trainingskaart.
     _addTrainingCardStatusIcons(project);
@@ -18377,40 +18378,87 @@ void _ensureTrainingItemCountFields(FFProject project) {
   }
 }
 
+// Native FF API-endpoint voor trainingen (werkt in testmode, i.t.t. een custom
+// http-actie). Response -> List<TrainingItem>. limit=2 voor het dashboard.
+void _addGetTrainingsEndpoint(FFProject project) {
+  const groupName    = 'VoetbalPlannerAPI';
+  const endpointName = 'GetTrainingsList';
+
+  if (findApiEndpoint(project, name: endpointName, groupName: groupName) == null) {
+    if (findApiGroup(project, name: groupName) == null) return;
+    addEndpointToGroup(
+      project,
+      groupName:                groupName,
+      name:                     endpointName,
+      url:                      '/trainings?team_id=[teamId]&days=21&limit=2',
+      method:                   FFApiEndpoint_CallType.GET,
+      bodyType:                 FFApiEndpoint_BodyType.NONE,
+      variables: {
+        'token':  FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'teamId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      headers:                  ['Authorization: Bearer [token]'],
+      responseDataStructName:   'TrainingItem',
+      responseDataStructIsList: true,
+    );
+  } else {
+    updateApiEndpoint(
+      project,
+      name:                     endpointName,
+      groupName:                groupName,
+      responseDataStructName:   'TrainingItem',
+      responseDataStructIsList: true,
+    );
+  }
+}
+
 // ─── Dashboard: trainingen-sectie ────────────────────────────────────────────
 // Voegt een "Trainingen"-sectie toe onderaan de dashboard-kolom met een ListView
-// gebonden aan AppState.trainings, en triggert GetTrainings op page-load.
+// gebonden aan AppState.trainings, en laadt ze via het native GetTrainingsList-
+// endpoint op page-load.
 void _addDashboardTrainingsSection(FFProject project) {
   final wc = findPage(project, name: 'DashboardPage');
   if (wc == null) return;
 
-  // 1. onLoad: GetTrainings (idempotent over alle triggers).
-  final getTrainingsAction = findCustomAction(project, name: 'GetTrainings');
-  if (getTrainingsAction != null) {
-    bool hasGetTrainings(FFActionNode node) {
+  // 1. onLoad: laad trainingen via het native FF-endpoint GetTrainingsList
+  //    (werkt in testmode, i.t.t. een custom http-actie) -> AppState.trainings.
+  final authTokenId     = _findAppStateFieldId(project, 'authToken');
+  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  final hasEndpoint = findApiEndpoint(
+        project, name: 'GetTrainingsList', groupName: 'VoetbalPlannerAPI') != null;
+  if (authTokenId != null && currentTeamIdId != null && hasEndpoint) {
+    bool hasLoad(FFActionNode node) {
       if (node.hasAction() &&
-          node.action.hasCustomAction() &&
-          node.action.customAction.hasCustomActionIdentifier() &&
-          node.action.customAction.customActionIdentifier.name == 'GetTrainings') {
+          node.action.hasDatabase() &&
+          node.action.database.hasApiCall() &&
+          node.action.database.apiCall.hasEndpointIdentifier() &&
+          node.action.database.apiCall.endpointIdentifier.name == 'GetTrainingsList') {
         return true;
       }
-      if (node.hasFollowUpAction() && hasGetTrainings(node.followUpAction)) return true;
+      if (node.hasFollowUpAction() && hasLoad(node.followUpAction)) return true;
       return false;
     }
 
     final already = wc.node.triggerActions
-        .any((t) => t.hasRootAction() && hasGetTrainings(t.rootAction));
+        .any((t) => t.hasRootAction() && hasLoad(t.rootAction));
     if (!already) {
       _appendToFirstPageLoadChain(
         wc.node,
-        FFActionNode(
-          key: generateRandomAlphaNumericString(),
-          action: FFAction(
-            key: generateRandomAlphaNumericString(),
-            customAction: FFCustomActionCall(
-              customActionIdentifier: getTrainingsAction.identifier.deepCopy(),
-            ),
-          ),
+        Actions.apiCallNode(
+          project,
+          endpointName: 'GetTrainingsList',
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: {
+            'token':  varFromAppState(authTokenId.deepCopy()),
+            'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+          },
+          outputVariableName: 'trainingsLoad',
+          nodeKey: wc.node.key,
+          onSuccess: (ctx) => Actions.chain([
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable('trainings', ctx.responseVar),
+            ]),
+          ]),
         ),
       );
     }
