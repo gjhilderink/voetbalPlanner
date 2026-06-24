@@ -13,23 +13,28 @@ class BarDutyResource extends JsonResource
     public function toArray(Request $request): array
     {
         $user       = $request->user();
-        $member     = $user?->member;
+        $member     = $user?->resolveMember();
         $myMemberId = $member?->id;
+        $myUserId   = $user?->id;
 
-        $memberCount   = $this->members?->count() ?? 0;
-        $isAssignedToMe = $myMemberId
-            ? (bool) $this->members?->contains('id', $myMemberId)
-            : false;
+        // Aangemeld = leden (bar_duty_member) + losse User-accounts (bar_duty_user).
+        $names       = ($this->members?->pluck('name') ?? collect())
+            ->merge($this->users?->pluck('name') ?? collect());
+        $memberCount = $names->count();
+
+        $isAssignedToMe =
+            ($myMemberId && (bool) $this->members?->contains('id', $myMemberId)) ||
+            ($myUserId   && (bool) $this->users?->contains('id', $myUserId));
 
         // Self-assign mogelijk wanneer:
-        //  - gebruiker heeft een member-profiel
         //  - bardienst heeft nog plekken vrij
         //  - gebruiker zit nog niet op de bardienst
-        //  - gebruiker is lid van het gekoppelde team (geen team = open)
+        //  - gebruiker is als lid/coach of als ouder aan het gekoppelde team
+        //    verbonden (geen team = open voor de hele club)
         $canSelfAssign = false;
-        if ($member && ! $isAssignedToMe && $memberCount < BarDuty::REQUIRED_MEMBERS) {
+        if ($user && ! $isAssignedToMe && $memberCount < BarDuty::REQUIRED_MEMBERS) {
             $canSelfAssign = ! $this->team_id
-                || $member->teams()->whereKey($this->team_id)->exists();
+                || $user->accessibleTeams()->contains('id', $this->team_id);
         }
 
         return [
@@ -38,7 +43,7 @@ class BarDutyResource extends JsonResource
             'shift'        => $this->shift ?? '',
             'status'       => $this->status ?? '',
             'teamName'     => $this->team?->name ?? '',
-            'members'      => $this->members?->pluck('name')->join(', ') ?? '',
+            'members'      => $names->join(', '),
             'notes'        => $this->notes ?? '',
             'isAssignedToMe' => $isAssignedToMe,
             'memberCount'    => $memberCount,

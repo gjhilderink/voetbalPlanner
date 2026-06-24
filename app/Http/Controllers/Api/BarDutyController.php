@@ -17,7 +17,7 @@ class BarDutyController extends Controller
         $user = $request->user();
 
         $duties = BarDuty::query()
-            ->with(['team', 'members'])
+            ->with(['team', 'members', 'users'])
             ->where('club_id', $user->club_id)
             ->when(
                 !$user->hasAnyRole(['super_admin', 'club_admin', 'bar_commissie']),
@@ -47,7 +47,7 @@ class BarDutyController extends Controller
     {
         $this->authorizeAccess($barDuty);
 
-        $barDuty->load(['team', 'members']);
+        $barDuty->load(['team', 'members', 'users']);
 
         return response()->json(new BarDutyResource($barDuty));
     }
@@ -80,7 +80,7 @@ class BarDutyController extends Controller
             $duty->refreshStatus();
         }
 
-        $duty->load(['team', 'members']);
+        $duty->load(['team', 'members', 'users']);
 
         return response()->json([
             'success' => true,
@@ -103,7 +103,7 @@ class BarDutyController extends Controller
         ]);
 
         $barDuty->update($validated);
-        $barDuty->load(['team', 'members']);
+        $barDuty->load(['team', 'members', 'users']);
 
         return response()->json([
             'success' => true,
@@ -145,7 +145,7 @@ class BarDutyController extends Controller
 
         $barDuty->members()->sync($validated['member_ids']);
         $barDuty->refreshStatus();
-        $barDuty->load(['team', 'members']);
+        $barDuty->load(['team', 'members', 'users']);
 
         return response()->json([
             'success' => true,
@@ -168,19 +168,12 @@ class BarDutyController extends Controller
         $this->authorizeAccess($barDuty);
 
         $user   = $request->user();
-        $member = $user?->member;
+        $member = $user?->resolveMember();
 
-        if (! $member) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Je hebt geen lid-profiel om je aan te melden.',
-            ], 422);
-        }
-
+        // Lid (member_id) óf los account (user_id) mag zich aanmelden, mits aan
+        // het team van de bardienst gekoppeld (als lid/coach of als ouder).
         if ($barDuty->team_id) {
-            $isInTeam = $member->teams()
-                ->whereKey($barDuty->team_id)
-                ->exists();
+            $isInTeam = $user->accessibleTeams()->contains('id', $barDuty->team_id);
             if (! $isInTeam) {
                 return response()->json([
                     'success' => false,
@@ -189,24 +182,27 @@ class BarDutyController extends Controller
             }
         }
 
-        $current = $barDuty->members()->pluck('members.id');
-        if ($current->contains($member->id)) {
+        $memberIds = $barDuty->members()->pluck('members.id');
+        $userIds   = $barDuty->users()->pluck('users.id');
+
+        $already = ($member && $memberIds->contains($member->id)) || $userIds->contains($user->id);
+        if ($already) {
             return response()->json([
                 'success' => false,
                 'message' => 'Je bent al aangemeld voor deze bardienst.',
             ], 422);
         }
 
-        if ($current->count() >= BarDuty::REQUIRED_MEMBERS) {
+        if (($memberIds->count() + $userIds->count()) >= BarDuty::REQUIRED_MEMBERS) {
             return response()->json([
                 'success' => false,
                 'message' => 'Deze bardienst is al vol.',
             ], 422);
         }
 
-        $barDuty->members()->attach($member->id);
+        $member ? $barDuty->members()->attach($member->id) : $barDuty->users()->attach($user->id);
         $barDuty->refreshStatus();
-        $barDuty->load(['team', 'members']);
+        $barDuty->load(['team', 'members', 'users']);
 
         return response()->json([
             'success' => true,

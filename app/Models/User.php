@@ -129,8 +129,15 @@ class User extends Authenticatable implements FilamentUser, HasTenants
      * guardian_links). Uniek op id. Gebruikt voor de teamkeuze in de app
      * (bv. een ouder met kinderen in meerdere teams).
      */
+    /** Per-request memoisatie (voorkomt N+1 als een Resource dit per item aanroept). */
+    protected ?\Illuminate\Support\Collection $accessibleTeamsCache = null;
+
     public function accessibleTeams(): \Illuminate\Support\Collection
     {
+        if ($this->accessibleTeamsCache !== null) {
+            return $this->accessibleTeamsCache;
+        }
+
         $teams = $this->managedTeams()->get();
 
         if ($this->member) {
@@ -149,6 +156,6 @@ class User extends Authenticatable implements FilamentUser, HasTenants
             }
         }
 
-        return $teams->unique('id')->values();
+        return $this->accessibleTeamsCache = $teams->unique('id')->values();
     }
 }

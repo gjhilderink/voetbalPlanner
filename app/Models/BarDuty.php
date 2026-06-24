@@ -44,13 +44,19 @@ class BarDuty extends Model
         return $this->belongsToMany(Member::class, 'bar_duty_member');
     }
 
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'bar_duty_user');
+    }
+
     public function refreshStatus(): void
     {
         if ($this->status === 'vervuld') {
             return;
         }
 
-        $count = $this->members()->count();
+        // Leden én losse User-accounts tellen mee.
+        $count = $this->members()->count() + $this->users()->count();
         $this->update(['status' => $count >= self::REQUIRED_MEMBERS ? 'bevestigd' : 'open']);
     }
 }
