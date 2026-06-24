@@ -565,6 +565,8 @@ void buildEditFlow(App app) {
   app.raw((project) => _ensureTrainingsAppStateField(project));
   // AppState 'matchGoals' = List<GoalItem> (coach-scorebeheer), gevuld door GetMatchGoals.
   app.raw((project) => _ensureMatchGoalsAppStateField(project));
+  // AppState 'scoreTeamMembers' = List<SwapMember> (tikbare maker-keuze bij score).
+  app.raw((project) => _ensureScoreTeamMembersField(project));
   // Custom actions: trainingen ophalen + af-/aanmelden (training & wedstrijd).
   app.raw((project) => _addTrainingsCustomActions(project));
   // Native FF POST-endpoints voor af-/aanmelden (CORS-proof, i.t.t. custom http).
@@ -18488,6 +18490,24 @@ void _ensureMatchGoalsAppStateField(FFProject project) {
   project.appState.fields.add(FFAppStateField(parameter: param));
 }
 
+// AppState 'scoreTeamMembers' = List<SwapMember>, gevuld door GetTeamMembers op de
+// wedstrijddetail (tikbare maker-keuze).
+void _ensureScoreTeamMembersField(FFProject project) {
+  if (project.appState.fields.any(
+    (f) => f.parameter.identifier.name == 'scoreTeamMembers',
+  )) return;
+  final struct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'SwapMember', orElse: () => null);
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(name: 'scoreTeamMembers', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
 // Voegt de telling-velden (aangemeld/afgemeld, string) toe aan de bestaande
 // TrainingItem-struct. Raw, idempotent — er is geen addDataStructField-helper en
 // app.struct/ensure botst op een gewijzigde payload.
@@ -18678,6 +18698,39 @@ void _addWedstrijdScoreSection(FFProject project) {
   final hasAddEp = findApiEndpoint(
       project, name: 'AddGoalV2', groupName: 'VoetbalPlannerAPI') != null;
 
+  // Teamleden laden (current team) -> AppState.scoreTeamMembers voor de maker-keuze.
+  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  final scoreMembersId = _findAppStateFieldId(project, 'scoreTeamMembers');
+  if (authTokenId != null && currentTeamIdId != null && scoreMembersId != null &&
+      findApiEndpoint(project, name: 'GetTeamMembers', groupName: 'VoetbalPlannerAPI') != null) {
+    bool hasLoad(FFActionNode n) {
+      if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
+          n.action.database.apiCall.hasEndpointIdentifier() &&
+          n.action.database.apiCall.endpointIdentifier.name == 'GetTeamMembers') return true;
+      if (n.hasFollowUpAction() && hasLoad(n.followUpAction)) return true;
+      return false;
+    }
+    final already = wc.node.triggerActions.any((t) => t.hasRootAction() && hasLoad(t.rootAction));
+    if (!already) {
+      _appendToFirstPageLoadChain(
+        wc.node,
+        Actions.apiCallNode(
+          project,
+          endpointName: 'GetTeamMembers',
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: {'teamId': varFromAppState(currentTeamIdId.deepCopy())},
+          outputVariableName: 'scoreMembersLoad',
+          nodeKey: wc.node.key,
+          onSuccess: (ctx) => Actions.chain([
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable('scoreTeamMembers', ctx.responseVar),
+            ]),
+          ]),
+        ),
+      );
+    }
+  }
+
   // Bouwt de "Laatste doelpunt verwijderen"-knop (coach-actie) -> DeleteLastGoal
   // -> samenvatting bijwerken uit de response (geen re-fetch nodig). Null als de
   // benodigde token/param/endpoint ontbreekt.
@@ -18718,13 +18771,34 @@ void _addWedstrijdScoreSection(FFProject project) {
     return delBtn;
   }
 
-  // Toevoeg-form: maker-naam + minuut + knop -> AddGoal -> samenvatting bijwerken
-  // uit de response. Leeg als token/param/endpoint ontbreekt.
+  // Toevoeg-form: minuut + label + tikbare ledenlijst. Tik een speler -> AddGoalV2
+  // (scorer_name = de naam van het lid, dus geen typefouten) -> samenvatting
+  // bijwerken uit de response. Leeg als iets ontbreekt.
   List<FFNode> buildAddForm() {
-    if (authTokenId == null || matchIdParam == null || !hasAddEp) return <FFNode>[];
-    final scorerField = UI.textField(name: 'ScoreScorerField', labelText: 'Maker (naam speler)');
+    if (authTokenId == null || matchIdParam == null || !hasAddEp || scoreMembersId == null) {
+      return <FFNode>[];
+    }
     final minuteField = UI.textField(name: 'ScoreMinuteField', labelText: 'Minuut (optioneel)');
-    final addBtn = UI.button('Doelpunt toevoegen', name: 'ScoreAddButton', width: double.infinity);
+    final label = UI.text('Tik de speler die scoorde:', name: 'ScoreAddLabel',
+        style: UITextStyle.labelMedium, color: UIColor.secondaryText);
+
+    final membersVar = varFromAppState(scoreMembersId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+    final listView = UI.listView(
+      name: 'ScoreMembersList',
+      shrinkWrap: true,
+      spacing: 2,
+      dynamicSource: DynamicSource(variable: membersVar, itemName: 'lid'),
+    );
+
+    final nameText = UI.text('', name: 'ScoreMemberName', style: UITextStyle.bodyMedium);
+    nameText.props.text.textValue =
+        FFStringValue(variable: generatorVarField(listView.key, 'name'));
+    final itemRow = UI.container(
+      name: 'ScoreMemberRow',
+      padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      child: nameText,
+    );
     final apiNode = Actions.apiCallNode(
       project,
       endpointName: 'AddGoalV2',
@@ -18733,31 +18807,33 @@ void _addWedstrijdScoreSection(FFProject project) {
         'token': varFromAppState(authTokenId.deepCopy()),
         'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
           ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
-        'scorerName': varFromTextFieldValue(scorerField.key),
+        'scorerName': generatorVarField(listView.key, 'name'),
         'minute': varFromTextFieldValue(minuteField.key),
       },
       outputVariableName: 'addGoalOut',
-      nodeKey: addBtn.key,
+      nodeKey: itemRow.key,
       onSuccess: (ctx) => Actions.chain([
         Actions.updatePageState(
           project,
           widgetClassName: 'WedstrijdDetailPage',
           updates: [
             StateFieldUpdate.setFromVariable(
-                'matchGoalsSummary', _jsonBodyVar(ctx, r'$.goals_summary', addBtn.key)),
+                'matchGoalsSummary', _jsonBodyVar(ctx, r'$.goals_summary', itemRow.key)),
           ],
         ),
         Actions.snackBar('Doelpunt toegevoegd.'),
       ]),
       onFailure: (ctx) => Actions.chain([
-        Actions.snackBar('Toevoegen mislukt — controleer de spelernaam.'),
+        Actions.snackBar('Toevoegen mislukt — probeer opnieuw.'),
       ]),
     );
-    addBtn.triggerActions.add(FFTriggerActions(
+    itemRow.triggerActions.add(FFTriggerActions(
       trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
       rootAction: apiNode,
     ));
-    return [scorerField, minuteField, addBtn];
+    listView.children.add(itemRow);
+
+    return [minuteField, label, listView];
   }
 
   // Plaatst ontbrekende coach-controls (toevoeg-form + verwijder-knop) in de sectie.
@@ -18772,7 +18848,7 @@ void _addWedstrijdScoreSection(FFProject project) {
         container.children.insert(hIdx >= 0 ? hIdx + 1 : 0, summaryText);
       }
     }
-    if (findDescendants(container, (n) => n.name == 'ScoreAddButton').isEmpty) {
+    if (findDescendants(container, (n) => n.name == 'ScoreMembersList').isEmpty) {
       container.children.addAll(buildAddForm());
     }
     if (findDescendants(container, (n) => n.name == 'ScoreDeleteLastButton').isEmpty) {
@@ -18781,9 +18857,13 @@ void _addWedstrijdScoreSection(FFProject project) {
     }
   }
 
-  // Sectie bestaat al -> ontbrekende onderdelen bijplaatsen (samenvatting is nu
-  // null-safe omdat matchGoalsSummary default '' heeft).
+  // Sectie bestaat al -> oude add-form-widgets (naamveld/knop) opruimen en de
+  // (nieuwe) tikbare ledenlijst + ontbrekende onderdelen bijplaatsen.
   if (existingContainer != null) {
+    existingContainer.children.removeWhere((n) =>
+        n.name == 'ScoreScorerField' || n.name == 'ScoreMinuteField' ||
+        n.name == 'ScoreAddButton' || n.name == 'ScoreAddLabel' ||
+        n.name == 'ScoreMembersList');
     ensureControls(existingContainer);
     return;
   }

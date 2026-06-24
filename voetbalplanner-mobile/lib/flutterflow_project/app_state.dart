@@ -191,6 +191,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const scoreTeamMembers = ffai.ProjectAppStateFieldHandle(
+    name: "scoreTeamMembers",
+    key: "jcwazvqm",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
   static const secondaryColor = ffai.ProjectAppStateFieldHandle(
     name: "secondaryColor",
     key: "0z0ap2pj",
@@ -271,6 +277,7 @@ abstract final class AppState {
     primaryColor,
     profilePhotoUrl,
     relatiecode,
+    scoreTeamMembers,
     secondaryColor,
     sharedBarDuties,
     sharedTeamMembers,
