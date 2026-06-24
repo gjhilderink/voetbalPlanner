@@ -18173,6 +18173,31 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 const _kApiBase = 'https://voetbalplanner.nubix.nl/api/v1';
+
+// Herlaadt FFAppState().trainings (dezelfde lijst als het dashboard). Wordt na
+// af-/aanmelden aangeroepen zodat de status/aantallen direct kloppen.
+Future<void> _refreshTrainings() async {
+  final token  = FFAppState().authToken;
+  final teamId = FFAppState().currentTeamId;
+  if (token.isEmpty || teamId.isEmpty) return;
+  try {
+    final uri  = Uri.parse('\$_kApiBase/trainings?team_id=\$teamId&days=21&limit=2');
+    final resp = await http.get(uri, headers: {
+      'Authorization': 'Bearer \$token',
+      'Accept': 'application/json',
+    });
+    if (resp.statusCode != 200) return;
+    final decoded = jsonDecode(resp.body);
+    final items = <TrainingItemStruct>[];
+    if (decoded is List) {
+      for (final m in decoded) {
+        final t = TrainingItemStruct.maybeFromMap(m);
+        if (t != null) items.add(t);
+      }
+    }
+    FFAppState().update(() => FFAppState().trainings = items);
+  } catch (_) {}
+}
 ''';
 
 const _kGetTrainingsCode = '''
@@ -18232,7 +18257,9 @@ Future<bool> afmeldenTraining() async {
         'Content-Type': 'application/json',
       },
       body: jsonEncode({'reason': reason}));
-    return resp.statusCode == 200;
+    final ok = resp.statusCode == 200;
+    if (ok) await _refreshTrainings();
+    return ok;
   } catch (e) {
     debugPrint('[AfmeldenTraining] \$e');
     return false;
@@ -18254,7 +18281,9 @@ Future<bool> aanmeldenTraining() async {
       'Authorization': 'Bearer \$token',
       'Accept': 'application/json',
     });
-    return resp.statusCode == 200;
+    final ok = resp.statusCode == 200;
+    if (ok) await _refreshTrainings();
+    return ok;
   } catch (e) {
     debugPrint('[AanmeldenTraining] \$e');
     return false;
@@ -18717,7 +18746,12 @@ void _wireTrainingDetailPage(FFProject project) {
   setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
   setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
 
-  void wireButton(FFNode btn, FFCustomAction action, String newStatus) {
+  void wireButton(FFNode btn, FFCustomAction action) {
+    // Na de af-/aanmeld-actie: de detailpagina sluiten (terug). Het verversen van
+    // FFAppState().trainings gebeurt in de custom action zelf (na de POST), zodat
+    // het dashboard (context.watch) de bijgewerkte status/aantallen toont.
+    final afterAction = FFActionNode(key: gen(), action: Actions.navigateBack());
+
     final pendingNode = FFActionNode(
       key: gen(),
       action: Actions.updateAppState(project, updates: [
@@ -18731,14 +18765,7 @@ void _wireTrainingDetailPage(FFProject project) {
           key: gen(),
           customAction: FFCustomActionCall(customActionIdentifier: action.identifier.deepCopy()),
         ),
-        followUpAction: FFActionNode(
-          key: gen(),
-          action: Actions.updatePageState(
-            project,
-            widgetClassName: 'TrainingDetailPage',
-            updates: [StateFieldUpdate.set('localStatus', newStatus)],
-          ),
-        ),
+        followUpAction: afterAction,
       ),
     );
     btn.triggerActions.removeWhere(
@@ -18750,8 +18777,8 @@ void _wireTrainingDetailPage(FFProject project) {
     ));
   }
 
-  wireButton(afmeldBtn, afmeldAction, 'afgemeld');
-  wireButton(aanmeldBtn, aanmeldAction, 'aangemeld');
+  wireButton(afmeldBtn, afmeldAction);
+  wireButton(aanmeldBtn, aanmeldAction);
 
   // Afmeldlijst (naam + reden) — gevuld vanuit de afmeldingen-param.
   final afmeldChildren = <FFNode>[];
