@@ -112,7 +112,7 @@ class TrainingController extends Controller
         }
 
         $validated = $request->validate([
-            'reason' => 'required|string|max:255',
+            'reason' => 'nullable|string|max:255',
         ]);
 
         $day = Carbon::parse($date)->toDateString();
@@ -126,7 +126,7 @@ class TrainingController extends Controller
             ],
             [
                 'club_id' => $schedule->club_id,
-                'reason'  => $validated['reason'],
+                'reason'  => $validated['reason'] ?? '',
             ],
         );
 

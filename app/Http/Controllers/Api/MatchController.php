@@ -66,7 +66,7 @@ class MatchController extends Controller
         }
 
         $validated = $request->validate([
-            'reason' => 'required|string|max:255',
+            'reason' => 'nullable|string|max:255',
         ]);
 
         Absence::updateOrCreate(
@@ -77,7 +77,7 @@ class MatchController extends Controller
             ],
             [
                 'club_id' => $request->user()->club_id,
-                'reason'  => $validated['reason'],
+                'reason'  => $validated['reason'] ?? '',
             ],
         );
 
