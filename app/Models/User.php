@@ -111,4 +111,33 @@ class User extends Authenticatable implements FilamentUser, HasTenants
     {
         return $this->managedTeams()->pluck('teams.id');
     }
+
+    /**
+     * Alle teams die deze gebruiker mag zien: eigen teams (via user_team én via
+     * het Member/lidnummer) plus de teams van gekoppelde kinderen (approved
+     * guardian_links). Uniek op id. Gebruikt voor de teamkeuze in de app
+     * (bv. een ouder met kinderen in meerdere teams).
+     */
+    public function accessibleTeams(): \Illuminate\Support\Collection
+    {
+        $teams = $this->managedTeams()->get();
+
+        if ($this->member) {
+            $teams = $teams->merge($this->member->teams);
+
+            $childMemberIds = \App\Models\GuardianLink::query()
+                ->where('guardian_member_id', $this->member->id)
+                ->where('status', 'approved')
+                ->pluck('child_member_id');
+
+            if ($childMemberIds->isNotEmpty()) {
+                $childTeams = \App\Models\Team::query()
+                    ->whereHas('members', fn ($q) => $q->whereIn('members.id', $childMemberIds))
+                    ->get();
+                $teams = $teams->merge($childTeams);
+            }
+        }
+
+        return $teams->unique('id')->values();
+    }
 }

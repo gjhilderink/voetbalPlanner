@@ -11,6 +11,15 @@ class UserResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Alle teams die de gebruiker mag zien (eigen + kinderteams), één keer
+        // berekend. Default-team = eigen team indien aanwezig, anders het eerste
+        // toegankelijke team (zodat een ouder zonder eigen team tóch een
+        // currentTeamId krijgt).
+        $accessibleTeams = $this->accessibleTeams();
+        $defaultTeam = $this->managedTeams->first()
+            ?? $this->member?->teams->first()
+            ?? $accessibleTeams->first();
+
         return [
             'id'            => $this->id,
             'name'          => $this->name,
@@ -31,12 +40,14 @@ class UserResource extends JsonResource
                 'id'   => $t->id,
                 'name' => $t->name,
             ])->values(),
-            'team_id' => $this->managedTeams->first()?->id
-                ?? $this->member?->teams->first()?->id
-                ?? '',
-            'team_name' => $this->managedTeams->first()?->name
-                ?? $this->member?->teams->first()?->name
-                ?? '',
+            'team_id'   => $defaultTeam?->id ?? '',
+            'team_name' => $defaultTeam?->name ?? '',
+            // Alle toegankelijke teams voor de teamkeuze in de app (multi-team,
+            // bv. ouder met kinderen in meerdere teams).
+            'teams' => $accessibleTeams->map(fn ($t) => [
+                'id'   => $t->id,
+                'name' => $t->name,
+            ])->values(),
             'member_id'         => $this->member?->id ?? '',
             'relatiecode'       => $this->member?->external_id ?? '',
             'profile_photo_url' => ($this->profile_photo
