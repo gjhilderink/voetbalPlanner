@@ -836,8 +836,6 @@ void buildEditFlow(App app) {
     _addBardienWisselButton(project);
     _addBardienNavigation(project);
   });
-  // Status-badge per waarde kleuren (status eigen kleur; dagdeel blijft primary).
-  app.raw((project) => _colorStatusBadgeByValue(project));
 
   // RijschemaDetailPage: new page for driving assignment details.
   _buildRijschemaDetailPage(app);
@@ -18206,46 +18204,6 @@ Options:
                             after a Firebase project was deleted and recreated.
   --help, -h                Show this help.
 ''');
-}
-
-// Kleurt de StatusBadge-component (gebruikt voor zowel dagdeel als status in de
-// BarDutyCard) op basis van de label-waarde: status open -> oranje, bevestigd/
-// vervuld -> groen, geannuleerd -> rood; al het andere (de dagdelen) houdt de
-// club-primary, zodat het dagdeel onveranderd blijft.
-void _colorStatusBadgeByValue(FFProject project) {
-  final comp = findComponent(project, name: 'StatusBadge');
-  if (comp == null) return;
-  final container = findByKey(comp.node, 'Container_ti73bj7i') ?? comp.node;
-  final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
-  if (primaryColorId == null) return;
-
-  final labelVar = varFromPageParam(FFIdentifier(name: 'label', key: '0786ttph'))
-    ..nodeKeyRef = FFNodeKeyReference(key: comp.node.key);
-  final primVar = varFromAppState(primaryColorId.deepCopy());
-
-  const expr =
-      "((l ?? '').toLowerCase().contains('open')) ? '#F59E0B' : "
-      "(((l ?? '').toLowerCase().contains('bevestig') || (l ?? '').toLowerCase().contains('vervuld')) ? '#16A34A' : "
-      "(((l ?? '').toLowerCase().contains('geannuleerd') || (l ?? '').toLowerCase().contains('vervallen')) ? '#DC2626' : prim))";
-
-  final colorExpr = codeExpressionVar(
-    expression: expr,
-    arguments: [
-      CodeExpressionArg(
-        name: 'l',
-        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-        value: FFValue(variable: labelVar),
-      ),
-      CodeExpressionArg(
-        name: 'prim',
-        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-        value: FFValue(variable: primVar),
-      ),
-    ],
-    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
-  );
-
-  _setContainerColor(container, colorFromStringVar(colorExpr));
 }
 
 // ─── Trainingen: custom actions (ophalen + af-/aanmelden) ────────────────────
