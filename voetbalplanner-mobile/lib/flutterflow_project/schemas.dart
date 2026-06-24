@@ -98,6 +98,17 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final goalItem = ffai.StructHandle(
+    "GoalItem",
+    <String, ffai.DslType>{
+      "assistName": ffai.string,
+      "id": ffai.string,
+      "minute": ffai.string,
+      "scorerName": ffai.string,
+      "type": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final guardianChild = ffai.StructHandle(
     "GuardianChild",
     <String, ffai.DslType>{
@@ -284,6 +295,7 @@ abstract final class Structs {
     clubRef,
     documentSection,
     footMatch,
+    goalItem,
     guardianChild,
     guardianLinkSummary,
     guardianRequest,

@@ -91,6 +91,12 @@ final class WedstrijdDetailPageState {
         key: "akzdove4",
         typeName: "String",
       );
+  ffai.ProjectStateFieldHandle get matchMagOpstelling =>
+      const ffai.ProjectStateFieldHandle(
+        name: "matchMagOpstelling",
+        key: "2miay9ez",
+        typeName: "String",
+      );
   ffai.ProjectStateFieldHandle get matchNotes =>
       const ffai.ProjectStateFieldHandle(
         name: "matchNotes",
@@ -399,21 +405,21 @@ abstract final class WedstrijdDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_yk6ltbxx",
+                                key: "Text_ncwl9ckd",
                                 type: "Text",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8]",
                                 name: "MatchAfmeldHeader",
                                 text: "Af-/aanmelden",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "TextField_bkrrpmvh",
+                                key: "TextField_jd4wso6z",
                                 type: "TextField",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[9]",
                                 name: "MatchReasonField",
                                 text: "Reden (bij afmelden)",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Button_t0nj6xt4",
+                                key: "Button_2glwtylp",
                                 type: "Button",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[10]",
                                 name: "MatchAfmeldButton",
@@ -423,7 +429,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Button_t9q8yqga",
+                                key: "Button_2a46anfk",
                                 type: "Button",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[11]",
                                 name: "MatchAanmeldButton",

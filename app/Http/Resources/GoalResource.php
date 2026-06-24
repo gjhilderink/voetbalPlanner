@@ -13,7 +13,7 @@ class GoalResource extends JsonResource
     {
         return [
             'id'         => $this->id,
-            'minute'     => $this->minute ?? 0,
+            'minute'     => (string) ($this->minute ?? 0),
             'type'       => $this->is_own_goal ? 'own_goal' : ($this->is_penalty ? 'penalty' : 'regular'),
             'scorerName' => $this->scorer?->name ?? '',
             'assistName' => $this->assist?->name ?? '',

@@ -544,6 +544,16 @@ void buildEditFlow(App app) {
   try {
     app.struct('Afmelding', {'naam': string, 'reden': string});
   } catch (_) {}
+  // Doelpunt (score-beheer). Velden = JSON-keys uit GoalResource.
+  try {
+    app.struct('GoalItem', {
+      'id': string,
+      'minute': string,
+      'type': string,
+      'scorerName': string,
+      'assistName': string,
+    });
+  } catch (_) {}
   // De TrainingItem-struct bestaat al op de backend (incl. de telling-velden
   // aangemeld/afgemeld). 'm hier opnieuw declareren via app.struct/ensure botst
   // op de uitgebreide payload, dus dat doen we niet. _ensureTrainingItemCountFields
@@ -557,6 +567,8 @@ void buildEditFlow(App app) {
   app.raw((project) => _addTrainingsCustomActions(project));
   // Native FF POST-endpoints voor af-/aanmelden (CORS-proof, i.t.t. custom http).
   app.raw((project) => _addAfmeldEndpoints(project));
+  // Native endpoints voor score-beheer (doelpunten ophalen/toevoegen/verwijderen).
+  app.raw((project) => _addScoreEndpoints(project));
   // (De dashboard-trainingen-sectie wordt verderop toegevoegd, ná _wireDashboardLoad
   // die de on-load-chain elke push opnieuw opbouwt — anders wordt GetTrainings gewist.)
 
@@ -9201,7 +9213,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
   for (final name in const [
     'matchOpponent', 'matchDatetime', 'matchLocation',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchNotes',
-    'apiStatus', 'matchStatus', 'matchMagAfmelden',
+    'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -9233,6 +9245,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchNotes':         r'$.notes',
           'matchStatus':        r'$.mijn_status',
           'matchMagAfmelden':   r'$.mag_afmelden',
+          'matchMagOpstelling': r'$.mag_opstelling',
         };
         final updates = <StateFieldUpdate>[
           StateFieldUpdate.set('isLoading', 'false'),
@@ -18539,6 +18552,50 @@ void _addAfmeldEndpoints(FFProject project) {
       ['token', 'matchId', 'reason']);
   ensure('AanmeldenMatchApi', '/matches/[matchId]/aanmelden',
       ['token', 'matchId']);
+}
+
+// Native endpoints voor score-beheer (coach): doelpunten ophalen (struct-list),
+// toevoegen (POST met query-params — FF interpoleert geen body-vars) en
+// verwijderen (DELETE).
+void _addScoreEndpoints(FFProject project) {
+  bool has(String n) => findApiEndpoint(project, name: n, groupName: 'VoetbalPlannerAPI') != null;
+  FFDataTypeV2 str() => FFDataTypeV2(scalarType: FFBaseDataType.String);
+
+  if (!has('GetMatchGoals')) {
+    addEndpointToGroup(
+      project,
+      groupName: 'VoetbalPlannerAPI',
+      name: 'GetMatchGoals',
+      url: '/matches/[matchId]/goals',
+      method: FFApiEndpoint_CallType.GET,
+      variables: {'token': str(), 'matchId': str()},
+      headers: ['Authorization: Bearer [token]'],
+      responseDataStructName: 'GoalItem',
+      responseDataStructIsList: true,
+    );
+  }
+  if (!has('AddGoal')) {
+    addEndpointToGroup(
+      project,
+      groupName: 'VoetbalPlannerAPI',
+      name: 'AddGoal',
+      url: '/matches/[matchId]/goals?scorer_id=[scorerId]&minute=[minute]',
+      method: FFApiEndpoint_CallType.POST,
+      variables: {'token': str(), 'matchId': str(), 'scorerId': str(), 'minute': str()},
+      headers: ['Authorization: Bearer [token]'],
+    );
+  }
+  if (!has('DeleteGoal')) {
+    addEndpointToGroup(
+      project,
+      groupName: 'VoetbalPlannerAPI',
+      name: 'DeleteGoal',
+      url: '/matches/[matchId]/goals/[goalId]',
+      method: FFApiEndpoint_CallType.DELETE,
+      variables: {'token': str(), 'matchId': str(), 'goalId': str()},
+      headers: ['Authorization: Bearer [token]'],
+    );
+  }
 }
 
 // ─── Dashboard: trainingen-sectie ────────────────────────────────────────────
