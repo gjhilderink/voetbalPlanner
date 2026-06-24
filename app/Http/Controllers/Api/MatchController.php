@@ -61,6 +61,9 @@ class MatchController extends Controller
         $accessibleTeamIds = $request->user()?->accessibleTeams()->pluck('id') ?? collect();
         $data['mag_afmelden'] = $accessibleTeamIds->contains($match->team_id);
 
+        // Opstelling + score beheren mag alleen de coach van het team (of beheerder).
+        $data['mag_opstelling'] = $request->user()?->canManageLineup($match->team_id) ?? false;
+
         return response()->json($data);
     }
 

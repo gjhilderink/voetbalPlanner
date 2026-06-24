@@ -29,6 +29,10 @@ class LineupController extends Controller
 
     public function store(Request $request, FootballMatch $match): JsonResponse
     {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json(['success' => false, 'message' => 'Alleen de coach mag de opstelling beheren.'], 403);
+        }
+
         $validated = $request->validate([
             'formation' => 'nullable|string|max:20',
             'tactical_notes' => 'nullable|string|max:2000',

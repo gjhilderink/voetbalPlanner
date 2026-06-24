@@ -124,6 +124,19 @@ class User extends Authenticatable implements FilamentUser, HasTenants
     }
 
     /**
+     * Mag deze gebruiker de opstelling + score van een wedstrijd van dit team
+     * beheren? Alleen de coach van het team (managed) of een beheerder.
+     */
+    public function canManageLineup(?string $teamId): bool
+    {
+        if ($this->hasAnyRole(['super_admin', 'club_admin'])) {
+            return true;
+        }
+
+        return $teamId !== null && $this->managedTeamIds()->contains($teamId);
+    }
+
+    /**
      * Alle teams die deze gebruiker mag zien: eigen teams (via user_team én via
      * het Member/lidnummer) plus de teams van gekoppelde kinderen (approved
      * guardian_links). Uniek op id. Gebruikt voor de teamkeuze in de app

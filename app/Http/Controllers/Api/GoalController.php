@@ -24,6 +24,10 @@ class GoalController extends Controller
 
     public function store(Request $request, FootballMatch $match): JsonResponse
     {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json(['success' => false, 'message' => 'Alleen de coach mag de score beheren.'], 403);
+        }
+
         $validated = $request->validate([
             'scorer_id' => 'required|uuid|exists:members,id',
             'assist_id' => 'nullable|uuid|exists:members,id',
@@ -44,8 +48,12 @@ class GoalController extends Controller
         ], 201);
     }
 
-    public function destroy(FootballMatch $match, Goal $goal): JsonResponse
+    public function destroy(Request $request, FootballMatch $match, Goal $goal): JsonResponse
     {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json(['success' => false, 'message' => 'Alleen de coach mag de score beheren.'], 403);
+        }
+
         $goal->delete();
 
         return response()->json([
