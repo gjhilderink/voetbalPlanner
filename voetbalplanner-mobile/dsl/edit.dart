@@ -562,20 +562,14 @@ void buildEditFlow(App app) {
       'afmeldingen': listOf(afmeldingHandle),
     });
   } catch (_) {}
-  // AppState 'trainings' = List<TrainingItem>, gevuld door de GetTrainings custom action.
-  final trainingItemHandle = StructHandle(
-    'TrainingItem',
-    {
-      'schedule_id': string, 'date': string, 'day_label': string,
-      'start_time': string, 'end_time': string, 'location': string,
-      'team_name': string, 'mijn_status': string,
-      'afmeldingen': listOf(afmeldingHandle),
-    },
-    description: generatedProjectStructDescription,
-  );
-  try { app.state('trainings', listOf(trainingItemHandle)); } catch (_) {}
+  // AppState 'trainings' = List<TrainingItem>, gevuld door GetTrainings. Via raw
+  // idempotente helper (app.state-ensure botst met een al bestaand veld met
+  // afwijkende payload).
+  app.raw((project) => _ensureTrainingsAppStateField(project));
   // Custom actions: trainingen ophalen + af-/aanmelden (training & wedstrijd).
   app.raw((project) => _addTrainingsCustomActions(project));
+  // (De dashboard-trainingen-sectie wordt verderop toegevoegd, ná _wireDashboardLoad
+  // die de on-load-chain elke push opnieuw opbouwt — anders wordt GetTrainings gewist.)
 
   // Ensure 'staffGroups' state field exists on ChatsPage.
   // Using app.editPageState (DSL compile phase) so the struct reference is
@@ -937,6 +931,8 @@ void buildEditFlow(App app) {
     // Append GetDriveSchedule to the on-load chain (must run after _wireDashboardLoad
     // which rebuilds the chain from scratch each push).
     _wireDashboardDriveScheduleLoad(project);
+    // Trainingen-sectie + GetTrainings op de on-load-chain (idem: ná _wireDashboardLoad).
+    _addDashboardTrainingsSection(project);
     // Tap on a dashboard card → open the corresponding detail page.
     _wireDashboardCardNavigation(project);
   });
@@ -18240,4 +18236,143 @@ void _addTrainingsCustomActions(FFProject project) {
   ensure('AanmeldenMatch', 'Meldt het ingelogde lid weer aan voor een wedstrijd.', _kAanmeldenMatchCode);
 
   try { addPubDependency(project, name: 'http', version: '^1.2.0'); } catch (_) {}
+}
+
+// AppState-field 'trainings' = List<TrainingItem>. Idempotent (skip als aanwezig).
+void _ensureTrainingsAppStateField(FFProject project) {
+  if (project.appState.fields.any(
+    (f) => f.parameter.identifier.name == 'trainings',
+  )) return;
+  final struct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'TrainingItem', orElse: () => null);
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(name: 'trainings', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+// ─── Dashboard: trainingen-sectie ────────────────────────────────────────────
+// Voegt een "Trainingen"-sectie toe onderaan de dashboard-kolom met een ListView
+// gebonden aan AppState.trainings, en triggert GetTrainings op page-load.
+void _addDashboardTrainingsSection(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  // 1. onLoad: GetTrainings (idempotent over alle triggers).
+  final getTrainingsAction = findCustomAction(project, name: 'GetTrainings');
+  if (getTrainingsAction != null) {
+    bool hasGetTrainings(FFActionNode node) {
+      if (node.hasAction() &&
+          node.action.hasCustomAction() &&
+          node.action.customAction.hasCustomActionIdentifier() &&
+          node.action.customAction.customActionIdentifier.name == 'GetTrainings') {
+        return true;
+      }
+      if (node.hasFollowUpAction() && hasGetTrainings(node.followUpAction)) return true;
+      return false;
+    }
+
+    final already = wc.node.triggerActions
+        .any((t) => t.hasRootAction() && hasGetTrainings(t.rootAction));
+    if (!already) {
+      _appendToFirstPageLoadChain(
+        wc.node,
+        FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: FFAction(
+            key: generateRandomAlphaNumericString(),
+            customAction: FFCustomActionCall(
+              customActionIdentifier: getTrainingsAction.identifier.deepCopy(),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  // 2. Sectie-UI (idempotent).
+  if (findDescendants(wc.node, (n) => n.name == 'DashboardTrainingsContainer').isNotEmpty) {
+    return;
+  }
+
+  final matchesContainer =
+      findDescendants(wc.node, (n) => n.name == 'DashboardMatchesContainer').firstOrNull;
+  if (matchesContainer == null) return;
+
+  final parentCol = findDescendants(wc.node, (_) => true)
+      .where((n) => n.children.any((c) => identical(c, matchesContainer)))
+      .firstOrNull;
+  if (parentCol == null) return;
+
+  final trainingsId = _findAppStateFieldId(project, 'trainings');
+  if (trainingsId == null) return;
+  final trainingsVar = varFromAppState(trainingsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final header = UI.text('Trainingen',
+      name: 'DashboardTrainingsHeader', style: UITextStyle.titleMedium);
+
+  final listView = UI.listView(
+    name: 'DashboardTrainingsList',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    dynamicSource: DynamicSource(variable: trainingsVar, itemName: 'training'),
+  );
+  listView.props.listView.shrinkWrapValue = FFBooleanValue(inputValue: true);
+
+  FFNode _field(String name, String field, UITextStyle style) {
+    final t = UI.text('', name: name, style: style);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(listView.key, field));
+    return t;
+  }
+
+  final dayText    = _field('DashTrainDay', 'day_label', UITextStyle.bodyMedium);
+  final dateText   = _field('DashTrainDate', 'date', UITextStyle.bodySmall);
+  final timeText   = _field('DashTrainTime', 'start_time', UITextStyle.bodySmall);
+  final locText    = _field('DashTrainLoc', 'location', UITextStyle.bodySmall);
+  final statusText = _field('DashTrainStatus', 'mijn_status', UITextStyle.bodySmall);
+
+  final card = UI.container(
+    name: 'DashboardTrainingCard',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.secondaryBackground,
+    child: UI.row(
+      name: 'DashTrainRow',
+      spacing: 12,
+      children: [
+        UI.icon('fitness_center', size: 24, color: UIColor.primary),
+        UI.column(
+          name: 'DashTrainInfo',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 2,
+          children: [
+            dayText,
+            UI.row(name: 'DashTrainDT', spacing: 8, children: [dateText, timeText]),
+            locText,
+            statusText,
+          ],
+        ),
+      ],
+    ),
+  );
+  listView.children.add(card);
+
+  final section = UI.container(
+    name: 'DashboardTrainingsContainer',
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    child: UI.column(
+      name: 'DashboardTrainingsCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 8,
+      children: [header, listView],
+    ),
+  );
+
+  parentCol.children.add(section);
 }
