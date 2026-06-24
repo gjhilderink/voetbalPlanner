@@ -111,3 +111,39 @@ exports.notifyOnChatMessage = onDocumentCreated(
     );
   }
 );
+
+// Teamchat loopt via de oude TeamChatPage, die naar de `teamChats`-collectie
+// schrijft (niet `chatMessages`). Aparte trigger zodat ook teamchat-berichten
+// een push naar het teamtopic sturen.
+exports.notifyOnTeamChat = onDocumentCreated(
+  "teamChats/{messageId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const msg = snap.data() || {};
+    const teamId = (msg.teamId || "").toString();
+    const senderId = (msg.senderId || "").toString();
+    const senderName = (msg.senderName || "Teamchat").toString();
+    const text = (msg.text || "").toString();
+    if (!teamId || !text) return;
+
+    const notification = {
+      title: "Teamchat",
+      body: `${senderName}: ${text}`,
+    };
+    const data = {
+      initialPageName: "TeamChatPage",
+      parameterData: JSON.stringify({ teamId: teamId, teamName: "" }),
+      teamId: teamId,
+      senderId: senderId,
+    };
+
+    try {
+      await getMessaging().send({ topic: `team_${teamId}`, notification, data });
+      console.log(`teamChat ${event.params.messageId}: push naar team_${teamId}`);
+    } catch (e) {
+      console.error(`teamChat push naar team_${teamId} mislukt:`, e);
+    }
+  }
+);
