@@ -2325,6 +2325,15 @@ Future<void> initializeTeamConversation() async {
 
   FFAppState().update(() {
     FFAppState().currentConversationId = convId;
+    // Fallback: zorg dat de teamchat-keuze op ChatsPage tenminste het huidige
+    // team toont, ook als availableTeams (nog) niet via de login is gevuld
+    // (bv. een sessie van vóór de multi-team-update, of een backend zonder
+    // teams[]). Alleen vullen als de lijst leeg is — anders niet overschrijven.
+    if (FFAppState().availableTeams.isEmpty) {
+      final fb = TeamOptionStruct.maybeFromMap(
+          {'id': teamId, 'name': FFAppState().currentTeamName});
+      if (fb != null) FFAppState().availableTeams = [fb];
+    }
   });
 }
 ''';
@@ -16946,6 +16955,15 @@ void _wireChatsPageTeamchatPicker(FFProject project) {
     final lv = existingList.props.listView.deepCopy();
     lv.shrinkWrapValue = FFBooleanValue(inputValue: true);
     existingList.props.listView = lv;
+    // Geef de bestaande tegel ook een achtergrond (knop-uiterlijk).
+    final existingTile =
+        findDescendants(wc.node, (n) => n.name == 'TeamchatTeamTile').firstOrNull;
+    if (existingTile != null) {
+      _setContainerColor(
+        existingTile,
+        FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_BACKGROUND)),
+      );
+    }
     return;
   }
 
@@ -16978,6 +16996,11 @@ void _wireChatsPageTeamchatPicker(FFProject project) {
     height: 44,
     borderRadius: 8,
     child: nameText,
+  );
+  // Achtergrond zodat de tegel duidelijk als aantikbare knop oogt.
+  _setContainerColor(
+    tile,
+    FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_BACKGROUND)),
   );
 
   // Tap: zet currentTeamId/Name op het gekozen team, dan open TeamChatPage.
