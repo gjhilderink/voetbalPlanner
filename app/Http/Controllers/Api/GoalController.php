@@ -40,10 +40,12 @@ class GoalController extends Controller
         // Maker: via id (bv. dropdown) óf via naam binnen het team van de wedstrijd.
         $scorerId = $validated['scorer_id'] ?? null;
         if (!$scorerId && !empty($validated['scorer_name'])) {
-            $member = \App\Models\Member::query()
-                ->when($match->team_id, fn ($q) => $q->whereHas('teams', fn ($t) => $t->whereKey($match->team_id)))
-                ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($validated['scorer_name']))])
-                ->first();
+            $name = mb_strtolower(trim($validated['scorer_name']));
+            $base = \App\Models\Member::query()
+                ->when($match->team_id, fn ($q) => $q->whereHas('teams', fn ($t) => $t->whereKey($match->team_id)));
+            // Eerst exact (case-insensitief), anders 'bevat' (bv. voornaam).
+            $member = (clone $base)->whereRaw('LOWER(name) = ?', [$name])->first()
+                ?? (clone $base)->whereRaw('LOWER(name) LIKE ?', ['%' . $name . '%'])->first();
             if (!$member) {
                 return response()->json([
                     'success' => false,
