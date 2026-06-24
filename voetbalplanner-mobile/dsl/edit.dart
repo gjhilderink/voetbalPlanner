@@ -846,6 +846,7 @@ void buildEditFlow(App app) {
     _wireBardienDetailPageLoad(project);
     _wireBardienDetailPageUI(project);
     _addBardienAanmeldenButton(project);
+    _addBardienWisselButton(project);
     _addBardienNavigation(project);
   });
 
@@ -8302,6 +8303,7 @@ void _wireBardienDetailPageLoad(FFProject project) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
   _ensurePageStateField(wc, 'dutyCanSelfAssign', FFBaseDataType.Boolean);
+  _ensurePageStateField(wc, 'dutyIsAssignedToMe', FFBaseDataType.Boolean);
 
   wc.node.triggerActions.removeWhere(
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
@@ -8340,6 +8342,11 @@ void _wireBardienDetailPageLoad(FFProject project) {
         updates.add(StateFieldUpdate.setFromVariable(
           'dutyCanSelfAssign',
           _jsonBodyVar(ctx, r'$.canSelfAssign', wc.node.key),
+        ));
+        // isAssignedToMe (bool) — drives visibility of the "Wissel aanvragen" button.
+        updates.add(StateFieldUpdate.setFromVariable(
+          'dutyIsAssignedToMe',
+          _jsonBodyVar(ctx, r'$.isAssignedToMe', wc.node.key),
         ));
         return Actions.chain([
           Actions.updatePageState(
@@ -8787,6 +8794,82 @@ void _wireBardienDetailPageUI(FFProject project) {
     infoRow('Leden', 'dutyMembers'),
     infoRow('Notities', 'dutyNotes'),
   ]);
+}
+
+// Voegt een "Wissel aanvragen" knop toe aan BardienDetailPage, zichtbaar wanneer
+// het lid zelf is ingedeeld (dutyIsAssignedToMe == true). onTap: navigeert naar
+// WisselAanvraagPage met dutyType 'bardienst', de dutyId en de datum als label —
+// dezelfde flow als de knop op de BarDutyCard in de lijst.
+void _addBardienWisselButton(FFProject project) {
+  final wc = findPage(project, name: 'BardienDetailPage');
+  if (wc == null) return;
+  if (project.getWidgetClassByName('WisselAanvraagPage') == null) return;
+  final infoColumn =
+      findDescendants(wc.node, (n) => n.name == 'DutyInfoColumn').firstOrNull;
+  if (infoColumn == null) return;
+
+  // Idempotent: verwijder een vorige instance.
+  for (final k in findDescendants(infoColumn, (n) => n.name == 'BardienWisselButton')
+      .map((n) => n.key)
+      .toList()) {
+    removeByKey(wc.node, k);
+  }
+
+  // dutyId page-param.
+  FFIdentifier? dutyIdParamId;
+  for (final param in wc.params.values) {
+    if (param.hasIdentifier() && param.identifier.name == 'dutyId') {
+      dutyIdParamId = param.identifier;
+      break;
+    }
+  }
+  if (dutyIdParamId == null) return;
+
+  // dutyIsAssignedToMe state-veld → zichtbaarheid.
+  final assignedField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'dutyIsAssignedToMe',
+          orElse: () => null);
+  if (assignedField == null) return;
+  final assignedVar =
+      varFromPageState(assignedField.parameter.identifier.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  final visibleVar = conditionVar(
+    assignedVar,
+    FFCondition_Relation.EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+  ).variable;
+
+  final button = UI.button('Wissel aanvragen',
+      name: 'BardienWisselButton', width: double.infinity);
+  setConditionalVisibility(button, variable: visibleVar);
+
+  // targetLabel = de datum (zoals de lijst-knop barDutyDate gebruikt).
+  final dateField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'dutyDate',
+          orElse: () => null);
+
+  final targetLabel = dateField != null
+      ? VariableParamValue(
+          varFromPageState(dateField.parameter.identifier.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key))
+      : StaticParamValue('Bardienst');
+
+  Actions.onTap(
+    button,
+    Actions.navigate(
+      project,
+      pageName: 'WisselAanvraagPage',
+      params: {
+        'dutyType': StaticParamValue('bardienst'),
+        'targetId': VariableParamValue(varFromPageParam(dutyIdParamId.deepCopy())),
+        'targetLabel': targetLabel,
+      },
+    ),
+  );
+
+  infoColumn.children.add(button);
 }
 
 // Voegt een "Aanmelden" knop toe aan BardienDetailPage die zichtbaar is wanneer
