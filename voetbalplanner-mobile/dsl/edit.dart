@@ -11703,13 +11703,25 @@ void _addConversationBadges(FFProject project) {
 // Appends a MarkConversationRead call to ChatDetailPage's ON_INIT_STATE chain,
 // after currentConversationId has been staged in AppState.
 void _wireMarkConversationRead(FFProject project) {
-  final wc = findPage(project, name: 'ChatDetailPage');
+  // ChatDetailPage: currentConversationId is al gezet via de conversatie-tap.
+  _wireMarkReadOnPage(project, 'ChatDetailPage', reinitTeamConv: false);
+  // TeamChatPage: opent als sub-pagina; markConversationRead werd hier nooit
+  // aangeroepen (bug: ongelezen teamchat bleef staan na openen). Eerst
+  // InitializeTeamConversation zodat currentConversationId = team_<currentTeamId>
+  // (ook correct bij multi-team), dan pas markeren als gelezen.
+  _wireMarkReadOnPage(project, 'TeamChatPage', reinitTeamConv: true);
+}
+
+void _wireMarkReadOnPage(FFProject project, String pageName, {required bool reinitTeamConv}) {
+  final wc = findPage(project, name: pageName);
   if (wc == null) return;
 
   final markRead = findCustomAction(project, name: 'MarkConversationRead');
   if (markRead == null) return;
+  final initConv =
+      reinitTeamConv ? findCustomAction(project, name: 'InitializeTeamConversation') : null;
 
-  // Idempotent: skip if already wired.
+  // Idempotent: skip if MarkConversationRead is already in the load chain.
   bool checkForMarkRead(FFActionNode node) {
     if (node.hasAction() &&
         node.action.hasCustomAction() &&
@@ -11723,18 +11735,26 @@ void _wireMarkConversationRead(FFProject project) {
   });
   if (alreadyWired) return;
 
-  _appendToFirstPageLoadChain(
-    wc.node,
-    FFActionNode(
-      key: generateRandomAlphaNumericString(),
-      action: FFAction(
+  FFActionNode customNode(FFCustomAction action) => FFActionNode(
         key: generateRandomAlphaNumericString(),
-        customAction: FFCustomActionCall(
-          customActionIdentifier: markRead.identifier.deepCopy(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: action.identifier.deepCopy(),
+          ),
         ),
-      ),
-    ),
-  );
+      );
+
+  final markNode = customNode(markRead);
+  FFActionNode rootNode;
+  if (initConv != null) {
+    rootNode = customNode(initConv);
+    rootNode.followUpAction = markNode;
+  } else {
+    rootNode = markNode;
+  }
+
+  _appendToFirstPageLoadChain(wc.node, rootNode);
 }
 
 // Rebuilds the inner content of ChatDetailPage's message bubbles on every push:
