@@ -393,21 +393,21 @@ abstract final class WedstrijdDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_is5xhwrm",
+                                key: "Text_ya72mn1q",
                                 type: "Text",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8]",
                                 name: "MatchAfmeldHeader",
                                 text: "Af-/aanmelden",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "TextField_yed1dv3t",
+                                key: "TextField_7r58ta8u",
                                 type: "TextField",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[9]",
                                 name: "MatchReasonField",
                                 text: "Reden (bij afmelden)",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Button_skg61e4a",
+                                key: "Button_xmq8ox99",
                                 type: "Button",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[10]",
                                 name: "MatchAfmeldButton",
@@ -417,7 +417,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Button_xz8oocjp",
+                                key: "Button_xqvhvnrr",
                                 type: "Button",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[11]",
                                 name: "MatchAanmeldButton",

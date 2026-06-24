@@ -66,7 +66,7 @@ class MatchController extends Controller
         }
 
         $validated = $request->validate([
-            'reason' => 'nullable|string|max:255',
+            'reason' => 'required|string|max:255',
         ]);
 
         Absence::updateOrCreate(

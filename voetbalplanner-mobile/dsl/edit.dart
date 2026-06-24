@@ -555,6 +555,8 @@ void buildEditFlow(App app) {
   app.raw((project) => _ensureTrainingsAppStateField(project));
   // Custom actions: trainingen ophalen + af-/aanmelden (training & wedstrijd).
   app.raw((project) => _addTrainingsCustomActions(project));
+  // Native FF POST-endpoints voor af-/aanmelden (CORS-proof, i.t.t. custom http).
+  app.raw((project) => _addAfmeldEndpoints(project));
   // (De dashboard-trainingen-sectie wordt verderop toegevoegd, ná _wireDashboardLoad
   // die de on-load-chain elke push opnieuw opbouwt — anders wordt GetTrainings gewist.)
 
@@ -18489,6 +18491,42 @@ void _addGetTrainingsEndpoint(FFProject project) {
   }
 }
 
+// Native FF POST-endpoints voor af-/aanmelden (training + wedstrijd). Native i.p.v.
+// een custom http-actie omdat die laatste in FF-test/run-mode op browser-CORS
+// stuit; native endpoints worden server-side geproxied.
+void _addAfmeldEndpoints(FFProject project) {
+  final group = findApiGroup(project, name: 'VoetbalPlannerAPI');
+  if (group == null) return;
+
+  FFApiValue mkVar(String name) => FFApiValue(
+        identifier: FFIdentifier(name: name, key: generateRandomAlphaNumericString()),
+        type: FFBaseDataType.String,
+      );
+
+  void ensure(String name, String url, List<String> varNames, {bool reason = false}) {
+    if (findApiEndpoint(project, name: name, groupName: 'VoetbalPlannerAPI') != null) return;
+    group.endpoints.add(FFApiEndpoint(
+      identifier: FFIdentifier(name: name, key: generateRandomAlphaNumericString()),
+      url: url,
+      callType: FFApiEndpoint_CallType.POST,
+      bodyType: reason ? FFApiEndpoint_BodyType.JSON : FFApiEndpoint_BodyType.NONE,
+      body: reason ? '{"reason": "[reason]"}' : '',
+      variables: varNames.map(mkVar).toList(),
+      headers: ['Authorization: Bearer [token]'],
+      groupIdentifier: group.identifier.deepCopy(),
+    ));
+  }
+
+  ensure('AfmeldenTrainingApi', '/trainings/[scheduleId]/[date]/afmelden',
+      ['token', 'scheduleId', 'date', 'reason'], reason: true);
+  ensure('AanmeldenTrainingApi', '/trainings/[scheduleId]/[date]/aanmelden',
+      ['token', 'scheduleId', 'date']);
+  ensure('AfmeldenMatchApi', '/matches/[matchId]/afmelden',
+      ['token', 'matchId', 'reason'], reason: true);
+  ensure('AanmeldenMatchApi', '/matches/[matchId]/aanmelden',
+      ['token', 'matchId']);
+}
+
 // ─── Dashboard: trainingen-sectie ────────────────────────────────────────────
 // Voegt een "Trainingen"-sectie toe onderaan de dashboard-kolom met een ListView
 // gebonden aan AppState.trainings, en laadt ze via het native GetTrainingsList-
@@ -18740,6 +18778,9 @@ void _wireTrainingDetailPage(FFProject project) {
   if (localStatusField == null) return;
   final localStatusId = localStatusField.parameter.identifier;
 
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (authTokenId == null) return;
+
   String gen() => generateRandomAlphaNumericString();
   FFVariable pParam(FFIdentifier id) =>
       varFromPageParam(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
@@ -18794,55 +18835,71 @@ void _wireTrainingDetailPage(FFProject project) {
   setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
   setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
 
-  void wireButton(FFNode btn, FFCustomAction action, String okMsg) {
-    // De custom action returnt true/false. Bij succes: melding + pagina sluiten
-    // (de action ververst zelf FFAppState().trainings na de POST). Bij mislukken:
-    // foutmelding tonen en op de pagina blijven.
-    final actionKey = gen();
-    final outName = '${btn.name}Result';
-    final actionCall = FFAction(
-      key: actionKey,
-      customAction: FFCustomActionCall(customActionIdentifier: action.identifier.deepCopy()),
-    )..outputVariableName = outName;
+  void wireButton(FFNode btn, String endpoint, String okMsg, {required bool needsReason}) {
+    // Via een NATIVE FF-endpoint (server-side geproxied -> geen browser-CORS).
+    // Bij succes: melding + pagina sluiten. Bij mislukken: foutmelding, blijven.
+    final dynVars = <String, FFVariable>{
+      'token':      varFromAppState(authTokenId.deepCopy()),
+      'scheduleId': pParam(schedIdP),
+      'date':       pParam(dateP),
+    };
+    if (needsReason) {
+      dynVars['reason'] = varFromTextFieldValue(reasonField.key);
+    }
 
-    final okVar = varFromActionOutput(actionKey: actionKey, outputName: outName)
-      ..nodeKeyRef = FFNodeKeyReference(key: btn.key);
-
-    final conditional = Actions.conditional(
-      condition: okVar,
-      trueActions: Actions.chain([
+    final apiNode = Actions.apiCallNode(
+      project,
+      endpointName: endpoint,
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: dynVars,
+      outputVariableName: '${btn.name}Out',
+      nodeKey: btn.key,
+      onSuccess: (ctx) => Actions.chain([
         Actions.snackBar(okMsg),
         Actions.navigateBack(),
       ]),
-      falseActions: Actions.chain([
+      onFailure: (ctx) => Actions.chain([
         Actions.snackBar('Er ging iets mis — probeer het opnieuw of controleer je verbinding.'),
       ]),
     );
 
-    final pendingNode = FFActionNode(
-      key: gen(),
-      action: Actions.updateAppState(project, updates: [
-        StateFieldUpdate.setFromVariable('pendingTrainingScheduleId', pParam(schedIdP)),
-        StateFieldUpdate.setFromVariable('pendingTrainingDate', pParam(dateP)),
-        StateFieldUpdate.setFromVariable('pendingAfmeldReason', varFromTextFieldValue(reasonField.key)),
-      ]),
-      followUpAction: FFActionNode(
-        key: gen(),
-        action: actionCall,
-        followUpAction: conditional,
-      ),
-    );
+    FFActionNode rootNode;
+    if (needsReason) {
+      // Reden verplicht: leeg -> melding tonen en niet versturen.
+      final reasonEmpty = codeExpressionVar(
+        expression: "(r ?? '').trim().isEmpty",
+        arguments: [
+          CodeExpressionArg(
+            name: 'r',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: varFromTextFieldValue(reasonField.key)),
+          ),
+        ],
+        returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+      );
+      rootNode = Actions.conditional(
+        condition: reasonEmpty,
+        trueActions: FFActionNode(
+          key: gen(),
+          action: Actions.snackBar('Vul een reden in om je af te melden.'),
+        ),
+        falseActions: apiNode,
+      );
+    } else {
+      rootNode = apiNode;
+    }
+
     btn.triggerActions.removeWhere(
       (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
     );
     btn.triggerActions.add(FFTriggerActions(
       trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
-      rootAction: pendingNode,
+      rootAction: rootNode,
     ));
   }
 
-  wireButton(afmeldBtn, afmeldAction, 'Je bent afgemeld voor deze training.');
-  wireButton(aanmeldBtn, aanmeldAction, 'Je bent weer aangemeld voor deze training.');
+  wireButton(afmeldBtn, 'AfmeldenTrainingApi', 'Je bent afgemeld voor deze training.', needsReason: true);
+  wireButton(aanmeldBtn, 'AanmeldenTrainingApi', 'Je bent weer aangemeld voor deze training.', needsReason: false);
 
   // Afmeldlijst (naam + reden) — gevuld vanuit de afmeldingen-param.
   final afmeldChildren = <FFNode>[];
