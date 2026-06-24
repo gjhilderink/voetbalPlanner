@@ -22,7 +22,15 @@ Route::get('/', function () {
         : redirect('/admin/login');
 });
 
-Route::view('/privacy', 'privacy')->name('privacy');
+Route::get('/privacy', function () {
+    $page = \App\Models\LegalPage::where('slug', 'privacy')->first();
+
+    return view('privacy', [
+        'title'     => $page?->title ?? 'Privacyverklaring',
+        'body'      => $page?->body ?? '<p>De privacyverklaring is nog niet ingesteld.</p>',
+        'updatedAt' => $page?->updated_at,
+    ]);
+})->name('privacy');
 
 Route::get('/aanmelden', [ClubRequestController::class, 'create'])->name('club-request.create');
 Route::post('/aanmelden', [ClubRequestController::class, 'store'])->name('club-request.store');
