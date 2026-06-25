@@ -18630,6 +18630,20 @@ void _addScoreEndpoints(FFProject project) {
       responseDataStructIsList: true,
     );
   }
+  // Levert MatchGoal-structs (zoals de bestaande Doelpunten-tab _model.goals gebruikt).
+  if (!has('GetMatchGoalsList')) {
+    addEndpointToGroup(
+      project,
+      groupName: 'VoetbalPlannerAPI',
+      name: 'GetMatchGoalsList',
+      url: '/matches/[matchId]/goals',
+      method: FFApiEndpoint_CallType.GET,
+      variables: {'token': str(), 'matchId': str()},
+      headers: ['Authorization: Bearer [token]'],
+      responseDataStructName: 'MatchGoal',
+      responseDataStructIsList: true,
+    );
+  }
   // Maker via naam (query-param). Vers endpoint (de oude AddGoal met scorer_id
   // niet muteren — variables.clear brak de structuur).
   if (!has('AddGoalV2')) {
@@ -18735,6 +18749,66 @@ void _addWedstrijdScoreSection(FFProject project) {
     }
   }
 
+  // Doelpunten laden -> page-state 'goals' (de bestaande Doelpunten-tab toont die,
+  // een ListView gebonden aan _model.goals: List<MatchGoal>).
+  if (authTokenId != null && matchIdParam != null &&
+      findApiEndpoint(project, name: 'GetMatchGoalsList', groupName: 'VoetbalPlannerAPI') != null) {
+    bool hasGoalsLoad(FFActionNode n) {
+      if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
+          n.action.database.apiCall.hasEndpointIdentifier() &&
+          n.action.database.apiCall.endpointIdentifier.name == 'GetMatchGoalsList') return true;
+      if (n.hasFollowUpAction() && hasGoalsLoad(n.followUpAction)) return true;
+      return false;
+    }
+    final already = wc.node.triggerActions.any((t) => t.hasRootAction() && hasGoalsLoad(t.rootAction));
+    if (!already) {
+      _appendToFirstPageLoadChain(
+        wc.node,
+        Actions.apiCallNode(
+          project,
+          endpointName: 'GetMatchGoalsList',
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: {
+            'token': varFromAppState(authTokenId.deepCopy()),
+            'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
+              ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+          },
+          outputVariableName: 'matchGoalsListLoad',
+          nodeKey: wc.node.key,
+          onSuccess: (ctx) => Actions.chain([
+            Actions.updatePageState(
+              project,
+              widgetClassName: 'WedstrijdDetailPage',
+              updates: [StateFieldUpdate.setFromVariable('goals', ctx.responseVar)],
+            ),
+          ]),
+        ),
+      );
+    }
+  }
+
+  // Herlaadt de doelpunten (GetMatchGoalsList) -> page-state 'goals', zodat de
+  // Doelpunten-tab na toevoegen/verwijderen direct klopt.
+  FFActionNode refreshGoals(String outName, String nodeKey) => Actions.apiCallNode(
+        project,
+        endpointName: 'GetMatchGoalsList',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId!.deepCopy()),
+          'matchId': varFromPageParam(matchIdParam!.identifier.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        },
+        outputVariableName: outName,
+        nodeKey: nodeKey,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.updatePageState(
+            project,
+            widgetClassName: 'WedstrijdDetailPage',
+            updates: [StateFieldUpdate.setFromVariable('goals', ctx.responseVar)],
+          ),
+        ]),
+      );
+
   // Bouwt de "Laatste doelpunt verwijderen"-knop (coach-actie) -> DeleteLastGoal
   // -> samenvatting bijwerken uit de response (geen re-fetch nodig). Null als de
   // benodigde token/param/endpoint ontbreekt.
@@ -18753,17 +18827,11 @@ void _addWedstrijdScoreSection(FFProject project) {
       },
       outputVariableName: 'delLastGoalOut',
       nodeKey: delBtn.key,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.updatePageState(
-          project,
-          widgetClassName: 'WedstrijdDetailPage',
-          updates: [
-            StateFieldUpdate.setFromVariable(
-                'matchGoalsSummary', _jsonBodyVar(ctx, r'$.goals_summary', delBtn.key)),
-          ],
-        ),
-        Actions.snackBar('Laatste doelpunt verwijderd.'),
-      ]),
+      onSuccess: (ctx) => FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.snackBar('Laatste doelpunt verwijderd.'),
+        followUpAction: refreshGoals('delGoalsRefresh', delBtn.key),
+      ),
       onFailure: (ctx) => Actions.chain([
         Actions.snackBar('Verwijderen mislukt — alleen de coach mag dit.'),
       ]),
@@ -18816,17 +18884,11 @@ void _addWedstrijdScoreSection(FFProject project) {
       },
       outputVariableName: 'addGoalOut',
       nodeKey: itemRow.key,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.updatePageState(
-          project,
-          widgetClassName: 'WedstrijdDetailPage',
-          updates: [
-            StateFieldUpdate.setFromVariable(
-                'matchGoalsSummary', _jsonBodyVar(ctx, r'$.goals_summary', itemRow.key)),
-          ],
-        ),
-        Actions.snackBar('Doelpunt toegevoegd.'),
-      ]),
+      onSuccess: (ctx) => FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.snackBar('Doelpunt toegevoegd.'),
+        followUpAction: refreshGoals('addGoalsRefresh', itemRow.key),
+      ),
       onFailure: (ctx) => Actions.chain([
         Actions.snackBar('Toevoegen mislukt — probeer opnieuw.'),
       ]),
