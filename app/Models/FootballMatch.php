@@ -74,6 +74,24 @@ class FootballMatch extends Model
         return $this->hasMany(Goal::class, 'match_id');
     }
 
+    /**
+     * Zoekt een teamlid op naam binnen het team van deze wedstrijd: eerst exact
+     * (case-insensitief), anders 'bevat' (bv. alleen de voornaam). Voor goals +
+     * opstelling. Null als niets gevonden.
+     */
+    public function resolveTeamMemberByName(?string $name): ?Member
+    {
+        $name = mb_strtolower(trim((string) $name));
+        if ($name === '') {
+            return null;
+        }
+        $base = Member::query()
+            ->when($this->team_id, fn ($q) => $q->whereHas('teams', fn ($t) => $t->whereKey($this->team_id)));
+
+        return (clone $base)->whereRaw('LOWER(name) = ?', [$name])->first()
+            ?? (clone $base)->whereRaw('LOWER(name) LIKE ?', ['%' . $name . '%'])->first();
+    }
+
     /** Korte doelpunten-samenvatting voor het coach-scherm ("12' Jan, 45' Piet"). */
     public function goalsSummary(): string
     {

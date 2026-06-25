@@ -71,4 +71,73 @@ class LineupController extends Controller
             201
         );
     }
+
+    /**
+     * POST /v1/matches/{match}/lineup/player
+     * Voegt één speler toe aan de opstelling (coach-only). Speler via naam binnen
+     * het team. Vervangt een bestaande rij voor hetzelfde lid (idempotent).
+     */
+    public function addPlayer(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json(['success' => false, 'message' => 'Alleen de coach mag de opstelling beheren.'], 403);
+        }
+
+        $validated = $request->validate([
+            'player_name'   => 'nullable|string|max:255',
+            'member_id'     => 'nullable|uuid|exists:members,id',
+            'position'      => 'required|in:keeper,defender,midfielder,forward',
+            'shirt_number'  => 'nullable|integer|min:1|max:99',
+            'is_substitute' => 'nullable',
+        ]);
+
+        $memberId = $validated['member_id'] ?? $match->resolveTeamMemberByName($validated['player_name'] ?? '')?->id;
+        if (! $memberId) {
+            return response()->json([
+                'success' => false,
+                'message' => "Speler '{$request->input('player_name')}' niet gevonden in dit team.",
+            ], 422);
+        }
+
+        $lineup = Lineup::firstOrCreate(['match_id' => $match->id]);
+        $lineup->players()->where('member_id', $memberId)->delete();
+        LineupPlayer::create([
+            'lineup_id'     => $lineup->id,
+            'member_id'     => $memberId,
+            'position'      => $validated['position'],
+            'shirt_number'  => $validated['shirt_number'] ?? null,
+            'is_substitute' => $request->boolean('is_substitute'),
+        ]);
+
+        return $this->playersResponse($match);
+    }
+
+    /**
+     * POST /v1/matches/{match}/lineup/player/remove   body: { player_id }
+     * Verwijdert één speler uit de opstelling (coach-only).
+     */
+    public function removePlayer(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json(['success' => false, 'message' => 'Alleen de coach mag de opstelling beheren.'], 403);
+        }
+
+        $validated = $request->validate(['player_id' => 'required|uuid']);
+        LineupPlayer::query()
+            ->where('id', $validated['player_id'])
+            ->whereHas('lineup', fn ($q) => $q->where('match_id', $match->id))
+            ->delete();
+
+        return $this->playersResponse($match);
+    }
+
+    private function playersResponse(FootballMatch $match): JsonResponse
+    {
+        $lineup = $match->lineup()->with('players.member')->first();
+        $players = $lineup ? $lineup->players : collect();
+
+        return response()->json(
+            $players->map(fn ($p) => (new LineupPlayerResource($p))->resolve())->values()
+        );
+    }
 }

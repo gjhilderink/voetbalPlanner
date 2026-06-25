@@ -143,6 +143,8 @@ Route::prefix('v1')->group(function () {
         // Lineups
         Route::get('/matches/{match}/lineup', [LineupController::class, 'show']);
         Route::post('/matches/{match}/lineup', [LineupController::class, 'store']);
+        Route::post('/matches/{match}/lineup/player', [LineupController::class, 'addPlayer']);
+        Route::post('/matches/{match}/lineup/player/remove', [LineupController::class, 'removePlayer']);
 
         // Goals
         Route::get('/matches/{match}/goals', [GoalController::class, 'index']);
