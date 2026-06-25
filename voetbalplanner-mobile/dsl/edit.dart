@@ -792,7 +792,7 @@ void buildEditFlow(App app) {
       'matchOpponent', 'matchDatetime', 'matchLocation', 'matchArrivalTime',
       'matchCoachName', 'matchFruitHeroName', 'matchNotes', 'apiStatus',
       'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
-      'matchTeamId',
+      'matchTeamId', 'selectedScorerName',
     ]) {
       state.ensureField(f, string.withDefault(''));
     }
@@ -9232,7 +9232,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
     'matchOpponent', 'matchDatetime', 'matchLocation',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchNotes',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
-    'matchGoalsSummary', 'matchTeamId',
+    'matchGoalsSummary', 'matchTeamId', 'selectedScorerName',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -18850,10 +18850,13 @@ void _addWedstrijdScoreSection(FFProject project) {
     if (authTokenId == null || matchIdParam == null || !hasAddEp || scoreMembersId == null) {
       return <FFNode>[];
     }
-    final minuteField = UI.textField(name: 'ScoreMinuteField', labelText: 'Minuut (optioneel)');
-    final label = UI.text('Tik de speler die scoorde:', name: 'ScoreAddLabel',
+    final selVar = stateVar('selectedScorerName');
+    if (selVar == null) return <FFNode>[];
+
+    final label = UI.text('Kies de speler, vul de minuut en plaats:', name: 'ScoreAddLabel',
         style: UITextStyle.labelMedium, color: UIColor.secondaryText);
 
+    // Tikbare ledenlijst: tik = speler kiezen (SetState selectedScorerName).
     final membersVar = varFromAppState(scoreMembersId.deepCopy())
       ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
     final listView = UI.listView(
@@ -18862,7 +18865,6 @@ void _addWedstrijdScoreSection(FFProject project) {
       spacing: 2,
       dynamicSource: DynamicSource(variable: membersVar, itemName: 'lid'),
     );
-
     final nameText = UI.text('', name: 'ScoreMemberName', style: UITextStyle.bodyMedium);
     nameText.props.text.textValue =
         FFStringValue(variable: generatorVarField(listView.key, 'name'));
@@ -18871,6 +18873,42 @@ void _addWedstrijdScoreSection(FFProject project) {
       padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 8),
       child: nameText,
     );
+    itemRow.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [
+            StateFieldUpdate.setFromVariable(
+                'selectedScorerName', generatorVarField(listView.key, 'name')),
+          ],
+        ),
+      ),
+    ));
+    listView.children.add(itemRow);
+
+    // "Gekozen: X" indicator.
+    final selText = UI.text('-', name: 'ScoreSelectedText', style: UITextStyle.bodyMedium);
+    selText.props.text.textValue = FFStringValue(
+      variable: codeExpressionVar(
+        expression: "(s ?? '') == '' ? '(nog geen speler gekozen)' : 'Gekozen: ' + (s ?? '')",
+        arguments: [
+          CodeExpressionArg(
+            name: 's',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: stateVar('selectedScorerName')!),
+          ),
+        ],
+        returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+      ),
+    );
+
+    final minuteField = UI.textField(name: 'ScoreMinuteField', labelText: 'Minuut (optioneel)');
+
+    // "Doelpunt plaatsen": AddGoalV2(scorer_name = gekozen speler) -> refresh.
+    final placeBtn = UI.button('Doelpunt plaatsen', name: 'ScoreAddButton', width: double.infinity);
     final apiNode = Actions.apiCallNode(
       project,
       endpointName: 'AddGoalV2',
@@ -18879,27 +18917,26 @@ void _addWedstrijdScoreSection(FFProject project) {
         'token': varFromAppState(authTokenId.deepCopy()),
         'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
           ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
-        'scorerName': generatorVarField(listView.key, 'name'),
+        'scorerName': stateVar('selectedScorerName')!,
         'minute': varFromTextFieldValue(minuteField.key),
       },
       outputVariableName: 'addGoalOut',
-      nodeKey: itemRow.key,
+      nodeKey: placeBtn.key,
       onSuccess: (ctx) => FFActionNode(
         key: generateRandomAlphaNumericString(),
         action: Actions.snackBar('Doelpunt toegevoegd.'),
-        followUpAction: refreshGoals('addGoalsRefresh', itemRow.key),
+        followUpAction: refreshGoals('addGoalsRefresh', placeBtn.key),
       ),
       onFailure: (ctx) => Actions.chain([
-        Actions.snackBar('Toevoegen mislukt — probeer opnieuw.'),
+        Actions.snackBar('Kies eerst een speler (en check de minuut).'),
       ]),
     );
-    itemRow.triggerActions.add(FFTriggerActions(
+    placeBtn.triggerActions.add(FFTriggerActions(
       trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
       rootAction: apiNode,
     ));
-    listView.children.add(itemRow);
 
-    return [minuteField, label, listView];
+    return [label, listView, selText, minuteField, placeBtn];
   }
 
   // Plaatst ontbrekende coach-controls (toevoeg-form + verwijder-knop) in de sectie.
@@ -18929,7 +18966,7 @@ void _addWedstrijdScoreSection(FFProject project) {
     existingContainer.children.removeWhere((n) =>
         n.name == 'ScoreScorerField' || n.name == 'ScoreMinuteField' ||
         n.name == 'ScoreAddButton' || n.name == 'ScoreAddLabel' ||
-        n.name == 'ScoreMembersList');
+        n.name == 'ScoreSelectedText' || n.name == 'ScoreMembersList');
     ensureControls(existingContainer);
     return;
   }
