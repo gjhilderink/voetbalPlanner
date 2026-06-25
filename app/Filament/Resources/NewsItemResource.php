@@ -14,18 +14,35 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class NewsItemResource extends Resource
 {
     protected static ?string $model = NewsItem::class;
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-newspaper';
-    protected static ?string $navigationLabel = 'Nieuws';
-    protected static ?string $modelLabel = 'Nieuwsitem';
-    protected static ?string $pluralModelLabel = 'Nieuwsitems';
-    protected static string|\UnitEnum|null $navigationGroup = 'Communicatie';
-    protected static ?int $navigationSort = 30;
+    protected static ?string $navigationLabel                = 'Nieuws';
+    protected static ?string $modelLabel                     = 'Nieuwsitem';
+    protected static ?string $pluralModelLabel               = 'Nieuwsitems';
+    protected static string|\UnitEnum|null $navigationGroup  = 'Communicatie';
+    protected static ?int    $navigationSort                 = 30;
+    protected static bool    $isScopedToTenant               = false;
 
     public static function canViewAny(): bool
+    {
+        return auth()->user()?->hasAnyRole(['super_admin', 'club_admin']) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasAnyRole(['super_admin', 'club_admin']) ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->hasAnyRole(['super_admin', 'club_admin']) ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
     {
         return auth()->user()?->hasAnyRole(['super_admin', 'club_admin']) ?? false;
     }
@@ -91,29 +108,38 @@ class NewsItemResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image_path')
-                    ->label('')
+                    ->label('Afbeelding')
                     ->disk('public')
-                    ->square(),
+                    ->height(48)
+                    ->extraImgAttributes(['style' => 'object-fit:cover;border-radius:4px;'])
+                    ->alignCenter()
+                    ->width(80),
+
                 Tables\Columns\TextColumn::make('title')
                     ->label('Titel')
                     ->searchable()
                     ->limit(60),
-                Tables\Columns\BadgeColumn::make('category')
+
+                Tables\Columns\TextColumn::make('category')
                     ->label('Categorie')
-                    ->colors([
-                        'success' => 'jeugd',
-                        'info'    => 'senioren',
-                        'gray'    => 'algemeen',
-                    ])
-                    ->formatStateUsing(fn (string $s): string => NewsItem::categoryLabel($s)),
+                    ->badge()
+                    ->formatStateUsing(fn(string $state): string => NewsItem::categoryLabel($state))
+                    ->color(fn(string $state): string => match ($state) {
+                        'jeugd'    => 'success',
+                        'senioren' => 'info',
+                        default    => 'gray',
+                    }),
+
                 Tables\Columns\IconColumn::make('is_published')
                     ->label('Live')
                     ->boolean(),
+
                 Tables\Columns\TextColumn::make('published_at')
                     ->label('Datum')
                     ->dateTime('d-m-Y H:i')
                     ->sortable()
                     ->placeholder('—'),
+
                 Tables\Columns\TextColumn::make('author.name')
                     ->label('Auteur')
                     ->placeholder('—')
@@ -128,6 +154,8 @@ class NewsItemResource extends Resource
                         'senioren' => 'Senioren',
                         'algemeen' => 'Algemeen',
                     ]),
+                Tables\Filters\TernaryFilter::make('is_published')
+                    ->label('Gepubliceerd'),
             ])
             ->actions([
                 Actions\EditAction::make(),

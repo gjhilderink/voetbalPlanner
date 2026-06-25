@@ -28,6 +28,16 @@ class NewsItem extends Model
         ];
     }
 
+    public static function categoryLabel(string $cat): string
+    {
+        return match ($cat) {
+            'jeugd'    => 'Jeugd',
+            'senioren' => 'Senioren',
+            'algemeen' => 'Algemeen',
+            default    => ucfirst($cat),
+        };
+    }
+
     public function club(): BelongsTo
     {
         return $this->belongsTo(Club::class);
@@ -38,13 +48,12 @@ class NewsItem extends Model
         return $this->belongsTo(User::class, 'author_id');
     }
 
-    public static function categoryLabel(string $cat): string
+    public function scopePublished($query)
     {
-        return match ($cat) {
-            'jeugd'    => 'Jeugd',
-            'senioren' => 'Senioren',
-            'algemeen' => 'Algemeen',
-            default    => ucfirst($cat),
-        };
+        return $query->where('is_published', true)
+            ->where(fn($q) => $q
+                ->whereNull('published_at')
+                ->orWhere('published_at', '<=', now())
+            );
     }
 }
