@@ -452,20 +452,20 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_kqoq2yxv",
+                                    key: "Text_2lfdnxr9",
                                     type: "Text",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8].children[3]",
                                     name: "ScoreAddLabel",
                                     text: "Kies de speler, vul de minuut en plaats:",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "ListView_ph9gze3t",
+                                    key: "ListView_at8aiyn3",
                                     type: "ListView",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8].children[4]",
                                     name: "ScoreMembersList",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_po1dpmkm",
+                                        key: "Container_ddahd7p6",
                                         type: "Container",
                                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8].children[4].children[0]",
                                         name: "ScoreMemberRow",
@@ -474,7 +474,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                         ],
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_x1jov3dg",
+                                            key: "Text_ii08shce",
                                             type: "Text",
                                             path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8].children[4].children[0].children[0]",
                                             name: "ScoreMemberName",
@@ -484,20 +484,20 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_5tp4dmic",
+                                    key: "Text_hnryolqe",
                                     type: "Text",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8].children[5]",
                                     name: "ScoreSelectedText",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "TextField_xr3lhppe",
+                                    key: "TextField_iy45fx19",
                                     type: "TextField",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8].children[6]",
                                     name: "ScoreMinuteField",
                                     text: "Minuut (optioneel)",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Button_5db21ftn",
+                                    key: "Button_2zh8aea0",
                                     type: "Button",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[8].children[7]",
                                     name: "ScoreAddButton",
@@ -509,21 +509,21 @@ abstract final class WedstrijdDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_w4iq4yp0",
+                                key: "Text_hv3k7xqv",
                                 type: "Text",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[9]",
                                 name: "MatchAfmeldHeader",
                                 text: "Af-/aanmelden",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "TextField_1kk7ob9a",
+                                key: "TextField_4ftym38a",
                                 type: "TextField",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[10]",
                                 name: "MatchReasonField",
                                 text: "Reden (bij afmelden)",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Button_i0tlgwfn",
+                                key: "Button_9nmypv90",
                                 type: "Button",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[11]",
                                 name: "MatchAfmeldButton",
@@ -533,7 +533,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Button_1x3ca7dn",
+                                key: "Button_19fbs2yd",
                                 type: "Button",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[0].children[0].children[12]",
                                 name: "MatchAanmeldButton",

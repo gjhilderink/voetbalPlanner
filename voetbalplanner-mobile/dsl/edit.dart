@@ -18928,7 +18928,16 @@ void _addWedstrijdScoreSection(FFProject project) {
         followUpAction: refreshGoals('addGoalsRefresh', placeBtn.key),
       ),
       onFailure: (ctx) => Actions.chain([
-        Actions.snackBar('Kies eerst een speler (en check de minuut).'),
+        // Toon de echte servermelding in de samenvatting-tekst (boven de knoppen).
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [
+            StateFieldUpdate.setFromVariable(
+                'matchGoalsSummary', _jsonBodyVar(ctx, r'$.message', placeBtn.key)),
+          ],
+        ),
+        Actions.snackBar('Opslaan mislukt — zie de melding boven de knoppen.'),
       ]),
     );
     placeBtn.triggerActions.add(FFTriggerActions(
