@@ -19505,16 +19505,31 @@ void _wireWedstrijdAfmelden(FFProject project) {
   FFVariable magVar() =>
       varFromPageState(magId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
 
+  // Ook coach/beheerder (mag_opstelling) mag zich af-/aanmelden, niet alleen
+  // het gekoppelde lid/ouder (mag_afmelden).
+  _ensurePageStateField(wc, 'matchMagOpstelling', FFBaseDataType.String);
+  final magOpsField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'matchMagOpstelling', orElse: () => null);
+  final magOpsId = magOpsField!.parameter.identifier;
+  FFVariable magOpsVar() =>
+      varFromPageState(magOpsId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
   final reasonField =
       UI.textField(name: 'MatchReasonField', labelText: 'Reden (bij afmelden)', maxLines: 2);
 
   FFVariable showWhen(String status) => codeExpressionVar(
-        expression: "s == '$status' && m == 'true'",
+        expression: "s == '$status' && (m == 'true' || o == 'true')",
         arguments: [
           CodeExpressionArg(
             name: 's',
             dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
             value: FFValue(variable: statusVar()),
+          ),
+          CodeExpressionArg(
+            name: 'o',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: magOpsVar()),
           ),
           CodeExpressionArg(
             name: 'm',
