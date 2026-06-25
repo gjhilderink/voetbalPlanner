@@ -18829,8 +18829,19 @@ void _addWedstrijdScoreSection(FFProject project) {
       nodeKey: delBtn.key,
       onSuccess: (ctx) => FFActionNode(
         key: generateRandomAlphaNumericString(),
-        action: Actions.snackBar('Laatste doelpunt verwijderd.'),
-        followUpAction: refreshGoals('delGoalsRefresh', delBtn.key),
+        action: Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [
+            StateFieldUpdate.setFromVariable(
+                'matchGoalsSummary', _jsonBodyVar(ctx, r'$.goals_summary', delBtn.key)),
+          ],
+        ),
+        followUpAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Laatste doelpunt verwijderd.'),
+          followUpAction: refreshGoals('delGoalsRefresh', delBtn.key),
+        ),
       ),
       onFailure: (ctx) => Actions.chain([
         Actions.snackBar('Verwijderen mislukt — alleen de coach mag dit.'),
@@ -18922,10 +18933,22 @@ void _addWedstrijdScoreSection(FFProject project) {
       },
       outputVariableName: 'addGoalOut',
       nodeKey: placeBtn.key,
+      // Samenvatting (Info-tab) bijwerken uit de response -> snackbar -> Doelpunten-lijst herladen.
       onSuccess: (ctx) => FFActionNode(
         key: generateRandomAlphaNumericString(),
-        action: Actions.snackBar('Doelpunt toegevoegd.'),
-        followUpAction: refreshGoals('addGoalsRefresh', placeBtn.key),
+        action: Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [
+            StateFieldUpdate.setFromVariable(
+                'matchGoalsSummary', _jsonBodyVar(ctx, r'$.goals_summary', placeBtn.key)),
+          ],
+        ),
+        followUpAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Doelpunt toegevoegd.'),
+          followUpAction: refreshGoals('addGoalsRefresh', placeBtn.key),
+        ),
       ),
       onFailure: (ctx) => Actions.chain([
         // Toon de echte servermelding in de samenvatting-tekst (boven de knoppen).
