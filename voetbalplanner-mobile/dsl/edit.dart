@@ -2,6 +2,7 @@ library;
 
 import 'dart:io';
 import 'dart:math';
+import 'dart:convert' show base64Encode;
 
 import 'package:flutterflow_ai/flutterflow_ai.dart';
 import 'package:flutterflow_ai/src/client/project_error.dart' show ProjectError;
@@ -39,6 +40,76 @@ import 'package:flutterflow_ai/src/ui/ui_types.dart'
     show UIBoxFit, UIColor, UITextStyle, UIMainAxisAlignment, UICrossAxisAlignment, UIEdgeInsets,
          UIProgressShape, UIKeyboardType, DynamicSource;
 import 'package:voetbalplanner_mobile/flutterflow_project.dart' as ff;
+
+// ── Repair: collapse runaway duplicate actions in trigger action chains ───────
+// Non-idempotent appenders (pre-guard) tacked the same scroll/clear/setState
+// action onto chat send buttons on every push for ~150 runs, producing ~500-deep
+// followUpAction chains → proto nesting >256 → server sdkValidateProject/push 500.
+// This removes any action node whose serialized action equals one already kept
+// earlier in the SAME chain; distinct actions are preserved in order. Runs during
+// compile, so the project SENT to the server is shallow again. Idempotent.
+String? _actionSig(FFActionNode n) {
+  if (!n.hasAction()) return null;
+  // Each duplicate carries a unique FFAction.key; strip it so structurally
+  // identical actions compare equal.
+  final a = n.action.deepCopy()..clearKey();
+  return base64Encode(a.writeToBuffer());
+}
+
+int _dedupFromRoot(FFActionNode start) {
+  var removed = 0;
+  final seen = <String>{};
+  void recurseBranches(FFActionNode n) {
+    if (!n.hasConditionActions()) return;
+    for (final te in n.conditionActions.trueActions) {
+      if (te.hasTrueAction()) removed += _dedupFromRoot(te.trueAction);
+    }
+    if (n.conditionActions.hasFalseAction()) {
+      removed += _dedupFromRoot(n.conditionActions.falseAction);
+    }
+  }
+
+  var cur = start;
+  final s0 = _actionSig(cur);
+  if (s0 != null) seen.add(s0);
+  recurseBranches(cur);
+  while (cur.hasFollowUpAction()) {
+    final nxt = cur.followUpAction;
+    final sig = _actionSig(nxt);
+    if (sig != null && seen.contains(sig)) {
+      if (nxt.hasFollowUpAction()) {
+        cur.followUpAction = nxt.followUpAction;
+      } else {
+        cur.clearFollowUpAction();
+      }
+      removed++;
+    } else {
+      if (sig != null) seen.add(sig);
+      recurseBranches(nxt);
+      cur = nxt;
+    }
+  }
+  return removed;
+}
+
+int _dedupNodeTriggers(FFNode node) {
+  var removed = 0;
+  for (final ta in node.triggerActions) {
+    if (ta.hasRootAction()) removed += _dedupFromRoot(ta.rootAction);
+  }
+  for (final child in node.children) {
+    removed += _dedupNodeTriggers(child);
+  }
+  return removed;
+}
+
+int dedupRunawayActionChains(FFProject project) {
+  var removed = 0;
+  for (final wc in project.widgetClasses.values) {
+    removed += _dedupNodeTriggers(wc.node);
+  }
+  return removed;
+}
 
 bool Function(ProjectError) get _validationFilter => (error) {
   if (error.type == 'firestoreSetup') return false;
@@ -162,6 +233,12 @@ void _buildEditFlowRemoveChatPage(App app) {
 }
 
 void buildEditFlow(App app) {
+  app.raw((project) {
+    final removed = dedupRunawayActionChains(project);
+    if (removed > 0) {
+      stderr.writeln('Collapsed $removed runaway duplicate action nodes.');
+    }
+  });
   // ── Global design: larger typography + club-brand default primary ─────────────
   // Font families preserved from the project defaults:
   //   Inter Tight → titles/headlines   Inter → body/label
