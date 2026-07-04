@@ -175,43 +175,43 @@ abstract final class BardienPageWidgets {
         ],
         "drawer": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "Drawer_wx0b66xu",
+            key: "Drawer_82ce4qjx",
             type: "Drawer",
             path: "BardienPage.drawer[0]",
             name: "AppDrawer",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_tu4nf06l",
+                key: "Column_0ye1j52k",
                 type: "Column",
                 path: "BardienPage.drawer[0].children[0]",
                 name: "DrawerMenuColumn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_6xqb6k4m",
+                    key: "Container_hbtcg0tn",
                     type: "Container",
                     path: "BardienPage.drawer[0].children[0].children[0]",
                     name: "DrawerHeader",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_h6bshn5r",
+                        key: "Column_3soyhozd",
                         type: "Column",
                         path: "BardienPage.drawer[0].children[0].children[0].children[0]",
                         name: "DrawerHeaderColumn",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_xuhm53ki",
+                            key: "Container_gjkvpie2",
                             type: "Container",
                             path: "BardienPage.drawer[0].children[0].children[0].children[0].children[0]",
                             name: "DrawerHeaderAvatar",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "buejnsvg",
+                                key: "p2cbohz1",
                                 type: "CircleImage",
                                 path: "BardienPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "DrawerHeaderPhoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_glt9rkcf",
+                                key: "Icon_xv0t2fta",
                                 type: "Icon",
                                 path: "BardienPage.drawer[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "Icon",
@@ -219,13 +219,13 @@ abstract final class BardienPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_mt2y5yz0",
+                            key: "Text_eitpy1lw",
                             type: "Text",
                             path: "BardienPage.drawer[0].children[0].children[0].children[0].children[1]",
                             name: "DrawerHeaderName",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_2dob3gr0",
+                            key: "Text_7ykmlcfu",
                             type: "Text",
                             path: "BardienPage.drawer[0].children[0].children[0].children[0].children[2]",
                             name: "DrawerHeaderEmail",
@@ -235,7 +235,7 @@ abstract final class BardienPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_bbct50uo",
+                    key: "ListTile_y8hf33jv",
                     type: "ListTile",
                     path: "BardienPage.drawer[0].children[0].children[1]",
                     name: "DrawerTileHome",
@@ -244,7 +244,7 @@ abstract final class BardienPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_zla3mqwo",
+                    key: "ListTile_c4diy3ej",
                     type: "ListTile",
                     path: "BardienPage.drawer[0].children[0].children[2]",
                     name: "DrawerTileNews",
@@ -253,7 +253,7 @@ abstract final class BardienPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_cbwh61em",
+                    key: "ListTile_em8znprj",
                     type: "ListTile",
                     path: "BardienPage.drawer[0].children[0].children[3]",
                     name: "DrawerTileDocs",
@@ -262,7 +262,7 @@ abstract final class BardienPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_1mb33cao",
+                    key: "ListTile_jcfrzh0h",
                     type: "ListTile",
                     path: "BardienPage.drawer[0].children[0].children[4]",
                     name: "DrawerTileProfiel",
@@ -271,7 +271,7 @@ abstract final class BardienPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_074k9n49",
+                    key: "ListTile_8sh9hd14",
                     type: "ListTile",
                     path: "BardienPage.drawer[0].children[0].children[5]",
                     name: "DrawerTileBug",

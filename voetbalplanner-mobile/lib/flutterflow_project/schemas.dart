@@ -11,7 +11,7 @@ abstract final class Enums {
 }
 
 abstract final class Structs {
-  static final afmelding = ffai.StructHandle(
+  static final ffai.StructHandle afmelding = ffai.StructHandle(
     "Afmelding",
     <String, ffai.DslType>{
       "naam": ffai.string,
@@ -19,7 +19,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final banner = ffai.StructHandle(
+  static final ffai.StructHandle banner = ffai.StructHandle(
     "Banner",
     <String, ffai.DslType>{
       "id": ffai.string,
@@ -29,7 +29,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final barDuty = ffai.StructHandle(
+  static final ffai.StructHandle barDuty = ffai.StructHandle(
     "BarDuty",
     <String, ffai.DslType>{
       "canSelfAssign": ffai.bool_,
@@ -46,7 +46,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final clubBranding = ffai.StructHandle(
+  static final ffai.StructHandle clubBranding = ffai.StructHandle(
     "ClubBranding",
     <String, ffai.DslType>{
       "accentColor": ffai.string,
@@ -57,7 +57,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final clubRef = ffai.StructHandle(
+  static final ffai.StructHandle clubRef = ffai.StructHandle(
     "ClubRef",
     <String, ffai.DslType>{
       "id": ffai.string,
@@ -65,7 +65,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final documentSection = ffai.StructHandle(
+  static final ffai.StructHandle documentSection = ffai.StructHandle(
     "DocumentSection",
     <String, ffai.DslType>{
       "body": ffai.string,
@@ -75,7 +75,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final footMatch = ffai.StructHandle(
+  static final ffai.StructHandle footMatch = ffai.StructHandle(
     "FootMatch",
     <String, ffai.DslType>{
       "arrivalTime": ffai.string,
@@ -98,7 +98,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final goalItem = ffai.StructHandle(
+  static final ffai.StructHandle goalItem = ffai.StructHandle(
     "GoalItem",
     <String, ffai.DslType>{
       "assistName": ffai.string,
@@ -109,7 +109,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final guardianChild = ffai.StructHandle(
+  static final ffai.StructHandle guardianChild = ffai.StructHandle(
     "GuardianChild",
     <String, ffai.DslType>{
       "approvedAt": ffai.string,
@@ -122,7 +122,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final guardianLinkSummary = ffai.StructHandle(
+  static final ffai.StructHandle guardianLinkSummary = ffai.StructHandle(
     "GuardianLinkSummary",
     <String, ffai.DslType>{
       "childEmail": ffai.string,
@@ -140,7 +140,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final guardianRequest = ffai.StructHandle(
+  static final ffai.StructHandle guardianRequest = ffai.StructHandle(
     "GuardianRequest",
     <String, ffai.DslType>{
       "expiresAt": ffai.string,
@@ -151,7 +151,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final guardianRequestResult = ffai.StructHandle(
+  static final ffai.StructHandle guardianRequestResult = ffai.StructHandle(
     "GuardianRequestResult",
     <String, ffai.DslType>{
       "childName": ffai.string,
@@ -161,7 +161,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final lineupPlayer = ffai.StructHandle(
+  static final ffai.StructHandle lineupPlayer = ffai.StructHandle(
     "LineupPlayer",
     <String, ffai.DslType>{
       "id": ffai.string,
@@ -173,7 +173,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final loginData = ffai.StructHandle(
+  static final ffai.StructHandle loginData = ffai.StructHandle(
     "LoginData",
     <String, ffai.DslType>{
       "token": ffai.string,
@@ -181,7 +181,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final loginResponse = ffai.StructHandle(
+  static final ffai.StructHandle loginResponse = ffai.StructHandle(
     "LoginResponse",
     <String, ffai.DslType>{
       "data": Structs.loginData,
@@ -190,7 +190,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final matchGoal = ffai.StructHandle(
+  static final ffai.StructHandle matchGoal = ffai.StructHandle(
     "MatchGoal",
     <String, ffai.DslType>{
       "assistName": ffai.string,
@@ -201,7 +201,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final newsItem = ffai.StructHandle(
+  static final ffai.StructHandle newsItem = ffai.StructHandle(
     "NewsItem",
     <String, ffai.DslType>{
       "body": ffai.string,
@@ -216,7 +216,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final staffGroupItem = ffai.StructHandle(
+  static final ffai.StructHandle staffGroupItem = ffai.StructHandle(
     "StaffGroupItem",
     <String, ffai.DslType>{
       "id": ffai.string,
@@ -224,7 +224,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final swapMember = ffai.StructHandle(
+  static final ffai.StructHandle swapMember = ffai.StructHandle(
     "SwapMember",
     <String, ffai.DslType>{
       "email": ffai.string,
@@ -235,7 +235,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final swapRequest = ffai.StructHandle(
+  static final ffai.StructHandle swapRequest = ffai.StructHandle(
     "SwapRequest",
     <String, ffai.DslType>{
       "date": ffai.string,
@@ -251,7 +251,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final teamOption = ffai.StructHandle(
+  static final ffai.StructHandle teamOption = ffai.StructHandle(
     "TeamOption",
     <String, ffai.DslType>{
       "id": ffai.string,
@@ -259,7 +259,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final trainingItem = ffai.StructHandle(
+  static final ffai.StructHandle trainingItem = ffai.StructHandle(
     "TrainingItem",
     <String, ffai.DslType>{
       "aangemeld": ffai.string,
@@ -276,7 +276,7 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
-  static final userRef = ffai.StructHandle(
+  static final ffai.StructHandle userRef = ffai.StructHandle(
     "UserRef",
     <String, ffai.DslType>{
       "club": Structs.clubRef,
