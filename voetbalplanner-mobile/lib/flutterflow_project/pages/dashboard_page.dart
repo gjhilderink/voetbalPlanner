@@ -517,43 +517,43 @@ abstract final class DashboardPageWidgets {
         ],
         "drawer": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "Drawer_9lk845ll",
+            key: "Drawer_5xnvy9x6",
             type: "Drawer",
             path: "DashboardPage.drawer[0]",
             name: "AppDrawer",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_gg8pov8u",
+                key: "Column_2yvh81uf",
                 type: "Column",
                 path: "DashboardPage.drawer[0].children[0]",
                 name: "DrawerMenuColumn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_gaqnni71",
+                    key: "Container_n3nw7guw",
                     type: "Container",
                     path: "DashboardPage.drawer[0].children[0].children[0]",
                     name: "DrawerHeader",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_r0wfunuf",
+                        key: "Column_esiz0vzy",
                         type: "Column",
                         path: "DashboardPage.drawer[0].children[0].children[0].children[0]",
                         name: "DrawerHeaderColumn",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_qifnlgkh",
+                            key: "Container_8rwlcdqy",
                             type: "Container",
                             path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[0]",
                             name: "DrawerHeaderAvatar",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "cikvpb4v",
+                                key: "slpqtdt8",
                                 type: "CircleImage",
                                 path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "DrawerHeaderPhoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_g7kr3038",
+                                key: "Icon_oa7z36uc",
                                 type: "Icon",
                                 path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "Icon",
@@ -561,13 +561,13 @@ abstract final class DashboardPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_d4t1dj28",
+                            key: "Text_edi1x03d",
                             type: "Text",
                             path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[1]",
                             name: "DrawerHeaderName",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_oz3wn4u9",
+                            key: "Text_iq3thnt2",
                             type: "Text",
                             path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[2]",
                             name: "DrawerHeaderEmail",
@@ -577,7 +577,7 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_1tireai9",
+                    key: "ListTile_jmbt4ges",
                     type: "ListTile",
                     path: "DashboardPage.drawer[0].children[0].children[1]",
                     name: "DrawerTileHome",
@@ -586,7 +586,7 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_09xv1xot",
+                    key: "ListTile_ptivsqxm",
                     type: "ListTile",
                     path: "DashboardPage.drawer[0].children[0].children[2]",
                     name: "DrawerTileNews",
@@ -595,7 +595,7 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_x7qdcm4e",
+                    key: "ListTile_jvikzo1u",
                     type: "ListTile",
                     path: "DashboardPage.drawer[0].children[0].children[3]",
                     name: "DrawerTileDocs",
@@ -604,7 +604,7 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_jc88s8b3",
+                    key: "ListTile_qrcaqhy3",
                     type: "ListTile",
                     path: "DashboardPage.drawer[0].children[0].children[4]",
                     name: "DrawerTileProfiel",
@@ -613,7 +613,7 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_0cyqa9xb",
+                    key: "ListTile_oue90tzc",
                     type: "ListTile",
                     path: "DashboardPage.drawer[0].children[0].children[5]",
                     name: "DrawerTileBug",
@@ -622,6 +622,25 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                 ],
+              ),
+            ],
+          ),
+        ],
+        "floatingActionButton": <ffai.ProjectWidgetHandle>[
+          ffai.ProjectWidgetHandle(
+            key: "FloatingActionButton_1fdiymou",
+            type: "FloatingActionButton",
+            path: "DashboardPage.floatingActionButton[0]",
+            name: "QuickActionsFab",
+            triggers: const <String>[
+              "ON_TAP",
+            ],
+            children: <ffai.ProjectWidgetHandle>[
+              ffai.ProjectWidgetHandle(
+                key: "Icon_yxupk4mw",
+                type: "Icon",
+                path: "DashboardPage.floatingActionButton[0].children[0]",
+                name: "FAB Icon",
               ),
             ],
           ),

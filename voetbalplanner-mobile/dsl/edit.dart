@@ -41,6 +41,62 @@ import 'package:flutterflow_ai/src/ui/ui_types.dart'
          UIProgressShape, UIKeyboardType, DynamicSource;
 import 'package:voetbalplanner_mobile/flutterflow_project.dart' as ff;
 
+// ── Snelmenu: bottom-sheet component + '+'-FAB op DashboardPage ───────────────
+// FAB '+' op het dashboard opent een bottom sheet met snelle acties. Chatten gaat
+// direct naar de chat-hub; wisselen gaat naar de bardienst-/rijschemalijst waar de
+// bestaande wisselflow per dienst doorloopt; afmelden naar de wedstrijdenlijst.
+void _buildQuickActionsSheet(App app) {
+  app.component(
+    'QuickActionsSheet',
+    description:
+        'Bottom sheet met snelle acties (chatten, wissel aanvragen, afmelden) vanaf het dashboard.',
+    body: Column(
+      crossAxis: CrossAxis.stretch,
+      padding: 20,
+      spacing: 12,
+      children: [
+        Text('Snelle acties', style: Styles.titleMedium),
+        Button('Chatten',
+            name: 'QaChatButton',
+            onTap: Navigate(ff.Pages.chatsPage),
+            width: double.infinity,
+            padding: 14),
+        Button('Wissel bardienst',
+            name: 'QaSwapBarButton',
+            onTap: Navigate(ff.Pages.bardienPage),
+            width: double.infinity,
+            padding: 14),
+        Button('Wissel rijden',
+            name: 'QaSwapDriveButton',
+            onTap: Navigate(ff.Pages.rijschemaPage),
+            width: double.infinity,
+            padding: 14),
+        Button('Afmelden wedstrijd',
+            name: 'QaAfmeldButton',
+            onTap: Navigate(ff.Pages.wedstrijdenPage),
+            width: double.infinity,
+            padding: 14),
+      ],
+    ),
+  );
+}
+
+void _addDashboardQuickActionsFab(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  final scaffold = wc.node;
+  // Idempotent: don't add a second FAB on re-runs.
+  if (scaffold.childPropertyMap.containsKey('floatingActionButton')) return;
+  final fab = UI.fab(iconName: 'add', name: 'QuickActionsFab');
+  Actions.onTap(
+    fab,
+    Actions.bottomSheet(project, componentName: 'QuickActionsSheet'),
+  );
+  scaffold.children.add(fab);
+  scaffold.childPropertyMap['floatingActionButton'] =
+      FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: fab.key)]);
+}
+
 // ── Repair: collapse runaway duplicate actions in trigger action chains ───────
 // Non-idempotent appenders (pre-guard) tacked the same scroll/clear/setState
 // action onto chat send buttons on every push for ~150 runs, producing ~500-deep
@@ -979,6 +1035,10 @@ void buildEditFlow(App app) {
   app.raw((project) => _wireWisselVerzoekenActions(project));
   // Fix layout: outer Column was mainAxisSize.min so the ListView collapsed to zero height.
   app.raw((project) => _fixWisselAanvraagPageLayout(project));
+
+  // ── Snelmenu: + FAB op DashboardPage met snelle acties (bottom sheet) ───────
+  _buildQuickActionsSheet(app);
+  app.raw((project) => _addDashboardQuickActionsFab(project));
 
   // ─── Banner (marketing) feature ────────────────────────────────────────────
   // Banner struct for the GetBanners API response.
