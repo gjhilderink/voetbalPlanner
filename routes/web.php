@@ -49,7 +49,13 @@ Route::get('/magic/{token}', function (string $token) {
     }
 
     $scheme   = env('MAGIC_LINK_APP_SCHEME', 'voetbalplanner');
-    $deepLink = "{$scheme}:///verify?token={$token}";
+    // Android routes a custom-scheme deep link only when BOTH scheme and host
+    // match the app's intent-filter (android:host="voetbalplanner.nubix.nl").
+    // The old URL had an empty host (voetbalplanner:///verify) so Android never
+    // opened the app; iOS matches the scheme only, which is why this was
+    // Android-specific. Keep the host in sync with the FlutterFlow deep-link host.
+    $host     = env('MAGIC_LINK_APP_HOST', 'voetbalplanner.nubix.nl');
+    $deepLink = "{$scheme}://{$host}/verify?token={$token}";
 
     return view('magic-redirect', ['expired' => false, 'deepLink' => $deepLink]);
 })->where('token', '[a-zA-Z0-9]{64}');
