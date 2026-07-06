@@ -1,5 +1,13 @@
 # VoetbalPlanner — FlutterFlow App Specification
 
+> **Status (bijgewerkt 2026-07-06):** dit is de oorspronkelijke bouwspecificatie. De app is
+> daarna doorontwikkeld; enkele punten hieronder zijn achterhaald. Belangrijkste afwijkingen:
+> - **Opstelling-tab is verwijderd** uit Wedstrijd-detail (wordt niet gebruikt); tabs zijn nu **Info | Doelpunten**.
+> - Login is **magic link** (e-mail) + biometrisch, niet e-mail/wachtwoord voor leden.
+> - Er is een **chat/NavBar-architectuur** (ChatsPage-hub, team/direct/groep) bijgekomen.
+> - De **"+" snelmenu-FAB** staat op het **Dashboard** (chatten, wissel bardienst/rijden, afmelden), niet op Bardiensten.
+> Actuele projectstatus & valkuilen staan in de Claude-memory (o.a. FF-CLI, dedup-fix, magic-link deep link).
+
 ## Purpose
 Mobile companion app for the VoetbalPlanner platform. Club members, coaches,
 and bar-committee members can view schedules, manage match duties, assign bar

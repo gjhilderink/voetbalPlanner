@@ -117,6 +117,13 @@ class DocumentationSeeder extends Seeder
                 'body'       => "Naast het rode bolletje in de app toont ook het app-icoon op je startscherm een badge met het aantal ongelezen chatberichten. Zo zie je in één oogopslag of er nieuwe berichten zijn, zonder de app te openen.\n\nDe badge telt alle ongelezen chats samen (team, direct én groepen) en verdwijnt zodra je alles gelezen hebt.\n\nDit werkt op iOS en op Android-toestellen waarvan de launcher app-badges ondersteunt.",
             ],
 
+            [
+                'category'   => 'app',
+                'sort_order' => 40,
+                'title'      => 'Snelmenu (+ knop op het dashboard)',
+                'body'       => "Op het dashboard (Home) staat rechtsonder een blauwe **+** knop. Tik erop voor een menu met snelle acties dat van onderen omhoog schuift (bottom sheet):\n- **Chatten** — opent direct de Chats-pagina.\n- **Wissel bardienst** — opent de bardienstenlijst; kies daar de dienst waarvoor je wilt ruilen en vraag de wissel aan.\n- **Wissel rijden** — opent het rijschema; kies de rit waarvoor je wilt ruilen.\n- **Afmelden wedstrijd** — opent de wedstrijdenlijst; open de betreffende wedstrijd om je af te melden.\n\nTik naast het menu of veeg het omlaag om het te sluiten. De concrete wissel- of afmeldstap doorloop je op de pagina waar je terechtkomt; de + knop is enkel de snelkoppeling erheen.",
+            ],
+
             // ── Het Platform ─────────────────────────────────────────────────
             [
                 'category'   => 'platform',
