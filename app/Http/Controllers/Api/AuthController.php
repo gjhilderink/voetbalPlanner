@@ -39,6 +39,8 @@ class AuthController extends Controller
             ], 403);
         }
 
+        $user->forceFill(['last_login_at' => now()])->save();
+
         $user->load('club', 'managedTeams', 'member.teams');
         $token = $user->createToken('flutterflow-app')->plainTextToken;
 
@@ -183,6 +185,8 @@ class AuthController extends Controller
 
         // Mark token as used — single-use only.
         $record->update(['used_at' => now()]);
+
+        $user->forceFill(['last_login_at' => now()])->save();
 
         $user->load('club', 'managedTeams', 'member.teams');
 

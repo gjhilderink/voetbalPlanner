@@ -132,6 +132,12 @@ class UserResource extends Resource
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actief')
                     ->boolean(),
+                Tables\Columns\TextColumn::make('last_login_at')
+                    ->label('Laatste login')
+                    ->dateTime('d-m-Y H:i')
+                    ->placeholder('Nog nooit')
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Aangemaakt')
                     ->dateTime('d-m-Y')

@@ -31,6 +31,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
     protected $fillable = [
         'name', 'email', 'password', 'phone', 'date_of_birth',
         'profile_photo', 'external_id', 'is_active', 'club_id',
+        'last_login_at',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -42,6 +43,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
             'password'          => 'hashed',
             'date_of_birth'     => 'date',
             'is_active'         => 'boolean',
+            'last_login_at'     => 'datetime',
         ];
     }
 
