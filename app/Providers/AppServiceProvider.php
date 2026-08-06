@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\Setting;
+use App\Models\User;
 use App\Notifications\ResetPasswordNotification;
 use App\Services\SportlinkMcpService;
 use Filament\Auth\Notifications\ResetPassword as FilamentResetPassword;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -34,6 +37,16 @@ class AppServiceProvider extends ServiceProvider
         app()->setLocale('nl');
 
         $this->bootSmtpFromSettings();
+
+        // Stempel last_login_at bij elke succesvolle login die via de auth-guard
+        // gaat: het Filament admin-panel én de API-wachtwoordlogin (Auth::attempt).
+        // De magic-link login maakt zelf een token aan (geen Login-event) en zet
+        // last_login_at expliciet in AuthController::verifyMagicLink.
+        Event::listen(Login::class, function (Login $event): void {
+            if ($event->user instanceof User) {
+                $event->user->forceFill(['last_login_at' => now()])->saveQuietly();
+            }
+        });
 
         // Some shared hosting servers ship libcurl without newer TLS constants.
         // Define them with their standard integer values so Guzzle doesn't crash.

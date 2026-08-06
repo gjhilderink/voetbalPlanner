@@ -39,7 +39,7 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $user->forceFill(['last_login_at' => now()])->save();
+        // last_login_at wordt gezet door de Login-event listener (Auth::attempt).
 
         $user->load('club', 'managedTeams', 'member.teams');
         $token = $user->createToken('flutterflow-app')->plainTextToken;
