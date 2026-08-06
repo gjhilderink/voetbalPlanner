@@ -63,4 +63,40 @@ class ProfileController extends Controller
             'message' => 'Profielfoto bijgewerkt.',
         ]);
     }
+
+    /**
+     * POST /api/v1/profile/delete
+     *
+     * Verwijdert het account van de ingelogde gebruiker (self-service).
+     * POST i.p.v. DELETE voor shared-host-veiligheid (zie routes/api.php).
+     *
+     * - Trekt alle Sanctum-tokens in zodat bestaande sessies direct ongeldig zijn.
+     * - Soft-delete de User (deleted_at) zodat login/magic-link het account
+     *   niet meer vindt en de data herstelbaar blijft voor de club.
+     *
+     * Het gekoppelde Member-record (club-beheerd) blijft ongemoeid.
+     */
+    public function destroy(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'data'    => null,
+                'message' => 'Niet geauthenticeerd.',
+            ], 401);
+        }
+
+        // Alle tokens intrekken (huidige + eventuele andere sessies).
+        $user->tokens()->delete();
+
+        // Account soft-deleten.
+        $user->delete();
+
+        return response()->json([
+            'success' => true,
+            'data'    => null,
+            'message' => 'Account verwijderd.',
+        ]);
+    }
 }

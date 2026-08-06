@@ -177,6 +177,8 @@ Route::prefix('v1')->group(function () {
 
         // Profiel
         Route::patch('/profile/photo', [ProfileController::class, 'updatePhoto']);
+        // Account zelf verwijderen (POST i.p.v. DELETE; shared-host-veilig)
+        Route::post('/profile/delete', [ProfileController::class, 'destroy']);
 
         // Bug reports (throttle: 5 per minute)
         Route::post('/bug-reports', [BugReportController::class, 'store'])
