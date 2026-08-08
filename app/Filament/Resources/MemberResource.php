@@ -73,6 +73,22 @@ class MemberResource extends Resource
                     ->relationship('teams', 'name')
                     ->preload()
                     ->searchable()
+                    // Handmatig gekoppelde teams markeren met is_manual = true,
+                    // zodat de Sportlink-sync ze niet loskoppelt. Nieuw
+                    // toegevoegde teams worden manueel; bestaande koppelingen
+                    // behouden hun vlag (Sportlink-koppelingen blijven false).
+                    ->saveRelationshipsUsing(function ($record, $state): void {
+                        $teamIds  = array_values(array_filter((array) $state));
+                        $existing = $record->teams()->get()
+                            ->mapWithKeys(fn ($t) => [$t->id => (bool) $t->pivot->is_manual]);
+
+                        $sync = [];
+                        foreach ($teamIds as $teamId) {
+                            $sync[$teamId] = ['is_manual' => $existing[$teamId] ?? true];
+                        }
+
+                        $record->teams()->sync($sync);
+                    })
                     ->columnSpanFull(),
             ]),
         ]);

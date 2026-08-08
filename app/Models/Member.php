@@ -39,7 +39,7 @@ class Member extends Model
     public function teams(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Team::class)
-            ->withPivot(['role', 'season', 'is_active'])
+            ->withPivot(['role', 'season', 'is_active', 'is_manual'])
             ->withTimestamps();
     }
 

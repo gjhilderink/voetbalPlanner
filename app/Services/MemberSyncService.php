@@ -77,7 +77,9 @@ class MemberSyncService
             // Koppelingen bijwerken: huidige teams (her)koppelen en verouderde
             // koppelingen binnen deze club loskoppelen. We beperken tot teams van
             // deze club zodat koppelingen aan teams van andere clubs ongemoeid
-            // blijven. Leden zonder team-info in deze run laten we ongemoeid.
+            // blijven. Handmatig (via het admin-panel) gekoppelde teams
+            // (is_manual = true) worden NOOIT losgekoppeld. Leden zonder
+            // team-info in deze run laten we ongemoeid.
             $clubTeamIds = Team::query()
                 ->when($this->clubId, fn($q) => $q->where('club_id', $this->clubId))
                 ->pluck('id')
@@ -90,6 +92,7 @@ class MemberSyncService
                 $staleTeamIds = $member->teams()
                     ->whereIn('teams.id', $clubTeamIds)
                     ->whereNotIn('teams.id', $desiredTeamIds)
+                    ->wherePivot('is_manual', false)
                     ->pluck('teams.id')
                     ->all();
 
@@ -101,6 +104,9 @@ class MemberSyncService
                     ]);
                 }
 
+                // Alleen role/is_active meegeven; is_manual bewust NIET, zodat een
+                // bestaande handmatige vlag behouden blijft. Nieuwe rijen krijgen
+                // de kolom-default (false).
                 $member->teams()->syncWithoutDetaching($teamPivots);
             }
 
