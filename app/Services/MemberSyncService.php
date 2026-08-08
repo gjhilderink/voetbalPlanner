@@ -39,6 +39,13 @@ class MemberSyncService
             $membersData = $this->mcpService->getMembers();
             $synced = 0;
 
+            // Verzamel per lid álle teams die Sportlink in deze run meldt. Zo
+            // kunnen we na afloop verouderde (vorig-seizoen) koppelingen
+            // loskoppelen — een lid dat naar een nieuw team ging, mag niet aan
+            // het oude team gekoppeld blijven.
+            $desiredTeamsByMember = []; // memberId => [teamId => pivotData]
+            $membersById          = []; // memberId => Member
+
             foreach ($membersData as $memberData) {
                 $dto = MemberDTO::fromMcpData($memberData);
 
@@ -48,6 +55,7 @@ class MemberSyncService
                 }
 
                 $member = $this->upsertMember($dto);
+                $membersById[$member->id] = $member;
 
                 // _teamcode is injected by getMembers() to indicate which team this player belongs to
                 $teamcode = $memberData['_teamcode'] ?? null;
@@ -56,16 +64,44 @@ class MemberSyncService
                         ->when($this->clubId, fn($q) => $q->where('club_id', $this->clubId))
                         ->first();
                     if ($team) {
-                        $member->teams()->syncWithoutDetaching([
-                            $team->id => [
-                                'role'      => $dto->role,
-                                'is_active' => $dto->isActive,
-                            ]
-                        ]);
+                        $desiredTeamsByMember[$member->id][$team->id] = [
+                            'role'      => $dto->role,
+                            'is_active' => $dto->isActive,
+                        ];
                     }
                 }
 
                 $synced++;
+            }
+
+            // Koppelingen bijwerken: huidige teams (her)koppelen en verouderde
+            // koppelingen binnen deze club loskoppelen. We beperken tot teams van
+            // deze club zodat koppelingen aan teams van andere clubs ongemoeid
+            // blijven. Leden zonder team-info in deze run laten we ongemoeid.
+            $clubTeamIds = Team::query()
+                ->when($this->clubId, fn($q) => $q->where('club_id', $this->clubId))
+                ->pluck('id')
+                ->all();
+
+            foreach ($desiredTeamsByMember as $memberId => $teamPivots) {
+                $member         = $membersById[$memberId];
+                $desiredTeamIds = array_keys($teamPivots);
+
+                $staleTeamIds = $member->teams()
+                    ->whereIn('teams.id', $clubTeamIds)
+                    ->whereNotIn('teams.id', $desiredTeamIds)
+                    ->pluck('teams.id')
+                    ->all();
+
+                if (!empty($staleTeamIds)) {
+                    $member->teams()->detach($staleTeamIds);
+                    Log::info('Member detached from stale team(s)', [
+                        'member_id' => $memberId,
+                        'team_ids'  => $staleTeamIds,
+                    ]);
+                }
+
+                $member->teams()->syncWithoutDetaching($teamPivots);
             }
 
             $log->update([
