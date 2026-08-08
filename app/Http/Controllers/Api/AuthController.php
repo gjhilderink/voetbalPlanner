@@ -163,7 +163,7 @@ class AuthController extends Controller
         $user = User::where('email', $record->email)->where('is_active', true)->first();
 
         if (!$user) {
-            // No user account yet — try to find an active member and auto-create one.
+            // Actief lid nodig om te (her)koppelen, heractiveren of aan te maken.
             $member = \App\Models\Member::where('email', $record->email)
                 ->where('is_active', true)
                 ->first();
@@ -176,23 +176,48 @@ class AuthController extends Controller
                 ], 401);
             }
 
-            $clubId = $member->teams()->first()?->club_id;
+            // Bestaat er al een user met dit e-mailadres, maar verborgen voor de
+            // lookup hierboven (soft-deleted óf is_active = false)? Dan NIET
+            // opnieuw aanmaken — dat gaf een duplicate-email crash. In plaats
+            // daarvan het bestaande account heractiveren, want de persoon is nog
+            // een actief lid.
+            $existing = User::withTrashed()->where('email', $record->email)->first();
 
-            $user = User::create([
-                'name'      => $member->name,
-                'email'     => $member->email,
-                'phone'     => $member->phone,
-                'is_active' => true,
-                'club_id'   => $clubId,
-                'password'  => Str::random(32),
-            ]);
+            if ($existing) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                if (! $existing->is_active) {
+                    $existing->forceFill(['is_active' => true])->save();
+                }
+                if ($member->user_id !== $existing->id) {
+                    $member->update(['user_id' => $existing->id]);
+                }
+                $user = $existing;
 
-            $member->update(['user_id' => $user->id]);
+                \Log::info('[MagicLink] reactivated existing user from member', [
+                    'email'   => $record->email,
+                    'user_id' => $existing->id,
+                ]);
+            } else {
+                $clubId = $member->teams()->first()?->club_id;
 
-            \Log::info('[MagicLink] auto-created user from member', [
-                'email'   => $record->email,
-                'user_id' => $user->id,
-            ]);
+                $user = User::create([
+                    'name'      => $member->name,
+                    'email'     => $member->email,
+                    'phone'     => $member->phone,
+                    'is_active' => true,
+                    'club_id'   => $clubId,
+                    'password'  => Str::random(32),
+                ]);
+
+                $member->update(['user_id' => $user->id]);
+
+                \Log::info('[MagicLink] auto-created user from member', [
+                    'email'   => $record->email,
+                    'user_id' => $user->id,
+                ]);
+            }
         }
 
         // Markeer als gebruikt bij de eerste keer; her-verificatie binnen de
