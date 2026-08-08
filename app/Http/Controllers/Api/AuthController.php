@@ -140,7 +140,19 @@ class AuthController extends Controller
     {
         $record = MagicLinkToken::where('token', $request->validated('token'))->first();
 
-        if (!$record || !$record->isValid()) {
+        // Sta re-verificatie toe binnen een korte grace-periode ná het eerste
+        // gebruik. De app (FlutterFlow deep-link + Firebase route-guard) kan de
+        // verify-call kort na elkaar twee keer afvuren; met harde single-use
+        // slaagde de eerste call maar faalde de tweede, waardoor de gebruiker
+        // "ongeldig of verlopen" zag terwijl het token net nog geldig was.
+        // Buiten de grace-periode blijft het token eenmalig (en 30 min geldig).
+        $graceMinutes = 10;
+        $usable = $record
+            && $record->expires_at->isFuture()
+            && (is_null($record->used_at)
+                || $record->used_at->greaterThan(now()->subMinutes($graceMinutes)));
+
+        if (!$usable) {
             return response()->json([
                 'success' => false,
                 'data'    => null,
@@ -183,8 +195,12 @@ class AuthController extends Controller
             ]);
         }
 
-        // Mark token as used — single-use only.
-        $record->update(['used_at' => now()]);
+        // Markeer als gebruikt bij de eerste keer; her-verificatie binnen de
+        // grace-periode laat used_at ongemoeid zodat het venster niet oneindig
+        // meeschuift.
+        if (is_null($record->used_at)) {
+            $record->update(['used_at' => now()]);
+        }
 
         $user->forceFill(['last_login_at' => now()])->save();
 
