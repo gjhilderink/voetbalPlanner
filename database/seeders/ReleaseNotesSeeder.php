@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Models\Feature;
+use App\Models\ReleaseNote;
 use Illuminate\Database\Seeder;
 
 /**
@@ -52,12 +53,31 @@ class ReleaseNotesSeeder extends Seeder
 
         $sort = 0;
         foreach ($features as $feature) {
-            Feature::firstOrCreate(
+            $model = Feature::firstOrCreate(
                 ['title' => $feature['title']],
                 [
                     'description' => $feature['description'],
                     'status'      => Feature::STATUS_RELEASED,
                     'sort_order'  => $sort++,
+                ],
+            );
+
+            // Zorg dat de feature echt op "uitgebracht" staat met een datum,
+            // ook als hij al bestond met een andere status.
+            if ($model->status !== Feature::STATUS_RELEASED || empty($model->released_at)) {
+                $model->status      = Feature::STATUS_RELEASED;
+                $model->released_at = $model->released_at ?? now();
+                $model->save();
+            }
+
+            // Release note expliciet garanderen (niet alleen via de model-hook),
+            // zodat een reeds bestaande feature zonder note alsnog een note krijgt.
+            ReleaseNote::firstOrCreate(
+                ['feature_id' => $model->id],
+                [
+                    'title'       => $feature['title'],
+                    'body'        => $feature['description'],
+                    'released_at' => $model->released_at ?? now(),
                 ],
             );
         }
