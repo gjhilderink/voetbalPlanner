@@ -80,6 +80,14 @@ class ReleaseNotesSeeder extends Seeder
                 'description' => 'Het snelmenu (de + op het dashboard) viel op Android deels achter de '
                     . 'navigatiebalk. De onderste knop is nu volledig zichtbaar en bruikbaar.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Team-switcher op het dashboard',
+                'description' => 'Ben je aan meerdere teams gekoppeld (of als ouder aan meerdere kinderen)? '
+                    . 'Bovenaan het dashboard kun je nu wisselen van team; je wedstrijden en trainingen '
+                    . 'passen zich direct aan. Bardiensten en rijschema blijven van al je teams zichtbaar, '
+                    . 'want die zijn persoonlijk. Bij één team verschijnt de keuze niet.',
+            ],
         ];
 
         $sort = 0;
