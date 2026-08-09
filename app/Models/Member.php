@@ -35,7 +35,7 @@ class Member extends Model
     public const MANAGEMENT_ROLES = [self::ROLE_COACH, self::ROLE_LEIDER];
 
     protected $fillable = [
-        'external_id', 'user_id', 'name', 'email', 'phone',
+        'external_id', 'user_id', 'name', 'last_name', 'email', 'phone',
         'date_of_birth', 'role', 'profile_photo', 'is_active', 'last_synced_at',
     ];
 

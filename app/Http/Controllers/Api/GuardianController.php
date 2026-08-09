@@ -21,6 +21,36 @@ use Illuminate\Support\Str;
 class GuardianController extends Controller
 {
     /**
+     * Verifieert de opgegeven achternaam tegen een lid. Primair tegen het aparte
+     * last_name-veld (case-insensitive, met tussenvoegsel-tolerantie); valt terug
+     * op de volledige naam als last_name (nog) niet gevuld is. Bij een lid met
+     * alleen een voornaam volstaat het unieke lidnummer (kind bevestigt sowieso).
+     */
+    private function achternaamMatcht(Member $child, string $achternaam): bool
+    {
+        $achternaam = trim($achternaam);
+        if ($achternaam === '') {
+            return true;
+        }
+        $a = mb_strtolower($achternaam);
+
+        $lastName = mb_strtolower(trim((string) $child->last_name));
+        if ($lastName !== '') {
+            // Tolerant voor tussenvoegsels: "Berg" matcht "van der Berg" en v.v.
+            return str_contains($lastName, $a) || str_contains($a, $lastName);
+        }
+
+        // Geen aparte achternaam bekend: val terug op de volledige naam als die
+        // meerdere woorden bevat; anders volstaat het lidnummer.
+        $name = trim((string) $child->name);
+        if (str_contains($name, ' ')) {
+            return str_contains(mb_strtolower($name), $a);
+        }
+
+        return true;
+    }
+
+    /**
      * POST /v1/guardian/request
      *
      * Ouder/verzorger dient een koppelverzoek in voor een kind/lid.
@@ -69,13 +99,11 @@ class GuardianController extends Controller
             }
         }
 
-        // Achternaam alleen afdwingen als de opgeslagen naam daadwerkelijk een
-        // achternaam bevat (meer dan één woord). Bij namen met alleen de voornaam
-        // (Sportlink-privacy) volstaat het lidnummer + bevestiging door het kind.
-        if ($child && $achternaam !== '' && str_contains(trim($child->name), ' ')) {
-            if (! str_contains(mb_strtolower($child->name), mb_strtolower($achternaam))) {
-                $child = null;
-            }
+        // Achternaam verifiëren tegen het aparte last_name-veld (of, als fallback,
+        // de volledige naam). Bij leden met alleen een voornaam volstaat het
+        // unieke lidnummer + bevestiging door het kind.
+        if ($child && ! $this->achternaamMatcht($child, $achternaam)) {
+            $child = null;
         }
 
         // Altijd dezelfde foutmelding — voorkomt user-enumeration op lidnummer/naam
@@ -493,18 +521,16 @@ class GuardianController extends Controller
             ], 409);
         }
 
-        // Primair matchen op het unieke lidnummer; achternaam soepel verifiëren
-        // (Sportlink levert vaak alleen de voornaam). Het kind bevestigt de
+        // Primair matchen op het unieke lidnummer; achternaam verifiëren via het
+        // aparte last_name-veld (fallback: volledige naam). Het kind bevestigt de
         // koppeling sowieso nog in de app.
         $achternaam = trim($validated['achternaam']);
         $child = Member::where('external_id', trim($validated['lidnummer']))
             ->where('is_active', true)
             ->first();
 
-        if ($child && $achternaam !== '' && str_contains(trim($child->name), ' ')) {
-            if (! str_contains(mb_strtolower($child->name), mb_strtolower($achternaam))) {
-                $child = null;
-            }
+        if ($child && ! $this->achternaamMatcht($child, $achternaam)) {
+            $child = null;
         }
 
         // Altijd dezelfde foutmelding ongeacht reden — voorkomt user enumeration.

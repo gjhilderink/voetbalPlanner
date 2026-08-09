@@ -14,6 +14,7 @@ readonly class MemberDTO
         public ?string $dateOfBirth = null,
         public string $role = 'player',
         public bool $isActive = true,
+        public ?string $lastName = null,
     ) {}
 
     public static function fromMcpData(array $data): self
@@ -38,6 +39,13 @@ readonly class MemberDTO
             default                             => 'staff',
         };
 
+        // Achternaam apart: tussenvoegsel + achternaam zodat "van der Berg" klopt.
+        $lastNameParts = array_filter([
+            $data['tussenvoegsel'] ?? null,
+            $data['achternaam'] ?? null,
+        ]);
+        $lastName = $lastNameParts ? trim(implode(' ', $lastNameParts)) : null;
+
         return new self(
             externalId: (string) ($externalId ?? ''),
             name: $name,
@@ -46,6 +54,7 @@ readonly class MemberDTO
             dateOfBirth: null, // not provided by get_team_players
             role: $role,
             isActive: ($data['einddatum'] === null), // null einddatum = currently active
+            lastName: $lastName,
         );
     }
 }

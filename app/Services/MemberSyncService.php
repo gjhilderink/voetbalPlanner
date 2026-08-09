@@ -160,6 +160,7 @@ class MemberSyncService
             ['external_id' => $dto->externalId],
             [
                 'name'           => $dto->name,
+                'last_name'      => $dto->lastName ?: $existing?->last_name,
                 'email'          => $dto->email ?: $existing?->email,
                 'phone'          => $dto->phone ?: $existing?->phone,
                 'date_of_birth'  => $dto->dateOfBirth,
