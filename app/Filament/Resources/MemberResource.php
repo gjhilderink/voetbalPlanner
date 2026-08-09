@@ -79,6 +79,7 @@ class MemberResource extends Resource
                             ->label('Team')
                             ->options(fn () => Team::query()->orderBy('name')->pluck('name', 'id'))
                             ->searchable()
+                            ->preload()
                             ->required()
                             ->distinct(),
                         Forms\Components\Select::make('role')
