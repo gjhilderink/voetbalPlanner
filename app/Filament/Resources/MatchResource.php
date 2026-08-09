@@ -143,6 +143,12 @@ class MatchResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('team.name')->label('Team')->sortable()->searchable(),
+                Tables\Columns\ImageColumn::make('opponent_logo')
+                    ->label('Logo')
+                    ->circular()
+                    ->size(32)
+                    ->extraImgAttributes(['loading' => 'lazy'])
+                    ->placeholder('—'),
                 Tables\Columns\TextColumn::make('opponent')->label('Tegenstander')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('match_datetime')
                     ->label('Datum')
