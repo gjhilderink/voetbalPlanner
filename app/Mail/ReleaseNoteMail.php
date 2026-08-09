@@ -11,29 +11,36 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Collection;
 
 class ReleaseNoteMail extends Mailable
 {
     use Queueable, SerializesModels;
 
+    /** @var Collection<int,ReleaseNote> */
+    public Collection $notes;
     public string $primaryColor;
     public string $headerText;
     public string $footerText;
-    public string $titleLine;
-    public string $bodyHtml;
     public string $subjectLine;
 
-    public function __construct(
-        public readonly ReleaseNote $note,
-        ?Club $club = null,
-    ) {
+    /**
+     * @param ReleaseNote|iterable<ReleaseNote> $notes Eén of meerdere release notes.
+     */
+    public function __construct($notes, ?Club $club = null)
+    {
+        $this->notes = collect($notes instanceof ReleaseNote ? [$notes] : $notes)
+            ->filter()
+            ->values();
+
         $this->primaryColor = $club?->primary_color ?? '#1e3a5f';
         $this->headerText   = $club?->email_header_text ?? config('app.name');
         $this->footerText   = $club?->email_footer_text ?? '';
-        $this->titleLine    = $note->title;
-        // body is RichEditor-HTML; kan leeg zijn.
-        $this->bodyHtml     = trim((string) ($note->body ?? ''));
-        $this->subjectLine  = 'Update: ' . $note->title;
+
+        $count = $this->notes->count();
+        $this->subjectLine = $count === 1
+            ? 'Update: ' . ($this->notes->first()->title ?? config('app.name'))
+            : 'Nieuw in de app: ' . $count . ' updates';
     }
 
     public function envelope(): Envelope

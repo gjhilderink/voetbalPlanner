@@ -15,6 +15,7 @@ class Feature extends Model
     protected $fillable = [
         'title',
         'description',
+        'type',
         'status',
         'released_at',
         'sort_order',
@@ -56,6 +57,7 @@ class Feature extends Model
                 ReleaseNote::firstOrCreate(
                     ['feature_id' => $feature->id],
                     [
+                        'type'        => $feature->type ?? 'feature',
                         'title'       => $feature->title,
                         'body'        => $feature->description,
                         'released_at' => $feature->released_at ?? now(),

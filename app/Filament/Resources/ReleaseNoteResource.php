@@ -65,6 +65,13 @@ class ReleaseNoteResource extends Resource
                     ->maxLength(255)
                     ->columnSpanFull(),
 
+                Forms\Components\Select::make('type')
+                    ->label('Type')
+                    ->options(ReleaseNote::$typeLabels)
+                    ->default('feature')
+                    ->required()
+                    ->columnSpanFull(),
+
                 Forms\Components\DateTimePicker::make('released_at')
                     ->label('Uitgebracht op')
                     ->seconds(false)
@@ -82,6 +89,12 @@ class ReleaseNoteResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('type')
+                    ->label('Type')
+                    ->badge()
+                    ->formatStateUsing(fn($state) => ReleaseNote::$typeLabels[$state] ?? ($state ?? '—'))
+                    ->color(fn($state) => ReleaseNote::$typeColors[$state] ?? 'gray'),
+
                 Tables\Columns\TextColumn::make('title')
                     ->label('Titel')
                     ->searchable()
@@ -109,33 +122,8 @@ class ReleaseNoteResource extends Resource
                     ->visible(fn() => auth()->user()?->hasRole('super_admin') ?? false)
                     ->modalHeading('Release note mailen')
                     ->modalSubmitActionLabel('Versturen')
-                    ->form([
-                        Forms\Components\Radio::make('scope')
-                            ->label('Naar wie versturen?')
-                            ->options([
-                                'self'     => 'Test naar mezelf',
-                                'selected' => 'Geselecteerde gebruikers',
-                                'all'      => 'Alle leden & gebruikers met e-mailadres',
-                            ])
-                            ->descriptions([
-                                'self'     => 'Stuurt de release note alleen naar je eigen e-mailadres.',
-                                'selected' => 'Kies hieronder specifiek wie de release note ontvangt.',
-                                'all'      => 'Stuurt naar alle actieve leden en gebruikers van deze club met een e-mailadres.',
-                            ])
-                            ->default('self')
-                            ->live()
-                            ->required(),
-
-                        Forms\Components\Select::make('recipients')
-                            ->label('Ontvangers')
-                            ->multiple()
-                            ->searchable()
-                            ->preload()
-                            ->options(fn() => static::recipientOptions())
-                            ->visible(fn(Get $get): bool => $get('scope') === 'selected')
-                            ->required(fn(Get $get): bool => $get('scope') === 'selected'),
-                    ])
-                    ->action(fn(ReleaseNote $record, array $data) => static::mailReleaseNote($record, $data)),
+                    ->form(static::mailFormSchema())
+                    ->action(fn(ReleaseNote $record, array $data) => static::mailReleaseNotes(collect([$record]), $data)),
 
                 Actions\EditAction::make()
                     ->visible(fn() => auth()->user()?->hasRole('super_admin') ?? false),
@@ -143,11 +131,56 @@ class ReleaseNoteResource extends Resource
                     ->visible(fn() => auth()->user()?->hasRole('super_admin') ?? false),
             ])
             ->bulkActions([
+                Actions\BulkAction::make('mail')
+                    ->label('Mailen')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('primary')
+                    ->visible(fn() => auth()->user()?->hasRole('super_admin') ?? false)
+                    ->modalHeading('Geselecteerde release notes mailen')
+                    ->modalSubmitActionLabel('Versturen')
+                    ->form(static::mailFormSchema())
+                    ->action(fn($records, array $data) => static::mailReleaseNotes(collect($records), $data))
+                    ->deselectRecordsAfterCompletion(),
+
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make()
                         ->visible(fn() => auth()->user()?->hasRole('super_admin') ?? false),
                 ]),
             ]);
+    }
+
+    /**
+     * Gedeeld formulier voor de mail-actie (rij + bulk): keuze naar wie te sturen
+     * en, bij "Geselecteerde gebruikers", een multi-select met ontvangers.
+     */
+    protected static function mailFormSchema(): array
+    {
+        return [
+            Forms\Components\Radio::make('scope')
+                ->label('Naar wie versturen?')
+                ->options([
+                    'self'     => 'Test naar mezelf',
+                    'selected' => 'Geselecteerde gebruikers',
+                    'all'      => 'Alle leden & gebruikers met e-mailadres',
+                ])
+                ->descriptions([
+                    'self'     => 'Stuurt alleen naar je eigen e-mailadres.',
+                    'selected' => 'Kies hieronder specifiek wie het ontvangt.',
+                    'all'      => 'Stuurt naar alle actieve leden en gebruikers van deze club met een e-mailadres.',
+                ])
+                ->default('self')
+                ->live()
+                ->required(),
+
+            Forms\Components\Select::make('recipients')
+                ->label('Ontvangers')
+                ->multiple()
+                ->searchable()
+                ->preload()
+                ->options(fn() => static::recipientOptions())
+                ->visible(fn(Get $get): bool => $get('scope') === 'selected')
+                ->required(fn(Get $get): bool => $get('scope') === 'selected'),
+        ];
     }
 
     /**
@@ -193,14 +226,23 @@ class ReleaseNoteResource extends Resource
     }
 
     /**
-     * Verstuurt een release note per e-mail.
+     * Verstuurt één of meerdere release notes per e-mail (één bericht met alle
+     * geselecteerde notes).
      *   scope 'self'     = alleen naar de ingelogde beheerder (test)
      *   scope 'selected' = naar de in het formulier gekozen ontvangers
      *   scope 'all'      = alle actieve leden + gebruikers van de club met e-mail
      * Meerdere ontvangers gaan in BCC-batches (adressen blijven onderling verborgen).
+     *
+     * @param \Illuminate\Support\Collection<int,ReleaseNote> $notes
      */
-    protected static function mailReleaseNote(ReleaseNote $record, array $data): void
+    protected static function mailReleaseNotes(\Illuminate\Support\Collection $notes, array $data): void
     {
+        $notes = $notes->filter()->values();
+        if ($notes->isEmpty()) {
+            Notification::make()->warning()->title('Geen release notes geselecteerd.')->send();
+            return;
+        }
+
         $scope = $data['scope'] ?? 'self';
         $club  = filament()->getTenant();
 
@@ -212,7 +254,7 @@ class ReleaseNoteResource extends Resource
                 return;
             }
             try {
-                Mail::to($to)->send(new ReleaseNoteMail($record, $club));
+                Mail::to($to)->send(new ReleaseNoteMail($notes, $club));
                 Notification::make()->success()->title('Testmail verstuurd naar ' . $to)->send();
             } catch (\Throwable $e) {
                 Notification::make()->danger()->title('Versturen mislukt')->body($e->getMessage())->send();
@@ -262,7 +304,7 @@ class ReleaseNoteResource extends Resource
         $failed = 0;
         foreach ($emails->chunk(50) as $chunk) {
             try {
-                Mail::to($toAddress)->bcc($chunk->all())->send(new ReleaseNoteMail($record, $club));
+                Mail::to($toAddress)->bcc($chunk->all())->send(new ReleaseNoteMail($notes, $club));
                 $sent += $chunk->count();
             } catch (\Throwable $e) {
                 $failed += $chunk->count();

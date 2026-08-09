@@ -14,9 +14,24 @@ class ReleaseNote extends Model
 
     protected $fillable = [
         'feature_id',
+        'type',
         'title',
         'body',
         'released_at',
+    ];
+
+    /** Type van de update (voor label + gekleurde badge). */
+    public static array $typeLabels = [
+        'feature'     => 'Nieuwe functie',
+        'improvement' => 'Verbetering',
+        'bugfix'      => 'Bugfix',
+    ];
+
+    /** Badge-kleur per type (Filament-kleuren). */
+    public static array $typeColors = [
+        'feature'     => 'success',
+        'improvement' => 'info',
+        'bugfix'      => 'warning',
     ];
 
     protected $casts = [

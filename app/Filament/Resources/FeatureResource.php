@@ -62,6 +62,14 @@ class FeatureResource extends Resource
                     ->helperText('Wordt overgenomen in de release note zodra de feature op "Uitgebracht" staat.')
                     ->columnSpanFull(),
 
+                Forms\Components\Select::make('type')
+                    ->label('Type')
+                    ->options(\App\Models\ReleaseNote::$typeLabels)
+                    ->default('feature')
+                    ->required()
+                    ->helperText('Bug, nieuwe functie of verbetering.')
+                    ->columnSpan(1),
+
                 Forms\Components\Select::make('status')
                     ->label('Status')
                     ->options(Feature::$statusLabels)
