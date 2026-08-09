@@ -49,6 +49,12 @@ class ReleaseNotesSeeder extends Seeder
                     . '"Inloglink verifiëren" meer, en de onterechte melding "ongeldig of verlopen" is '
                     . 'opgelost.',
             ],
+            [
+                'title'       => 'Kind koppelen aan account werkt weer',
+                'description' => 'Een ouder/verzorger kan een kind nu weer eenvoudig koppelen op basis van '
+                    . 'lidnummer en achternaam. De onterechte melding "Geen lid gevonden met deze gegevens" '
+                    . 'bij correcte gegevens is opgelost.',
+            ],
         ];
 
         $sort = 0;
