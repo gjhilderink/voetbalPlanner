@@ -175,6 +175,17 @@ class MatchResource extends Resource
                     }),
             ])
             ->filters([
+                // Standaard (blanco keuze) verbergt wedstrijden ouder dan een week.
+                Tables\Filters\TernaryFilter::make('periode')
+                    ->label('Periode')
+                    ->placeholder('Vanaf 1 week geleden')
+                    ->trueLabel('Alle wedstrijden')
+                    ->falseLabel('Alleen ouder dan 1 week')
+                    ->queries(
+                        true:  fn (Builder $query) => $query,
+                        false: fn (Builder $query) => $query->where('match_datetime', '<', now()->subWeek()),
+                        blank: fn (Builder $query) => $query->where('match_datetime', '>=', now()->subWeek()),
+                    ),
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')
                     ->options([
