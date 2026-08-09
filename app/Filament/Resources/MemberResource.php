@@ -66,32 +66,59 @@ class MemberResource extends Resource
                     ->maxLength(20),
             ])->columns(2),
 
-            Section::make('Teams')->schema([
-                Forms\Components\Select::make('teams')
-                    ->label('Gekoppelde teams')
-                    ->multiple()
-                    ->relationship('teams', 'name')
-                    ->preload()
-                    ->searchable()
-                    // Handmatig gekoppelde teams markeren met is_manual = true,
-                    // zodat de Sportlink-sync ze niet loskoppelt. Nieuw
-                    // toegevoegde teams worden manueel; bestaande koppelingen
-                    // behouden hun vlag (Sportlink-koppelingen blijven false).
-                    ->saveRelationshipsUsing(function ($record, $state): void {
-                        $teamIds  = array_values(array_filter((array) $state));
-                        $existing = $record->teams()->get()
-                            ->mapWithKeys(fn ($t) => [$t->id => (bool) $t->pivot->is_manual]);
-
-                        $sync = [];
-                        foreach ($teamIds as $teamId) {
-                            $sync[$teamId] = ['is_manual' => $existing[$teamId] ?? true];
-                        }
-
-                        $record->teams()->sync($sync);
-                    })
+            Section::make('Teams & functies')->schema([
+                // Per gekoppeld team een functie (speler/coach/leider/assistent).
+                // Handmatig via dit panel gekoppelde teams worden is_manual = true
+                // zodat de Sportlink-sync ze niet loskoppelt. Laden/opslaan gebeurt
+                // via de Create/Edit-pagina hooks (syncTeamFunctions).
+                Forms\Components\Repeater::make('team_functions')
+                    ->label('Teams & functies')
+                    ->schema([
+                        Forms\Components\Select::make('team_id')
+                            ->label('Team')
+                            ->options(fn () => Team::query()->orderBy('name')->pluck('name', 'id'))
+                            ->searchable()
+                            ->required()
+                            ->distinct(),
+                        Forms\Components\Select::make('role')
+                            ->label('Functie')
+                            ->options(Member::TEAM_FUNCTIONS)
+                            ->default(Member::ROLE_PLAYER)
+                            ->required(),
+                    ])
+                    ->columns(2)
+                    ->addActionLabel('Team toevoegen')
+                    ->default([])
+                    ->dehydrated(false)
                     ->columnSpanFull(),
             ]),
         ]);
+    }
+
+    /**
+     * Slaat de "Teams & functies"-repeater op naar de member_team pivot.
+     * Zet role per team en markeert (nieuwe) koppelingen als is_manual zodat de
+     * Sportlink-sync ze niet loskoppelt; bestaande is_manual-vlag blijft behouden.
+     * Aangeroepen vanuit Create-/EditMember (afterCreate / afterSave).
+     */
+    public static function syncTeamFunctions(Member $member, array $rows): void
+    {
+        $existing = $member->teams()->get()
+            ->mapWithKeys(fn ($t) => [$t->id => (bool) $t->pivot->is_manual]);
+
+        $sync = [];
+        foreach ($rows as $row) {
+            $teamId = $row['team_id'] ?? null;
+            if (! $teamId) {
+                continue;
+            }
+            $sync[$teamId] = [
+                'role'      => $row['role'] ?? Member::ROLE_PLAYER,
+                'is_manual' => $existing[$teamId] ?? true,
+            ];
+        }
+
+        $member->teams()->sync($sync);
     }
 
     public static function table(Table $table): Table

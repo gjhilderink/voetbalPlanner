@@ -16,4 +16,27 @@ class EditMember extends EditRecord
     {
         return [Actions\DeleteAction::make()];
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['team_functions'] = $this->record->teams()
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($t) => [
+                'team_id' => $t->id,
+                'role'    => $t->pivot->role ?: 'player',
+            ])
+            ->values()
+            ->all();
+
+        return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        if (! array_key_exists('team_functions', $this->data)) {
+            return;
+        }
+        MemberResource::syncTeamFunctions($this->record, $this->data['team_functions'] ?? []);
+    }
 }

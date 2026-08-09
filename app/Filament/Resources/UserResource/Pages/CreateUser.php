@@ -15,4 +15,12 @@ class CreateUser extends CreateRecord
     {
         return $this->getResource()::getUrl('index');
     }
+
+    protected function afterCreate(): void
+    {
+        if (! array_key_exists('managed_team_functions', $this->data)) {
+            return;
+        }
+        UserResource::syncManagedTeamFunctions($this->record, $this->data['managed_team_functions'] ?? []);
+    }
 }

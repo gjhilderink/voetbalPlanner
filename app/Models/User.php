@@ -117,7 +117,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
 
     public function managedTeams(): BelongsToMany
     {
-        return $this->belongsToMany(Team::class, 'user_team');
+        return $this->belongsToMany(Team::class, 'user_team')->withPivot('role');
     }
 
     public function managedTeamIds(): Collection
@@ -127,7 +127,9 @@ class User extends Authenticatable implements FilamentUser, HasTenants
 
     /**
      * Mag deze gebruiker de opstelling + score van een wedstrijd van dit team
-     * beheren? Alleen de coach van het team (managed) of een beheerder.
+     * beheren? Beheerders altijd; verder wie een beheer-functie (coach/leider)
+     * heeft voor dat team — via de user_team-koppeling óf via de member_team-
+     * koppeling van het gekoppelde lid (speler in team A, coach van team B).
      */
     public function canManageLineup(?string $teamId): bool
     {
@@ -135,7 +137,31 @@ class User extends Authenticatable implements FilamentUser, HasTenants
             return true;
         }
 
-        return $teamId !== null && $this->managedTeamIds()->contains($teamId);
+        if ($teamId === null) {
+            return false;
+        }
+
+        $mgmt = Member::MANAGEMENT_ROLES;
+
+        // Beheer-functie op de user_team-koppeling (bv. coach zonder rooster-lid).
+        $viaUser = $this->managedTeams()
+            ->where('teams.id', $teamId)
+            ->wherePivotIn('role', $mgmt)
+            ->exists();
+        if ($viaUser) {
+            return true;
+        }
+
+        // Beheer-functie op de member_team-koppeling van het gekoppelde lid.
+        $member = $this->resolveMember();
+        if ($member) {
+            return $member->teams()
+                ->where('teams.id', $teamId)
+                ->wherePivotIn('role', $mgmt)
+                ->exists();
+        }
+
+        return false;
     }
 
     /**

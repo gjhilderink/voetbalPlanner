@@ -17,6 +17,23 @@ class Member extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    // ── Functies per gekoppeld team (member_team.role / user_team.role) ──────────
+    public const ROLE_PLAYER    = 'player';
+    public const ROLE_COACH     = 'coach';
+    public const ROLE_ASSISTANT = 'assistant_coach';
+    public const ROLE_LEIDER    = 'leider';
+
+    /** Selecteerbare functies per gekoppeld team. */
+    public const TEAM_FUNCTIONS = [
+        self::ROLE_PLAYER    => 'Speler',
+        self::ROLE_COACH     => 'Coach / Trainer',
+        self::ROLE_ASSISTANT => 'Assistent-trainer',
+        self::ROLE_LEIDER    => 'Leider',
+    ];
+
+    /** Functies die beheerrechten (opstelling & score) geven voor dat team. */
+    public const MANAGEMENT_ROLES = [self::ROLE_COACH, self::ROLE_LEIDER];
+
     protected $fillable = [
         'external_id', 'user_id', 'name', 'email', 'phone',
         'date_of_birth', 'role', 'profile_photo', 'is_active', 'last_synced_at',

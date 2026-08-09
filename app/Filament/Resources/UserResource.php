@@ -7,6 +7,8 @@ namespace App\Filament\Resources;
 use App\Enums\UserRole;
 use App\Filament\Resources\UserResource\Pages;
 use App\Models\Club;
+use App\Models\Member;
+use App\Models\Team;
 use App\Models\User;
 use Filament\Actions;
 use Filament\Forms;
@@ -87,16 +89,47 @@ class UserResource extends Resource
                     ->preload()
                     ->columnSpanFull(),
 
-                Forms\Components\Select::make('managedTeams')
-                    ->label('Toegewezen teams')
-                    ->helperText('Welke teams mag deze gebruiker beheren? (relevant voor Coach rol)')
-                    ->multiple()
-                    ->relationship('managedTeams', 'name')
-                    ->preload()
-                    ->searchable()
+                Forms\Components\Repeater::make('managed_team_functions')
+                    ->label('Toegewezen teams & functies')
+                    ->helperText('Functie per team. Coach/Trainer of Leider geeft beheerrechten (opstelling & score) voor dat team.')
+                    ->schema([
+                        Forms\Components\Select::make('team_id')
+                            ->label('Team')
+                            ->options(fn () => Team::query()->orderBy('name')->pluck('name', 'id'))
+                            ->searchable()
+                            ->required()
+                            ->distinct(),
+                        Forms\Components\Select::make('role')
+                            ->label('Functie')
+                            ->options(Member::TEAM_FUNCTIONS)
+                            ->default(Member::ROLE_COACH)
+                            ->required(),
+                    ])
+                    ->columns(2)
+                    ->addActionLabel('Team toevoegen')
+                    ->default([])
+                    ->dehydrated(false)
                     ->columnSpanFull(),
             ]),
         ]);
+    }
+
+    /**
+     * Slaat de "Toegewezen teams & functies"-repeater op naar de user_team pivot.
+     * Aangeroepen vanuit Create-/EditUser (afterCreate / afterSave).
+     */
+    public static function syncManagedTeamFunctions(User $user, array $rows): void
+    {
+        $sync = [];
+        foreach ($rows as $row) {
+            $teamId = $row['team_id'] ?? null;
+            if (! $teamId) {
+                continue;
+            }
+            $sync[$teamId] = ['role' => $row['role'] ?? Member::ROLE_COACH];
+        }
+
+        $user->managedTeams()->sync($sync);
     }
 
     public static function table(Table $table): Table

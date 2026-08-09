@@ -104,10 +104,20 @@ class MemberSyncService
                     ]);
                 }
 
-                // Alleen role/is_active meegeven; is_manual bewust NIET, zodat een
-                // bestaande handmatige vlag behouden blijft. Nieuwe rijen krijgen
-                // de kolom-default (false).
-                $member->teams()->syncWithoutDetaching($teamPivots);
+                // Rol/functie alleen zetten bij een NIEUWE koppeling; op bestaande
+                // koppelingen niet overschrijven, zodat een handmatig ingestelde
+                // functie (bv. coach van dit team) behouden blijft. is_manual
+                // geven we ook niet mee zodat een bestaande vlag behouden blijft;
+                // nieuwe rijen krijgen de kolom-default (false).
+                $existingTeamIds = $member->teams()->pluck('teams.id')->all();
+                $pivotToSync = [];
+                foreach ($teamPivots as $tid => $pivot) {
+                    if (in_array($tid, $existingTeamIds, true)) {
+                        unset($pivot['role']);
+                    }
+                    $pivotToSync[$tid] = $pivot;
+                }
+                $member->teams()->syncWithoutDetaching($pivotToSync);
             }
 
             $log->update([

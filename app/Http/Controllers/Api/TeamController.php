@@ -58,7 +58,12 @@ class TeamController extends Controller
             ->get();
 
         $memberPayload = $members
-            ->map(fn($m) => (new MemberResource($m))->resolve())
+            ->map(function ($m) {
+                $data = (new MemberResource($m))->resolve();
+                // Functie van dit lid binnen DIT team (member_team.role).
+                $data['team_role'] = $m->pivot->role ?? null;
+                return $data;
+            })
             ->all();
 
         // 2. App-accounts (User) zonder Member-record gekoppeld via user_team
@@ -86,6 +91,7 @@ class TeamController extends Controller
                 'phone'          => null,
                 'date_of_birth'  => null,
                 'role'           => null,
+                'team_role'      => $u->pivot->role ?? null,
                 'profile_photo'  => $u->profile_photo,
                 'is_active'      => true,
                 'external_id'    => '',

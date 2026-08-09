@@ -43,7 +43,7 @@ class Team extends Model
      */
     public function users(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'user_team')->withTimestamps();
+        return $this->belongsToMany(User::class, 'user_team')->withPivot('role')->withTimestamps();
     }
 
     public function matches(): \Illuminate\Database\Eloquent\Relations\HasMany
