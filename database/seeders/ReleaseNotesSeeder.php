@@ -68,6 +68,12 @@ class ReleaseNotesSeeder extends Seeder
                     . 'uitwedstrijd is, met de tegenstander, datum en tijd en (indien bekend) de locatie — '
                     . 'zonder de wedstrijd eerst te hoeven openen.',
             ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Clublogo van de tegenstander bij wedstrijden',
+                'description' => 'Bij de wedstrijden op het dashboard zie je nu ook het clublogo van de '
+                    . 'tegenstander, voor een duidelijker en herkenbaarder overzicht.',
+            ],
         ];
 
         $sort = 0;
