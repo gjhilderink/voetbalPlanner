@@ -47,15 +47,34 @@ class GuardianController extends Controller
         // Zoek het kind via 2-veld combinatie (lidnummer + achternaam).
         // Het kind moet de koppeling nog bevestigen in de app, dus geboortedatum
         // is hier niet meer nodig als extra controle.
-        // Scope naar dezelfde club zodat leden van andere clubs niet vindbaar zijn.
-        $child = Member::where('external_id', $validated['lidnummer'])
-            ->where('name', 'like', '%' . $validated['achternaam'] . '%')
+        $lidnummer  = trim($validated['lidnummer']);
+        $achternaam = trim($validated['achternaam']);
+
+        // Bewust GEEN strikte team/club-join in de query: dat gaf false negatives
+        // ("geen lid gevonden") als de team-koppeling of team.club_id niet perfect
+        // klopt, of als het ouder-account een afwijkende/lege club_id heeft.
+        $child = Member::where('external_id', $lidnummer)
+            ->where('name', 'like', '%' . $achternaam . '%')
             ->where('is_active', true)
-            ->whereHas('teams', fn ($q) => $q->where('teams.club_id', $user->club_id))
             ->first();
+
+        // Club-scope soepel: alleen weigeren als het kind aantoonbaar tot een
+        // ándere club hoort dan de ouder. Kinderen zonder team/club-koppeling
+        // blokkeren we hier niet op clubgrond.
+        if ($child && $user->club_id) {
+            $childClubIds = $child->teams()->pluck('teams.club_id')->filter()->unique();
+            if ($childClubIds->isNotEmpty() && ! $childClubIds->contains($user->club_id)) {
+                $child = null;
+            }
+        }
 
         // Altijd dezelfde foutmelding — voorkomt user-enumeration op lidnummer/naam
         if (! $child) {
+            \Log::info('[Guardian] kind koppelen: geen match', [
+                'lidnummer'        => $lidnummer,
+                'guardian_club_id' => $user->club_id,
+                'exists_by_number' => Member::where('external_id', $lidnummer)->exists(),
+            ]);
             return response()->json([
                 'success' => false,
                 'data'    => null,
@@ -467,8 +486,8 @@ class GuardianController extends Controller
         // 2-veld verificatie van het kind/lid (lidnummer + achternaam).
         // Het kind moet de koppeling nog bevestigen in de app, dus geboortedatum
         // is hier niet meer nodig als extra controle.
-        $child = Member::where('external_id', $validated['lidnummer'])
-            ->where('name', 'like', '%' . $validated['achternaam'] . '%')
+        $child = Member::where('external_id', trim($validated['lidnummer']))
+            ->where('name', 'like', '%' . trim($validated['achternaam']) . '%')
             ->where('is_active', true)
             ->first();
 
