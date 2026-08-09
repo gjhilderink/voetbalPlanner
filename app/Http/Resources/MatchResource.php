@@ -27,6 +27,7 @@ class MatchResource extends JsonResource
         return [
             'id'             => $this->id,
             'opponent'       => $this->opponent ?? '',
+            'opponentLogo'   => $this->opponent_logo ?? '',
             'location'       => $this->location ?? '',
             'matchDatetime'  => $this->match_datetime?->format('d-m-Y H:i') ?? '',
             'arrivalTime'    => $this->arrival_time ?? '',

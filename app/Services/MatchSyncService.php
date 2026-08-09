@@ -40,9 +40,20 @@ class MatchSyncService
             $results  = $this->mcpService->getResults();
             $synced   = 0;
 
+            $loggedKeys = false;
             foreach ([['schedule', $schedule], ['results', $results]] as [$type, $matchesData]) {
                 foreach ($matchesData as $matchData) {
                     $dto  = MatchDTO::fromMcpData($matchData, $type);
+
+                    // Eenmalige diagnose: log de beschikbare Sportlink-veldnamen zodat
+                    // we de exacte logo-veldnaam kunnen bepalen als 'opponent_logo' leeg blijft.
+                    if (! $loggedKeys) {
+                        Log::info('[MatchSync] beschikbare match-velden', [
+                            'keys'          => is_array($matchData) ? array_keys($matchData) : gettype($matchData),
+                            'opponent_logo' => $dto->opponentLogo,
+                        ]);
+                        $loggedKeys = true;
+                    }
                     $team = Team::where('external_id', $dto->teamExternalId)
                         ->when($this->clubId, fn($q) => $q->where('club_id', $this->clubId))
                         ->first();
@@ -84,6 +95,7 @@ class MatchSyncService
             [
                 'team_id'        => $teamId,
                 'opponent'       => $dto->opponent,
+                'opponent_logo'  => $dto->opponentLogo,
                 'match_datetime' => $dto->matchDatetime,
                 'location'       => $dto->location,
                 'is_home'        => $dto->isHome,

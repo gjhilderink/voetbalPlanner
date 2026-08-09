@@ -20,7 +20,31 @@ readonly class MatchDTO
         public ?int $scoreHome = null,
         public ?int $scoreAway = null,
         public ?string $arrivalTime = null,
+        public ?string $opponentLogo = null,
     ) {}
+
+    /**
+     * Kiest het logo (URL) van de TEGENSTANDER uit de Sportlink-matchdata.
+     * De exacte veldnaam varieert; we proberen meerdere kandidaten. Als Bon Boys
+     * thuis speelt is de tegenstander het uitteam (en vice versa).
+     */
+    private static function pickOpponentLogo(array $data, bool $isHome): ?string
+    {
+        $keys = $isHome
+            ? ['uitteamlogo', 'uitteamclublogo', 'uitclublogo', 'uitlogo', 'logouitteam', 'uitteamlogourl']
+            : ['thuisteamlogo', 'thuisteamclublogo', 'thuisclublogo', 'thuislogo', 'logothuisteam', 'thuisteamlogourl'];
+        // Generieke kandidaten die soms als 1 veld voorkomen.
+        $keys[] = 'tegenstanderlogo';
+        $keys[] = 'tegenstanderclublogo';
+
+        foreach ($keys as $k) {
+            $v = $data[$k] ?? null;
+            if (is_string($v) && trim($v) !== '') {
+                return trim($v);
+            }
+        }
+        return null;
+    }
 
     public static function fromMcpData(array $data, string $type = 'schedule'): self
     {
@@ -79,6 +103,7 @@ readonly class MatchDTO
             scoreHome: $scoreHome,
             scoreAway: $scoreAway,
             arrivalTime: ($data['verzameltijd'] ?? '') ?: null,
+            opponentLogo: self::pickOpponentLogo($data, $isHome),
         );
     }
 }

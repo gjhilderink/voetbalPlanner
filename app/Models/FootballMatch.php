@@ -18,7 +18,7 @@ class FootballMatch extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'external_id', 'team_id', 'opponent', 'match_datetime',
+        'external_id', 'team_id', 'opponent', 'opponent_logo', 'match_datetime',
         'location', 'is_home', 'status', 'score_home', 'score_away',
         'arrival_time', 'dressing_room', 'coach_id', 'fruit_hero_id', 'notes', 'last_synced_at',
     ];
