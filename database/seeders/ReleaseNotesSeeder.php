@@ -74,6 +74,12 @@ class ReleaseNotesSeeder extends Seeder
                 'description' => 'Bij de wedstrijden op het dashboard zie je nu ook het clublogo van de '
                     . 'tegenstander, voor een duidelijker en herkenbaarder overzicht.',
             ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Snelmenu volledig zichtbaar op Android',
+                'description' => 'Het snelmenu (de + op het dashboard) viel op Android deels achter de '
+                    . 'navigatiebalk. De onderste knop is nu volledig zichtbaar en bruikbaar.',
+            ],
         ];
 
         $sort = 0;
