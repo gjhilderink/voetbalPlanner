@@ -73,6 +73,7 @@ class MemberResource extends Resource
                 // via de Create/Edit-pagina hooks (syncTeamFunctions).
                 Forms\Components\Repeater::make('team_functions')
                     ->label('Teams & functies')
+                    ->helperText('Elk lid moet aan minimaal één team gekoppeld zijn.')
                     ->schema([
                         Forms\Components\Select::make('team_id')
                             ->label('Team')
@@ -89,6 +90,10 @@ class MemberResource extends Resource
                     ->columns(2)
                     ->addActionLabel('Team toevoegen')
                     ->default([])
+                    // Minimaal één team verplicht: een lid zonder team valt buiten de
+                    // club-scope en gaf na opslaan een 404. Validatie blokkeert opslaan.
+                    ->minItems(1)
+                    ->required()
                     ->dehydrated(false)
                     ->columnSpanFull(),
             ]),
