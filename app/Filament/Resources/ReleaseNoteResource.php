@@ -14,6 +14,7 @@ use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -112,17 +113,29 @@ class ReleaseNoteResource extends Resource
                         Forms\Components\Radio::make('scope')
                             ->label('Naar wie versturen?')
                             ->options([
-                                'self' => 'Test naar mezelf',
-                                'all'  => 'Alle leden & gebruikers met e-mailadres',
+                                'self'     => 'Test naar mezelf',
+                                'selected' => 'Geselecteerde gebruikers',
+                                'all'      => 'Alle leden & gebruikers met e-mailadres',
                             ])
                             ->descriptions([
-                                'self' => 'Stuurt de release note alleen naar je eigen e-mailadres.',
-                                'all'  => 'Stuurt naar alle actieve leden en gebruikers van deze club met een e-mailadres.',
+                                'self'     => 'Stuurt de release note alleen naar je eigen e-mailadres.',
+                                'selected' => 'Kies hieronder specifiek wie de release note ontvangt.',
+                                'all'      => 'Stuurt naar alle actieve leden en gebruikers van deze club met een e-mailadres.',
                             ])
                             ->default('self')
+                            ->live()
                             ->required(),
+
+                        Forms\Components\Select::make('recipients')
+                            ->label('Ontvangers')
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->options(fn() => static::recipientOptions())
+                            ->visible(fn(Get $get): bool => $get('scope') === 'selected')
+                            ->required(fn(Get $get): bool => $get('scope') === 'selected'),
                     ])
-                    ->action(fn(ReleaseNote $record, array $data) => static::mailReleaseNote($record, $data['scope'] ?? 'self')),
+                    ->action(fn(ReleaseNote $record, array $data) => static::mailReleaseNote($record, $data)),
 
                 Actions\EditAction::make()
                     ->visible(fn() => auth()->user()?->hasRole('super_admin') ?? false),
@@ -138,13 +151,58 @@ class ReleaseNoteResource extends Resource
     }
 
     /**
-     * Verstuurt een release note per e-mail. scope 'self' = alleen naar de
-     * ingelogde beheerder (test); scope 'all' = alle actieve leden + gebruikers
-     * van de huidige club met een e-mailadres (gededupliceerd, in BCC-batches).
+     * Bouwt de keuzelijst voor "Geselecteerde gebruikers": actieve gebruikers +
+     * leden van de huidige club met een e-mailadres. Key = e-mailadres (dat is
+     * meteen de ontvanger), label = "Naam (e-mail)". Gededupliceerd op e-mail.
      */
-    protected static function mailReleaseNote(ReleaseNote $record, string $scope): void
+    protected static function recipientOptions(): array
     {
         $club = filament()->getTenant();
+
+        $userQuery = User::query()
+            ->where('is_active', true)->whereNotNull('email')->where('email', '!=', '');
+        if ($club) {
+            $userQuery->where('club_id', $club->id);
+        }
+
+        $memberQuery = Member::query()
+            ->where('is_active', true)->whereNotNull('email')->where('email', '!=', '');
+        if ($club) {
+            $memberQuery->whereHas('teams', fn($q) => $q->where('teams.club_id', $club->id));
+        }
+
+        $options = [];
+        foreach ($userQuery->get(['name', 'email']) as $u) {
+            $email = strtolower(trim($u->email));
+            if ($email === '') {
+                continue;
+            }
+            $options[$email] = trim(($u->name ?? '') . ' (' . $email . ')');
+        }
+        foreach ($memberQuery->get(['name', 'email']) as $m) {
+            $email = strtolower(trim($m->email));
+            if ($email === '' || isset($options[$email])) {
+                continue;
+            }
+            $options[$email] = trim(($m->name ?? '') . ' (' . $email . ')');
+        }
+
+        asort($options);
+
+        return $options;
+    }
+
+    /**
+     * Verstuurt een release note per e-mail.
+     *   scope 'self'     = alleen naar de ingelogde beheerder (test)
+     *   scope 'selected' = naar de in het formulier gekozen ontvangers
+     *   scope 'all'      = alle actieve leden + gebruikers van de club met e-mail
+     * Meerdere ontvangers gaan in BCC-batches (adressen blijven onderling verborgen).
+     */
+    protected static function mailReleaseNote(ReleaseNote $record, array $data): void
+    {
+        $scope = $data['scope'] ?? 'self';
+        $club  = filament()->getTenant();
 
         // Testmail naar de beheerder zelf.
         if ($scope === 'self') {
@@ -162,29 +220,34 @@ class ReleaseNoteResource extends Resource
             return;
         }
 
-        // Alle ontvangers: actieve gebruikers + leden van de club met e-mailadres.
-        $userQuery = User::query()
-            ->where('is_active', true)
-            ->whereNotNull('email')
-            ->where('email', '!=', '');
-        if ($club) {
-            $userQuery->where('club_id', $club->id);
-        }
+        if ($scope === 'selected') {
+            // De geselecteerde waarden ZIJN de e-mailadressen (keys uit recipientOptions).
+            $emails = collect($data['recipients'] ?? [])
+                ->map(fn($e) => strtolower(trim((string) $e)))
+                ->filter()
+                ->unique()
+                ->values();
+        } else {
+            // Alle ontvangers: actieve gebruikers + leden van de club met e-mailadres.
+            $userQuery = User::query()
+                ->where('is_active', true)->whereNotNull('email')->where('email', '!=', '');
+            if ($club) {
+                $userQuery->where('club_id', $club->id);
+            }
 
-        $memberQuery = Member::query()
-            ->where('is_active', true)
-            ->whereNotNull('email')
-            ->where('email', '!=', '');
-        if ($club) {
-            $memberQuery->whereHas('teams', fn($q) => $q->where('teams.club_id', $club->id));
-        }
+            $memberQuery = Member::query()
+                ->where('is_active', true)->whereNotNull('email')->where('email', '!=', '');
+            if ($club) {
+                $memberQuery->whereHas('teams', fn($q) => $q->where('teams.club_id', $club->id));
+            }
 
-        $emails = $userQuery->pluck('email')
-            ->merge($memberQuery->pluck('email'))
-            ->map(fn($e) => strtolower(trim($e)))
-            ->filter()
-            ->unique()
-            ->values();
+            $emails = $userQuery->pluck('email')
+                ->merge($memberQuery->pluck('email'))
+                ->map(fn($e) => strtolower(trim($e)))
+                ->filter()
+                ->unique()
+                ->values();
+        }
 
         if ($emails->isEmpty()) {
             Notification::make()->warning()->title('Geen ontvangers met een e-mailadres gevonden.')->send();
