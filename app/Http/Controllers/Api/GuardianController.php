@@ -50,11 +50,12 @@ class GuardianController extends Controller
         $lidnummer  = trim($validated['lidnummer']);
         $achternaam = trim($validated['achternaam']);
 
-        // Bewust GEEN strikte team/club-join in de query: dat gaf false negatives
-        // ("geen lid gevonden") als de team-koppeling of team.club_id niet perfect
-        // klopt, of als het ouder-account een afwijkende/lege club_id heeft.
+        // Primair matchen op het unieke lidnummer (relatiecode). De achternaam
+        // wordt NIET meer als harde DB-filter gebruikt: Sportlink levert vaak
+        // alleen de voornaam, waardoor 'name LIKE %achternaam%' onterecht faalde.
+        // De achternaam wordt hieronder soepel geverifieerd; het kind moet de
+        // koppeling sowieso nog bevestigen in de app.
         $child = Member::where('external_id', $lidnummer)
-            ->where('name', 'like', '%' . $achternaam . '%')
             ->where('is_active', true)
             ->first();
 
@@ -64,6 +65,15 @@ class GuardianController extends Controller
         if ($child && $user->club_id) {
             $childClubIds = $child->teams()->pluck('teams.club_id')->filter()->unique();
             if ($childClubIds->isNotEmpty() && ! $childClubIds->contains($user->club_id)) {
+                $child = null;
+            }
+        }
+
+        // Achternaam alleen afdwingen als de opgeslagen naam daadwerkelijk een
+        // achternaam bevat (meer dan één woord). Bij namen met alleen de voornaam
+        // (Sportlink-privacy) volstaat het lidnummer + bevestiging door het kind.
+        if ($child && $achternaam !== '' && str_contains(trim($child->name), ' ')) {
+            if (! str_contains(mb_strtolower($child->name), mb_strtolower($achternaam))) {
                 $child = null;
             }
         }
@@ -483,13 +493,19 @@ class GuardianController extends Controller
             ], 409);
         }
 
-        // 2-veld verificatie van het kind/lid (lidnummer + achternaam).
-        // Het kind moet de koppeling nog bevestigen in de app, dus geboortedatum
-        // is hier niet meer nodig als extra controle.
+        // Primair matchen op het unieke lidnummer; achternaam soepel verifiëren
+        // (Sportlink levert vaak alleen de voornaam). Het kind bevestigt de
+        // koppeling sowieso nog in de app.
+        $achternaam = trim($validated['achternaam']);
         $child = Member::where('external_id', trim($validated['lidnummer']))
-            ->where('name', 'like', '%' . trim($validated['achternaam']) . '%')
             ->where('is_active', true)
             ->first();
+
+        if ($child && $achternaam !== '' && str_contains(trim($child->name), ' ')) {
+            if (! str_contains(mb_strtolower($child->name), mb_strtolower($achternaam))) {
+                $child = null;
+            }
+        }
 
         // Altijd dezelfde foutmelding ongeacht reden — voorkomt user enumeration.
         if (! $child) {

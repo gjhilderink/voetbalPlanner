@@ -46,8 +46,20 @@ class MemberSyncService
             $desiredTeamsByMember = []; // memberId => [teamId => pivotData]
             $membersById          = []; // memberId => Member
 
+            $loggedKeys = false;
             foreach ($membersData as $memberData) {
                 $dto = MemberDTO::fromMcpData($memberData);
+
+                // Eenmalige diagnose: log de beschikbare Sportlink-veldnamen +
+                // de opgebouwde naam, zodat we kunnen bepalen welk veld de
+                // achternaam bevat (leden tonen soms alleen de voornaam).
+                if (! $loggedKeys) {
+                    Log::info('[MemberSync] beschikbare lid-velden', [
+                        'keys'          => is_array($memberData) ? array_keys($memberData) : gettype($memberData),
+                        'resolved_name' => $dto->name,
+                    ]);
+                    $loggedKeys = true;
+                }
 
                 if (empty($dto->externalId)) {
                     Log::warning('Member skipped: no external ID', ['data_keys' => array_keys($memberData)]);
