@@ -61,6 +61,13 @@ class ReleaseNotesSeeder extends Seeder
                     . 'lidnummer en achternaam. De onterechte melding "Geen lid gevonden met deze gegevens" '
                     . 'bij correcte gegevens is opgelost.',
             ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Duidelijker wedstrijdoverzicht op het dashboard',
+                'description' => 'Bij "Mijn wedstrijden" zie je nu in één oogopslag of het een thuis- of '
+                    . 'uitwedstrijd is, met de tegenstander, datum en tijd en (indien bekend) de locatie — '
+                    . 'zonder de wedstrijd eerst te hoeven openen.',
+            ],
         ];
 
         $sort = 0;
