@@ -80,14 +80,11 @@ class GuardianController extends Controller
         $lidnummer  = trim($validated['lidnummer']);
         $achternaam = trim($validated['achternaam']);
 
-        // Primair matchen op het unieke lidnummer (relatiecode). De achternaam
-        // wordt NIET meer als harde DB-filter gebruikt: Sportlink levert vaak
-        // alleen de voornaam, waardoor 'name LIKE %achternaam%' onterecht faalde.
+        // Primair matchen op het unieke lidnummer (relatiecode). Geen is_active-
+        // filter: een bestaand (evt. tijdelijk inactief) lid moet vindbaar zijn.
         // De achternaam wordt hieronder soepel geverifieerd; het kind moet de
         // koppeling sowieso nog bevestigen in de app.
-        $child = Member::where('external_id', $lidnummer)
-            ->where('is_active', true)
-            ->first();
+        $child = Member::where('external_id', $lidnummer)->first();
 
         // Club-scope soepel: alleen weigeren als het kind aantoonbaar tot een
         // ándere club hoort dan de ouder. Kinderen zonder team/club-koppeling
@@ -108,10 +105,17 @@ class GuardianController extends Controller
 
         // Altijd dezelfde foutmelding — voorkomt user-enumeration op lidnummer/naam
         if (! $child) {
+            $raw = Member::withTrashed()->where('external_id', $lidnummer)->first();
             \Log::info('[Guardian] kind koppelen: geen match', [
                 'lidnummer'        => $lidnummer,
+                'achternaam'       => $achternaam,
                 'guardian_club_id' => $user->club_id,
-                'exists_by_number' => Member::where('external_id', $lidnummer)->exists(),
+                'exists'           => $raw !== null,
+                'is_active'        => $raw?->is_active,
+                'trashed'          => $raw?->trashed(),
+                'stored_name'      => $raw?->name,
+                'stored_last_name' => $raw?->last_name,
+                'child_club_ids'   => $raw?->teams()->pluck('teams.club_id')->all(),
             ]);
             return response()->json([
                 'success' => false,
@@ -522,12 +526,9 @@ class GuardianController extends Controller
         }
 
         // Primair matchen op het unieke lidnummer; achternaam verifiëren via het
-        // aparte last_name-veld (fallback: volledige naam). Het kind bevestigt de
-        // koppeling sowieso nog in de app.
+        // aparte last_name-veld (fallback: volledige naam). Geen is_active-filter.
         $achternaam = trim($validated['achternaam']);
-        $child = Member::where('external_id', trim($validated['lidnummer']))
-            ->where('is_active', true)
-            ->first();
+        $child = Member::where('external_id', trim($validated['lidnummer']))->first();
 
         if ($child && ! $this->achternaamMatcht($child, $achternaam)) {
             $child = null;
