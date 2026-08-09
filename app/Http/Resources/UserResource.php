@@ -20,6 +20,28 @@ class UserResource extends JsonResource
             ?? $this->member?->teams->first()
             ?? $accessibleTeams->first();
 
+        // Rol/functie van de gebruiker per team (member_team.role of user_team.role).
+        // Voor de eigen teams; kinderteams (guardian) hebben geen eigen rol.
+        $roleByTeam = [];
+        if ($this->member) {
+            foreach ($this->member->teams as $t) {
+                $r = $t->pivot->role ?? null;
+                if ($r) {
+                    $roleByTeam[$t->id] = $r;
+                }
+            }
+        }
+        foreach ($this->managedTeams as $t) {
+            $r = $t->pivot->role ?? null;
+            if ($r && ! isset($roleByTeam[$t->id])) {
+                $roleByTeam[$t->id] = $r;
+            }
+        }
+        $roleLabels = \App\Models\Member::TEAM_FUNCTIONS;
+        $roleLabelFor = fn ($teamId) => isset($roleByTeam[$teamId])
+            ? ($roleLabels[$roleByTeam[$teamId]] ?? $roleByTeam[$teamId])
+            : '';
+
         return [
             'id'            => $this->id,
             'name'          => $this->name,
@@ -47,6 +69,7 @@ class UserResource extends JsonResource
             'teams' => $accessibleTeams->map(fn ($t) => [
                 'id'   => $t->id,
                 'name' => $t->name,
+                'role' => $roleLabelFor($t->id),
             ])->values(),
             'member_id'         => $this->member?->id ?? '',
             'relatiecode'       => $this->member?->external_id ?? '',
