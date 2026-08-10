@@ -88,6 +88,29 @@ class ReleaseNotesSeeder extends Seeder
                     . 'passen zich direct aan. Bardiensten en rijschema blijven van al je teams zichtbaar, '
                     . 'want die zijn persoonlijk. Bij één team verschijnt de keuze niet.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Kleedkamer bij trainingen',
+                'description' => 'Bij een training zie je nu (indien bekend) de kleedkamer, zodat je '
+                    . 'meteen weet waar je moet zijn.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Clublogo in de app',
+                'description' => 'Het clublogo staat nu rechtsboven in de app, op elke pagina.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Je functie per team op je profiel',
+                'description' => 'Op je profiel zie je nu bij elk team ook je functie (bijvoorbeeld speler, '
+                    . 'coach of leider).',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Aantal dagen bij nieuws klopt weer',
+                'description' => 'Bij nieuwsberichten werd soms een lange reeks cijfers getoond in plaats van '
+                    . 'het aantal dagen. Er staat nu weer netjes "Vandaag" of "X dagen geleden".',
+            ],
         ];
 
         $sort = 0;
