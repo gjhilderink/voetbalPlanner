@@ -104,7 +104,8 @@ class NewsItemResource extends Resource
                     ->label('Push-melding sturen naar alle gebruikers')
                     ->helperText('Stuurt bij opslaan een pushbericht met de titel naar iedereen met de app.')
                     ->default(false)
-                    ->dehydrated(false)
+                    // Geen DB-kolom: CreateNewsItem leest + verwijdert dit veld in
+                    // mutateFormDataBeforeCreate voordat het item wordt opgeslagen.
                     ->visibleOn('create'),
             ])->columns(2),
         ]);

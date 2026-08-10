@@ -14,8 +14,16 @@ class CreateNewsItem extends CreateRecord
 {
     protected static string $resource = NewsItemResource::class;
 
+    /** Onthoudt de "Push-melding sturen"-keuze; send_push is geen DB-kolom. */
+    protected bool $sendPush = false;
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        // Lees + verwijder het niet-opgeslagen push-veld vóórdat het model wordt
+        // aangemaakt (betrouwbaarder dan $this->data uitlezen in afterCreate).
+        $this->sendPush = (bool) ($data['send_push'] ?? false);
+        unset($data['send_push']);
+
         $tenant = filament()->getTenant();
         $user   = auth()->user();
         $data['club_id']   ??= $tenant?->id ?? $user?->club_id;
@@ -30,8 +38,7 @@ class CreateNewsItem extends CreateRecord
      */
     protected function afterCreate(): void
     {
-        $sendPush = (bool) ($this->data['send_push'] ?? false);
-        if (! $sendPush || ! $this->record->is_published) {
+        if (! $this->sendPush || ! $this->record->is_published) {
             return;
         }
 
