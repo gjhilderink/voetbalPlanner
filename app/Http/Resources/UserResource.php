@@ -53,7 +53,7 @@ class UserResource extends JsonResource
                 'name'            => $this->club->name,
                 'slug'            => $this->club->slug,
                 'logo_path'       => $this->club->logo_path,
-                'logo_url'        => $this->club->logo_path ? asset('storage/' . $this->club->logo_path) : '',
+                'logo_url'        => $this->club->logo_path ? \Illuminate\Support\Facades\Storage::disk('logos')->url($this->club->logo_path) : '',
                 'primary_color'   => $this->club->primary_color ?? '#1e3a5f',
                 'secondary_color' => $this->club->secondary_color ?? '#3b82f6',
                 'accent_color'    => $this->club->accent_color ?? '#10b981',
