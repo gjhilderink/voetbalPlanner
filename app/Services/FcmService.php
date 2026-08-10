@@ -67,6 +67,16 @@ class FcmService
                 return false;
             }
 
+            // FCM accepteerde het bericht voor het topic. LET OP: dit zegt niets
+            // over aflevering — FCM geeft ook 200 als niemand op het topic
+            // geabonneerd is. Aflevering vereist een echte app-build (geen web-
+            // testmode), notificatie-permissie én een toestel dat op het topic
+            // geabonneerd is (subscribeToChatTopics draait op de Chats-/
+            // Wedstrijden-pagina).
+            Log::info('[FCM] push geaccepteerd door FCM', [
+                'topic' => $topic,
+                'name'  => $response->json('name'),
+            ]);
             return true;
         } catch (\Throwable $e) {
             Log::warning('[FCM] push-exception', ['topic' => $topic, 'error' => $e->getMessage()]);
