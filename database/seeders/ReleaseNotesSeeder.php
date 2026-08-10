@@ -111,6 +111,20 @@ class ReleaseNotesSeeder extends Seeder
                 'description' => 'Bij nieuwsberichten werd soms een lange reeks cijfers getoond in plaats van '
                     . 'het aantal dagen. Er staat nu weer netjes "Vandaag" of "X dagen geleden".',
             ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Kind/lid koppelen werkt volledig',
+                'description' => 'Een koppelverzoek op basis van lidnummer en achternaam komt nu correct aan, '
+                    . 'en je ziet je ingediende verzoeken terug in het overzicht "Mijn aanvragen" met hun '
+                    . 'status. Ook krijg je bij een fout een duidelijke uitleg in plaats van steeds '
+                    . '"geen lid gevonden".',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Clublogo netter in beeld',
+                'description' => 'Het clublogo wordt nu als nette rechthoek getoond (niet meer rond bijgesneden) '
+                    . 'en staat ook onderaan in het uitklapmenu.',
+            ],
         ];
 
         $sort = 0;
