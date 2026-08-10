@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Filament\Resources\NewsItemResource\Pages;
 
 use App\Filament\Resources\NewsItemResource;
+use App\Services\FcmService;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Str;
 
 class CreateNewsItem extends CreateRecord
 {
@@ -18,6 +21,31 @@ class CreateNewsItem extends CreateRecord
         $data['club_id']   ??= $tenant?->id ?? $user?->club_id;
         $data['author_id'] ??= $user?->id;
         return $data;
+    }
+
+    /**
+     * Stuur na het aanmaken een push naar alle app-gebruikers, als de "Push-
+     * melding sturen"-toggle aanstond en het item gepubliceerd is. Faalt stil
+     * (FcmService logt zelf); het aanmaken mag er nooit op stuklopen.
+     */
+    protected function afterCreate(): void
+    {
+        $sendPush = (bool) ($this->data['send_push'] ?? false);
+        if (! $sendPush || ! $this->record->is_published) {
+            return;
+        }
+
+        $ok = app(FcmService::class)->sendToTopic(
+            'all_users',
+            $this->record->title,
+            Str::limit(trim(strip_tags((string) $this->record->body)), 140),
+            ['initialPageName' => 'NewsPage', 'parameterData' => '{}'],
+        );
+
+        Notification::make()
+            ->title($ok ? 'Push verstuurd naar alle gebruikers.' : 'Push niet verstuurd (controleer de FCM-configuratie).')
+            ->{$ok ? 'success' : 'warning'}()
+            ->send();
     }
 
     protected function getRedirectUrl(): string

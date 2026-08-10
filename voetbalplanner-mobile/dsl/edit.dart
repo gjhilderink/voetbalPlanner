@@ -2937,6 +2937,8 @@ Future<void> _doSubscribeChatTopics() async {
     if (teamId.isNotEmpty) {
       await messaging.subscribeToTopic('team_$teamId');
     }
+    // Globaal topic voor clubbrede push (bv. nieuwsberichten naar alle gebruikers).
+    await messaging.subscribeToTopic('all_users');
   } catch (_) {
     // FCM topic subscription wordt op web niet ondersteund — sla netjes over.
   }

@@ -99,6 +99,13 @@ class NewsItemResource extends Resource
                 Forms\Components\Toggle::make('is_published')
                     ->label('Gepubliceerd')
                     ->default(true),
+                // Niet-opgeslagen veld: stuurt bij aanmaken een push naar iedereen.
+                Forms\Components\Toggle::make('send_push')
+                    ->label('Push-melding sturen naar alle gebruikers')
+                    ->helperText('Stuurt bij opslaan een pushbericht met de titel naar iedereen met de app.')
+                    ->default(false)
+                    ->dehydrated(false)
+                    ->visibleOn('create'),
             ])->columns(2),
         ]);
     }
