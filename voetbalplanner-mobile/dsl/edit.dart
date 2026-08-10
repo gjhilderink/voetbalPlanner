@@ -20092,13 +20092,11 @@ void _addWedstrijdScoreSection(FFProject project) {
     );
     // Volledige breedte + rand: de HELE rij is nu aantikbaar (voorheen alleen de
     // smalle tekstbreedte, waardoor selecteren vaak mislukte) en ziet er tikbaar uit.
+    // Volledige breedte + padding: de hele rij blijft aantikbaar (geen rand meer).
     final itemRow = UI.container(
       name: 'ScoreMemberRow',
       width: double.infinity,
       padding: UIEdgeInsets.symmetric(vertical: 12, horizontal: 12),
-      borderRadius: 8,
-      borderColor: UIColor.primary,
-      borderWidth: 1,
       child: nameText,
     );
     itemRow.triggerActions.add(FFTriggerActions(
@@ -20198,6 +20196,25 @@ void _addWedstrijdScoreSection(FFProject project) {
     // Opslaan) BOVEN de lijst en dus direct in beeld — voorheen vielen ze onder
     // de lijst buiten het scherm. Werkt als een in-line pop-up: kies speler →
     // vul minuut → opslaan.
+    // "Annuleren" wist de keuze (verkeerde speler aangetikt) → het controls-blok
+    // verdwijnt weer en je kunt opnieuw kiezen.
+    final cancelBtn = UI.button(
+      'Annuleren',
+      name: 'ScoreCancelButton',
+      width: double.infinity,
+    );
+    cancelBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.updatePageState(
+          project,
+          widgetClassName: 'WedstrijdDetailPage',
+          updates: [StateFieldUpdate.set('selectedScorerName', '')],
+        ),
+      ),
+    ));
+
     final controlsBox = UI.container(
       name: 'ScoreSelectedControls',
       width: double.infinity,
@@ -20208,7 +20225,7 @@ void _addWedstrijdScoreSection(FFProject project) {
         name: 'ScoreSelectedControlsCol',
         crossAxisAlignment: UICrossAxisAlignment.stretch,
         spacing: 8,
-        children: [selText, minuteField, placeBtn],
+        children: [selText, minuteField, placeBtn, cancelBtn],
       ),
     );
     setConditionalVisibility(
