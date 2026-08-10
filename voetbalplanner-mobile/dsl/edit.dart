@@ -937,26 +937,33 @@ void buildEditFlow(App app) {
       ),
     );
 
-    // Tegenstander-clublogo vooraan (leading). Bal-icoon als fallback als er
-    // geen logo bekend is.
+    // Tegenstander-clublogo vooraan (leading) met 5px padding rechts, bal-icoon
+    // als fallback. Eén wrapper-node (i.p.v. twee losse siblings vóór dezelfde
+    // anchor) houdt de insert idempotent bij herhaalde pushes.
     c.ensureInsertedBefore(
       c.findByKey('Column_s11zr5yj'),
-      Image(
-        Param('opponentLogo'),
-        isNetwork: true,
-        fit: ImageFit.cover,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        name: 'MatchCardOpponentLogo',
-        visible: Not(Equals(Param('opponentLogo'), '')),
+      Container(
+        name: 'MatchCardLogoWrap',
+        padding: EdgeInsets.only(right: 5),
+        child: Row(
+          name: 'MatchCardLogoRow',
+          children: [
+            Image(
+              Param('opponentLogo'),
+              isNetwork: true,
+              fit: ImageFit.cover,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              name: 'MatchCardLogoImg',
+              visible: Not(Equals(Param('opponentLogo'), '')),
+            ),
+            Icon('sports_soccer', size: 28, color: Colors.primary,
+                name: 'MatchCardLogoFallbackIcon',
+                visible: Equals(Param('opponentLogo'), '')),
+          ],
+        ),
       ),
-    );
-    c.ensureInsertedBefore(
-      c.findByKey('Column_s11zr5yj'),
-      Icon('sports_soccer', size: 28, color: Colors.primary,
-          name: 'MatchCardLogoFallback',
-          visible: Equals(Param('opponentLogo'), '')),
     );
 
     // Thuis/Uit-badge boven de tegenstandernaam.
@@ -985,6 +992,17 @@ void buildEditFlow(App app) {
         ],
       ),
     );
+  });
+
+  // Ruim de vroegere losse leading-nodes (bare logo + fallback-icoon) op; die
+  // zijn vervangen door de idempotente MatchCardLogoWrap-container. removeWhere
+  // is veilig ongeacht of ze nog bestaan.
+  app.raw((project) {
+    final mc = project.getWidgetClassByName('MatchCard');
+    if (mc == null) return;
+    final row = findDescendants(mc.node, (n) => n.key == 'Row_bzwq8x08').firstOrNull;
+    row?.children.removeWhere((c) =>
+        c.name == 'MatchCardOpponentLogo' || c.name == 'MatchCardLogoFallback');
   });
 
   // WedstrijdDetailPage must exist before match navigation can be set up.
