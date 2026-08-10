@@ -182,7 +182,7 @@ class GuardianController extends Controller
         $member = $request->user()->member;
 
         if (! $member) {
-            return response()->json(['success' => true, 'data' => [], 'message' => '']);
+            return response()->json([]);
         }
 
         $links = GuardianLink::with('guardian')
@@ -198,11 +198,9 @@ class GuardianController extends Controller
                 'expiresAt'     => $link->expires_at->toISOString(),
             ]);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $links,
-            'message' => '',
-        ]);
+        // Kale array (geen {success,data,message}-wrapper): de app parset de
+        // respons rechtstreeks als lijst, net als bij trainingen/bardiensten.
+        return response()->json($links->values());
     }
 
     /**
@@ -322,7 +320,7 @@ class GuardianController extends Controller
         $member = $request->user()->member;
 
         if (! $member) {
-            return response()->json(['success' => true, 'data' => [], 'message' => '']);
+            return response()->json([]);
         }
 
         $links = GuardianLink::with('child')
@@ -340,11 +338,8 @@ class GuardianController extends Controller
             'approvedAt' => $link->resolved_at?->toISOString(),
         ]);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $children,
-            'message' => '',
-        ]);
+        // Kale array (zie children-parsing in de app).
+        return response()->json($children->values());
     }
 
     /**
@@ -357,7 +352,7 @@ class GuardianController extends Controller
         $member = $request->user()->member;
 
         if (! $member) {
-            return response()->json(['success' => true, 'data' => [], 'message' => '']);
+            return response()->json([]);
         }
 
         $links = GuardianLink::with('child')
@@ -365,11 +360,9 @@ class GuardianController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        return response()->json([
-            'success' => true,
-            'data'    => GuardianLinkResource::collection($links),
-            'message' => '',
-        ]);
+        // Kale array (->resolve() ontdoet van de JsonResource {data:…}-wrapper),
+        // zodat de app de respons rechtstreeks als lijst kan parsen.
+        return response()->json(GuardianLinkResource::collection($links)->resolve());
     }
 
     /**
