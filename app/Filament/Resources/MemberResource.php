@@ -98,7 +98,45 @@ class MemberResource extends Resource
                     ->dehydrated(false)
                     ->columnSpanFull(),
             ]),
+
+            // Alleen-lezen overzicht van ouder/verzorger-koppelingen. Alleen op de
+            // bewerkpagina (bij create bestaat het record nog niet).
+            Section::make('Ouder/verzorger-koppelingen')
+                ->description('Met wie dit lid gekoppeld is.')
+                ->schema([
+                    Forms\Components\Placeholder::make('guardian_children_list')
+                        ->label('Kinderen (dit lid is ouder/verzorger)')
+                        ->content(fn (?Member $record): string => self::couplingSummary($record, 'children')),
+                    Forms\Components\Placeholder::make('guardians_list')
+                        ->label('Ouders/verzorgers (dit lid is kind)')
+                        ->content(fn (?Member $record): string => self::couplingSummary($record, 'guardians')),
+                ])
+                ->columns(2)
+                ->hiddenOn('create'),
         ]);
+    }
+
+    /**
+     * Leesbare samenvatting van koppelingen voor de bewerkpagina.
+     * $side: 'children' (kinderen van dit lid) of 'guardians' (ouders van dit lid).
+     */
+    public static function couplingSummary(?Member $record, string $side): string
+    {
+        if (! $record) {
+            return '—';
+        }
+
+        if ($side === 'children') {
+            $items = $record->guardianLinks
+                ->filter(fn ($l) => $l->status !== 'revoked' && $l->child)
+                ->map(fn ($l) => $l->child->name . ' — ' . self::guardianStatusLabel($l->status));
+        } else {
+            $items = $record->childLinks
+                ->filter(fn ($l) => $l->status !== 'revoked' && $l->guardian)
+                ->map(fn ($l) => $l->guardian->name . ' — ' . self::guardianStatusLabel($l->status));
+        }
+
+        return $items->isEmpty() ? '—' : $items->implode(', ');
     }
 
     /**
@@ -125,6 +163,51 @@ class MemberResource extends Resource
         }
 
         $member->teams()->sync($sync);
+    }
+
+    /**
+     * Nederlandse status-labels voor een ouder/verzorger-koppeling.
+     */
+    public static function guardianStatusLabel(string $status): string
+    {
+        return match ($status) {
+            'pending'  => 'aangevraagd',
+            'approved' => 'gekoppeld',
+            'rejected' => 'geweigerd',
+            'revoked'  => 'ingetrokken',
+            default    => $status,
+        };
+    }
+
+    /**
+     * Bouwt losse labels op ("Kind: …", "Ouder: …") voor de personen waarmee dit
+     * lid gekoppeld is. Toont actieve (approved) én lopende (pending) koppelingen;
+     * geweigerde/ingetrokken worden weggelaten. Gebruikt de reeds ge-eager-loade
+     * relaties (zie getEloquentQuery) om N+1 te voorkomen.
+     */
+    public static function couplingLabels(Member $record): array
+    {
+        $labels = [];
+
+        // Dit lid is ouder/verzorger van deze kinderen.
+        foreach ($record->guardianLinks as $link) {
+            if (! in_array($link->status, ['approved', 'pending'], true) || ! $link->child) {
+                continue;
+            }
+            $suffix   = $link->status === 'pending' ? ' (aangevraagd)' : '';
+            $labels[] = 'Kind: ' . $link->child->name . $suffix;
+        }
+
+        // Dit lid is kind; deze personen zijn ouder/verzorger.
+        foreach ($record->childLinks as $link) {
+            if (! in_array($link->status, ['approved', 'pending'], true) || ! $link->guardian) {
+                continue;
+            }
+            $suffix   = $link->status === 'pending' ? ' (aangevraagd)' : '';
+            $labels[] = 'Ouder: ' . $link->guardian->name . $suffix;
+        }
+
+        return $labels;
     }
 
     public static function table(Table $table): Table
@@ -156,6 +239,13 @@ class MemberResource extends Resource
                         'staff'   => 'gray',
                         default   => 'primary',
                     }),
+                Tables\Columns\TextColumn::make('couplings')
+                    ->label('Gekoppeld met')
+                    ->badge()
+                    ->getStateUsing(fn (Member $record): array => self::couplingLabels($record))
+                    ->color(fn ($state): string => str_contains((string) $state, '(aangevraagd)') ? 'warning' : 'success')
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('email')->label('E-mail')->searchable()->toggleable(),
                 Tables\Columns\TextColumn::make('phone')->label('Mobiel')->toggleable(),
                 Tables\Columns\TextColumn::make('source')
@@ -230,6 +320,8 @@ class MemberResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query  = parent::getEloquentQuery();
+        // Koppelingen (met tegenpartij) eager-loaden voor de "Gekoppeld met"-kolom.
+        $query->with(['guardianLinks.child', 'childLinks.guardian']);
         $user   = auth()->user();
         $tenant = filament()->getTenant();
 
