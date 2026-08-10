@@ -21,6 +21,7 @@ class BrandingController extends Controller
             'accentColor'    => $club?->accent_color    ?? '#10b981',
             'clubName'       => $club?->name            ?? '',
             'logoPath'       => $club?->logo_path,
+            'logoUrl'        => $club?->logo_path ? asset('storage/' . $club->logo_path) : '',
         ]);
     }
 }
