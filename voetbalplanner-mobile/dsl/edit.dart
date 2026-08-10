@@ -19838,6 +19838,23 @@ void _addScoreEndpoints(FFProject project) {
       headers: ['Authorization: Bearer [token]'],
     );
   }
+  // Spelerlijst voor de doelpunt-maker: álle teamleden INCLUSIEF de ingelogde
+  // gebruiker (?include_self=1). Het gedeelde GetTeamMembers sluit jezelf uit
+  // (bedoeld voor swap/chat: niet met jezelf), waardoor je in de maker-keuze
+  // niet iedereen zag. Zelfde SwapMember-vorm, aparte URL.
+  if (!has('GetScorerMembers')) {
+    addEndpointToGroup(
+      project,
+      groupName: 'VoetbalPlannerAPI',
+      name: 'GetScorerMembers',
+      url: '/teams/[teamId]/members?include_self=1',
+      method: FFApiEndpoint_CallType.GET,
+      variables: {'teamId': str()},
+      headers: ['Authorization: Bearer [bearerToken]'],
+      responseDataStructName: 'SwapMember',
+      responseDataStructIsList: true,
+    );
+  }
 }
 
 // Coach-sectie op de WedstrijdDetailPage met de doelpunten-samenvatting (uit
@@ -19878,12 +19895,30 @@ void _addWedstrijdScoreSection(FFProject project) {
   // GetMatchDetail (eerder in de page-load-chain).
   final scoreMembersId = _findAppStateFieldId(project, 'scoreTeamMembers');
   final matchTeamIdVar = stateVar('matchTeamId');
+  final scorerEp = findApiEndpoint(project, name: 'GetScorerMembers', groupName: 'VoetbalPlannerAPI');
+  // Bestaande score-load van vorige pushes wees naar GetTeamMembers (dat jezelf
+  // uitsluit). Buig zulke nodes op deze pagina om naar GetScorerMembers zodat de
+  // maker-keuze álle teamleden toont. GetTeamMembers wordt op deze pagina nergens
+  // anders gebruikt, dus dit is veilig.
+  if (scorerEp != null) {
+    void retarget(FFActionNode n) {
+      if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
+          n.action.database.apiCall.hasEndpointIdentifier() &&
+          n.action.database.apiCall.endpointIdentifier.name == 'GetTeamMembers') {
+        n.action.database.apiCall.endpointIdentifier = scorerEp.identifier.deepCopy();
+      }
+      if (n.hasFollowUpAction()) retarget(n.followUpAction);
+    }
+    for (final t in wc.node.triggerActions) {
+      if (t.hasRootAction()) retarget(t.rootAction);
+    }
+  }
   if (authTokenId != null && matchTeamIdVar != null && scoreMembersId != null &&
-      findApiEndpoint(project, name: 'GetTeamMembers', groupName: 'VoetbalPlannerAPI') != null) {
+      scorerEp != null) {
     bool hasLoad(FFActionNode n) {
       if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
           n.action.database.apiCall.hasEndpointIdentifier() &&
-          n.action.database.apiCall.endpointIdentifier.name == 'GetTeamMembers') return true;
+          n.action.database.apiCall.endpointIdentifier.name == 'GetScorerMembers') return true;
       if (n.hasFollowUpAction() && hasLoad(n.followUpAction)) return true;
       return false;
     }
@@ -19893,7 +19928,7 @@ void _addWedstrijdScoreSection(FFProject project) {
         wc.node,
         Actions.apiCallNode(
           project,
-          endpointName: 'GetTeamMembers',
+          endpointName: 'GetScorerMembers',
           groupName: 'VoetbalPlannerAPI',
           dynamicVariables: {'teamId': stateVar('matchTeamId')!},
           outputVariableName: 'scoreMembersLoad',
@@ -20127,7 +20162,16 @@ void _addWedstrijdScoreSection(FFProject project) {
       rootAction: apiNode,
     ));
 
-    return [label, listView, selText, minuteField, placeBtn];
+    // Begrens de spelerlijst tot een vaste hoogte met eigen scroll: bij een
+    // lange lijst (heel team) viel die anders buiten het scherm (bottom overflow)
+    // omdat de shrinkWrap-ListView alle items in de layout duwt.
+    final membersScroll = UI.container(
+      name: 'ScoreMembersScroll',
+      height: 200,
+      clipContent: true,
+      child: listView,
+    );
+    return [label, membersScroll, selText, minuteField, placeBtn];
   }
 
   // Plaatst ontbrekende coach-controls (toevoeg-form + verwijder-knop) in de sectie.
@@ -20157,7 +20201,8 @@ void _addWedstrijdScoreSection(FFProject project) {
     existingContainer.children.removeWhere((n) =>
         n.name == 'ScoreScorerField' || n.name == 'ScoreMinuteField' ||
         n.name == 'ScoreAddButton' || n.name == 'ScoreAddLabel' ||
-        n.name == 'ScoreSelectedText' || n.name == 'ScoreMembersList');
+        n.name == 'ScoreSelectedText' || n.name == 'ScoreMembersList' ||
+        n.name == 'ScoreMembersScroll');
     ensureControls(existingContainer);
     return;
   }

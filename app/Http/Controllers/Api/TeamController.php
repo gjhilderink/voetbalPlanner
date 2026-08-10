@@ -51,9 +51,14 @@ class TeamController extends Controller
         $myMemberId = $request->user()?->member?->id;
         $myUserId   = $request->user()?->id;
 
+        // Bij de doelpunt-maker-keuze (?include_self=1) moet de volledige selectie
+        // getoond worden, inclusief de ingelogde gebruiker zelf. Voor swap/chat
+        // blijft de gebruiker uitgesloten (je wisselt/chat niet met jezelf).
+        $includeSelf = $request->boolean('include_self');
+
         // 1. Klassieke Sportlink-leden via member_team pivot.
         $members = $team->members()
-            ->when($myMemberId, fn($q) => $q->where('members.id', '!=', $myMemberId))
+            ->when($myMemberId && ! $includeSelf, fn($q) => $q->where('members.id', '!=', $myMemberId))
             ->orderBy('members.name')
             ->get();
 
@@ -73,7 +78,7 @@ class TeamController extends Controller
 
         $extraUsers = $team->users()
             ->whereNotIn('users.id', $linkedMemberUserIds)
-            ->when($myUserId, fn($q) => $q->where('users.id', '!=', $myUserId))
+            ->when($myUserId && ! $includeSelf, fn($q) => $q->where('users.id', '!=', $myUserId))
             ->orderBy('users.name')
             ->get();
 
