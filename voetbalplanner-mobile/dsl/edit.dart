@@ -20071,11 +20071,34 @@ void _addWedstrijdScoreSection(FFProject project) {
       dynamicSource: DynamicSource(variable: membersVar, itemName: 'lid'),
     );
     final nameText = UI.text('', name: 'ScoreMemberName', style: UITextStyle.bodyMedium);
-    nameText.props.text.textValue =
-        FFStringValue(variable: generatorVarField(listView.key, 'name'));
+    // Vinkje vóór de gekozen speler → duidelijke selectie-feedback.
+    nameText.props.text.textValue = FFStringValue(
+      variable: codeExpressionVar(
+        expression: "((sel ?? '') != '' && (sel ?? '') == (nm ?? '')) ? ('✓  ' + (nm ?? '')) : (nm ?? '')",
+        arguments: [
+          CodeExpressionArg(
+            name: 'sel',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: stateVar('selectedScorerName')!),
+          ),
+          CodeExpressionArg(
+            name: 'nm',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: generatorVarField(listView.key, 'name')),
+          ),
+        ],
+        returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+      ),
+    );
+    // Volledige breedte + rand: de HELE rij is nu aantikbaar (voorheen alleen de
+    // smalle tekstbreedte, waardoor selecteren vaak mislukte) en ziet er tikbaar uit.
     final itemRow = UI.container(
       name: 'ScoreMemberRow',
-      padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      width: double.infinity,
+      padding: UIEdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      borderRadius: 8,
+      borderColor: UIColor.primary,
+      borderWidth: 1,
       child: nameText,
     );
     itemRow.triggerActions.add(FFTriggerActions(
