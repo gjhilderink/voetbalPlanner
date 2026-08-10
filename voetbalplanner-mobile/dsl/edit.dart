@@ -19997,6 +19997,71 @@ void _addWedstrijdScoreSection(FFProject project) {
         ]),
       );
 
+  // ── Verwijderknop per doelpunt op de Doelpunten-tab ─────────────────────────
+  // Alleen zichtbaar met beheerrechten (matchMagOpstelling == 'true'). Tik →
+  // DeleteGoal(goalId van het item) → refreshGoals herlaadt de lijst, zodat de
+  // Doelpunten-tab meteen bijwerkt. Idempotent: skip als de knop er al staat.
+  final hasDeleteGoalEp = findApiEndpoint(
+      project, name: 'DeleteGoal', groupName: 'VoetbalPlannerAPI') != null;
+  if (authTokenId != null && matchIdParam != null && hasDeleteGoalEp) {
+    final goalsList =
+        findDescendants(wc.node, (n) => n.key == 'ListView_ueutzh5d').firstOrNull;
+    final goalRow = goalsList == null
+        ? null
+        : findDescendants(goalsList, (n) => n.key == 'Row_xazcvw5v').firstOrNull;
+    if (goalRow != null &&
+        findDescendants(goalRow, (n) => n.name == 'GoalDeleteButton').isEmpty) {
+      final delGoalBtn = UI.container(
+        name: 'GoalDeleteButton',
+        padding: UIEdgeInsets.all(6),
+        child: UI.icon('delete', size: 22, color: UIColor.error),
+      );
+      final delGoalApi = Actions.apiCallNode(
+        project,
+        endpointName: 'DeleteGoal',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+          'goalId': generatorVarField('ListView_ueutzh5d', 'id'),
+        },
+        outputVariableName: 'delGoalRowOut',
+        nodeKey: delGoalBtn.key,
+        onSuccess: (ctx) => FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Doelpunt verwijderd.'),
+          followUpAction: refreshGoals('delGoalRowRefresh', delGoalBtn.key),
+        ),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('Verwijderen mislukt — alleen de coach mag dit.'),
+        ]),
+      );
+      delGoalBtn.triggerActions.add(FFTriggerActions(
+        trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+        rootAction: delGoalApi,
+      ));
+      final magForDel = stateVar('matchMagOpstelling');
+      if (magForDel != null) {
+        setConditionalVisibility(
+          delGoalBtn,
+          variable: codeExpressionVar(
+            expression: "m == 'true'",
+            arguments: [
+              CodeExpressionArg(
+                name: 'm',
+                dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                value: FFValue(variable: magForDel),
+              ),
+            ],
+            returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+          ),
+        );
+      }
+      goalRow.children.add(delGoalBtn);
+    }
+  }
+
   // Bouwt de "Laatste doelpunt verwijderen"-knop (coach-actie) -> DeleteLastGoal
   // -> samenvatting bijwerken uit de response (geen re-fetch nodig). Null als de
   // benodigde token/param/endpoint ontbreekt.
