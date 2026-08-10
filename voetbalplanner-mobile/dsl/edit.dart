@@ -1260,6 +1260,9 @@ void buildEditFlow(App app) {
   // ProfielPage: ververs de gekoppelde teams automatisch bij het openen (zonder
   // opnieuw inloggen). Ná de WatchUnread-wiring zodat deze niet overschreven wordt.
   app.raw((project) => _wireProfielRefreshOnLoad(project));
+  // Ook op het dashboard: pikt team-wijzigingen (bv. extra team als coach)
+  // automatisch op zonder opnieuw inloggen, en zet de switcher-vlag goed.
+  app.raw((project) => _wireProfielRefreshOnLoad(project, 'DashboardPage'));
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
@@ -4431,8 +4434,8 @@ void _addProfielTeamsList(FFProject project) {
 // teams (availableTeams) + het huidige team automatisch verversen bij openen —
 // geen opnieuw inloggen nodig. Prepend zodat het naast WatchUnreadChatCount past.
 // Idempotent.
-void _wireProfielRefreshOnLoad(FFProject project) {
-  final wc = findPage(project, name: 'ProfielPage');
+void _wireProfielRefreshOnLoad(FFProject project, [String pageName = 'ProfielPage']) {
+  final wc = findPage(project, name: pageName);
   if (wc == null) return;
   final action = findCustomAction(project, name: 'RefreshCurrentTeam');
   if (action == null) return;
@@ -6025,6 +6028,9 @@ Future<String> verifyMagicLink(String? token) async {
         }
       }
       FFAppState().availableTeams = _teams;
+      // Zet ook meteen de switcher-vlag; anders bleef de team-switcher op het
+      // dashboard verborgen tot RefreshCurrentTeam (ProfielPage) had gedraaid.
+      FFAppState().hasMultipleTeams = _teams.length > 1;
       FFAppState().primaryColor    = (club['primary_color']   as String?) ?? '#1e3a5f';
       FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
@@ -6222,6 +6228,9 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
         if (_fb != null) _teams = [_fb];
       }
       FFAppState().availableTeams = _teams;
+      // Zet ook meteen de switcher-vlag; anders bleef de team-switcher op het
+      // dashboard verborgen tot RefreshCurrentTeam (ProfielPage) had gedraaid.
+      FFAppState().hasMultipleTeams = _teams.length > 1;
       FFAppState().primaryColor    = (club['primary_color']   as String?) ?? '#1e3a5f';
       FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
