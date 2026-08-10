@@ -125,6 +125,39 @@ class ReleaseNotesSeeder extends Seeder
                 'description' => 'Het clublogo wordt nu als nette rechthoek getoond (niet meer rond bijgesneden) '
                     . 'en staat ook onderaan in het uitklapmenu.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Push-meldingen',
+                'description' => 'Je ontvangt nu push-meldingen op je telefoon: bij een nieuw nieuwsbericht en '
+                    . 'wanneer een ouder/verzorger jouw account wil koppelen. Zet notificaties aan om ze te '
+                    . 'ontvangen.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Clublogo en thuis/uit bij wedstrijden',
+                'description' => 'In de wedstrijdenlijst zie je nu bij elke wedstrijd het clublogo van de '
+                    . 'tegenstander en een duidelijke "Thuis"- of "Uit"-badge.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Doelpunten beheren verbeterd (coach)',
+                'description' => 'Voor coaches en leiders: een doelpunt toevoegen gaat nu via het kiezen van de '
+                    . 'speler uit de lijst (met minuut), je kunt een keuze annuleren, en op de Doelpunten-tab '
+                    . 'kun je losse doelpunten verwijderen. De lijst werkt meteen bij.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Wedstrijddetail volledig zichtbaar',
+                'description' => 'Onderaan de wedstrijddetails viel soms informatie (zoals af-/aanmelden) buiten '
+                    . 'beeld. De pagina scrollt nu volledig.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Team wisselen werkt bij meerdere teams',
+                'description' => 'Ben je aan meerdere teams gekoppeld (bijvoorbeeld als coach van twee teams)? '
+                    . 'De teamkiezer verschijnt nu goed op het dashboard en je wedstrijden laden voor het '
+                    . 'juiste team — zonder opnieuw in te loggen.',
+            ],
         ];
 
         $sort = 0;
