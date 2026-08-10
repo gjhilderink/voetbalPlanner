@@ -159,6 +159,24 @@ class GuardianController extends Controller
             'expires_at'         => now()->addDays(14),
         ]);
 
+        // Push-melding naar het lid (kind) dat er een koppeling is aangevraagd.
+        // Alleen zinvol als het lid een app-account heeft (het toestel abonneert op
+        // topic user_<sanitize(login-e-mail)>). Faalt stil; breekt het verzoek nooit.
+        $childEmail = $child->user?->email ?? $child->email;
+        if (! empty($childEmail)) {
+            try {
+                app(\App\Services\FcmService::class)->sendToTopic(
+                    'user_' . \App\Services\FcmService::sanitizeTopicEmail($childEmail),
+                    'Nieuw koppelverzoek',
+                    ($guardian->name ?: 'Een ouder/verzorger')
+                        . ' wil aan jouw account gekoppeld worden. Open de app om te bevestigen.',
+                    ['initialPageName' => 'GuardianPage', 'parameterData' => '{}'],
+                );
+            } catch (\Throwable $e) {
+                \Log::warning('[Guardian] push naar lid mislukt', ['error' => $e->getMessage()]);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'data'    => [

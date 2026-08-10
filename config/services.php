@@ -41,4 +41,11 @@ return [
         'timeout' => env('MCP_TIMEOUT', 30),
     ],
 
+    // Firebase Cloud Messaging (push). 'credentials' = pad naar de service-account
+    // JSON (Firebase Console → Projectinstellingen → Serviceaccounts → Nieuwe
+    // privésleutel). Absoluut pad, of relatief t.o.v. de projectroot. Leeg = push uit.
+    'fcm' => [
+        'credentials' => env('FCM_CREDENTIALS', storage_path('app/firebase-service-account.json')),
+    ],
+
 ];
