@@ -10284,17 +10284,11 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
       bound++;
     }
     stderr.writeln('[DEBUG WedstrijdDetailPage] fallback bound $bound nodes');
-    // Find the inner column that owns the MatchInfoRow_* children and prepend status text.
-    final innerColumn = findDescendants(wc.node, (n) =>
-        n.children.any((c) => c.name == 'MatchInfoRow_opponent')).firstOrNull;
-    if (innerColumn != null) {
-      final apiStatusNode = UI.text('api:?', name: 'MatchApiStatus', style: UITextStyle.bodySmall, color: UIColor.secondaryText);
-      final apiStatusVar = stateVar('apiStatus');
-      if (apiStatusVar != null) apiStatusNode.props.text.textValue = FFStringValue(variable: apiStatusVar);
-      if (!innerColumn.children.any((c) => c.name == 'MatchApiStatus')) {
-        innerColumn.children.insert(0, apiStatusNode);
-      }
-    }
+    // De api-status ("OK"/"FAILED") was een debug-readout bovenaan de tab.
+    // Verwijderen (ook eerder ingevoegde exemplaren van vorige pushes).
+    final statusParent = findDescendants(wc.node, (n) =>
+        n.children.any((c) => c.name == 'MatchApiStatus')).firstOrNull;
+    statusParent?.children.removeWhere((c) => c.name == 'MatchApiStatus');
     return;
   }
 
