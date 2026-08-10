@@ -13,10 +13,12 @@ class NewsItemResource extends JsonResource
     public function toArray(Request $request): array
     {
         $published = $this->published_at ?? $this->created_at;
-        $daysOld   = $published?->diffInDays(now()) ?? 0;
+        // Carbon 3 (Laravel 11) geeft diffInDays() als float terug; naar heel
+        // aantal dagen afronden, anders krijg je "12.45231… dagen geleden".
+        $daysOld   = (int) floor(abs($published?->diffInDays(now()) ?? 0));
 
         $subtitle = match (true) {
-            $daysOld <= 0 => 'Vandaag',
+            $daysOld <= 0  => 'Vandaag',
             $daysOld === 1 => '1 dag geleden',
             default        => "$daysOld dagen geleden",
         };
