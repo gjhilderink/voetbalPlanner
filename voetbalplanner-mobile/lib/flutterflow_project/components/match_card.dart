@@ -14,10 +14,12 @@ final class MatchCardComponentHandle extends ffai.ProjectComponentHandle<MatchCa
         widgets: MatchCardWidgets.tree,
         paramTypes: <String, ffai.DslType>{
           "coachName": ffai.string,
+          "isHome": ffai.bool_,
           "location": ffai.string,
           "matchDate": ffai.string,
           "matchId": ffai.string,
           "opponent": ffai.string,
+          "opponentLogo": ffai.string,
           "status": ffai.string,
         },
       );
@@ -26,10 +28,12 @@ final class MatchCardComponentHandle extends ffai.ProjectComponentHandle<MatchCa
     String? name,
     Object? visible,
     Object? coachName = ffai.kUnsetComponentArg,
+    Object? isHome = ffai.kUnsetComponentArg,
     Object? location = ffai.kUnsetComponentArg,
     Object? matchDate = ffai.kUnsetComponentArg,
     Object? matchId = ffai.kUnsetComponentArg,
     Object? opponent = ffai.kUnsetComponentArg,
+    Object? opponentLogo = ffai.kUnsetComponentArg,
     Object? status = ffai.kUnsetComponentArg,
   }) {
     return buildInstance(
@@ -37,10 +41,12 @@ final class MatchCardComponentHandle extends ffai.ProjectComponentHandle<MatchCa
       visible: visible,
       paramArgs: <String, Object?>{
         if (!ffai.isUnsetComponentArg(coachName)) "coachName": coachName,
+        if (!ffai.isUnsetComponentArg(isHome)) "isHome": isHome,
         if (!ffai.isUnsetComponentArg(location)) "location": location,
         if (!ffai.isUnsetComponentArg(matchDate)) "matchDate": matchDate,
         if (!ffai.isUnsetComponentArg(matchId)) "matchId": matchId,
         if (!ffai.isUnsetComponentArg(opponent)) "opponent": opponent,
+        if (!ffai.isUnsetComponentArg(opponentLogo)) "opponentLogo": opponentLogo,
         if (!ffai.isUnsetComponentArg(status)) "status": status,
       },
     );
@@ -54,6 +60,12 @@ final class MatchCardParams {
         name: "coachName",
         key: "h8fnu50d",
         typeName: "String",
+      );
+  ffai.ProjectParamHandle get isHome =>
+      const ffai.ProjectParamHandle(
+        name: "isHome",
+        key: "cgrjcxfm",
+        typeName: "Boolean",
       );
   ffai.ProjectParamHandle get location =>
       const ffai.ProjectParamHandle(
@@ -77,6 +89,12 @@ final class MatchCardParams {
       const ffai.ProjectParamHandle(
         name: "opponent",
         key: "ha6gtjvs",
+        typeName: "String",
+      );
+  ffai.ProjectParamHandle get opponentLogo =>
+      const ffai.ProjectParamHandle(
+        name: "opponentLogo",
+        key: "v4nhmfyx",
         typeName: "String",
       );
   ffai.ProjectParamHandle get status =>
@@ -115,45 +133,95 @@ abstract final class MatchCardWidgets {
               name: "Row",
               children: <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
+                  key: "Image_17wx5gx1",
+                  type: "Image",
+                  path: "MatchCard.children[0].children[0].children[0]",
+                  name: "MatchCardOpponentLogo",
+                ),
+                ffai.ProjectWidgetHandle(
+                  key: "Icon_d8sv5e7v",
+                  type: "Icon",
+                  path: "MatchCard.children[0].children[0].children[1]",
+                  name: "MatchCardLogoFallback",
+                ),
+                ffai.ProjectWidgetHandle(
                   key: "Column_s11zr5yj",
                   type: "Column",
-                  path: "MatchCard.children[0].children[0].children[0]",
+                  path: "MatchCard.children[0].children[0].children[2]",
                   name: "Column",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
+                      key: "Row_03cejmt4",
+                      type: "Row",
+                      path: "MatchCard.children[0].children[0].children[2].children[0]",
+                      name: "MatchCardHomeAwayRow",
+                      children: <ffai.ProjectWidgetHandle>[
+                        ffai.ProjectWidgetHandle(
+                          key: "Container_jbcdvav3",
+                          type: "Container",
+                          path: "MatchCard.children[0].children[0].children[2].children[0].children[0]",
+                          name: "MatchCardThuisBadge",
+                          children: <ffai.ProjectWidgetHandle>[
+                            ffai.ProjectWidgetHandle(
+                              key: "Text_e5y4gf3n",
+                              type: "Text",
+                              path: "MatchCard.children[0].children[0].children[2].children[0].children[0].children[0]",
+                              name: "Text",
+                              text: "Thuis",
+                            ),
+                          ],
+                        ),
+                        ffai.ProjectWidgetHandle(
+                          key: "Container_qzjxmzlh",
+                          type: "Container",
+                          path: "MatchCard.children[0].children[0].children[2].children[0].children[1]",
+                          name: "MatchCardUitBadge",
+                          children: <ffai.ProjectWidgetHandle>[
+                            ffai.ProjectWidgetHandle(
+                              key: "Text_ibyhhi48",
+                              type: "Text",
+                              path: "MatchCard.children[0].children[0].children[2].children[0].children[1].children[0]",
+                              name: "Text",
+                              text: "Uit",
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    ffai.ProjectWidgetHandle(
                       key: "Text_u4gsnnpe",
                       type: "Text",
-                      path: "MatchCard.children[0].children[0].children[0].children[0]",
+                      path: "MatchCard.children[0].children[0].children[2].children[1]",
                       name: "Text",
                     ),
                     ffai.ProjectWidgetHandle(
                       key: "Text_vdx0cm7j",
                       type: "Text",
-                      path: "MatchCard.children[0].children[0].children[0].children[1]",
+                      path: "MatchCard.children[0].children[0].children[2].children[2]",
                       name: "Text",
                     ),
                     ffai.ProjectWidgetHandle(
                       key: "Text_jhrh5km7",
                       type: "Text",
-                      path: "MatchCard.children[0].children[0].children[0].children[2]",
+                      path: "MatchCard.children[0].children[0].children[2].children[3]",
                       name: "Text",
                     ),
                     ffai.ProjectWidgetHandle(
                       key: "Row_za13z6sa",
                       type: "Row",
-                      path: "MatchCard.children[0].children[0].children[0].children[3]",
+                      path: "MatchCard.children[0].children[0].children[2].children[4]",
                       name: "MatchCardCoachRow",
                       children: <ffai.ProjectWidgetHandle>[
                         ffai.ProjectWidgetHandle(
                           key: "Icon_mvamxnbi",
                           type: "Icon",
-                          path: "MatchCard.children[0].children[0].children[0].children[3].children[0]",
+                          path: "MatchCard.children[0].children[0].children[2].children[4].children[0]",
                           name: "Icon",
                         ),
                         ffai.ProjectWidgetHandle(
                           key: "Text_3tb3dt8k",
                           type: "Text",
-                          path: "MatchCard.children[0].children[0].children[0].children[3].children[1]",
+                          path: "MatchCard.children[0].children[0].children[2].children[4].children[1]",
                           name: "MatchCardCoachText",
                         ),
                       ],
@@ -163,7 +231,7 @@ abstract final class MatchCardWidgets {
                 ffai.ProjectWidgetHandle(
                   key: "Container_25fed5n1",
                   type: "Container",
-                  path: "MatchCard.children[0].children[0].children[1]",
+                  path: "MatchCard.children[0].children[0].children[3]",
                   name: "StatusBadge",
                   componentName: "StatusBadge",
                 ),

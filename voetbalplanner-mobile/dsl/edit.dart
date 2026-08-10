@@ -913,6 +913,8 @@ void buildEditFlow(App app) {
   app.editComponentParams(ff.Components.matchCard, (params) {
     params.ensureParam('matchId', string.withDefault(''), description: 'Match ID for navigation');
     params.ensureParam('coachName', string.withDefault(''), description: 'Coach name');
+    params.ensureParam('opponentLogo', string.withDefault(''), description: 'Tegenstander clublogo (URL)');
+    params.ensureParam('isHome', bool_.withDefault(false), description: 'Thuiswedstrijd (true) of uit (false)');
   });
   // Remove unused action params idempotently (removeParam throws if already gone).
   app.raw((project) => _removeComponentParamIfExists(project, 'MatchCard', 'onTapAction'));
@@ -931,6 +933,55 @@ void buildEditFlow(App app) {
           Icon('sports_soccer', size: 14, color: Colors.secondaryText),
           Text(Param('coachName'),
               name: 'MatchCardCoachText', style: Styles.bodySmall),
+        ],
+      ),
+    );
+
+    // Tegenstander-clublogo vooraan (leading). Bal-icoon als fallback als er
+    // geen logo bekend is.
+    c.ensureInsertedBefore(
+      c.findByKey('Column_s11zr5yj'),
+      Image(
+        Param('opponentLogo'),
+        isNetwork: true,
+        fit: ImageFit.cover,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        name: 'MatchCardOpponentLogo',
+        visible: Not(Equals(Param('opponentLogo'), '')),
+      ),
+    );
+    c.ensureInsertedBefore(
+      c.findByKey('Column_s11zr5yj'),
+      Icon('sports_soccer', size: 28, color: Colors.primary,
+          name: 'MatchCardLogoFallback',
+          visible: Equals(Param('opponentLogo'), '')),
+    );
+
+    // Thuis/Uit-badge boven de tegenstandernaam.
+    c.ensureInsertedBefore(
+      c.findByKey('Text_u4gsnnpe'),
+      Row(
+        name: 'MatchCardHomeAwayRow',
+        spacing: 6,
+        children: [
+          Container(
+            name: 'MatchCardThuisBadge',
+            visible: Param('isHome'),
+            color: Colors.primary,
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            borderRadius: 8,
+            child: Text('Thuis', style: Styles.labelSmall, color: Colors.secondaryBackground),
+          ),
+          Container(
+            name: 'MatchCardUitBadge',
+            visible: Not(Param('isHome')),
+            color: Colors.secondaryText,
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            borderRadius: 8,
+            child: Text('Uit', style: Styles.labelSmall, color: Colors.secondaryBackground),
+          ),
         ],
       ),
     );
@@ -961,6 +1012,16 @@ void buildEditFlow(App app) {
       page.findByKey('Container_f1p12fqf'),
       'coachName',
       ItemRef()['coachName'],
+    );
+    page.setComponentParam(
+      page.findByKey('Container_f1p12fqf'),
+      'opponentLogo',
+      ItemRef()['opponentLogo'],
+    );
+    page.setComponentParam(
+      page.findByKey('Container_f1p12fqf'),
+      'isHome',
+      ItemRef()['isHome'],
     );
   });
   app.raw((project) {
