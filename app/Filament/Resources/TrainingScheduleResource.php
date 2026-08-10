@@ -87,6 +87,11 @@ class TrainingScheduleResource extends Resource
                     ->maxLength(255)
                     ->columnSpan(1),
 
+                Forms\Components\TextInput::make('dressing_room')
+                    ->label('Kleedkamer')
+                    ->maxLength(255)
+                    ->columnSpan(1),
+
                 Forms\Components\TimePicker::make('start_time')
                     ->label('Begintijd')
                     ->seconds(false)
@@ -133,6 +138,10 @@ class TrainingScheduleResource extends Resource
 
                 Tables\Columns\TextColumn::make('location')
                     ->label('Locatie')
+                    ->placeholder('—'),
+
+                Tables\Columns\TextColumn::make('dressing_room')
+                    ->label('Kleedkamer')
                     ->placeholder('—'),
 
                 Tables\Columns\IconColumn::make('is_active')

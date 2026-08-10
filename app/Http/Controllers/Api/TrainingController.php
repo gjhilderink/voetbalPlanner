@@ -76,7 +76,8 @@ class TrainingController extends Controller
                     'day_label'   => TrainingSchedule::$weekdayLabels[$schedule->weekday] ?? '',
                     'start_time'  => substr((string) $schedule->start_time, 0, 5),
                     'end_time'    => $schedule->end_time ? substr((string) $schedule->end_time, 0, 5) : '',
-                    'location'    => $schedule->location ?? '',
+                    'location'      => $schedule->location ?? '',
+                    'dressing_room' => $schedule->dressing_room ?? '',
                     'team_name'   => $schedule->team?->name ?? '',
                     'mijn_status' => $abs->first(fn ($a) =>
                         ($myMemberId && $a->member_id === $myMemberId) ||

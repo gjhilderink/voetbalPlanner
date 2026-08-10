@@ -13,7 +13,7 @@ class TrainingSchedule extends Model
     use HasUuids;
 
     protected $fillable = [
-        'team_id', 'club_id', 'weekday', 'start_time', 'end_time', 'location', 'is_active',
+        'team_id', 'club_id', 'weekday', 'start_time', 'end_time', 'location', 'dressing_room', 'is_active',
     ];
 
     protected function casts(): array
