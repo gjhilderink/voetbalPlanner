@@ -1048,6 +1048,7 @@ void buildEditFlow(App app) {
     _bindWedstrijdDetailAppBarTitle(project);
     _bindWedstrijdDetailInfoTexts(project);
     _fixMatchInfoWidth(project);
+    _makeWedstrijdDetailInfoTabScrollable(project);
   });
 
   // BarDutyCard: add barDutyId/barDutyDate params and navigate internally.
@@ -19927,6 +19928,21 @@ void _addScoreEndpoints(FFProject project) {
       responseDataStructName: 'SwapMember',
       responseDataStructIsList: true,
     );
+  }
+}
+
+// Maakt de Info-tab-content-kolom scrollbaar zodat lange inhoud (info + coach-
+// score-sectie met spelerlijst + af-/aanmelden) volledig bereikbaar is en er
+// niets meer onder de spelers buiten beeld valt.
+void _makeWedstrijdDetailInfoTabScrollable(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final col = findDescendants(wc.node, (n) => n.key == 'Column_gj4yosa2').firstOrNull;
+  if (col == null || col.type != FFWidgetType.Column) return;
+  if (!col.props.column.scrollable) {
+    final colCopy = col.props.column.deepCopy();
+    colCopy.scrollable = true;
+    col.props.column = colCopy;
   }
 }
 
