@@ -60,7 +60,7 @@ abstract final class GroupMembersPageWidgets {
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
                       key: "70kxduko",
-                      type: "CircleImage",
+                      type: "Image",
                       path: "GroupMembersPage.appBar[0].actions[0].children[0]",
                       name: "ClubLogoAppBar",
                     ),

@@ -60,7 +60,7 @@ abstract final class DocumentatiePageWidgets {
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
                       key: "2dazhbha",
-                      type: "CircleImage",
+                      type: "Image",
                       path: "DocumentatiePage.appBar[0].actions[0].children[0]",
                       name: "ClubLogoAppBar",
                     ),

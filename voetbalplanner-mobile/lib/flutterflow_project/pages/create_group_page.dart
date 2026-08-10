@@ -78,7 +78,7 @@ abstract final class CreateGroupPageWidgets {
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
                       key: "24scbuhk",
-                      type: "CircleImage",
+                      type: "Image",
                       path: "CreateGroupPage.appBar[0].actions[0].children[0]",
                       name: "ClubLogoAppBar",
                     ),

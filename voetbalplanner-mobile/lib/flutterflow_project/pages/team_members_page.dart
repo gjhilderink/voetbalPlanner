@@ -48,7 +48,7 @@ abstract final class TeamMembersPageWidgets {
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
                       key: "6s6b97xk",
-                      type: "CircleImage",
+                      type: "Image",
                       path: "TeamMembersPage.appBar[0].actions[0].children[0]",
                       name: "ClubLogoAppBar",
                     ),

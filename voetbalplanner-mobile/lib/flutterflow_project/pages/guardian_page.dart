@@ -78,7 +78,7 @@ abstract final class GuardianPageWidgets {
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
                       key: "8ms7lze5",
-                      type: "CircleImage",
+                      type: "Image",
                       path: "GuardianPage.appBar[0].actions[0].children[0]",
                       name: "ClubLogoAppBar",
                     ),

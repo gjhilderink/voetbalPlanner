@@ -87,7 +87,7 @@ abstract final class GuardianSelfRegisterPageWidgets {
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
                       key: "7h7zkb49",
-                      type: "CircleImage",
+                      type: "Image",
                       path: "GuardianSelfRegisterPage.appBar[0].actions[0].children[0]",
                       name: "ClubLogoAppBar",
                     ),

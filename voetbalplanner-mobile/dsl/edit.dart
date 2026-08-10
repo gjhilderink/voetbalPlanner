@@ -8326,10 +8326,15 @@ void _wireGuardianRequestSubmit(FFProject project) {
       Actions.snackBar('Koppelverzoek verstuurd! Het lid wordt gevraagd dit te bevestigen.'),
       Actions.navigate(project, pageName: 'GuardianPage'),
     ]),
+    // Toon de ECHTE backend-melding i.p.v. een vaste tekst. Zo ziet de gebruiker
+    // het werkelijke probleem, bv. "Geen lid-profiel gevonden voor uw account"
+    // (als de ingelogde gebruiker — bv. een super admin — zelf geen lid is) of
+    // "Geen lid gevonden met de opgegeven gegevens".
     onFailure: (ctx) => Actions.chain([
       Actions.updatePageState(project, widgetClassName: 'GuardianRequestPage',
-          updates: [StateFieldUpdate.set('errorMessage', 'Geen lid gevonden met deze gegevens.')]),
-      Actions.snackBar('Geen lid gevonden met deze gegevens.'),
+          updates: [StateFieldUpdate.setFromVariable(
+              'errorMessage', _jsonBodyVar(ctx, r'$.message', submitBtn.key))]),
+      Actions.snackBar('Koppelen niet gelukt — zie de melding op het scherm.'),
     ]),
   );
 
@@ -10450,11 +10455,26 @@ void _addClubLogoToAppBars(FFProject project) {
     if (!wc.hasPageRouteSettings()) continue; // alleen pagina's
     final appBarNode = getPropertyChild(wc.node, 'appBar');
     if (appBarNode == null) continue;
-    if (findDescendants(appBarNode, (n) => n.name == 'ClubLogoAppBar').isNotEmpty) continue;
+    // Bestaat het logo al (vorige push)? Dan de node ter plekke bijwerken naar
+    // een rechthoekige Image met CONTAIN-fit i.p.v. het ronde CircleImage/COVER.
+    final existingLogo =
+        findDescendants(appBarNode, (n) => n.name == 'ClubLogoAppBar');
+    if (existingLogo.isNotEmpty) {
+      final node = existingLogo.first;
+      node.type = FFWidgetType.Image;
+      node.props.image.fit = FFBoxFit.FF_BOX_FIT_CONTAIN;
+      node.props.image.dimensions = FFDimensions(
+        width:  FFDim(pixelsValue: FFDoubleValue(inputValue: 44.0)),
+        height: FFDim(pixelsValue: FFDoubleValue(inputValue: 36.0)),
+      );
+      continue;
+    }
 
+    // Rechthoekige image met CONTAIN-fit: het hele logo blijft zichtbaar
+    // (niet rond bijgesneden zoals bij CircleImage/COVER).
     final logoImage = FFNode(
       key: generateRandomAlphaNumericString(),
-      type: FFWidgetType.CircleImage,
+      type: FFWidgetType.Image,
       name: 'ClubLogoAppBar',
       props: FFWidgetProperties(
         image: FFImage(
@@ -10463,11 +10483,11 @@ void _addClubLogoToAppBars(FFProject project) {
             variable: varFromAppState(logoId.deepCopy())
               ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
           ),
-          fit:    FFBoxFit.FF_BOX_FIT_COVER,
+          fit:    FFBoxFit.FF_BOX_FIT_CONTAIN,
           cached: true,
           dimensions: FFDimensions(
-            width:  FFDim(pixelsValue: FFDoubleValue(inputValue: 32.0)),
-            height: FFDim(pixelsValue: FFDoubleValue(inputValue: 32.0)),
+            width:  FFDim(pixelsValue: FFDoubleValue(inputValue: 44.0)),
+            height: FFDim(pixelsValue: FFDoubleValue(inputValue: 36.0)),
           ),
         ),
       ),
@@ -18701,6 +18721,54 @@ FFNode _buildAppDrawerNode(FFProject project) {
   final profileTile = tile('DrawerTileProfiel', 'Profiel', 'person', 'ProfielPage');
   final bugTile = tile('DrawerTileBug', 'Bug melden', 'bug_report', 'BugReportPage');
 
+  // ── Footer: clublogo onderaan de drawer ─────────────────────────────────────
+  // Een Expanded-spacer duwt het logo naar de onderkant; het logo is een
+  // rechthoekige Image (CONTAIN) gebonden aan AppState.clubLogoUrl en alleen
+  // zichtbaar als die gevuld is.
+  final clubLogoId = _findAppStateFieldId(project, 'clubLogoUrl');
+  final List<FFNode> footerChildren = [];
+  if (clubLogoId != null) {
+    final logoVar = varFromAppState(clubLogoId.deepCopy());
+    final footerLogo = FFNode(
+      key: generateRandomAlphaNumericString(),
+      type: FFWidgetType.Image,
+      name: 'DrawerFooterLogo',
+      props: FFWidgetProperties(
+        image: FFImage(
+          type:       FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+          pathValue:  FFStringValue(variable: logoVar.deepCopy()),
+          fit:        FFBoxFit.FF_BOX_FIT_CONTAIN,
+          cached:     true,
+          dimensions: FFDimensions(
+            width:  FFDim(pixelsValue: FFDoubleValue(inputValue: 120.0)),
+            height: FFDim(pixelsValue: FFDoubleValue(inputValue: 64.0)),
+          ),
+        ),
+      ),
+    );
+    final footerRow = UI.row(
+      name: 'DrawerFooterLogoRow',
+      mainAxisAlignment: UIMainAxisAlignment.center,
+      children: [footerLogo],
+    );
+    final footerWrap = UI.container(
+      name: 'DrawerFooterLogoWrap',
+      width: double.infinity,
+      padding: UIEdgeInsets.symmetric(vertical: 20),
+      child: footerRow,
+    );
+    setConditionalVisibility(
+      footerWrap,
+      variable: conditionVar(
+        logoVar.deepCopy(),
+        FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+      ).variable,
+    );
+    footerChildren.add(UI.expanded(UI.container(name: 'DrawerFooterSpacer')));
+    footerChildren.add(footerWrap);
+  }
+
   final menuColumn = UI.column(
     name: 'DrawerMenuColumn',
     spacing: 0,
@@ -18712,6 +18780,7 @@ FFNode _buildAppDrawerNode(FFProject project) {
       docsTile,
       profileTile,
       bugTile,
+      ...footerChildren,
     ],
   );
 

@@ -84,7 +84,7 @@ abstract final class WisselAanvraagPageWidgets {
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
                       key: "ai0gfbcc",
-                      type: "CircleImage",
+                      type: "Image",
                       path: "WisselAanvraagPage.appBar[0].actions[0].children[0]",
                       name: "ClubLogoAppBar",
                     ),

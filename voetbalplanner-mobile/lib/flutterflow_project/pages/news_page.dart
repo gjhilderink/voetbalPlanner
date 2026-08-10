@@ -60,7 +60,7 @@ abstract final class NewsPageWidgets {
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
                       key: "kddo6kb6",
-                      type: "CircleImage",
+                      type: "Image",
                       path: "NewsPage.appBar[0].actions[0].children[0]",
                       name: "ClubLogoAppBar",
                     ),

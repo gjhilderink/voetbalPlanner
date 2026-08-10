@@ -75,7 +75,7 @@ abstract final class BugReportPageWidgets {
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
                       key: "k8lfmvha",
-                      type: "CircleImage",
+                      type: "Image",
                       path: "BugReportPage.appBar[0].actions[0].children[0]",
                       name: "ClubLogoAppBar",
                     ),
