@@ -20185,16 +20185,42 @@ void _addWedstrijdScoreSection(FFProject project) {
       rootAction: apiNode,
     ));
 
-    // Begrens de spelerlijst tot een vaste hoogte met eigen scroll: bij een
-    // lange lijst (heel team) viel die anders buiten het scherm (bottom overflow)
-    // omdat de shrinkWrap-ListView alle items in de layout duwt.
+    // Begrens de spelerlijst tot een vaste hoogte met eigen scroll (voorkomt
+    // bottom overflow bij een lang team).
     final membersScroll = UI.container(
       name: 'ScoreMembersScroll',
       height: 200,
       clipContent: true,
       child: listView,
     );
-    return [label, membersScroll, selText, minuteField, placeBtn];
+
+    // Zodra een speler gekozen is, verschijnen de controls (Gekozen + minuut +
+    // Opslaan) BOVEN de lijst en dus direct in beeld — voorheen vielen ze onder
+    // de lijst buiten het scherm. Werkt als een in-line pop-up: kies speler →
+    // vul minuut → opslaan.
+    final controlsBox = UI.container(
+      name: 'ScoreSelectedControls',
+      width: double.infinity,
+      padding: UIEdgeInsets.all(12),
+      borderRadius: 8,
+      color: UIColor.secondaryBackground,
+      child: UI.column(
+        name: 'ScoreSelectedControlsCol',
+        crossAxisAlignment: UICrossAxisAlignment.stretch,
+        spacing: 8,
+        children: [selText, minuteField, placeBtn],
+      ),
+    );
+    setConditionalVisibility(
+      controlsBox,
+      variable: conditionVar(
+        stateVar('selectedScorerName')!,
+        FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+      ).variable,
+    );
+
+    return [label, controlsBox, membersScroll];
   }
 
   // Plaatst ontbrekende coach-controls (toevoeg-form + verwijder-knop) in de sectie.
@@ -20225,7 +20251,7 @@ void _addWedstrijdScoreSection(FFProject project) {
         n.name == 'ScoreScorerField' || n.name == 'ScoreMinuteField' ||
         n.name == 'ScoreAddButton' || n.name == 'ScoreAddLabel' ||
         n.name == 'ScoreSelectedText' || n.name == 'ScoreMembersList' ||
-        n.name == 'ScoreMembersScroll');
+        n.name == 'ScoreMembersScroll' || n.name == 'ScoreSelectedControls');
     ensureControls(existingContainer);
     return;
   }
