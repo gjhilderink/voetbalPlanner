@@ -75,6 +75,22 @@ abstract final class WisselAanvraagPageWidgets {
             path: "WisselAanvraagPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
+              "actions": <ffai.ProjectWidgetHandle>[
+                ffai.ProjectWidgetHandle(
+                  key: "Container_7nbakie2",
+                  type: "Container",
+                  path: "WisselAanvraagPage.appBar[0].actions[0]",
+                  name: "ClubLogoAppBarWrap",
+                  children: <ffai.ProjectWidgetHandle>[
+                    ffai.ProjectWidgetHandle(
+                      key: "ai0gfbcc",
+                      type: "CircleImage",
+                      path: "WisselAanvraagPage.appBar[0].actions[0].children[0]",
+                      name: "ClubLogoAppBar",
+                    ),
+                  ],
+                ),
+              ],
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
                   key: "Text_zgcjlg6q",

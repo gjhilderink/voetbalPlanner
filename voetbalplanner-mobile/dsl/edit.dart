@@ -28,6 +28,8 @@ import 'package:flutterflow_ai/src/helpers/tree_helpers.dart'
          unwrap, findParentByKey;
 import 'package:flutterflow_ai/src/helpers/widget_helpers.dart'
     show setConditionalVisibility;
+import 'package:flutterflow_ai/src/helpers/theme_helpers.dart'
+    show setDarkModeEnabled;
 import 'package:fixnum/fixnum.dart' show Int64;
 import 'package:flutterflow_ai/src/helpers/nav_bar_helpers.dart'
     show setNavBarEnabled, addNavBarPage, removeNavBarPage, listNavBarPages, reorderNavBarPage;
@@ -52,7 +54,9 @@ void _buildQuickActionsSheet(App app) {
         'Bottom sheet met snelle acties (chatten, wissel aanvragen, afmelden) vanaf het dashboard.',
     body: Column(
       crossAxis: CrossAxis.stretch,
-      padding: 20,
+      // Extra bottom-padding zodat de onderste knop op Android niet achter de
+      // systeem-navigatiebalk valt (bottom sheet respecteert de safe area niet).
+      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
       spacing: 12,
       children: [
         Text('Snelle acties', style: Styles.titleMedium),
@@ -312,6 +316,12 @@ void buildEditFlow(App app) {
   // recolored by _applyBrandingToAllButtons will use this static value.
   app.themeColor('primary', 0xFF1E3A5F);
 
+  // Force light theme. The app is designed light-only and the dark palette is
+  // unconfigured (all colors transparent 0x00000000), so on a dark-mode phone
+  // the UI renders unreadable. Disabling dark mode makes FlutterFlow always use
+  // the branded light theme regardless of the phone's system setting.
+  app.raw((project) => setDarkModeEnabled(project, enabled: false));
+
   app.raw((project) {
     // Fix ListView codegen bugs (item names + visibility wrapping)
     _fixItemName(project, 'WedstrijdenPage', 'ListView_erdckv6e', 'match');
@@ -501,6 +511,8 @@ void buildEditFlow(App app) {
   try { app.state('pendingTrainingDate',       string); } catch (_) {}
   try { app.state('pendingAfmeldReason',       string); } catch (_) {}
   try { app.state('pendingMatchId',            string); } catch (_) {}
+  // True als de gebruiker aan >1 team gekoppeld is (dashboard team-switcher).
+  try { app.state('hasMultipleTeams',          bool_); } catch (_) {}
 
   // ── Chat custom actions ───────────────────────────────────────────────────────
   // Declared at DSL level so CallCustomAction.named(...) in _buildChatDetailPage
@@ -596,6 +608,8 @@ void buildEditFlow(App app) {
 
   // ─── Wissel (swap) feature ────────────────────────────────────────────────
   app.raw((project) => _addSwapStructFields(project));
+  // ProfielPage teamlijst — ná _addSwapStructFields zodat TeamOption.role bestaat.
+  app.raw((project) => _addProfielTeamsList(project));
   app.raw((project) => _addSwapParamsToBarDutyCard(project));
 
   final swapMember = ff.Structs.swapMember;
@@ -666,11 +680,11 @@ void buildEditFlow(App app) {
     app.struct('StaffGroupItem', {'id': string, 'name': string});
   } catch (_) {}
 
-  // TeamOption: één optie in de teamkeuze (multi-team, bv. ouder met kinderen
-  // in meerdere teams). Gevuld uit de backend-response user['teams'] (id+name).
-  try {
-    app.struct('TeamOption', {'id': string, 'name': string});
-  } catch (_) {}
+  // TeamOption (id + name + role/functie per team) bestaat al in het project en
+  // wordt niet opnieuw ge-ensure'd — na het toevoegen van 'role' verschilt de
+  // payload van een verse declaratie, wat ensureDataStruct afwijst. De struct is
+  // beschikbaar via ff.Structs.teamOption; het 'role'-veld wordt (idempotent)
+  // geborgd door _addSwapStructFields.
 
   // Trainingen: structs voor de GetTrainings-response. Veldnamen = exact de
   // (snake_case) JSON-keys uit TrainingController, zodat maybeFromMap direct mapt.
@@ -865,6 +879,9 @@ void buildEditFlow(App app) {
 
   app.raw((project) => _addSwapEndpoints(project));
   app.raw((project) => _addGuardianEndpoints(project));
+  // Ná _addGuardianEndpoints: het DeleteAccount-endpoint moet bestaan voordat
+  // de knop-chain er naar verwijst.
+  app.raw((project) => _addDeleteAccountButton(project));
 
   // ── Guardian pagina's ─────────────────────────────────────────────────────
   _buildGuardianPages(app);
@@ -883,6 +900,9 @@ void buildEditFlow(App app) {
     _wireGuardianSelfRegisterSubmit(project);
     _makeGuardianSelfRegisterPageScrollable(project);
     _addGuardianRegisterLinkToLoginPage(project);
+    // Foutmelding-tekst wit maken (rode achtergrond) — ook op reeds gebouwde
+    // pagina's, want de body-builders zijn idempotent.
+    _fixErrorTextColors(project);
   });
 
   _buildSwapRequestCard(app, swapRequest);
@@ -1085,6 +1105,9 @@ void buildEditFlow(App app) {
   app.raw((project) {
     _addDashboardAppBar(project);
     _buildDashboardContent(project);
+    // Custom action moet bestaan vóór _wireDashboardLoad die 'm vooraan de
+    // on-load chain hangt.
+    _ensureRefreshCurrentTeamAction(project);
     _wireDashboardLoad(project);
     _fixDashboardListViewShrinkWrap(project);
     // Add "Rijschema" section: shows matches where the user is assigned to drive.
@@ -1102,7 +1125,13 @@ void buildEditFlow(App app) {
     _wireTrainingCardNavigation(project);
     // Tap on a dashboard card → open the corresponding detail page.
     _wireDashboardCardNavigation(project);
+    // Team-switcher bovenaan (alleen bij >1 team); switcht wedstrijden + trainingen.
+    _addDashboardTeamSwitcher(project);
+    _removeClubLogoDebug(project);
   });
+
+  // StatusBadge-component ruimer maken (pill i.p.v. krappe padding).
+  app.raw((project) => _makeStatusBadgeRoomier(project));
 
   // ── Dashboard empty states ────────────────────────────────────────────────────
   app.raw((project) => _addDashboardEmptyPlaceholders(project));
@@ -1113,6 +1142,8 @@ void buildEditFlow(App app) {
   // Apply club primary color to all AppBar backgrounds; set back button + title to white.
   // Runs last so the AppBar nodes already exist from all the preceding wiring steps.
   app.raw((project) => _applyBrandingToAllAppBars(project));
+  // Clublogo rechtsboven (sticky) in elke AppBar — ná de AppBar-branding.
+  app.raw((project) => _addClubLogoToAppBars(project));
 
   // Apply club primary color to all buttons: fill color + white text + generous padding.
   app.raw((project) => _applyBrandingToAllButtons(project));
@@ -1145,6 +1176,10 @@ void buildEditFlow(App app) {
       _wireWatchUnreadOnPageLoad(project, p);
     }
   });
+
+  // ProfielPage: ververs de gekoppelde teams automatisch bij het openen (zonder
+  // opnieuw inloggen). Ná de WatchUnread-wiring zodat deze niet overschreven wordt.
+  app.raw((project) => _wireProfielRefreshOnLoad(project));
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
@@ -1914,9 +1949,9 @@ void _setupBardienFilter(FFProject project) {
       endpointName: 'GetBarDuties',
       groupName: 'VoetbalPlannerAPI',
       variables: {'page': '1'},
+      // Bardiensten zijn op persoon: geen teamId → alle teams van de gebruiker.
       dynamicVariables: {
         'token': varFromAppState(authTokenId.deepCopy()),
-        if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
       },
       outputVariableName: 'dutiesLoad',
       nodeKey: 'Scaffold_ljui3hun',
@@ -4236,6 +4271,135 @@ void _removeProfielButton(FFProject project, String nodeName) {
   }
 }
 
+// Toont op de ProfielPage alle teams waaraan de gebruiker gekoppeld is
+// (AppState.availableTeams) — zo zie je meteen of je aan meerdere teams hangt.
+// Read-only lijst; de data wordt automatisch ververst door RefreshCurrentTeam
+// op de ProfielPage-load (geen opnieuw inloggen nodig). Idempotent.
+void _addProfielTeamsList(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+
+  final availTeamsId = _findAppStateFieldId(project, 'availableTeams');
+  if (availTeamsId == null) return;
+
+  // Doel: het info-content-column van de profielkaart.
+  final target = findDescendants(wc.node, (n) => n.name == 'ProfielInfoContent').firstOrNull;
+  if (target == null || target.type != FFWidgetType.Column) return;
+
+  // Vers opbouwen bij elke push (zodat binding-wijzigingen meekomen): ruim een
+  // eerdere label + lijst op.
+  for (final name in const ['ProfielTeamsLabel', 'ProfielTeamsList']) {
+    for (final n in findDescendants(wc.node, (x) => x.name == name).toList()) {
+      removeByKey(wc.node, n.key);
+    }
+  }
+
+  final label = UI.text(
+    'Teams',
+    name: 'ProfielTeamsLabel',
+    style: UITextStyle.labelSmall,
+    color: UIColor.secondaryText,
+  );
+
+  final teamsVar = varFromAppState(availTeamsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  final list = UI.listView(
+    name: 'ProfielTeamsList',
+    spacing: 6,
+    dynamicSource: DynamicSource(variable: teamsVar, itemName: 'team'),
+  );
+  final lv = list.props.listView.deepCopy();
+  lv.shrinkWrapValue = FFBooleanValue(inputValue: true);
+  list.props.listView = lv;
+
+  // Toon "Team — Functie" (bv. "MO13-1 — Coach"); zonder rol alleen de teamnaam.
+  final labelVar = codeExpressionVar(
+    expression: "((role ?? '') != '') ? ((name ?? '') + ' — ' + (role ?? '')) : (name ?? '')",
+    arguments: [
+      CodeExpressionArg(
+        name: 'name',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: generatorVarField(list.key, 'name')),
+      ),
+      CodeExpressionArg(
+        name: 'role',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: generatorVarField(list.key, 'role')),
+      ),
+    ],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+  );
+  final nameText = UI.text('', name: 'ProfielTeamName', style: UITextStyle.bodyMedium);
+  nameText.props.text.textValue = FFStringValue(variable: labelVar);
+
+  final tile = UI.row(
+    name: 'ProfielTeamRow',
+    spacing: 6,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      UI.icon('groups', size: 16, color: UIColor.primary),
+      nameText,
+    ],
+  );
+  list.children.add(tile);
+
+  target.children.add(label);
+  target.children.add(list);
+}
+
+// Zet RefreshCurrentTeam vooraan de ProfielPage-onLoad, zodat de gekoppelde
+// teams (availableTeams) + het huidige team automatisch verversen bij openen —
+// geen opnieuw inloggen nodig. Prepend zodat het naast WatchUnreadChatCount past.
+// Idempotent.
+void _wireProfielRefreshOnLoad(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+  final action = findCustomAction(project, name: 'RefreshCurrentTeam');
+  if (action == null) return;
+
+  bool chainHas(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasCustomAction() &&
+        n.action.customAction.customActionIdentifier.name == 'RefreshCurrentTeam') {
+      return true;
+    }
+    return n.hasFollowUpAction() && chainHas(n.followUpAction);
+  }
+
+  FFActionNode refreshNode() => FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: action.identifier.deepCopy(),
+            argumentValues: FFFunctionCallValues(),
+          ),
+        ),
+      );
+
+  final idx = wc.node.triggerActions.indexWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+
+  if (idx < 0) {
+    Actions.onPageLoadChain(wc.node, refreshNode());
+    return;
+  }
+
+  final tap = wc.node.triggerActions[idx];
+  if (!tap.hasRootAction()) {
+    tap.rootAction = refreshNode();
+    return;
+  }
+  if (chainHas(tap.rootAction)) return;
+
+  // Prepend: RefreshCurrentTeam wordt de nieuwe root, oude chain als follow-up.
+  final oldRoot = tap.rootAction.deepCopy();
+  final node = refreshNode();
+  node.followUpAction = oldRoot;
+  tap.rootAction = node;
+}
+
 // Voegt "Bug melden" knop toe aan ProfielPage. Navigeert naar BugReportPage.
 // (Niet meer gebruikt — verplaatst naar AppDrawer.)
 // ignore: unused_element
@@ -4251,6 +4415,218 @@ void _addBugReportButton(FFProject project) {
   final bodyChild = getPropertyChild(wc.node, 'body');
   if (bodyChild != null && bodyChild.type == FFWidgetType.Column) {
     bodyChild.children.add(button);
+  } else {
+    wc.node.children.add(button);
+  }
+}
+
+// Custom action: verwijdert de eigen chatdata in Firestore bij account
+// verwijderen. Best-effort (per operatie in try/catch, zodat Firestore-rules
+// die iets blokkeren de rest niet stoppen):
+//   1. eigen berichten in alle gesprekken (senderId == eigen userEmail)
+//   2. directe (1-op-1) gesprekken van de gebruiker + hun berichten
+//   3. de eigen appUsers-registratie(s)
+// Teamchat-/groepsberichten van ANDEREN blijven bestaan (gedeelde data); de
+// eigen berichten daarin zijn via stap 1 al verwijderd.
+void _ensureDeleteMyChatDataAction(FFProject project) {
+  const _code = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<String> deleteMyChatData() async {
+  final uid = FFAppState().userEmail.isNotEmpty
+      ? FFAppState().userEmail
+      : FFAppState().userName;
+  if (uid.isEmpty) return '';
+  final db = FirebaseFirestore.instance;
+
+  // 1. Eigen berichten in álle gesprekken verwijderen.
+  try {
+    final own =
+        await db.collection('chatMessages').where('senderId', isEqualTo: uid).get();
+    for (final doc in own.docs) {
+      await doc.reference.delete().catchError((Object _) {});
+    }
+  } catch (_) {}
+
+  // 2. Directe (1-op-1) gesprekken van de gebruiker + hun berichten verwijderen.
+  try {
+    final convos = await db
+        .collection('chatConversations')
+        .where('participantIds', arrayContains: uid)
+        .get();
+    for (final convo in convos.docs) {
+      final data = convo.data();
+      final type = (data['type'] as String?) ?? '';
+      // Alleen directe gesprekken volledig verwijderen; teamchats/groepen zijn
+      // gedeeld en blijven bestaan (eigen berichten zijn via stap 1 al weg).
+      if (type != 'direct') continue;
+      final convoId = (data['conversationId'] as String?) ?? convo.id;
+      try {
+        final msgs = await db
+            .collection('chatMessages')
+            .where('conversationId', isEqualTo: convoId)
+            .get();
+        for (final m in msgs.docs) {
+          await m.reference.delete().catchError((Object _) {});
+        }
+      } catch (_) {}
+      await convo.reference.delete().catchError((Object _) {});
+    }
+  } catch (_) {}
+
+  // 3. Eigen appUsers-registratie(s) verwijderen.
+  try {
+    final regs =
+        await db.collection('appUsers').where('userId', isEqualTo: uid).get();
+    for (final doc in regs.docs) {
+      await doc.reference.delete().catchError((Object _) {});
+    }
+  } catch (_) {}
+
+  return '';
+}
+''';
+
+  if (findCustomAction(project, name: 'DeleteMyChatData') == null) {
+    addCustomAction(
+      project,
+      name: 'DeleteMyChatData',
+      description:
+          'Verwijdert de eigen chatdata in Firestore bij account verwijderen: eigen berichten, directe gesprekken en de appUsers-registratie. Best-effort.',
+      arguments: const [],
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ),
+      code: _code,
+    );
+  } else {
+    updateCustomAction(project, name: 'DeleteMyChatData', code: _code);
+  }
+}
+
+// Voegt een rode "Account verwijderen"-knop onderaan de ProfielPage toe.
+// Actie-chain: bevestig-dialog → DeleteAccount API (soft-delete + tokens weg)
+//   → bij succes: eigen chatdata verwijderen + auth-state wissen + naar LoginPage
+//   → bij falen: snackbar.
+// Idempotent: verwijdert een eerder toegevoegde knop en bouwt de chain vers op,
+// zodat wijzigingen bij elke push meekomen.
+void _addDeleteAccountButton(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+
+  // Endpoint moet bestaan (aangemaakt in _addGuardianEndpoints).
+  final hasEndpoint = project.backend.apiConfig.apiGroups
+      .any((g) => g.endpoints.any((e) => e.identifier.name == 'DeleteAccount'));
+  if (!hasEndpoint) return;
+
+  // Custom action die de eigen chatdata in Firestore opruimt.
+  _ensureDeleteMyChatDataAction(project);
+
+  // Verse chain bij elke push: ruim een eerdere knop op.
+  _removeProfielButton(project, 'DeleteAccountButton');
+
+  FFValue _lit(String s) =>
+      FFValue(inputValue: FFParameterValue(serializedValue: s));
+
+  final button = UI.button(
+    'Account verwijderen',
+    name: 'DeleteAccountButton',
+    width: double.infinity,
+    color: UIColor.error,
+    textColor: UIColor.secondaryBackground,
+  );
+
+  // Success chain:
+  //   1. DeleteMyChatData — eigen chatdata verwijderen (móét vóór het wissen van
+  //      userEmail draaien, want de actie leest die uit AppState).
+  //   2. auth-state wissen (zoals de Uitloggen-knop doet).
+  //   3. naar LoginPage.
+  final successActions = <FFAction>[];
+  final deleteChatAction = findCustomAction(project, name: 'DeleteMyChatData');
+  if (deleteChatAction != null) {
+    successActions.add(FFAction(
+      key: generateRandomAlphaNumericString(),
+      customAction: FFCustomActionCall(
+        customActionIdentifier: deleteChatAction.identifier.deepCopy(),
+        argumentValues: FFFunctionCallValues(),
+      ),
+    ));
+  }
+  successActions.add(Actions.updateAppState(
+    project,
+    updates: [
+      StateFieldUpdate.set('authToken', ''),
+      StateFieldUpdate.set('userName', ''),
+      StateFieldUpdate.set('userEmail', ''),
+      StateFieldUpdate.set('clubName', ''),
+    ],
+  ));
+  successActions.add(
+      Actions.navigate(project, pageName: 'LoginPage', replaceRoute: true));
+  final successChain = Actions.chain(successActions);
+
+  final apiNode = Actions.apiCallNode(
+    project,
+    endpointName:       'DeleteAccount',
+    groupName:          'VoetbalPlannerAPI',
+    outputVariableName: 'deleteAccountResult',
+    nodeKey:            button.key,
+    onSuccess: (ctx) => successChain,
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Verwijderen mislukt. Probeer het later opnieuw.'),
+    ]),
+  );
+
+  // Bevestig-dialog → (bij bevestigen) API-call chain.
+  final confirmNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      alertDialog: FFAlertDialogAction(
+        confirmDialog: FFConfirmDialogAction(
+          title:       _lit('Account definitief verwijderen?'),
+          message:     _lit(
+              'Let op: dit kan NIET ongedaan worden gemaakt.\n\n'
+              'Al uw gegevens worden permanent verwijderd, waaronder:\n'
+              '• uw profiel en persoonsgegevens\n'
+              '• uw volledige chatgeschiedenis\n'
+              '• uw team-, wedstrijd- en bardienstgegevens\n\n'
+              'Weet u zeker dat u akkoord gaat en alles wilt verwijderen?'),
+          confirmText: _lit('Ja, alles verwijderen'),
+          dismissText: _lit('Annuleren'),
+        ),
+      ),
+    ),
+    followUpAction: apiNode,
+  );
+
+  Actions.onTapChain(button, confirmNode);
+
+  // De body is inmiddels een Stack; de knoppen (Uitloggen/Ouder) staan in de
+  // Column daarbinnen. Zoek die Column op i.p.v. te vertrouwen op body==Column.
+  FFNode? targetColumn;
+  for (final c in findDescendants(wc.node, (n) => n.type == FFWidgetType.Column)) {
+    if (c.children.any((ch) =>
+        ch.key == 'Button_wvz4j2lc' || ch.name == 'GuardianButton')) {
+      targetColumn = c;
+      break;
+    }
+  }
+  targetColumn ??= () {
+    final b = getPropertyChild(wc.node, 'body');
+    return (b != null && b.type == FFWidgetType.Column) ? b : null;
+  }();
+
+  if (targetColumn != null) {
+    targetColumn.children.add(button);
   } else {
     wc.node.children.add(button);
   }
@@ -4618,7 +4994,7 @@ void _buildBugReportPageBody(FFProject project) {
     padding: UIEdgeInsets.all(12),
     borderRadius: 8,
     color: UIColor.error,
-    child: UI.text('', name: 'BugErrorText', style: UITextStyle.bodySmall),
+    child: UI.text('', name: 'BugErrorText', style: UITextStyle.bodySmall, color: UIColor.secondaryBackground),
   );
   if (errorId != null) {
     final errTxt = findDescendants(errorContainer, (n) => n.name == 'BugErrorText').firstOrNull;
@@ -5528,6 +5904,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 Future<String> verifyMagicLink(String? token) async {
   if (token == null || token.isEmpty) return '';
@@ -5536,7 +5913,7 @@ Future<String> verifyMagicLink(String? token) async {
       Uri.parse('https://voetbalplanner.nubix.nl/api/v1/auth/verify-magic-link'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'token': token}),
-    );
+    ).timeout(const Duration(seconds: 20));
     if (response.statusCode != 200) return '';
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     if (data['success'] != true) return '';
@@ -5571,6 +5948,7 @@ Future<String> verifyMagicLink(String? token) async {
       FFAppState().primaryColor    = (club['primary_color']   as String?) ?? '#1e3a5f';
       FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
+      FFAppState().clubLogoUrl     = (club['logo_url']        as String?) ?? '';
       FFAppState().relatiecode     = (user['relatiecode']     as String?) ?? '';
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
     });
@@ -5593,6 +5971,18 @@ Future<String> verifyMagicLink(String? token) async {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true)).catchError((Object _) {});
     }
+
+    // Sign in anonymously so FlutterFlow's Firebase Auth route guard (loggedIn)
+    // passes. Zonder dit weigert de router de navigatie naar de NavBar-pagina's
+    // en blijft de app hangen op de "Inloglink verifiëren..."-pagina.
+    try {
+      await FirebaseAuth.instance.signInAnonymously();
+      await FirebaseAuth.instance
+          .authStateChanges()
+          .firstWhere((u) => u != null)
+          .timeout(const Duration(seconds: 3), onTimeout: () => null);
+    } catch (_) {}
+
     return sanctumToken;
   } catch (_) {
     return '';
@@ -5755,6 +6145,7 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().primaryColor    = (club['primary_color']   as String?) ?? '#1e3a5f';
       FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
+      FFAppState().clubLogoUrl     = (club['logo_url']        as String?) ?? '';
       FFAppState().relatiecode     = (user['relatiecode']     as String?) ?? '';
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
     });
@@ -5869,6 +6260,7 @@ void _fixLoginButtonBindings(FFProject project) {
   _ensureAppStateField(project, 'primaryColor',    FFBaseDataType.String, persisted: true);
   _ensureAppStateField(project, 'secondaryColor',  FFBaseDataType.String, persisted: true);
   _ensureAppStateField(project, 'accentColor',     FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'clubLogoUrl',     FFBaseDataType.String, persisted: true);
   _ensureAppStateField(project, 'currentTeamName', FFBaseDataType.String, persisted: true);
 
   // Ensure user-identity fields survive app restarts.
@@ -6328,6 +6720,10 @@ void _addSwapStructFields(FFProject project) {
       ('isDriver',     FFBaseDataType.Boolean),
       ('fruitHeroId',  FFBaseDataType.String),
       ('driverNames',  FFBaseDataType.String),
+      ('opponentLogo', FFBaseDataType.String),
+    ]),
+    ('TeamOption',   [
+      ('role', FFBaseDataType.String),
     ]),
   ] as List<(String, List<(String, FFBaseDataType)>)>) {
     final (structName, fieldDefs) = entry;
@@ -6463,18 +6859,36 @@ void _addSwapEndpoints(FFProject project) {
     responseDataStructIsList: true,
   );
 
+  // Variabelen via de QUERY, niet via een JSON-body: FlutterFlow's codegen
+  // interpoleert body-variabelen NIET ([var] blijft letterlijk in de body
+  // staan), terwijl URL/query-variabelen wél worden ingevuld. Laravel's
+  // validate()/input() leest query + body samen, dus de backend hoeft niet
+  // te wijzigen.
+  const createSwapUrl =
+      '/swap-requests?type=[type]&target_id=[target_id]&requestee_id=[requestee_id]';
   addIfMissing(
     name:     'CreateSwapRequest',
-    url:      '/swap-requests',
+    url:      createSwapUrl,
     method:   FFApiEndpoint_CallType.POST,
-    bodyType: FFApiEndpoint_BodyType.JSON,
-    body:     '{"type":"[type]","target_id":"[target_id]","requestee_id":"[requestee_id]"}',
+    bodyType: FFApiEndpoint_BodyType.NONE,
     variables: {
       'type':         FFDataTypeV2(scalarType: FFBaseDataType.String),
       'target_id':    FFDataTypeV2(scalarType: FFBaseDataType.String),
       'requestee_id': FFDataTypeV2(scalarType: FFBaseDataType.String),
     },
   );
+  // Reeds-gepusht endpoint (addIfMissing sloeg over) forceren naar query-vorm.
+  if (existing.contains('CreateSwapRequest')) {
+    updateApiEndpoint(
+      project,
+      name:      'CreateSwapRequest',
+      groupName: 'VoetbalPlannerAPI',
+      url:       createSwapUrl,
+      method:    FFApiEndpoint_CallType.POST,
+      bodyType:  FFApiEndpoint_BodyType.NONE,
+      body:      '',
+    );
+  }
 
   addIfMissing(
     name:      'AcceptSwapRequest',
@@ -6663,26 +7077,28 @@ void _addGuardianEndpoints(FFProject project) {
 
   // POST /guardian/request — Ouder dient koppelverzoek in voor extra kind
   // (alleen lidnummer + achternaam — kind moet bevestigen in app)
+  // Variabelen via de QUERY (zie uitleg bij CreateSwapRequest): FF interpoleert
+  // body-variabelen niet, URL/query-variabelen wél. Laravel validate() leest
+  // query + body samen.
+  const requestUrl = '/guardian/request?lidnummer=[lidnummer]&achternaam=[achternaam]';
   if (existing.contains('RequestGuardianAccess')) {
     updateApiEndpoint(
       project,
       name:      'RequestGuardianAccess',
       groupName: groupName,
-      body:      '{"lidnummer":"[lidnummer]","achternaam":"[achternaam]"}',
-      variables: {
-        'lidnummer':  FFDataTypeV2(scalarType: FFBaseDataType.String),
-        'achternaam': FFDataTypeV2(scalarType: FFBaseDataType.String),
-      },
+      url:       requestUrl,
+      method:    FFApiEndpoint_CallType.POST,
+      bodyType:  FFApiEndpoint_BodyType.NONE,
+      body:      '',
     );
   } else {
     addEndpointToGroup(
       project,
       groupName: groupName,
       name:      'RequestGuardianAccess',
-      url:       '/guardian/request',
+      url:       requestUrl,
       method:    FFApiEndpoint_CallType.POST,
-      bodyType:  FFApiEndpoint_BodyType.JSON,
-      body:      '{"lidnummer":"[lidnummer]","achternaam":"[achternaam]"}',
+      bodyType:  FFApiEndpoint_BodyType.NONE,
       variables: {
         'lidnummer':  FFDataTypeV2(scalarType: FFBaseDataType.String),
         'achternaam': FFDataTypeV2(scalarType: FFBaseDataType.String),
@@ -6700,18 +7116,30 @@ void _addGuardianEndpoints(FFProject project) {
     responseDataStructIsList: true,
   );
 
-  // POST /guardian/{linkId}/respond — Kind accepteert of weigert verzoek
+  // POST /guardian/{linkId}/respond?action=... — Kind accepteert of weigert.
+  // action via query (body-variabelen worden niet geïnterpoleerd).
+  const respondUrl = '/guardian/[linkId]/respond?action=[action]';
   addIfMissing(
     name:     'RespondGuardianRequest',
-    url:      '/guardian/[linkId]/respond',
+    url:      respondUrl,
     method:   FFApiEndpoint_CallType.POST,
-    bodyType: FFApiEndpoint_BodyType.JSON,
-    body:     '{"action":"[action]"}',
+    bodyType: FFApiEndpoint_BodyType.NONE,
     variables: {
       'linkId': FFDataTypeV2(scalarType: FFBaseDataType.String),
       'action': FFDataTypeV2(scalarType: FFBaseDataType.String),
     },
   );
+  if (existing.contains('RespondGuardianRequest')) {
+    updateApiEndpoint(
+      project,
+      name:      'RespondGuardianRequest',
+      groupName: groupName,
+      url:       respondUrl,
+      method:    FFApiEndpoint_CallType.POST,
+      bodyType:  FFApiEndpoint_BodyType.NONE,
+      body:      '',
+    );
+  }
 
   // DELETE /guardian/{linkId}/revoke — Koppeling intrekken
   addIfMissing(
@@ -6746,28 +7174,26 @@ void _addGuardianEndpoints(FFProject project) {
 
   // POST /guardian/self-register — Ouder registreert zichzelf (publiek, geen auth)
   // Existing endpoint: replace body + variables to drop geboortedatum.
+  const selfRegisterUrl =
+      '/guardian/self-register?naam=[naam]&email=[email]&lidnummer=[lidnummer]&achternaam=[achternaam]';
   if (existing.contains('SelfRegisterGuardian')) {
     updateApiEndpoint(
       project,
       name:      'SelfRegisterGuardian',
       groupName: groupName,
-      body:      '{"naam":"[naam]","email":"[email]","lidnummer":"[lidnummer]","achternaam":"[achternaam]"}',
-      variables: {
-        'naam':       FFDataTypeV2(scalarType: FFBaseDataType.String),
-        'email':      FFDataTypeV2(scalarType: FFBaseDataType.String),
-        'lidnummer':  FFDataTypeV2(scalarType: FFBaseDataType.String),
-        'achternaam': FFDataTypeV2(scalarType: FFBaseDataType.String),
-      },
+      url:       selfRegisterUrl,
+      method:    FFApiEndpoint_CallType.POST,
+      bodyType:  FFApiEndpoint_BodyType.NONE,
+      body:      '',
     );
   } else {
     addEndpointToGroup(
       project,
       groupName: groupName,
       name:      'SelfRegisterGuardian',
-      url:       '/guardian/self-register',
+      url:       selfRegisterUrl,
       method:    FFApiEndpoint_CallType.POST,
-      bodyType:  FFApiEndpoint_BodyType.JSON,
-      body:      '{"naam":"[naam]","email":"[email]","lidnummer":"[lidnummer]","achternaam":"[achternaam]"}',
+      bodyType:  FFApiEndpoint_BodyType.NONE,
       variables: {
         'naam':       FFDataTypeV2(scalarType: FFBaseDataType.String),
         'email':      FFDataTypeV2(scalarType: FFBaseDataType.String),
@@ -6777,18 +7203,30 @@ void _addGuardianEndpoints(FFProject project) {
     );
   }
 
-  // POST /guardian/create-parent-account — Lid maakt ouderaccount aan (directe koppeling)
+  // POST /guardian/create-parent-account?naam=..&email=.. — Lid maakt
+  // ouderaccount aan. Variabelen via query (body-vars worden niet ingevuld).
+  const createParentUrl = '/guardian/create-parent-account?naam=[naam]&email=[email]';
   addIfMissing(
     name:     'CreateParentAccount',
-    url:      '/guardian/create-parent-account',
+    url:      createParentUrl,
     method:   FFApiEndpoint_CallType.POST,
-    bodyType: FFApiEndpoint_BodyType.JSON,
-    body:     '{"naam":"[naam]","email":"[email]"}',
+    bodyType: FFApiEndpoint_BodyType.NONE,
     variables: {
       'naam':  FFDataTypeV2(scalarType: FFBaseDataType.String),
       'email': FFDataTypeV2(scalarType: FFBaseDataType.String),
     },
   );
+  if (existing.contains('CreateParentAccount')) {
+    updateApiEndpoint(
+      project,
+      name:      'CreateParentAccount',
+      groupName: groupName,
+      url:       createParentUrl,
+      method:    FFApiEndpoint_CallType.POST,
+      bodyType:  FFApiEndpoint_BodyType.NONE,
+      body:      '',
+    );
+  }
 
   // PATCH /profile/photo — Profielfoto uploaden (multipart/form-data)
   if (!existing.contains('UpdateProfilePhoto')) {
@@ -6803,6 +7241,13 @@ void _addGuardianEndpoints(FFProject project) {
       headers:     ['Authorization: Bearer [bearerToken]'],
     );
   }
+
+  // POST /profile/delete — Account zelf verwijderen (soft-delete + tokens weg)
+  addIfMissing(
+    name:   'DeleteAccount',
+    url:    '/profile/delete',
+    method: FFApiEndpoint_CallType.POST,
+  );
 }
 
 // ─── Guardian pagina's: DSL-skelet ────────────────────────────────────────────
@@ -7265,6 +7710,24 @@ void _buildGuardianPageBody(FFProject project) {
 // Vervangt de placeholder-container met het formulier voor het aanvragen
 // van een ouder/verzorger koppeling.
 // Idempotent: slaat over als de body al gebouwd is.
+// Zet de foutmelding-tekst op de guardian-/bug-pagina's op wit
+// (secondaryBackground), want de container heeft een rode (error) achtergrond.
+// Idempotent en werkt óók op reeds gebouwde pagina's (body-builders skippen).
+void _fixErrorTextColors(FFProject project) {
+  const names = ['GuardianErrorText', 'CreateParentErrorText', 'SelfRegErrorText', 'BugErrorText'];
+  final white = FFColorValue(
+    inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_BACKGROUND),
+  );
+  for (final wc in project.widgetClasses.values.where((w) => w.isPage)) {
+    for (final node in findDescendants(wc.node, (n) => names.contains(n.name))) {
+      if (!node.props.hasText()) continue;
+      final t = node.props.text.deepCopy();
+      t.colorValue = white.deepCopy();
+      node.props.text = t;
+    }
+  }
+}
+
 void _buildGuardianRequestPageBody(FFProject project) {
   final wc = findPage(project, name: 'GuardianRequestPage');
   if (wc == null) return;
@@ -7284,7 +7747,7 @@ void _buildGuardianRequestPageBody(FFProject project) {
     padding: UIEdgeInsets.all(12),
     borderRadius: 8,
     color: UIColor.error,
-    child: UI.text('', name: 'GuardianErrorText', style: UITextStyle.bodySmall),
+    child: UI.text('', name: 'GuardianErrorText', style: UITextStyle.bodySmall, color: UIColor.secondaryBackground),
   );
   if (errorMsgId != null) {
     // Bind errorMessage to text
@@ -7403,7 +7866,7 @@ void _buildGuardianCreateParentPageBody(FFProject project) {
     padding: UIEdgeInsets.all(12),
     borderRadius: 8,
     color: UIColor.error,
-    child: UI.text('', name: 'CreateParentErrorText', style: UITextStyle.bodySmall),
+    child: UI.text('', name: 'CreateParentErrorText', style: UITextStyle.bodySmall, color: UIColor.secondaryBackground),
   );
   if (errorMsgId != null) {
     final errText = findDescendants(errorContainer, (n) => n.name == 'CreateParentErrorText').firstOrNull;
@@ -7521,12 +7984,11 @@ void _wireGuardianCreateParentSubmit(FFProject project) {
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
   );
 
-  final scaffoldKey = wc.node.key;
-
-  FFVariable _stateVar(String name) {
-    final id = _findPageStateFieldId(project, 'GuardianCreateParentPage', name);
-    if (id == null) return varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING);
-    return varFromPageState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  // Lees waarden rechtstreeks uit de tekstvelden (widget-value).
+  FFVariable _fieldVar(String fieldName) {
+    final f = findDescendants(wc.node, (n) => n.name == fieldName).firstOrNull;
+    if (f == null) return varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING);
+    return varFromTextFieldValue(f.key);
   }
 
   Actions.addTriggerChain(
@@ -7537,8 +7999,8 @@ void _wireGuardianCreateParentSubmit(FFProject project) {
       endpointName:       'CreateParentAccount',
       groupName:          'VoetbalPlannerAPI',
       dynamicVariables: {
-        'naam':  _stateVar('naam'),
-        'email': _stateVar('email'),
+        'naam':  _fieldVar('CreateParentNaamField'),
+        'email': _fieldVar('CreateParentEmailField'),
       },
       outputVariableName: 'createParentResult',
       nodeKey:            submitBtn.key,
@@ -7841,23 +8303,20 @@ void _wireGuardianRequestSubmit(FFProject project) {
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
   );
 
-  final scaffoldKey = wc.node.key;
-
-  FFVariable _stateVar(String name) {
-    final id = _findPageStateFieldId(project, 'GuardianRequestPage', name);
-    if (id == null) return varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING);
-    return varFromPageState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
-  }
-
-  final errorMsgId = _findPageStateFieldId(project, 'GuardianRequestPage', 'errorMessage');
+  // Lees de waarden RECHTSTREEKS uit de tekstvelden (widget-value). De
+  // page-state-velden werden niet betrouwbaar bijgewerkt bij het typen, waardoor
+  // de API onterecht lege/placeholder-waarden kreeg ("[lidnummer]").
+  final lidnummerField  = findDescendants(wc.node, (n) => n.name == 'LidnummerField').firstOrNull;
+  final achternaamField = findDescendants(wc.node, (n) => n.name == 'AchternaamField').firstOrNull;
+  if (lidnummerField == null || achternaamField == null) return;
 
   final submitNode = Actions.apiCallNode(
     project,
     endpointName:       'RequestGuardianAccess',
     groupName:          'VoetbalPlannerAPI',
     dynamicVariables: {
-      'lidnummer':  _stateVar('lidnummer'),
-      'achternaam': _stateVar('achternaam'),
+      'lidnummer':  varFromTextFieldValue(lidnummerField.key),
+      'achternaam': varFromTextFieldValue(achternaamField.key),
     },
     outputVariableName: 'guardianRequestResult',
     nodeKey:            submitBtn.key,
@@ -7900,7 +8359,7 @@ void _buildGuardianSelfRegisterPageBody(FFProject project) {
     padding: UIEdgeInsets.all(12),
     borderRadius: 8,
     color: UIColor.error,
-    child: UI.text('', name: 'SelfRegErrorText', style: UITextStyle.bodySmall),
+    child: UI.text('', name: 'SelfRegErrorText', style: UITextStyle.bodySmall, color: UIColor.secondaryBackground),
   );
   if (errorMsgId != null) {
     final errText = findDescendants(errorContainer, (n) => n.name == 'SelfRegErrorText').firstOrNull;
@@ -8061,12 +8520,12 @@ void _wireGuardianSelfRegisterSubmit(FFProject project) {
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
   );
 
-  final scaffoldKey = wc.node.key;
-
-  FFVariable _stateVar(String name) {
-    final id = _findPageStateFieldId(project, 'GuardianSelfRegisterPage', name);
-    if (id == null) return varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING);
-    return varFromPageState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  // Lees waarden rechtstreeks uit de tekstvelden (widget-value); page-state werd
+  // niet betrouwbaar bijgewerkt bij het typen.
+  FFVariable _fieldVar(String fieldName) {
+    final f = findDescendants(wc.node, (n) => n.name == fieldName).firstOrNull;
+    if (f == null) return varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING);
+    return varFromTextFieldValue(f.key);
   }
 
   Actions.addTriggerChain(
@@ -8077,10 +8536,10 @@ void _wireGuardianSelfRegisterSubmit(FFProject project) {
       endpointName:       'SelfRegisterGuardian',
       groupName:          'VoetbalPlannerAPI',
       dynamicVariables: {
-        'naam':       _stateVar('naam'),
-        'email':      _stateVar('email'),
-        'lidnummer':  _stateVar('lidnummer'),
-        'achternaam': _stateVar('achternaam'),
+        'naam':       _fieldVar('SelfRegNaamField'),
+        'email':      _fieldVar('SelfRegEmailField'),
+        'lidnummer':  _fieldVar('SelfRegLidnummerField'),
+        'achternaam': _fieldVar('SelfRegAchternaamField'),
       },
       outputVariableName: 'selfRegResult',
       nodeKey:            submitBtn.key,
@@ -9169,10 +9628,9 @@ void _addBardienAanmeldenButton(FFProject project) {
       endpointName: 'GetBarDuties',
       groupName: 'VoetbalPlannerAPI',
       variables: {'page': '1'},
+      // Bardiensten zijn op persoon: geen teamId → alle teams van de gebruiker.
       dynamicVariables: {
         'token': varFromAppState(authTokenIdBd.deepCopy()),
-        if (currentTeamIdIdBd != null)
-          'teamId': varFromAppState(currentTeamIdIdBd.deepCopy()),
       },
       outputVariableName: 'dutiesListRefresh',
       nodeKey: button.key,
@@ -9715,6 +10173,25 @@ void _wireWisselVerzoekenActions(FFProject project) {
       );
 }
 
+// Maakt de StatusBadge-component tot een ruimere pill: meer horizontale, wat
+// minder verticale padding op de label-tekst (was 10 rondom, tekst tegen de rand).
+void _makeStatusBadgeRoomier(FFProject project) {
+  final wc = findComponent(project, name: 'StatusBadge');
+  if (wc == null) return;
+  final textNode = findByKey(wc.node, 'Text_6z35bo4a')
+      ?? findDescendants(wc.node, (n) => n.type == FFWidgetType.Text).firstOrNull;
+  if (textNode == null) return;
+  final props = textNode.props.deepCopy();
+  props.padding = FFPadding(
+    type: FFPadding_PaddingType.FF_PADDING_ONLY,
+    leftValue:   FFDoubleValue(inputValue: 14.0),
+    topValue:    FFDoubleValue(inputValue: 6.0),
+    rightValue:  FFDoubleValue(inputValue: 14.0),
+    bottomValue: FFDoubleValue(inputValue: 6.0),
+  );
+  textNode.props = props;
+}
+
 // Binds WedstrijdDetailPage's AppBar title to the matchId page param.
 // match.opponent cannot be used here: the AppBar builds before the API call
 // completes and match is null, causing a null-check crash.
@@ -9943,6 +10420,8 @@ void _applyBrandingToAllButtons(FFProject project) {
 
   for (final wc in project.widgetClasses.values.where((wc) => wc.isPage)) {
     for (final btn in findDescendants(wc.node, (n) => n.props.hasButton())) {
+      // Destructieve knop houdt zijn eigen (rode) kleur — niet overschrijven.
+      if (btn.name == 'DeleteAccountButton') continue;
       final proto = btn.props.button.deepCopy();
       proto.fillColorValue = clubColor.deepCopy();
       proto.innerPadding = padding.deepCopy();
@@ -9960,6 +10439,64 @@ void _applyBrandingToAllButtons(FFProject project) {
 // and sets the back button + title text color to white for maximum contrast.
 // Itereert over ALLE pagina's met een AppBar — geen hardcoded lijst, zodat
 // nieuwe pages automatisch consistent zijn met de club-branding.
+// Zet het clublogo rechtsboven in elke AppBar (sticky, want AppBars staan vast
+// bovenaan). Gebonden aan AppState.clubLogoUrl; alleen zichtbaar als die gevuld
+// is. Idempotent: slaat over als het logo al in de AppBar staat.
+void _addClubLogoToAppBars(FFProject project) {
+  final logoId = _findAppStateFieldId(project, 'clubLogoUrl');
+  if (logoId == null) return;
+
+  for (final wc in project.widgetClasses.values) {
+    if (!wc.hasPageRouteSettings()) continue; // alleen pagina's
+    final appBarNode = getPropertyChild(wc.node, 'appBar');
+    if (appBarNode == null) continue;
+    if (findDescendants(appBarNode, (n) => n.name == 'ClubLogoAppBar').isNotEmpty) continue;
+
+    final logoImage = FFNode(
+      key: generateRandomAlphaNumericString(),
+      type: FFWidgetType.CircleImage,
+      name: 'ClubLogoAppBar',
+      props: FFWidgetProperties(
+        image: FFImage(
+          type:      FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+          pathValue: FFStringValue(
+            variable: varFromAppState(logoId.deepCopy())
+              ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+          ),
+          fit:    FFBoxFit.FF_BOX_FIT_COVER,
+          cached: true,
+          dimensions: FFDimensions(
+            width:  FFDim(pixelsValue: FFDoubleValue(inputValue: 32.0)),
+            height: FFDim(pixelsValue: FFDoubleValue(inputValue: 32.0)),
+          ),
+        ),
+      ),
+    );
+
+    final wrapper = UI.container(
+      name: 'ClubLogoAppBarWrap',
+      padding: UIEdgeInsets.only(right: 12),
+      child: logoImage,
+    );
+    final hasLogo = conditionVar(
+      varFromAppState(logoId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable;
+    setConditionalVisibility(wrapper, variable: hasLogo);
+
+    appBarNode.children.add(wrapper);
+    final existing = appBarNode.childPropertyMap['actions'];
+    if (existing != null) {
+      existing.keyRefs.add(FFNodeKeyReference(key: wrapper.key));
+    } else {
+      appBarNode.childPropertyMap['actions'] =
+          FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: wrapper.key)]);
+    }
+  }
+}
+
 void _applyBrandingToAllAppBars(FFProject project) {
   final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
   if (primaryColorId == null) return;
@@ -13271,7 +13808,9 @@ void _buildDashboardContent(FFProject project) {
 
 void _buildDashboardMatchesList(FFProject project, FFWidgetClass wc) {
   final container = findDescendants(wc.node, (n) => n.name == 'DashboardMatchesContainer').firstOrNull;
-  if (container == null || container.children.isNotEmpty) return;
+  if (container == null) return;
+  // Vers opbouwen bij elke push zodat layout-wijzigingen meekomen.
+  container.children.clear();
 
   final matchesId = _findPageStateFieldId(project, 'DashboardPage', 'matches');
   if (matchesId == null) return;
@@ -13286,11 +13825,106 @@ void _buildDashboardMatchesList(FFProject project, FFWidgetClass wc) {
     dynamicSource: DynamicSource(variable: matchesVar, itemName: 'match'),
   );
 
+  // Tegenstander (titel).
   final opponentText = UI.text('', name: 'DashboardMatchOpponent', style: UITextStyle.bodyMedium);
   opponentText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'opponent'));
 
-  final dateText = UI.text('', name: 'DashboardMatchDate', style: UITextStyle.bodySmall);
+  // Thuis/Uit-badge: reken de bool isHome om naar 'Thuis'/'Uit'.
+  final homeAwayVar = codeExpressionVar(
+    expression: "(isHome ?? false) ? 'Thuis' : 'Uit'",
+    arguments: [
+      CodeExpressionArg(
+        name: 'isHome',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+        value: FFValue(variable: generatorVarField(listView.key, 'isHome')),
+      ),
+    ],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+  );
+  final homeAwayText = UI.text('', name: 'DashboardMatchHomeAway',
+      style: UITextStyle.labelSmall, color: UIColor.secondaryBackground);
+  homeAwayText.props.text.textValue = FFStringValue(variable: homeAwayVar);
+  homeAwayText.props.padding =
+      FFPadding(type: FFPadding_PaddingType.FF_PADDING_ALL, allValue: FFDoubleValue(inputValue: 5.0));
+  final homeAwayBadge = UI.container(
+    name: 'DashboardMatchHomeAwayBadge',
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    borderRadius: 8,
+    color: UIColor.primary,
+    child: homeAwayText,
+  );
+
+  // Datum + tijd.
+  final dateText = UI.text('', name: 'DashboardMatchDate',
+      style: UITextStyle.bodySmall, color: UIColor.secondaryText);
   dateText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'matchDatetime'));
+
+  final metaRow = UI.row(
+    name: 'DashboardMatchMetaRow',
+    spacing: 8,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [homeAwayBadge, dateText],
+  );
+
+  // Locatie (alleen tonen als gevuld).
+  final locationText = UI.text('', name: 'DashboardMatchLocation',
+      style: UITextStyle.bodySmall, color: UIColor.secondaryText);
+  locationText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'location'));
+  final locationRow = UI.row(
+    name: 'DashboardMatchLocationRow',
+    spacing: 4,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      UI.icon('place', size: 14, color: UIColor.secondaryText),
+      locationText,
+    ],
+  );
+  final locVisibleVar = conditionVar(
+    generatorVarField(listView.key, 'location'),
+    FFCondition_Relation.NOT_EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable;
+  setConditionalVisibility(locationRow, variable: locVisibleVar);
+
+  final infoColumn = UI.column(
+    name: 'DashboardMatchInfo',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 4,
+    children: [opponentText, metaRow, locationRow],
+  );
+
+  // Leading: tegenstander-logo (indien bekend), anders de bal-icoon als fallback.
+  final logoImage = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.CircleImage,
+    name: 'DashboardMatchOpponentLogo',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type:       FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue:  FFStringValue(variable: generatorVarField(listView.key, 'opponentLogo')),
+        fit:        FFBoxFit.FF_BOX_FIT_COVER,
+        cached:     true,
+        dimensions: FFDimensions(
+          width:  FFDim(pixelsValue: FFDoubleValue(inputValue: 32.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 32.0)),
+        ),
+      ),
+    ),
+  );
+  final hasLogoVar = conditionVar(
+    generatorVarField(listView.key, 'opponentLogo'),
+    FFCondition_Relation.NOT_EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable;
+  setConditionalVisibility(logoImage, variable: hasLogoVar);
+
+  final fallbackIcon = UI.icon('sports_soccer', size: 28, color: UIColor.primary);
+  final noLogoVar = conditionVar(
+    generatorVarField(listView.key, 'opponentLogo'),
+    FFCondition_Relation.EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable;
+  setConditionalVisibility(fallbackIcon, variable: noLogoVar);
 
   final card = UI.container(
     name: 'DashboardMatchCard',
@@ -13300,20 +13934,202 @@ void _buildDashboardMatchesList(FFProject project, FFWidgetClass wc) {
     child: UI.row(
       name: 'DashboardMatchRow',
       spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.center,
       children: [
-        UI.icon('sports_soccer', size: 24, color: UIColor.primary),
-        UI.column(
-          name: 'DashboardMatchInfo',
-          crossAxisAlignment: UICrossAxisAlignment.start,
-          spacing: 4,
-          children: [opponentText, dateText],
-        ),
+        logoImage,
+        fallbackIcon,
+        UI.expanded(infoColumn),
       ],
     ),
   );
 
   listView.children.add(card);
   container.children.add(listView);
+}
+
+// Team-switcher bovenaan het dashboard: horizontale chips van alle gekoppelde
+// teams (AppState.availableTeams). Alleen zichtbaar bij >1 team
+// (AppState.hasMultipleTeams). Tik op een team → zet currentTeamId/Name en
+// herlaad "mijn wedstrijden" + "mijn trainingen" voor dat team. Bardiensten en
+// rijschema blijven ongemoeid (op persoon). Idempotent (rebuild elke push).
+void _addDashboardTeamSwitcher(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  final availTeamsId = _findAppStateFieldId(project, 'availableTeams');
+  final teamIdId     = _findAppStateFieldId(project, 'currentTeamId');
+  final teamNameId   = _findAppStateFieldId(project, 'currentTeamName');
+  final authTokenId  = _findAppStateFieldId(project, 'authToken');
+  final multiId      = _findAppStateFieldId(project, 'hasMultipleTeams');
+  final matchesId    = _findPageStateFieldId(project, 'DashboardPage', 'matches');
+  final trainingsId  = _findAppStateFieldId(project, 'trainings');
+  if (availTeamsId == null || teamIdId == null || teamNameId == null ||
+      authTokenId == null || multiId == null) return;
+
+  // Rebuild fresh each push.
+  for (final n in findDescendants(wc.node, (x) => x.name == 'DashboardTeamSwitcher').toList()) {
+    removeByKey(wc.node, n.key);
+  }
+
+  // Body-column = parent van DashboardMatchesContainer.
+  final matchesContainer =
+      findDescendants(wc.node, (n) => n.name == 'DashboardMatchesContainer').firstOrNull;
+  if (matchesContainer == null) return;
+  final bodyCol = findDescendants(wc.node, (_) => true)
+      .where((n) => n.children.any((c) => identical(c, matchesContainer)))
+      .firstOrNull;
+  if (bodyCol == null) return;
+
+  // Horizontale teamlijst.
+  final teamsVar = varFromAppState(availTeamsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  final list = UI.listView(
+    name: 'DashboardTeamSwitcherList',
+    horizontal: true,
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12),
+    dynamicSource: DynamicSource(variable: teamsVar, itemName: 'team'),
+  );
+
+  // Actief team = team.id == currentTeamId. We tonen per item twee chips: een
+  // gemarkeerde (clubkleur) voor het actieve team en een grijze voor de rest,
+  // elk met conditionele zichtbaarheid.
+  final activeVar = conditionVar(
+    generatorVarField(list.key, 'id'),
+    FFCondition_Relation.EQUAL_TO,
+    varFromAppState(teamIdId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+  ).variable;
+  final inactiveVar = conditionVar(
+    generatorVarField(list.key, 'id'),
+    FFCondition_Relation.NOT_EQUAL_TO,
+    varFromAppState(teamIdId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+  ).variable;
+
+  // Actieve chip (clubkleur + witte tekst).
+  final activeText = UI.text('', name: 'DashboardTeamSwitcherActiveName',
+      style: UITextStyle.bodyMedium, color: UIColor.secondaryBackground);
+  activeText.props.text.textValue = FFStringValue(variable: generatorVarField(list.key, 'name'));
+  activeText.props.padding =
+      FFPadding(type: FFPadding_PaddingType.FF_PADDING_ALL, allValue: FFDoubleValue(inputValue: 5.0));
+  final activeChip = UI.container(
+    name: 'DashboardTeamSwitcherActiveChip',
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    borderRadius: 20,
+    color: UIColor.primary,
+    child: activeText,
+  );
+  setConditionalVisibility(activeChip, variable: activeVar);
+
+  // Inactieve chip (grijs).
+  final chipText = UI.text('', name: 'DashboardTeamSwitcherName',
+      style: UITextStyle.bodyMedium, color: UIColor.primaryText);
+  chipText.props.text.textValue = FFStringValue(variable: generatorVarField(list.key, 'name'));
+  final inactiveChip = UI.container(
+    name: 'DashboardTeamSwitcherChip',
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    borderRadius: 20,
+    color: UIColor.secondaryBackground,
+    child: chipText,
+  );
+  setConditionalVisibility(inactiveChip, variable: inactiveVar);
+
+  // Item-wrapper (bevat beide chips; tik hierop).
+  final chip = UI.row(
+    name: 'DashboardTeamSwitcherItem',
+    mainAxisMin: true,
+    children: [activeChip, inactiveChip],
+  );
+
+  // Tap-chain: currentTeam zetten → wedstrijden herladen → trainingen herladen.
+  final setStateNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      localStateUpdate: FFLocalStateUpdate(
+        updates: [
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: teamIdId.deepCopy(),
+            setValue: FFValue(variable: generatorVarField(list.key, 'id')),
+          ),
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: teamNameId.deepCopy(),
+            setValue: FFValue(variable: generatorVarField(list.key, 'name')),
+          ),
+        ],
+        stateVariableType: FFStateVariableType.APP_STATE,
+      ),
+    ),
+  );
+
+  final matchesNode = Actions.apiCallNode(
+    project,
+    endpointName: 'GetUpcomingMatches',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'token':  varFromAppState(authTokenId.deepCopy()),
+      'teamId': generatorVarField(list.key, 'id'),
+    },
+    outputVariableName: 'switchMatches',
+    nodeKey: chip.key,
+    onSuccess: (ctx) => Actions.chain([
+      if (matchesId != null)
+        Actions.updatePageState(project, widgetClassName: 'DashboardPage', updates: [
+          StateFieldUpdate.setFromVariable('matches', ctx.responseVar),
+        ]),
+    ]),
+  );
+  setStateNode.followUpAction = matchesNode;
+
+  // Trainingen herladen (indien endpoint + state aanwezig).
+  final hasTrainings =
+      findApiEndpoint(project, name: 'GetTrainingsList', groupName: 'VoetbalPlannerAPI') != null;
+  if (hasTrainings && trainingsId != null) {
+    final trainingsNode = Actions.apiCallNode(
+      project,
+      endpointName: 'GetTrainingsList',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token':  varFromAppState(authTokenId.deepCopy()),
+        'teamId': generatorVarField(list.key, 'id'),
+      },
+      outputVariableName: 'switchTrainings',
+      nodeKey: chip.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('trainings', ctx.responseVar),
+        ]),
+      ]),
+    );
+    var tail = matchesNode;
+    while (tail.hasFollowUpAction()) tail = tail.followUpAction;
+    tail.followUpAction = trainingsNode;
+  }
+
+  Actions.onTapChain(chip, setStateNode);
+  list.children.add(chip);
+
+  final switcher = UI.container(
+    name: 'DashboardTeamSwitcher',
+    height: 48,
+    child: list,
+  );
+  // Alleen tonen bij >1 team.
+  setConditionalVisibility(
+    switcher,
+    variable: varFromAppState(multiId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+  );
+
+  bodyCol.children.insert(0, switcher);
+}
+
+// Verwijdert de tijdelijke clubLogoUrl-debug-readout (indien nog aanwezig).
+void _removeClubLogoDebug(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  for (final n in findDescendants(wc.node, (x) => x.name == 'ClubLogoDebug').toList()) {
+    removeByKey(wc.node, n.key);
+  }
 }
 
 void _buildDashboardDutiesList(FFProject project, FFWidgetClass wc) {
@@ -13363,6 +14179,119 @@ void _buildDashboardDutiesList(FFProject project, FFWidgetClass wc) {
   container.children.add(listView);
 }
 
+// Custom action: ververst het huidige team vanuit /auth/me zonder opnieuw in
+// te loggen. Werkt availableTeams bij en schakelt naar het standaard-team als
+// het huidige team niet meer toegankelijk is (na een teamwissel via Sportlink
+// of een handmatige herkoppeling). Draait bij elke Dashboard-load.
+void _ensureRefreshCurrentTeamAction(FFProject project) {
+  const _code = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future<String> refreshCurrentTeam() async {
+  final token = FFAppState().authToken;
+  if (token.isEmpty) return '';
+  try {
+    final response = await http.get(
+      Uri.parse('https://voetbalplanner.nubix.nl/api/v1/auth/me'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode != 200) return FFAppState().currentTeamId;
+    final body = jsonDecode(response.body) as Map<String, dynamic>?;
+    if (body == null || body['success'] != true) {
+      return FFAppState().currentTeamId;
+    }
+
+    final user = (body['data'] as Map<String, dynamic>?) ?? {};
+    final club = (user['club'] as Map<String, dynamic>?) ?? {};
+
+    final defaultTeamId = (user['team_id'] as String?) ?? '';
+    final defaultTeamName = (user['team_name'] as String?) ?? '';
+
+    final rawTeams = ((user['teams'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((t) => {
+              'id': (t['id']?.toString() ?? ''),
+              'name': (t['name']?.toString() ?? ''),
+              'role': (t['role']?.toString() ?? ''),
+            })
+        .where((t) => (t['id'] ?? '').isNotEmpty)
+        .toList();
+
+    var teams = rawTeams
+        .map<TeamOptionStruct?>((t) => TeamOptionStruct.maybeFromMap(t))
+        .where((t) => t != null)
+        .cast<TeamOptionStruct>()
+        .toList();
+    // Fallback (oude backend zonder teams[]): toon tenminste het huidige team.
+    if (teams.isEmpty && defaultTeamId.isNotEmpty) {
+      final fb = TeamOptionStruct.maybeFromMap(
+          {'id': defaultTeamId, 'name': defaultTeamName});
+      if (fb != null) teams = [fb];
+    }
+
+    final currentId = FFAppState().currentTeamId;
+    final currentStillListed =
+        currentId.isNotEmpty && rawTeams.any((t) => t['id'] == currentId);
+    final currentName = currentStillListed
+        ? (rawTeams.firstWhere((t) => t['id'] == currentId)['name'] ?? '')
+        : '';
+
+    FFAppState().update(() {
+      FFAppState().availableTeams = teams;
+      FFAppState().hasMultipleTeams = teams.length > 1;
+      final _club = (club['name'] as String?) ?? '';
+      if (_club.isNotEmpty) FFAppState().clubName = _club;
+      final _logo = (club['logo_url'] as String?) ?? '';
+      if (_logo.isNotEmpty) FFAppState().clubLogoUrl = _logo;
+      FFAppState().relatiecode = (user['relatiecode'] as String?) ?? '';
+      FFAppState().profilePhotoUrl =
+          (user['profile_photo_url'] as String?) ?? '';
+      if (!currentStillListed) {
+        // Huidige team niet meer toegankelijk → schakel naar standaard-team.
+        FFAppState().currentTeamId = defaultTeamId;
+        FFAppState().currentTeamName = defaultTeamName;
+      } else if (currentName.isNotEmpty) {
+        // Naam kan gewijzigd zijn; sync de naam van het huidige team.
+        FFAppState().currentTeamName = currentName;
+      }
+    });
+    return FFAppState().currentTeamId;
+  } catch (_) {
+    return FFAppState().currentTeamId;
+  }
+}
+''';
+
+  if (findCustomAction(project, name: 'RefreshCurrentTeam') == null) {
+    addCustomAction(
+      project,
+      name: 'RefreshCurrentTeam',
+      description:
+          'Ververst huidig team + availableTeams vanuit /auth/me. Schakelt naar het standaard-team als het huidige team niet meer toegankelijk is (teamwissel/herkoppeling). Draait bij Dashboard-load.',
+      arguments: const [],
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ),
+      code: _code,
+    );
+  } else {
+    updateCustomAction(project, name: 'RefreshCurrentTeam', code: _code);
+  }
+}
+
 void _wireDashboardLoad(FFProject project) {
   final wc = findPage(project, name: 'DashboardPage');
   if (wc == null) return;
@@ -13386,9 +14315,10 @@ void _wireDashboardLoad(FFProject project) {
     endpointName: 'GetBarDuties',
     groupName: 'VoetbalPlannerAPI',
     variables: {'page': '1'},
+    // Bardiensten zijn op persoon: GEEN teamId meegeven zodat alle teams van de
+    // gebruiker getoond worden (niet beïnvloed door de dashboard team-switcher).
     dynamicVariables: {
       'token': varFromAppState(authTokenId.deepCopy()),
-      if (currentTeamIdId != null) 'teamId': varFromAppState(currentTeamIdId.deepCopy()),
     },
     outputVariableName: 'dashDuties',
     nodeKey: scaffoldKey,
@@ -13454,9 +14384,28 @@ void _wireDashboardLoad(FFProject project) {
     t.followUpAction = watchNode;
   }
 
+  // Prepend RefreshCurrentTeam zodat het huidige team is ververst vóórdat de
+  // data-calls currentTeamId lezen. Detecteert een teamwissel (Sportlink of
+  // handmatige herkoppeling) zonder dat de gebruiker opnieuw hoeft in te loggen.
+  final refreshTeam = findCustomAction(project, name: 'RefreshCurrentTeam');
+  FFActionNode rootNode = matchesNode;
+  if (refreshTeam != null) {
+    rootNode = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: refreshTeam.identifier.deepCopy(),
+          argumentValues: FFFunctionCallValues(),
+        ),
+      ),
+      followUpAction: matchesNode,
+    );
+  }
+
   // Wire directly (no auth guard): DashboardPage requires authentication, so authToken
   // is always present when this fires. onFailure handlers handle any 401 gracefully.
-  Actions.onPageLoadChain(wc.node, matchesNode);
+  Actions.onPageLoadChain(wc.node, rootNode);
 }
 
 // Patch DashboardMatchesList and DashboardDutiesList to shrinkWrap: true.
@@ -17704,7 +18653,9 @@ FFNode _buildAppDrawerNode(FFProject project) {
 
   final headerColumn = UI.column(
     name: 'DrawerHeaderColumn',
-    crossAxisAlignment: UICrossAxisAlignment.start,
+    mainAxisAlignment: UIMainAxisAlignment.center,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    mainAxisMin: true,
     spacing: 8,
     padding: UIEdgeInsets.all(5),
     children: [avatar, nameText, emailText],
@@ -17713,9 +18664,11 @@ FFNode _buildAppDrawerNode(FFProject project) {
   final header = UI.container(
     name: 'DrawerHeader',
     width: double.infinity,
-    padding: UIEdgeInsets.only(top: 60),
     child: headerColumn,
   );
+  // Hoogte = 30% van de schermhoogte (zoals in de FlutterFlow-editor ingesteld).
+  header.props.container.dimensions.height =
+      FFDim(percentOfScreenSizeValue: FFDoubleValue(inputValue: 30.0));
   // Achtergrond = club-primaryColor via color-from-string (AppState), net als de
   // AppBar-branding. Fallback op de theme-PRIMARY-token als het veld ontbreekt.
   final drawerPrimaryId = _findAppStateFieldId(project, 'primaryColor');
@@ -18655,7 +19608,7 @@ void _ensureTrainingItemCountFields(FFProject project) {
       .cast<FFDataStruct?>()
       .firstWhere((s) => s?.identifier.name == 'TrainingItem', orElse: () => null);
   if (ds == null) return;
-  for (final fieldName in const ['aangemeld', 'afgemeld']) {
+  for (final fieldName in const ['aangemeld', 'afgemeld', 'dressing_room']) {
     if (ds.fields.any((f) => f.identifier.name == fieldName)) continue;
     ds.fields.add(FFParameter(
       identifier: FFIdentifier(name: fieldName, key: generateRandomAlphaNumericString()),
@@ -19361,6 +20314,7 @@ void _buildTrainingDetailPage(App app) {
       'dayLabel':    string.withDefault(''),
       'startTime':   string.withDefault(''),
       'location':    string.withDefault(''),
+      'kleedkamer':  string.withDefault(''),
       'mijnStatus':  string.withDefault('aangemeld'),
       'afmeldingen': listOf(afmeldingHandle),
     },
@@ -19401,6 +20355,16 @@ void _wireTrainingDetailPage(FFProject project) {
       p.isList = true;
       wc.params[id.key] = p;
     }
+  }
+
+  // kleedkamer-param (string) idempotent toevoegen — ensurePage doet dat niet
+  // voor een al bestaande pagina.
+  if (!wc.params.values.any((p) => p.hasIdentifier() && p.identifier.name == 'kleedkamer')) {
+    final id = FFIdentifier(name: 'kleedkamer', key: generateRandomAlphaNumericString());
+    wc.params[id.key] = FFParameter(
+      identifier: id,
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    );
   }
 
   FFIdentifier? paramId(String name) {
@@ -19603,11 +20567,51 @@ void _wireTrainingDetailPage(FFProject project) {
     afmeldChildren.add(afmLv);
   }
 
+  // Kleedkamer-rij (icoon + "Kleedkamer: X"), alleen zichtbaar als gevuld.
+  final kleedkamerP = paramId('kleedkamer');
+  FFNode? kleedkamerRow;
+  if (kleedkamerP != null) {
+    final kkText = UI.text('', name: 'TrainDetailKleedkamer',
+        style: UITextStyle.bodyMedium);
+    kkText.props.text.textValue = FFStringValue(
+      variable: codeExpressionVar(
+        expression: "((k ?? '') != '') ? ('Kleedkamer: ' + (k ?? '')) : ''",
+        arguments: [
+          CodeExpressionArg(
+            name: 'k',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: pParam(kleedkamerP)),
+          ),
+        ],
+        returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+      ),
+    );
+    final kkRow = UI.row(
+      name: 'TrainDetailKleedkamerRow',
+      spacing: 6,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('meeting_room', size: 16, color: UIColor.secondaryText),
+        kkText,
+      ],
+    );
+    setConditionalVisibility(
+      kkRow,
+      variable: conditionVar(
+        pParam(kleedkamerP),
+        FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+      ).variable,
+    );
+    kleedkamerRow = kkRow;
+  }
+
   col.children.addAll([
     infoText(dayLabelP, 'TrainDetailDay', UITextStyle.titleLarge),
     infoText(dateP, 'TrainDetailDate', UITextStyle.bodyMedium),
     infoText(startTimeP, 'TrainDetailTime', UITextStyle.bodyMedium),
     infoText(locationP, 'TrainDetailLoc', UITextStyle.bodyMedium),
+    if (kleedkamerRow != null) kleedkamerRow,
     statusText,
     reasonField,
     afmeldBtn,
@@ -19641,6 +20645,7 @@ void _wireTrainingCardNavigation(FFProject project) {
       'dayLabel':   VariableParamValue(generatorVarField(listView.key, 'day_label')),
       'startTime':  VariableParamValue(generatorVarField(listView.key, 'start_time')),
       'location':    VariableParamValue(generatorVarField(listView.key, 'location')),
+      'kleedkamer':  VariableParamValue(generatorVarField(listView.key, 'dressing_room')),
       'mijnStatus':  VariableParamValue(generatorVarField(listView.key, 'mijn_status')),
       'afmeldingen': VariableParamValue(generatorVarField(listView.key, 'afmeldingen')),
     }),

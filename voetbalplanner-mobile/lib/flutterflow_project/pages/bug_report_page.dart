@@ -66,6 +66,22 @@ abstract final class BugReportPageWidgets {
             path: "BugReportPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
+              "actions": <ffai.ProjectWidgetHandle>[
+                ffai.ProjectWidgetHandle(
+                  key: "Container_lzb64l1y",
+                  type: "Container",
+                  path: "BugReportPage.appBar[0].actions[0]",
+                  name: "ClubLogoAppBarWrap",
+                  children: <ffai.ProjectWidgetHandle>[
+                    ffai.ProjectWidgetHandle(
+                      key: "k8lfmvha",
+                      type: "CircleImage",
+                      path: "BugReportPage.appBar[0].actions[0].children[0]",
+                      name: "ClubLogoAppBar",
+                    ),
+                  ],
+                ),
+              ],
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
                   key: "Text_0ogk5wf1",

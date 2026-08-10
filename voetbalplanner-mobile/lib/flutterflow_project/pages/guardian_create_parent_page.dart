@@ -60,6 +60,22 @@ abstract final class GuardianCreateParentPageWidgets {
             path: "GuardianCreateParentPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
+              "actions": <ffai.ProjectWidgetHandle>[
+                ffai.ProjectWidgetHandle(
+                  key: "Container_bf4pfp9l",
+                  type: "Container",
+                  path: "GuardianCreateParentPage.appBar[0].actions[0]",
+                  name: "ClubLogoAppBarWrap",
+                  children: <ffai.ProjectWidgetHandle>[
+                    ffai.ProjectWidgetHandle(
+                      key: "v9s8gn32",
+                      type: "CircleImage",
+                      path: "GuardianCreateParentPage.appBar[0].actions[0].children[0]",
+                      name: "ClubLogoAppBar",
+                    ),
+                  ],
+                ),
+              ],
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
                   key: "Text_nhvl9aky",

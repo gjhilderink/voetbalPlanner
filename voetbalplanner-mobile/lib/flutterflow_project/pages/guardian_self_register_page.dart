@@ -78,6 +78,22 @@ abstract final class GuardianSelfRegisterPageWidgets {
             path: "GuardianSelfRegisterPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
+              "actions": <ffai.ProjectWidgetHandle>[
+                ffai.ProjectWidgetHandle(
+                  key: "Container_ohxh3o5l",
+                  type: "Container",
+                  path: "GuardianSelfRegisterPage.appBar[0].actions[0]",
+                  name: "ClubLogoAppBarWrap",
+                  children: <ffai.ProjectWidgetHandle>[
+                    ffai.ProjectWidgetHandle(
+                      key: "7h7zkb49",
+                      type: "CircleImage",
+                      path: "GuardianSelfRegisterPage.appBar[0].actions[0].children[0]",
+                      name: "ClubLogoAppBar",
+                    ),
+                  ],
+                ),
+              ],
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
                   key: "Text_bvzmlylz",

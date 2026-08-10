@@ -29,6 +29,12 @@ abstract final class AppState {
     typeName: "List<String>",
     persisted: false,
   );
+  static const clubLogoUrl = ffai.ProjectAppStateFieldHandle(
+    name: "clubLogoUrl",
+    key: "1bfk2ib7",
+    typeName: "String",
+    persisted: true,
+  );
   static const clubName = ffai.ProjectAppStateFieldHandle(
     name: "clubName",
     key: "e298h9gr",
@@ -69,6 +75,12 @@ abstract final class AppState {
     name: "groupMemberNames",
     key: "ppeud04v",
     typeName: "List<String>",
+    persisted: false,
+  );
+  static const hasMultipleTeams = ffai.ProjectAppStateFieldHandle(
+    name: "hasMultipleTeams",
+    key: "8um4fn3m",
+    typeName: "Boolean",
     persisted: false,
   );
   static const hasUnreadTeamChat = ffai.ProjectAppStateFieldHandle(
@@ -250,6 +262,7 @@ abstract final class AppState {
     authToken,
     availableTeams,
     bugScreenshotPaths,
+    clubLogoUrl,
     clubName,
     currentConversationId,
     currentTeamId,
@@ -257,6 +270,7 @@ abstract final class AppState {
     directConvId,
     editingChatDocPath,
     groupMemberNames,
+    hasMultipleTeams,
     hasUnreadTeamChat,
     loginEmail,
     loginError,

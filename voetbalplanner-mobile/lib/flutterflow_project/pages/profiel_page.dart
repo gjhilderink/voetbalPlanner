@@ -39,6 +39,22 @@ abstract final class ProfielPageWidgets {
             path: "ProfielPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
+              "actions": <ffai.ProjectWidgetHandle>[
+                ffai.ProjectWidgetHandle(
+                  key: "Container_ugbwxxoh",
+                  type: "Container",
+                  path: "ProfielPage.appBar[0].actions[0]",
+                  name: "ClubLogoAppBarWrap",
+                  children: <ffai.ProjectWidgetHandle>[
+                    ffai.ProjectWidgetHandle(
+                      key: "u3vzbdqn",
+                      type: "CircleImage",
+                      path: "ProfielPage.appBar[0].actions[0].children[0]",
+                      name: "ClubLogoAppBar",
+                    ),
+                  ],
+                ),
+              ],
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
                   key: "Text_96rotkpl",
@@ -105,6 +121,41 @@ abstract final class ProfielPageWidgets {
                             type: "Text",
                             path: "ProfielPage.body[0].children[0].children[0].children[0].children[4]",
                             name: "ProfielRelatiecode",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_ondh5wgs",
+                            type: "Text",
+                            path: "ProfielPage.body[0].children[0].children[0].children[0].children[5]",
+                            name: "ProfielTeamsLabel",
+                            text: "Teams",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "ListView_rv3b4hc1",
+                            type: "ListView",
+                            path: "ProfielPage.body[0].children[0].children[0].children[0].children[6]",
+                            name: "ProfielTeamsList",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_4qa8wuci",
+                                type: "Row",
+                                path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0]",
+                                name: "ProfielTeamRow",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Icon_0ngdkxbc",
+                                    type: "Icon",
+                                    path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0].children[0]",
+                                    name: "Icon",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_vzhw5u71",
+                                    type: "Text",
+                                    path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0].children[1]",
+                                    name: "ProfielTeamName",
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -195,6 +246,16 @@ abstract final class ProfielPageWidgets {
                       "ON_TAP",
                     ],
                   ),
+                  ffai.ProjectWidgetHandle(
+                    key: "Button_tyvscwtg",
+                    type: "Button",
+                    path: "ProfielPage.body[0].children[0].children[4]",
+                    name: "DeleteAccountButton",
+                    text: "Account verwijderen",
+                    triggers: const <String>[
+                      "ON_TAP",
+                    ],
+                  ),
                 ],
               ),
               ffai.ProjectWidgetHandle(
@@ -208,43 +269,43 @@ abstract final class ProfielPageWidgets {
         ],
         "drawer": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "Drawer_6hh9ejmo",
+            key: "Drawer_iey6j77y",
             type: "Drawer",
             path: "ProfielPage.drawer[0]",
             name: "AppDrawer",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_5utuxt1s",
+                key: "Column_syasedxq",
                 type: "Column",
                 path: "ProfielPage.drawer[0].children[0]",
                 name: "DrawerMenuColumn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_v3giiz4h",
+                    key: "Container_l5dvr7wc",
                     type: "Container",
                     path: "ProfielPage.drawer[0].children[0].children[0]",
                     name: "DrawerHeader",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_90zsg97b",
+                        key: "Column_wtvdv9wk",
                         type: "Column",
                         path: "ProfielPage.drawer[0].children[0].children[0].children[0]",
                         name: "DrawerHeaderColumn",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_jtgp0tu2",
+                            key: "Container_comywd6b",
                             type: "Container",
                             path: "ProfielPage.drawer[0].children[0].children[0].children[0].children[0]",
                             name: "DrawerHeaderAvatar",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "2yyog3z2",
+                                key: "cr15iule",
                                 type: "CircleImage",
                                 path: "ProfielPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "DrawerHeaderPhoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_597yia1j",
+                                key: "Icon_amm82uya",
                                 type: "Icon",
                                 path: "ProfielPage.drawer[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "Icon",
@@ -252,13 +313,13 @@ abstract final class ProfielPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_wrez12zh",
+                            key: "Text_4b5iho3b",
                             type: "Text",
                             path: "ProfielPage.drawer[0].children[0].children[0].children[0].children[1]",
                             name: "DrawerHeaderName",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_4nn9vsjc",
+                            key: "Text_ux4q592s",
                             type: "Text",
                             path: "ProfielPage.drawer[0].children[0].children[0].children[0].children[2]",
                             name: "DrawerHeaderEmail",
@@ -268,7 +329,7 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_w43kn94i",
+                    key: "ListTile_idhfi1dz",
                     type: "ListTile",
                     path: "ProfielPage.drawer[0].children[0].children[1]",
                     name: "DrawerTileHome",
@@ -277,7 +338,7 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_91okb3ll",
+                    key: "ListTile_dfd5ft1q",
                     type: "ListTile",
                     path: "ProfielPage.drawer[0].children[0].children[2]",
                     name: "DrawerTileNews",
@@ -286,7 +347,7 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_ddpir4rz",
+                    key: "ListTile_f3hnzrw8",
                     type: "ListTile",
                     path: "ProfielPage.drawer[0].children[0].children[3]",
                     name: "DrawerTileDocs",
@@ -295,7 +356,7 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_pn3d5crp",
+                    key: "ListTile_cijxdshe",
                     type: "ListTile",
                     path: "ProfielPage.drawer[0].children[0].children[4]",
                     name: "DrawerTileProfiel",
@@ -304,7 +365,7 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_rh02fr0m",
+                    key: "ListTile_fjlbydsi",
                     type: "ListTile",
                     path: "ProfielPage.drawer[0].children[0].children[5]",
                     name: "DrawerTileBug",
