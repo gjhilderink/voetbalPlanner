@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\BugReportController;
 use App\Http\Controllers\Api\GuardianController;
+use App\Http\Controllers\Api\GuestInvitationController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\BarDutyController;
 use App\Http\Controllers\Api\BrandingController;
@@ -134,6 +135,12 @@ Route::prefix('v1')->group(function () {
         // Af-/aanmelden wedstrijd (POST i.p.v. DELETE/PATCH; shared-host-veilig)
         Route::post('/matches/{match}/afmelden', [MatchController::class, 'afmelden']);
         Route::post('/matches/{match}/aanmelden', [MatchController::class, 'aanmelden']);
+
+        // Gastspeler uitnodigen voor een wedstrijd (coach) + de gast z'n uitnodigingen.
+        Route::post('/matches/{match}/guest-invite', [GuestInvitationController::class, 'invite']);
+        Route::get('/guest-invite/teams', [GuestInvitationController::class, 'selectableTeams']);
+        Route::get('/guest-invitations', [GuestInvitationController::class, 'myInvitations']);
+        Route::delete('/guest-invitations/{invitation}/revoke', [GuestInvitationController::class, 'revoke']);
 
         // Trainingen (herhaal-schema's per team → berekende occurrences)
         Route::get('/trainings', [TrainingController::class, 'index']);
