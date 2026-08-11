@@ -20422,7 +20422,8 @@ void _buildMatchActionsDialogBody(FFProject project) {
       outputVariableName: 'maAddGoal', nodeKey: placeBtn.key,
       onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
         action: Actions.snackBar('Doelpunt toegevoegd.'),
-        followUpAction: FFActionNode(key: generateRandomAlphaNumericString(), action: Actions.dismissDialog())),
+        followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('dialogScorerName', '')]))),
       onFailure: (ctx) => Actions.chain([Actions.snackBar('Opslaan mislukt — controleer je rechten.')]))));
   final goalView = UI.column(name: 'MaGoalView', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
       children: [
@@ -20468,9 +20469,7 @@ void _buildMatchActionsDialogBody(FFProject project) {
         'memberId': generatorVarField(gMembersList.key, 'id'),
       },
       outputVariableName: 'maInvite', nodeKey: gRow.key,
-      onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
-        action: Actions.snackBar('Gastspeler uitgenodigd.'),
-        followUpAction: FFActionNode(key: generateRandomAlphaNumericString(), action: Actions.dismissDialog())),
+      onSuccess: (ctx) => Actions.chain([Actions.snackBar('Gastspeler uitgenodigd.')]),
       onFailure: (ctx) => Actions.chain([Actions.snackBar('Uitnodigen mislukt — controleer je rechten.')]))));
   gMembersList.children.add(gRow);
   final gMembersScroll = UI.container(name: 'MaGuestScroll', height: 180, clipContent: true, child: gMembersList);
@@ -20551,7 +20550,7 @@ void _addWedstrijdActionsFab(FFProject project) {
   final resetNode = FFActionNode(key: generateRandomAlphaNumericString(),
     action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('dialogView', 'menu')]));
   final openNode = FFActionNode(key: generateRandomAlphaNumericString(),
-    action: Actions.customDialog(project, componentName: 'MatchActionsSheet'));
+    action: Actions.bottomSheet(project, componentName: 'MatchActionsSheet'));
   resetNode.followUpAction = openNode;
 
   final authTokenId = _findAppStateFieldId(project, 'authToken');
