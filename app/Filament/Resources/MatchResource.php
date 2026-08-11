@@ -186,6 +186,10 @@ class MatchResource extends Resource
                         'postponed' => 'warning',
                         default => 'gray',
                     }),
+                Tables\Columns\TextColumn::make('vlagger.name')
+                    ->label('Vlagger')
+                    ->placeholder('—')
+                    ->toggleable(),
             ])
             ->filters([
                 // Standaard (blanco keuze) verbergt wedstrijden ouder dan een week.
