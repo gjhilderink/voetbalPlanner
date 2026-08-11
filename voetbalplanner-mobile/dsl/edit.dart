@@ -89,25 +89,19 @@ void _buildQuickActionsSheet(App app) {
 // zet AppState.matchActionMode en sluit de sheet; de wedstrijddetail toont dan
 // de bijbehorende sectie (doelpunt toevoegen / gastspeler uitnodigen).
 void _buildMatchActionsSheet(App app) {
+  // Skelet; de werkelijke inhoud (menu + doelpunt-picker + gastspeler-picker)
+  // wordt door _buildMatchActionsDialogBody (raw) opgebouwd, omdat we app-state-
+  // gebonden dynamische lijsten + acties nodig hebben.
   app.component(
     'MatchActionsSheet',
-    description: 'Bottom sheet met coach-acties op de wedstrijddetail: doelpunt toevoegen of gastspeler uitnodigen.',
+    description: 'Dialoog met coach-acties op de wedstrijddetail: doelpunt toevoegen of gastspeler uitnodigen.',
     body: Column(
+      name: 'MatchActionsRoot',
       crossAxis: CrossAxis.stretch,
-      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
+      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 20),
       spacing: 12,
       children: [
-        Text('Wedstrijd-acties', style: Styles.titleMedium),
-        Button('Doelpunt toevoegen',
-            name: 'MaGoalButton',
-            onTap: [UpdateAppState.set(ff.AppState.matchActionMode, 'goal'), DismissDialog()],
-            width: double.infinity,
-            padding: 14),
-        Button('Gastspeler uitnodigen',
-            name: 'MaInviteButton',
-            onTap: [UpdateAppState.set(ff.AppState.matchActionMode, 'invite'), DismissDialog()],
-            width: double.infinity,
-            padding: 14),
+        Container(name: 'MatchActionsPlaceholder'),
       ],
     ),
   );
@@ -542,8 +536,14 @@ void buildEditFlow(App app) {
   // True als de gebruiker aan >1 team gekoppeld is (dashboard team-switcher).
   try { app.state('hasMultipleTeams',          bool_); } catch (_) {}
   // Coach-actie gekozen via de FAB op de wedstrijddetail: '' | 'goal' | 'invite'.
-  // Bepaalt welke coach-sectie (doelpunt / gastspeler) getoond wordt.
+  // Bepaalt welke weergave de MatchActionsSheet-dialoog toont (menu/picker).
   try { app.state('matchActionMode',           string); } catch (_) {}
+  // Werk-state voor de coach-dialoog (pickers lezen app-state, niet pagina-state).
+  // dialogView: 'menu' | 'goal' | 'invite' — welke weergave de dialoog toont.
+  try { app.state('dialogView',                string); } catch (_) {}
+  try { app.state('dialogMatchId',             string); } catch (_) {}
+  try { app.state('dialogScorerName',          string); } catch (_) {}
+  try { app.state('dialogTeamId',              string); } catch (_) {}
 
   // ── Chat custom actions ───────────────────────────────────────────────────────
   // Declared at DSL level so CallCustomAction.named(...) in _buildChatDetailPage
@@ -745,6 +745,7 @@ void buildEditFlow(App app) {
   app.raw((project) => _ensureMatchGoalsAppStateField(project));
   // AppState 'scoreTeamMembers' = List<SwapMember> (tikbare maker-keuze bij score).
   app.raw((project) => _ensureScoreTeamMembersField(project));
+  app.raw((project) => _ensureDialogListFields(project));
   // Custom actions: trainingen ophalen + af-/aanmelden (training & wedstrijd).
   app.raw((project) => _addTrainingsCustomActions(project));
   // Native FF POST-endpoints voor af-/aanmelden (CORS-proof, i.t.t. custom http).
@@ -1177,6 +1178,7 @@ void buildEditFlow(App app) {
   _buildQuickActionsSheet(app);
   app.raw((project) => _addDashboardQuickActionsFab(project));
   _buildMatchActionsSheet(app);
+  app.raw((project) => _buildMatchActionsDialogBody(project));
 
   // ─── Banner (marketing) feature ────────────────────────────────────────────
   // Banner struct for the GetBanners API response.
@@ -20097,19 +20099,24 @@ void _addWedstrijdGuestInviteSection(FFProject project) {
     return n.hasFollowUpAction() && hasTeamsLoad(n.followUpAction);
   }
   if (!wc.node.triggerActions.any((t) => t.hasRootAction() && hasTeamsLoad(t.rootAction))) {
-    // Reset de FAB-actiemodus bij elke page-load zodat de coach-secties standaard
-    // verborgen zijn (je opent ze via de FAB), gevolgd door het laden van de teams.
+    // Bij elke page-load: reset de dialoog-weergave, zet dialogMatchId uit de
+    // page-param en laad de club-teams -> AppState.dialogTeams (de coach-dialoog
+    // leest app-state). matchActionMode='' houdt de oude inline secties verborgen.
     final resetNode = FFActionNode(
       key: generateRandomAlphaNumericString(),
-      action: Actions.updateAppState(project,
-          updates: [StateFieldUpdate.set('matchActionMode', '')]),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.set('matchActionMode', ''),
+        StateFieldUpdate.set('dialogView', 'menu'),
+        StateFieldUpdate.setFromVariable('dialogMatchId',
+            varFromPageParam(matchIdParam.identifier.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
+      ]),
     );
     resetNode.followUpAction = Actions.apiCallNode(
       project, endpointName: 'GetGuestInviteTeams', groupName: 'VoetbalPlannerAPI',
       outputVariableName: 'guestTeamsLoad', nodeKey: wc.node.key,
       onSuccess: (ctx) => Actions.chain([
-        Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
-            updates: [StateFieldUpdate.setFromVariable('inviteTeams', ctx.responseVar)]),
+        Actions.updateAppState(project,
+            updates: [StateFieldUpdate.setFromVariable('dialogTeams', ctx.responseVar)]),
       ]),
     );
     _appendToFirstPageLoadChain(wc.node, resetNode);
@@ -20302,6 +20309,221 @@ void _addDashboardGuestInvitations(FFProject project) {
   bodyCol.children.insert(anchorIdx >= 0 ? anchorIdx : 0, container);
 }
 
+// App-state lijstvelden voor de coach-dialoog (club-teams + spelers van het
+// gekozen team). Mirror van _ensureScoreTeamMembersField.
+void _ensureDialogListFields(FFProject project) {
+  void ensure(String name, String structName) {
+    if (project.appState.fields.any((f) => f.parameter.identifier.name == name)) return;
+    final struct = project.backend.dataSchemaConfig.dataStructs
+        .cast<FFDataStruct?>()
+        .firstWhere((s) => s?.identifier.name == structName, orElse: () => null);
+    if (struct == null) return;
+    final param = FFParameter(
+      identifier: FFIdentifier(name: name, key: generateRandomAlphaNumericString()),
+      dataType: dataStructType(struct.identifier.deepCopy()),
+    );
+    param.isList = true;
+    project.appState.fields.add(FFAppStateField(parameter: param));
+  }
+  ensure('dialogTeams', 'TeamOption');
+  ensure('dialogMembers', 'SwapMember');
+}
+
+// Bouwt de inhoud van de MatchActionsSheet-dialoog: een menu + een doelpunt-
+// picker + een gastspeler-picker, geschakeld via AppState.dialogView. Rebuild
+// elke push. Alle data komt uit app-state (component kan geen pagina-state lezen).
+void _buildMatchActionsDialogBody(FFProject project) {
+  final wc = project.getWidgetClassByName('MatchActionsSheet');
+  if (wc == null) return;
+  final root = findDescendants(wc.node, (n) => n.name == 'MatchActionsRoot').firstOrNull;
+  if (root == null) return;
+
+  final viewId    = _findAppStateFieldId(project, 'dialogView');
+  final matchIdId = _findAppStateFieldId(project, 'dialogMatchId');
+  final scorerId  = _findAppStateFieldId(project, 'dialogScorerName');
+  final teamIdId  = _findAppStateFieldId(project, 'dialogTeamId');
+  final membersScoreId = _findAppStateFieldId(project, 'scoreTeamMembers');
+  final teamsId   = _findAppStateFieldId(project, 'dialogTeams');
+  final membersId = _findAppStateFieldId(project, 'dialogMembers');
+  final authId    = _findAppStateFieldId(project, 'authToken');
+  if ([viewId, matchIdId, scorerId, teamIdId, membersScoreId, teamsId, membersId, authId]
+      .any((x) => x == null)) return;
+  final hasAdd    = findApiEndpoint(project, name: 'AddGoalV2', groupName: 'VoetbalPlannerAPI') != null;
+  final hasInvite = findApiEndpoint(project, name: 'InviteGuestToMatch', groupName: 'VoetbalPlannerAPI') != null;
+  final hasMbrs   = findApiEndpoint(project, name: 'GetScorerMembers', groupName: 'VoetbalPlannerAPI') != null;
+  if (!hasAdd || !hasInvite || !hasMbrs) return;
+
+  final k = wc.node.key;
+  FFVariable appVar(FFIdentifier id) => varFromAppState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: k);
+  FFDataTypeV2 str() => FFDataTypeV2(scalarType: FFBaseDataType.String);
+  FFDataTypeV2 boolT() => FFDataTypeV2(scalarType: FFBaseDataType.Boolean);
+  FFVariable viewIs(String v) => codeExpressionVar(
+      expression: "(x ?? '') == '$v'",
+      arguments: [CodeExpressionArg(name: 'x', dataType: str(), value: FFValue(variable: appVar(viewId!)))],
+      returnType: FFParameter(dataType: boolT()));
+  FFActionNode setViewNode(String v) => FFActionNode(key: generateRandomAlphaNumericString(),
+      action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('dialogView', v)]));
+
+  root.children.clear();
+  final title = UI.text('Wedstrijd-actie', name: 'MaTitle', style: UITextStyle.titleMedium);
+  root.children.add(title);
+
+  // ── Menu ──
+  FFNode menuBtn(String label, String v) {
+    final b = UI.button(label, name: 'MaMenuBtn_$v', width: double.infinity);
+    b.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP), rootAction: setViewNode(v)));
+    return b;
+  }
+  final menuView = UI.column(name: 'MaMenuView', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 10,
+      children: [menuBtn('Doelpunt toevoegen', 'goal'), menuBtn('Gastspeler uitnodigen', 'invite')]);
+  setConditionalVisibility(menuView, variable: viewIs('menu'));
+  root.children.add(menuView);
+
+  FFNode backBtn() {
+    final b = UI.button('Terug', name: 'MaBackBtn_${generateRandomAlphaNumericString()}', width: double.infinity);
+    b.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP), rootAction: setViewNode('menu')));
+    return b;
+  }
+
+  // ── Doelpunt-picker ──
+  final scorerListVar = appVar(membersScoreId!);
+  final scorerList = UI.listView(name: 'MaScorerList', shrinkWrap: true, spacing: 2,
+      dynamicSource: DynamicSource(variable: scorerListVar, itemName: 'sm'));
+  final scorerName = UI.text('', name: 'MaScorerName', style: UITextStyle.bodyMedium);
+  scorerName.props.text.textValue = FFStringValue(
+      variable: codeExpressionVar(
+        expression: "((s ?? '') != '' && (s ?? '') == (n ?? '')) ? ('✓  ' + (n ?? '')) : (n ?? '')",
+        arguments: [
+          CodeExpressionArg(name: 's', dataType: str(), value: FFValue(variable: appVar(scorerId!))),
+          CodeExpressionArg(name: 'n', dataType: str(), value: FFValue(variable: generatorVarField(scorerList.key, 'name'))),
+        ], returnType: FFParameter(dataType: str())));
+  final scorerRow = UI.container(name: 'MaScorerRow', width: double.infinity,
+      padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: scorerName);
+  scorerRow.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: FFActionNode(key: generateRandomAlphaNumericString(),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable('dialogScorerName', generatorVarField(scorerList.key, 'name'))]))));
+  scorerList.children.add(scorerRow);
+  final scorerScroll = UI.container(name: 'MaScorerScroll', height: 200, clipContent: true, child: scorerList);
+  final minuteField = UI.textField(name: 'MaMinuteField', labelText: 'Minuut (optioneel)');
+  final placeBtn = UI.button('Doelpunt plaatsen', name: 'MaPlaceBtn', width: double.infinity);
+  placeBtn.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: Actions.apiCallNode(project, endpointName: 'AddGoalV2', groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': appVar(authId!), 'matchId': appVar(matchIdId!),
+        'scorerName': appVar(scorerId), 'minute': varFromTextFieldValue(minuteField.key),
+      },
+      outputVariableName: 'maAddGoal', nodeKey: placeBtn.key,
+      onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+        action: Actions.snackBar('Doelpunt toegevoegd.'),
+        followUpAction: FFActionNode(key: generateRandomAlphaNumericString(), action: Actions.dismissDialog())),
+      onFailure: (ctx) => Actions.chain([Actions.snackBar('Opslaan mislukt — controleer je rechten.')]))));
+  final goalView = UI.column(name: 'MaGoalView', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
+      children: [
+        UI.text('Kies de speler en plaats:', name: 'MaGoalLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
+        scorerScroll, minuteField, placeBtn, backBtn(),
+      ]);
+  setConditionalVisibility(goalView, variable: viewIs('goal'));
+  root.children.add(goalView);
+
+  // ── Gastspeler-picker ──
+  final teamsVar = appVar(teamsId!);
+  final teamsList = UI.listView(name: 'MaTeamsList', shrinkWrap: true, spacing: 2,
+      dynamicSource: DynamicSource(variable: teamsVar, itemName: 'tm'));
+  final teamName = UI.text('', name: 'MaTeamName', style: UITextStyle.bodyMedium);
+  teamName.props.text.textValue = FFStringValue(variable: generatorVarField(teamsList.key, 'name'));
+  final teamRow = UI.container(name: 'MaTeamRow', width: double.infinity,
+      padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: teamName);
+  final setTeam = FFActionNode(key: generateRandomAlphaNumericString(),
+    action: Actions.updateAppState(project, updates: [
+      StateFieldUpdate.setFromVariable('dialogTeamId', generatorVarField(teamsList.key, 'id'))]));
+  setTeam.followUpAction = Actions.apiCallNode(project, endpointName: 'GetScorerMembers', groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {'teamId': generatorVarField(teamsList.key, 'id')},
+    outputVariableName: 'maTeamMbrs', nodeKey: teamRow.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updateAppState(project, updates: [StateFieldUpdate.setFromVariable('dialogMembers', ctx.responseVar)])]));
+  teamRow.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP), rootAction: setTeam));
+  teamsList.children.add(teamRow);
+  final teamsScroll = UI.container(name: 'MaTeamsScroll', height: 150, clipContent: true, child: teamsList);
+
+  final gMembersVar = appVar(membersId!);
+  final gMembersList = UI.listView(name: 'MaGuestList', shrinkWrap: true, spacing: 2,
+      dynamicSource: DynamicSource(variable: gMembersVar, itemName: 'gm'));
+  final gName = UI.text('', name: 'MaGuestName', style: UITextStyle.bodyMedium);
+  gName.props.text.textValue = FFStringValue(variable: generatorVarField(gMembersList.key, 'name'));
+  final gRow = UI.container(name: 'MaGuestRow', width: double.infinity,
+      padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: gName);
+  gRow.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: Actions.apiCallNode(project, endpointName: 'InviteGuestToMatch', groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'matchId': appVar(matchIdId), 'teamId': appVar(teamIdId!),
+        'memberId': generatorVarField(gMembersList.key, 'id'),
+      },
+      outputVariableName: 'maInvite', nodeKey: gRow.key,
+      onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+        action: Actions.snackBar('Gastspeler uitgenodigd.'),
+        followUpAction: FFActionNode(key: generateRandomAlphaNumericString(), action: Actions.dismissDialog())),
+      onFailure: (ctx) => Actions.chain([Actions.snackBar('Uitnodigen mislukt — controleer je rechten.')]))));
+  gMembersList.children.add(gRow);
+  final gMembersScroll = UI.container(name: 'MaGuestScroll', height: 180, clipContent: true, child: gMembersList);
+  final gMembersSection = UI.column(name: 'MaGuestSection', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 4,
+      children: [UI.text('Kies de gastspeler:', name: 'MaGuestLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText), gMembersScroll]);
+  setConditionalVisibility(gMembersSection, variable: conditionVar(
+      appVar(teamIdId), FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+
+  final inviteView = UI.column(name: 'MaInviteView', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
+      children: [
+        UI.text('Kies eerst het team:', name: 'MaInviteLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
+        teamsScroll, gMembersSection, backBtn(),
+      ]);
+  setConditionalVisibility(inviteView, variable: viewIs('invite'));
+  root.children.add(inviteView);
+}
+
+// Op de wedstrijddetail-load: zet dialogMatchId + laad de club-teams (dialogTeams)
+// zodat de gastspeler-picker in de dialoog data heeft. Idempotent.
+void _wireMatchActionsDialogLoad(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final matchIdParam = wc.params.values.cast<FFParameter?>().firstWhere(
+      (p) => p?.hasIdentifier() == true && p?.identifier.name == 'matchId', orElse: () => null);
+  final hasTeamsEp = findApiEndpoint(project, name: 'GetGuestInviteTeams', groupName: 'VoetbalPlannerAPI') != null;
+  if (matchIdParam == null || !hasTeamsEp) return;
+
+  bool hasDlgLoad(FFActionNode n) {
+    if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetGuestInviteTeams') return true;
+    return n.hasFollowUpAction() && hasDlgLoad(n.followUpAction);
+  }
+  if (wc.node.triggerActions.any((t) => t.hasRootAction() && hasDlgLoad(t.rootAction))) return;
+
+  // Reset de dialoog-weergave/actiemodus + zet dialogMatchId uit de page-param,
+  // dan laad de club-teams -> dialogTeams.
+  final resetMode = FFActionNode(key: generateRandomAlphaNumericString(),
+    action: Actions.updateAppState(project, updates: [
+      StateFieldUpdate.set('matchActionMode', ''),
+      StateFieldUpdate.set('dialogView', 'menu'),
+    ]));
+  final setMatchId = FFActionNode(key: generateRandomAlphaNumericString(),
+    action: Actions.updateAppState(project, updates: [
+      StateFieldUpdate.setFromVariable('dialogMatchId',
+          varFromPageParam(matchIdParam.identifier.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key))]));
+  resetMode.followUpAction = setMatchId;
+  setMatchId.followUpAction = Actions.apiCallNode(project, endpointName: 'GetGuestInviteTeams',
+    groupName: 'VoetbalPlannerAPI', outputVariableName: 'dlgTeamsLoad', nodeKey: wc.node.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updateAppState(project, updates: [StateFieldUpdate.setFromVariable('dialogTeams', ctx.responseVar)])]));
+  _appendToFirstPageLoadChain(wc.node, resetMode);
+}
+
 // Coach-FAB op de wedstrijddetail: opent de MatchActionsSheet (doelpunt
 // toevoegen / gastspeler uitnodigen). Alleen zichtbaar met beheerrechten
 // (matchMagOpstelling == 'true'). Rebuild elke push.
@@ -20320,11 +20542,36 @@ void _addWedstrijdActionsFab(FFProject project) {
   }
 
   final fab = UI.fab(iconName: 'add', name: 'MatchActionsFab');
-  // Custom dialog (i.p.v. bottom sheet) zodat de opties de dialog met
-  // DismissDialog() kunnen sluiten na het kiezen. Zelfde opbouw als de dashboard-
-  // FAB (geen Visibility-wrapper) zodat de uitlijning rechtsonder identiek is; de
-  // acties in het menu zijn server-side afgeschermd voor niet-coaches.
-  Actions.onTap(fab, Actions.customDialog(project, componentName: 'MatchActionsSheet'));
+  // Zelfde opbouw als de dashboard-FAB (geen Visibility-wrapper) → uitlijning
+  // rechtsonder identiek; de acties in het menu zijn server-side afgeschermd.
+  // Chain: reset naar menu-weergave → open dialog → ná sluiten de doelpuntenlijst
+  // verversen (een dialoog kan pagina-state niet zelf bijwerken).
+  final resetNode = FFActionNode(key: generateRandomAlphaNumericString(),
+    action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('dialogView', 'menu')]));
+  final openNode = FFActionNode(key: generateRandomAlphaNumericString(),
+    action: Actions.customDialog(project, componentName: 'MatchActionsSheet'));
+  resetNode.followUpAction = openNode;
+
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final matchIdParam = wc.params.values.cast<FFParameter?>().firstWhere(
+      (p) => p?.hasIdentifier() == true && p?.identifier.name == 'matchId', orElse: () => null);
+  final hasGoalsList = findApiEndpoint(project, name: 'GetMatchGoalsList', groupName: 'VoetbalPlannerAPI') != null;
+  if (authTokenId != null && matchIdParam != null && hasGoalsList) {
+    openNode.followUpAction = Actions.apiCallNode(project, endpointName: 'GetMatchGoalsList',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      },
+      outputVariableName: 'fabGoalsRefresh', nodeKey: fab.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+            updates: [StateFieldUpdate.setFromVariable('goals', ctx.responseVar)]),
+      ]));
+  }
+  fab.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP), rootAction: resetNode));
 
   wc.node.children.add(fab);
   wc.node.childPropertyMap['floatingActionButton'] =

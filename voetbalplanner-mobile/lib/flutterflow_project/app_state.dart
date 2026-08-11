@@ -59,6 +59,42 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const dialogMatchId = ffai.ProjectAppStateFieldHandle(
+    name: "dialogMatchId",
+    key: "nxsv4d50",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogMembers = ffai.ProjectAppStateFieldHandle(
+    name: "dialogMembers",
+    key: "y3g96ewm",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
+  static const dialogScorerName = ffai.ProjectAppStateFieldHandle(
+    name: "dialogScorerName",
+    key: "lo5mo6wj",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogTeamId = ffai.ProjectAppStateFieldHandle(
+    name: "dialogTeamId",
+    key: "a34mu5mt",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogTeams = ffai.ProjectAppStateFieldHandle(
+    name: "dialogTeams",
+    key: "dn8ek5q6",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
+  static const dialogView = ffai.ProjectAppStateFieldHandle(
+    name: "dialogView",
+    key: "axi60sq4",
+    typeName: "String",
+    persisted: false,
+  );
   static const directConvId = ffai.ProjectAppStateFieldHandle(
     name: "directConvId",
     key: "323k47xg",
@@ -279,6 +315,12 @@ abstract final class AppState {
     currentConversationId,
     currentTeamId,
     currentTeamName,
+    dialogMatchId,
+    dialogMembers,
+    dialogScorerName,
+    dialogTeamId,
+    dialogTeams,
+    dialogView,
     directConvId,
     editingChatDocPath,
     groupMemberNames,
