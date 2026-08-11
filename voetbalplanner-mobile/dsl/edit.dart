@@ -20293,7 +20293,7 @@ void _addDashboardGuestInvitations(FFProject project) {
 
   final container = UI.column(name: 'GuestInvitationsContainer', crossAxisAlignment: UICrossAxisAlignment.start,
       spacing: 6, children: [
-        UI.text('Uitnodigingen', name: 'GuestInvHeader', style: UITextStyle.titleMedium),
+        UI.text('Mijn uitnodigingen', name: 'GuestInvHeader', style: UITextStyle.titleMedium),
         listView,
       ]);
   // Alleen tonen als er ten minste één uitnodiging is (eerste item heeft opponent).
@@ -20306,9 +20306,8 @@ void _addDashboardGuestInvitations(FFProject project) {
       FFCondition_Relation.NOT_EQUAL_TO,
       varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
 
-  // Plaats bovenaan de dashboard-kolom (net vóór "mijn wedstrijden").
-  final anchorIdx = bodyCol.children.indexWhere((c) => identical(c, anchor));
-  bodyCol.children.insert(anchorIdx >= 0 ? anchorIdx : 0, container);
+  // Onderaan de dashboard-kolom plaatsen.
+  bodyCol.children.add(container);
 }
 
 // App-state lijstvelden voor de coach-dialoog (club-teams + spelers van het
