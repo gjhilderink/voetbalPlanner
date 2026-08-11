@@ -158,6 +158,20 @@ class ReleaseNotesSeeder extends Seeder
                     . 'De teamkiezer verschijnt nu goed op het dashboard en je wedstrijden laden voor het '
                     . 'juiste team — zonder opnieuw in te loggen.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Gastspeler uitnodigen',
+                'description' => 'Coaches en leiders kunnen nu een gastspeler uit een ander team uitnodigen voor '
+                    . 'een wedstrijd: open de wedstrijd, kies het team en de speler. De gastspeler krijgt een '
+                    . 'push-melding, ziet de uitnodiging op zijn dashboard en heeft toegang tot die '
+                    . 'wedstrijdinformatie tot kort na de wedstrijd.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Datum bij koppelverzoeken netjes',
+                'description' => 'Bij de ouder/verzorger-verzoeken werd de datum/tijd als lange technische reeks '
+                    . 'getoond. Die staat nu netjes als dag-maand-jaar met tijd.',
+            ],
         ];
 
         $sort = 0;
