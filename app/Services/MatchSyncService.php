@@ -19,6 +19,9 @@ class MatchSyncService
     /** Cache binnen 1 sync-run: DOCUMENT-id => lokale logo-URL (voorkomt dubbele downloads). */
     private array $logoCache = [];
 
+    /** Cache van de default-coach (member-id) per team-id. */
+    private array $teamCoachCache = [];
+
     public function __construct(
         private readonly SportlinkMcpService $mcpService
     ) {}
@@ -116,10 +119,31 @@ class MatchSyncService
             $attrs['opponent_logo'] = $localLogo;
         }
 
-        return FootballMatch::updateOrCreate(
+        $match = FootballMatch::updateOrCreate(
             ['external_id' => $dto->externalId],
             $attrs,
         );
+
+        // Default: koppel de coach die al aan het team hangt aan de wedstrijd,
+        // zolang er nog geen coach is ingesteld (handmatige keuze blijft staan).
+        if (! $match->coach_id) {
+            $coachId = $this->teamCoachId($teamId);
+            if ($coachId) {
+                $match->coach_id = $coachId;
+                $match->save();
+            }
+        }
+
+        return $match;
+    }
+
+    /** Default-coach (member-id) van een team; gecachet per sync-run. */
+    private function teamCoachId(string $teamId): ?string
+    {
+        if (! array_key_exists($teamId, $this->teamCoachCache)) {
+            $this->teamCoachCache[$teamId] = Team::find($teamId)?->coaches()->first()?->id;
+        }
+        return $this->teamCoachCache[$teamId];
     }
 
     /**
