@@ -162,6 +162,21 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle guestInvitation = ffai.StructHandle(
+    "GuestInvitation",
+    <String, ffai.DslType>{
+      "id": ffai.string,
+      "invitedByName": ffai.string,
+      "isHome": ffai.string,
+      "location": ffai.string,
+      "matchDatetime": ffai.string,
+      "matchId": ffai.string,
+      "opponent": ffai.string,
+      "opponentLogo": ffai.string,
+      "teamName": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle lineupPlayer = ffai.StructHandle(
     "LineupPlayer",
     <String, ffai.DslType>{
@@ -303,6 +318,7 @@ abstract final class Structs {
     guardianLinkSummary,
     guardianRequest,
     guardianRequestResult,
+    guestInvitation,
     lineupPlayer,
     loginData,
     loginResponse,

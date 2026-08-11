@@ -720,6 +720,7 @@ void buildEditFlow(App app) {
   app.raw((project) => _addAfmeldEndpoints(project));
   // Native endpoints voor score-beheer (doelpunten ophalen/toevoegen/verwijderen).
   app.raw((project) => _addScoreEndpoints(project));
+  app.raw((project) => _addGuestInviteEndpoints(project));
   // (De dashboard-trainingen-sectie wordt verderop toegevoegd, ná _wireDashboardLoad
   // die de on-load-chain elke push opnieuw opbouwt — anders wordt GetTrainings gewist.)
 
@@ -1014,10 +1015,13 @@ void buildEditFlow(App app) {
       'matchOpponent', 'matchDatetime', 'matchLocation', 'matchArrivalTime',
       'matchCoachName', 'matchFruitHeroName', 'matchNotes', 'apiStatus',
       'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
-      'matchTeamId', 'selectedScorerName',
+      'matchTeamId', 'selectedScorerName', 'inviteTeamId',
     ]) {
       state.ensureField(f, string.withDefault(''));
     }
+    // Gastspeler-uitnodigen: club-teams + spelers van het gekozen team.
+    state.ensureField('inviteTeams', listOf(ff.Structs.teamOption));
+    state.ensureField('inviteGuestMembers', listOf(ff.Structs.swapMember));
   });
   // Bind matchId + coachName on the MatchCard instance via the DSL compile path.
   app.editPage(ff.Pages.wedstrijdenPage, (page) {
@@ -1123,6 +1127,7 @@ void buildEditFlow(App app) {
   app.raw((project) => _wireWedstrijdAfmelden(project));
   // Coach: doelpunten/score-sectie op de wedstrijddetail (ná afmelden, zelfde kolom).
   app.raw((project) => _addWedstrijdScoreSection(project));
+  app.raw((project) => _addWedstrijdGuestInviteSection(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
   app.raw((project) {
     _fixListViewItemNameByNodeName(project, 'WisselAanvraagPage',  'TeamMembersListView',  'member');
@@ -1207,6 +1212,7 @@ void buildEditFlow(App app) {
     _wireDashboardCardNavigation(project);
     // Team-switcher bovenaan (alleen bij >1 team); switcht wedstrijden + trainingen.
     _addDashboardTeamSwitcher(project);
+    _addDashboardGuestInvitations(project);
     _removeClubLogoDebug(project);
   });
 
@@ -19940,6 +19946,305 @@ void _addScoreEndpoints(FFProject project) {
       responseDataStructIsList: true,
     );
   }
+}
+
+// ─── Gastspeler uitnodigen ────────────────────────────────────────────────────
+
+// Endpoints + GuestInvitation-struct voor het uitnodigen van gastspelers.
+void _addGuestInviteEndpoints(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  bool has(String n) => findApiEndpoint(project, name: n, groupName: groupName) != null;
+  FFDataTypeV2 str() => FFDataTypeV2(scalarType: FFBaseDataType.String);
+
+  if (findDataStruct(project, name: 'GuestInvitation') == null) {
+    addDataStruct(
+      project,
+      name: 'GuestInvitation',
+      description: 'Gastspeler-uitnodiging voor een wedstrijd (weergavevelden voor de app).',
+      fields: [
+        structField('id',            stringType, description: 'Uitnodiging ID'),
+        structField('matchId',       stringType, description: 'Wedstrijd ID'),
+        structField('opponent',      stringType, description: 'Tegenstander'),
+        structField('opponentLogo',  stringType, description: 'Logo tegenstander (URL)'),
+        structField('matchDatetime', stringType, description: 'Datum + tijd'),
+        structField('location',      stringType, description: 'Locatie'),
+        structField('isHome',        stringType, description: "'true' bij thuiswedstrijd"),
+        structField('teamName',      stringType, description: 'Naam van het team'),
+        structField('invitedByName', stringType, description: 'Naam van de uitnodigende coach'),
+      ],
+    );
+  }
+
+  // POST via query-params (FF interpoleert geen body-variabelen).
+  const inviteUrl = '/matches/[matchId]/guest-invite?teamId=[teamId]&memberId=[memberId]';
+  if (has('InviteGuestToMatch')) {
+    updateApiEndpoint(project, name: 'InviteGuestToMatch', groupName: groupName,
+        url: inviteUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'InviteGuestToMatch',
+        url: inviteUrl, method: FFApiEndpoint_CallType.POST, bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str(), 'teamId': str(), 'memberId': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
+  if (!has('GetGuestInviteTeams')) {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetGuestInviteTeams',
+        url: '/guest-invite/teams', method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE, variables: {},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'TeamOption', responseDataStructIsList: true);
+  }
+
+  if (!has('GetMyGuestInvitations')) {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetMyGuestInvitations',
+        url: '/guest-invitations', method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE, variables: {},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'GuestInvitation', responseDataStructIsList: true);
+  } else {
+    updateApiEndpoint(project, name: 'GetMyGuestInvitations', groupName: groupName,
+        responseDataStructName: 'GuestInvitation', responseDataStructIsList: true);
+  }
+
+  // Nu de GuestInvitation-struct bestaat: het app-state lijstveld aanmaken.
+  _ensureGuestInvitationsField(project);
+}
+
+// AppState 'guestInvitations' = List<GuestInvitation> (dashboard-uitnodigingen).
+void _ensureGuestInvitationsField(FFProject project) {
+  if (project.appState.fields.any((f) => f.parameter.identifier.name == 'guestInvitations')) return;
+  final struct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'GuestInvitation', orElse: () => null);
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(name: 'guestInvitations', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+// Coach-sectie op de WedstrijdDetailPage: kies een club-team en dan een speler
+// om als gastspeler uit te nodigen. Alleen zichtbaar met beheerrechten
+// (matchMagOpstelling == 'true'). Rebuild elke push.
+void _addWedstrijdGuestInviteSection(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+
+  FFVariable? stateVar(String name) {
+    final f = wc.classModel.stateFields
+        .cast<FFWidgetClassStateField?>()
+        .firstWhere((x) => x?.parameter.identifier.name == name, orElse: () => null);
+    if (f == null) return null;
+    return varFromPageState(f.parameter.identifier.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  }
+
+  final magVar          = stateVar('matchMagOpstelling');
+  final inviteTeamsId   = _findPageStateFieldId(project, 'WedstrijdDetailPage', 'inviteTeams');
+  final inviteMembersId = _findPageStateFieldId(project, 'WedstrijdDetailPage', 'inviteGuestMembers');
+  final authTokenId     = _findAppStateFieldId(project, 'authToken');
+  final matchIdParam    = wc.params.values.cast<FFParameter?>().firstWhere(
+      (p) => p?.hasIdentifier() == true && p?.identifier.name == 'matchId', orElse: () => null);
+  final hasInviteEp  = findApiEndpoint(project, name: 'InviteGuestToMatch', groupName: 'VoetbalPlannerAPI') != null;
+  final hasTeamsEp   = findApiEndpoint(project, name: 'GetGuestInviteTeams', groupName: 'VoetbalPlannerAPI') != null;
+  final hasMembersEp = findApiEndpoint(project, name: 'GetScorerMembers', groupName: 'VoetbalPlannerAPI') != null;
+  if (magVar == null || inviteTeamsId == null || inviteMembersId == null ||
+      authTokenId == null || matchIdParam == null || !hasInviteEp || !hasTeamsEp || !hasMembersEp) {
+    return;
+  }
+
+  // 1. onLoad: GetGuestInviteTeams -> inviteTeams (idempotent).
+  bool hasTeamsLoad(FFActionNode n) {
+    if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetGuestInviteTeams') return true;
+    return n.hasFollowUpAction() && hasTeamsLoad(n.followUpAction);
+  }
+  if (!wc.node.triggerActions.any((t) => t.hasRootAction() && hasTeamsLoad(t.rootAction))) {
+    _appendToFirstPageLoadChain(wc.node, Actions.apiCallNode(
+      project, endpointName: 'GetGuestInviteTeams', groupName: 'VoetbalPlannerAPI',
+      outputVariableName: 'guestTeamsLoad', nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+            updates: [StateFieldUpdate.setFromVariable('inviteTeams', ctx.responseVar)]),
+      ]),
+    ));
+  }
+
+  // 2. Rebuild de sectie fris.
+  for (final n in findDescendants(wc.node, (x) => x.name == 'GuestInviteSectionContainer').toList()) {
+    removeByKey(wc.node, n.key);
+  }
+
+  // Team-lijst (tik → kies team + laad spelers).
+  final teamsVar = varFromPageState(inviteTeamsId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  final teamsList = UI.listView(name: 'GuestInviteTeamList', shrinkWrap: true, spacing: 2,
+      dynamicSource: DynamicSource(variable: teamsVar, itemName: 'gteam'));
+  final teamNameText = UI.text('', name: 'GuestInviteTeamName', style: UITextStyle.bodyMedium);
+  teamNameText.props.text.textValue = FFStringValue(variable: generatorVarField(teamsList.key, 'name'));
+  final teamRow = UI.container(name: 'GuestInviteTeamRow', width: double.infinity,
+      padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: teamNameText);
+  final setTeamNode = FFActionNode(key: generateRandomAlphaNumericString(),
+    action: Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+      updates: [StateFieldUpdate.setFromVariable('inviteTeamId', generatorVarField(teamsList.key, 'id'))]));
+  setTeamNode.followUpAction = Actions.apiCallNode(project, endpointName: 'GetScorerMembers',
+    groupName: 'VoetbalPlannerAPI', dynamicVariables: {'teamId': generatorVarField(teamsList.key, 'id')},
+    outputVariableName: 'guestMembersLoad', nodeKey: teamRow.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+          updates: [StateFieldUpdate.setFromVariable('inviteGuestMembers', ctx.responseVar)]),
+    ]));
+  teamRow.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP), rootAction: setTeamNode));
+  teamsList.children.add(teamRow);
+
+  // Speler-lijst (tik → uitnodigen). Zichtbaar zodra een team gekozen is.
+  final membersVar = varFromPageState(inviteMembersId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  final membersList = UI.listView(name: 'GuestInviteMemberList', shrinkWrap: true, spacing: 2,
+      dynamicSource: DynamicSource(variable: membersVar, itemName: 'gmember'));
+  final memberNameText = UI.text('', name: 'GuestInviteMemberName', style: UITextStyle.bodyMedium);
+  memberNameText.props.text.textValue = FFStringValue(variable: generatorVarField(membersList.key, 'name'));
+  final memberRow = UI.container(name: 'GuestInviteMemberRow', width: double.infinity,
+      padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: memberNameText);
+  memberRow.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: Actions.apiCallNode(project, endpointName: 'InviteGuestToMatch', groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        'teamId': stateVar('inviteTeamId')!,
+        'memberId': generatorVarField(membersList.key, 'id'),
+      },
+      outputVariableName: 'guestInviteOut', nodeKey: memberRow.key,
+      onSuccess: (ctx) => Actions.chain([Actions.snackBar('Gastspeler uitgenodigd.')]),
+      onFailure: (ctx) => Actions.chain([Actions.snackBar('Uitnodigen mislukt — controleer je rechten.')]))));
+  membersList.children.add(memberRow);
+
+  final memberSection = UI.column(name: 'GuestInviteMemberSection', crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 4, children: [
+        UI.text('Kies de gastspeler:', name: 'GuestInviteMemberLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
+        membersList,
+      ]);
+  setConditionalVisibility(memberSection, variable: conditionVar(
+      stateVar('inviteTeamId')!, FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+
+  final container = UI.column(name: 'GuestInviteSectionContainer', crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 6, children: [
+        UI.text('Gastspeler uitnodigen', name: 'GuestInviteHeader', style: UITextStyle.titleMedium),
+        UI.text('Kies eerst het team van de gastspeler:', name: 'GuestInviteTeamLabel',
+            style: UITextStyle.labelMedium, color: UIColor.secondaryText),
+        teamsList,
+        memberSection,
+      ]);
+  setConditionalVisibility(container, variable: codeExpressionVar(
+      expression: "m == 'true'",
+      arguments: [CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: magVar))],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean))));
+
+  // Plaats onderaan dezelfde kolom als de score-sectie / afmeld-knop.
+  final afmeldBtn = findDescendants(wc.node, (n) => n.name == 'MatchAfmeldButton').firstOrNull;
+  final parentCol = afmeldBtn == null ? null : findDescendants(wc.node, (_) => true)
+      .where((n) => n.children.any((c) => identical(c, afmeldBtn))).firstOrNull;
+  if (parentCol == null) return;
+  parentCol.children.add(container);
+}
+
+// Dashboard-sectie "Uitnodigingen": toont de wedstrijden waarvoor je als
+// gastspeler bent uitgenodigd. Tik → wedstrijddetail. Alleen zichtbaar als er
+// uitnodigingen zijn. Rebuild elke push.
+void _addDashboardGuestInvitations(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final invId = _findAppStateFieldId(project, 'guestInvitations');
+  final hasEp = findApiEndpoint(project, name: 'GetMyGuestInvitations', groupName: 'VoetbalPlannerAPI') != null;
+  if (authTokenId == null || invId == null || !hasEp) return;
+
+  // 1. onLoad: GetMyGuestInvitations -> AppState.guestInvitations (idempotent).
+  bool hasLoad(FFActionNode n) {
+    if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetMyGuestInvitations') return true;
+    return n.hasFollowUpAction() && hasLoad(n.followUpAction);
+  }
+  if (!wc.node.triggerActions.any((t) => t.hasRootAction() && hasLoad(t.rootAction))) {
+    _appendToFirstPageLoadChain(wc.node, Actions.apiCallNode(
+      project, endpointName: 'GetMyGuestInvitations', groupName: 'VoetbalPlannerAPI',
+      outputVariableName: 'guestInvLoad', nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('guestInvitations', ctx.responseVar)]),
+      ]),
+    ));
+  }
+
+  // 2. Rebuild de sectie fris.
+  for (final n in findDescendants(wc.node, (x) => x.name == 'GuestInvitationsContainer').toList()) {
+    removeByKey(wc.node, n.key);
+  }
+  final anchor = findDescendants(wc.node, (n) => n.name == 'DashboardMatchesContainer').firstOrNull;
+  if (anchor == null) return;
+  final bodyCol = findDescendants(wc.node, (_) => true)
+      .where((n) => n.children.any((c) => identical(c, anchor))).firstOrNull;
+  if (bodyCol == null) return;
+
+  final invVar = varFromAppState(invId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  final listView = UI.listView(name: 'GuestInvitationsList', shrinkWrap: true, spacing: 8,
+      padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      dynamicSource: DynamicSource(variable: invVar, itemName: 'inv'));
+
+  final tag = UI.text('Uitgenodigd als gastspeler', name: 'GuestInvTag', style: UITextStyle.labelSmall, color: UIColor.primary);
+  final opponentText = UI.text('', name: 'GuestInvOpponent', style: UITextStyle.bodyMedium);
+  opponentText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'opponent'));
+
+  final homeAwayVar = codeExpressionVar(
+      expression: "(h ?? '') == 'true' ? 'Thuis' : 'Uit'",
+      arguments: [CodeExpressionArg(name: 'h', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: generatorVarField(listView.key, 'isHome')))],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)));
+  final homeAwayText = UI.text('', name: 'GuestInvHomeAway', style: UITextStyle.labelSmall, color: UIColor.secondaryBackground);
+  homeAwayText.props.text.textValue = FFStringValue(variable: homeAwayVar);
+  final homeAwayBadge = UI.container(name: 'GuestInvHomeAwayBadge',
+      padding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 4), borderRadius: 8,
+      color: UIColor.primary, child: homeAwayText);
+  final dateText = UI.text('', name: 'GuestInvDate', style: UITextStyle.bodySmall, color: UIColor.secondaryText);
+  dateText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'matchDatetime'));
+  final metaRow = UI.row(name: 'GuestInvMetaRow', spacing: 8, crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [homeAwayBadge, dateText]);
+
+  final infoCol = UI.column(name: 'GuestInvInfo', crossAxisAlignment: UICrossAxisAlignment.start, spacing: 4,
+      children: [tag, opponentText, metaRow]);
+  final card = UI.container(name: 'GuestInvCard', width: double.infinity, padding: UIEdgeInsets.all(12),
+      borderRadius: 8, color: UIColor.secondaryBackground, child: infoCol);
+  card.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: FFActionNode(key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(project, pageName: 'WedstrijdDetailPage',
+        params: {'matchId': VariableParamValue(generatorVarField(listView.key, 'matchId'))}))));
+  listView.children.add(card);
+
+  final container = UI.column(name: 'GuestInvitationsContainer', crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 6, children: [
+        UI.text('Uitnodigingen', name: 'GuestInvHeader', style: UITextStyle.titleMedium),
+        listView,
+      ]);
+  // Alleen tonen als er ten minste één uitnodiging is (eerste item heeft opponent).
+  setConditionalVisibility(container, variable: conditionVar(
+      varFromAppState(invId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)
+        ..operations.add(FFVariableOperation(listItemAtIndex: FFListItemAtIndex(type: FFListItemAtIndex_IndexType.FIRST)))
+        ..operations.add(FFVariableOperation(accessDataStructField: FFAccessDataStructField(
+            fieldIdentifier: _findStructFieldId(project, 'GuestInvitation', 'opponent')?.deepCopy() ?? FFIdentifier(name: 'opponent')))),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+
+  // Plaats bovenaan de dashboard-kolom (net vóór "mijn wedstrijden").
+  final anchorIdx = bodyCol.children.indexWhere((c) => identical(c, anchor));
+  bodyCol.children.insert(anchorIdx >= 0 ? anchorIdx : 0, container);
 }
 
 // Maakt de Info-tab-content-kolom scrollbaar zodat lange inhoud (info + coach-

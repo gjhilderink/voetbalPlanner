@@ -77,6 +77,12 @@ abstract final class AppState {
     typeName: "List<String>",
     persisted: false,
   );
+  static const guestInvitations = ffai.ProjectAppStateFieldHandle(
+    name: "guestInvitations",
+    key: "o8co6sch",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
   static const hasMultipleTeams = ffai.ProjectAppStateFieldHandle(
     name: "hasMultipleTeams",
     key: "8um4fn3m",
@@ -270,6 +276,7 @@ abstract final class AppState {
     directConvId,
     editingChatDocPath,
     groupMemberNames,
+    guestInvitations,
     hasMultipleTeams,
     hasUnreadTeamChat,
     loginEmail,
