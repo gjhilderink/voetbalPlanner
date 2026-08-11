@@ -199,6 +199,27 @@ class GuestInvitationController extends Controller
     }
 
     /**
+     * GET /v1/matches/{match}/guests
+     *
+     * Kale array van actieve gastspelers voor deze wedstrijd: [{id, name}]
+     * (id = member-id). Voor de gebonden lijst met verwijderknoppen op het
+     * info-tabblad.
+     */
+    public function guests(Request $request, FootballMatch $match): JsonResponse
+    {
+        $guests = MatchGuestInvitation::query()
+            ->where('match_id', $match->id)
+            ->active()
+            ->with('member:id,name')
+            ->get()
+            ->filter(fn ($g) => $g->member !== null)
+            ->map(fn ($g) => ['id' => $g->member->id, 'name' => $g->member->name])
+            ->values();
+
+        return response()->json($guests);
+    }
+
+    /**
      * POST /v1/matches/{match}/guest-invite/remove?memberId=..
      *
      * Coach verwijdert een gastspeler-uitnodiging van deze wedstrijd op basis van

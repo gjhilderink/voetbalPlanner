@@ -142,6 +142,7 @@ Route::prefix('v1')->group(function () {
         // Gastspeler uitnodigen voor een wedstrijd (coach) + de gast z'n uitnodigingen.
         Route::post('/matches/{match}/guest-invite', [GuestInvitationController::class, 'invite']);
         Route::post('/matches/{match}/guest-invite/remove', [GuestInvitationController::class, 'removeByMember']);
+        Route::get('/matches/{match}/guests', [GuestInvitationController::class, 'guests']);
         Route::get('/guest-invite/teams', [GuestInvitationController::class, 'selectableTeams']);
         Route::get('/guest-invitations', [GuestInvitationController::class, 'myInvitations']);
         Route::delete('/guest-invitations/{invitation}/revoke', [GuestInvitationController::class, 'revoke']);
