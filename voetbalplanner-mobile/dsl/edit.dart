@@ -20273,7 +20273,7 @@ void _addDashboardGuestInvitations(FFProject project) {
   final homeAwayText = UI.text('', name: 'GuestInvHomeAway', style: UITextStyle.labelSmall, color: UIColor.secondaryBackground);
   homeAwayText.props.text.textValue = FFStringValue(variable: homeAwayVar);
   final homeAwayBadge = UI.container(name: 'GuestInvHomeAwayBadge',
-      padding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 4), borderRadius: 8,
+      padding: UIEdgeInsets.all(5), borderRadius: 8,
       color: UIColor.primary, child: homeAwayText);
   final dateText = UI.text('', name: 'GuestInvDate', style: UITextStyle.bodySmall, color: UIColor.secondaryText);
   dateText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'matchDatetime'));
@@ -20293,7 +20293,9 @@ void _addDashboardGuestInvitations(FFProject project) {
 
   final container = UI.column(name: 'GuestInvitationsContainer', crossAxisAlignment: UICrossAxisAlignment.start,
       spacing: 6, children: [
-        UI.text('Mijn uitnodigingen', name: 'GuestInvHeader', style: UITextStyle.titleMedium),
+        // 5px links van de titel.
+        UI.container(name: 'GuestInvHeaderWrap', padding: UIEdgeInsets.only(left: 5),
+            child: UI.text('Mijn uitnodigingen', name: 'GuestInvHeader', style: UITextStyle.titleMedium)),
         listView,
       ]);
   // Alleen tonen als er ten minste één uitnodiging is (eerste item heeft opponent).
