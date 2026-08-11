@@ -83,22 +83,31 @@ class GuestInvitationController extends Controller
             ],
         );
 
-        // Push naar de gastspeler (alleen zinvol met app-account). Faalt stil.
-        $email = $member->user?->email ?? $member->email;
-        if (! empty($email)) {
+        // Push UITSLUITEND naar het persoonlijke topic van de gastspeler zelf
+        // (user_<eigen-login-e-mail>) — nooit naar een team of broadcast. We
+        // gebruiken bewust alléén het eigen app-account van de gast (member->user)
+        // en niet het Sportlink-e-mailveld: dat laatste is bij jeugdspelers vaak
+        // een gedeelde ouder-inbox, waardoor de melding bij iemand anders dan de
+        // gast terecht zou komen. Zonder eigen app-account geen push.
+        $guestEmail = $member->user?->email;
+        if (! empty($guestEmail)) {
             try {
                 $inviter = $user->member?->name ?: $user->name;
                 $when    = $match->match_datetime?->format('d-m H:i');
+                $topic   = 'user_' . FcmService::sanitizeTopicEmail($guestEmail);
                 app(FcmService::class)->sendToTopic(
-                    'user_' . FcmService::sanitizeTopicEmail($email),
+                    $topic,
                     'Uitnodiging wedstrijd',
                     trim($inviter . ' heeft je uitgenodigd voor ' . ($match->opponent ?? 'een wedstrijd')
                         . ($when ? ' op ' . $when : '') . '.'),
                     ['initialPageName' => 'WedstrijdDetailPage', 'parameterData' => json_encode(['matchId' => $match->id])],
                 );
+                Log::info('[GuestInvite] push naar gast', ['member_id' => $member->id, 'topic' => $topic]);
             } catch (\Throwable $e) {
                 Log::warning('[GuestInvite] push naar gast mislukt', ['error' => $e->getMessage()]);
             }
+        } else {
+            Log::info('[GuestInvite] gast heeft geen eigen app-account; geen push', ['member_id' => $member->id]);
         }
 
         return response()->json([
