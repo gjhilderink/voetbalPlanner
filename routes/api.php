@@ -136,6 +136,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/matches/{match}/afmelden', [MatchController::class, 'afmelden']);
         Route::post('/matches/{match}/aanmelden', [MatchController::class, 'aanmelden']);
 
+        // Vlagger (grensrechter) van een wedstrijd instellen (coach).
+        Route::post('/matches/{match}/vlagger', [MatchController::class, 'setVlagger']);
+
         // Gastspeler uitnodigen voor een wedstrijd (coach) + de gast z'n uitnodigingen.
         Route::post('/matches/{match}/guest-invite', [GuestInvitationController::class, 'invite']);
         Route::get('/guest-invite/teams', [GuestInvitationController::class, 'selectableTeams']);

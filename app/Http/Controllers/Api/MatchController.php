@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\MatchResource;
 use App\Models\Absence;
 use App\Models\FootballMatch;
+use App\Models\Member;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -34,7 +35,7 @@ class MatchController extends Controller
 
     public function show(Request $request, FootballMatch $match): JsonResponse
     {
-        $match->load(['team', 'coach', 'coaches', 'fruitHero', 'drivers', 'lineup.players.member', 'goals.scorer', 'goals.assist']);
+        $match->load(['team', 'coach', 'coaches', 'fruitHero', 'vlagger', 'drivers', 'lineup.players.member', 'goals.scorer', 'goals.assist']);
 
         $data = (new MatchResource($match))->resolve();
 
@@ -134,6 +135,48 @@ class MatchController extends Controller
             'success' => true,
             'data' => new MatchResource($match->fresh(['team', 'coach', 'coaches', 'fruitHero', 'drivers'])),
             'message' => 'Wedstrijd bijgewerkt.',
+        ]);
+    }
+
+    /**
+     * POST /v1/matches/{match}/vlagger?memberId=..
+     *
+     * Coach kiest de vlagger (grensrechter) uit het team van de wedstrijd. Lege
+     * memberId verwijdert de vlagger.
+     */
+    public function setVlagger(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je hebt geen rechten om de vlagger te wijzigen.',
+            ], 403);
+        }
+
+        $memberId = trim((string) $request->input('memberId', ''));
+
+        if ($memberId === '') {
+            $match->update(['vlagger_id' => null]);
+            return response()->json(['success' => true, 'message' => 'Vlagger verwijderd.']);
+        }
+
+        // Het lid moet in het team van de wedstrijd zitten.
+        $member = Member::where('id', $memberId)
+            ->whereHas('teams', fn ($q) => $q->where('teams.id', $match->team_id))
+            ->first();
+        if (! $member) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Speler niet gevonden in dit team.',
+            ], 422);
+        }
+
+        $match->update(['vlagger_id' => $member->id]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => ['vlaggerId' => $member->id, 'vlaggerName' => $member->name],
+            'message' => $member->name . ' is als vlagger ingesteld.',
         ]);
     }
 }

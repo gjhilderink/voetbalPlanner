@@ -46,6 +46,8 @@ class MatchResource extends JsonResource
             ),
             'fruitHeroName'  => $this->fruitHero?->name ?? '',
             'fruitHeroId'    => $this->fruit_hero_id ?? '',
+            'vlaggerName'    => $this->vlagger?->name ?? '',
+            'vlaggerId'      => $this->vlagger_id ?? '',
             'notes'          => $this->notes ?? '',
             'isFruitHero'    => $myMemberId
                 ? $this->fruit_hero_id === $myMemberId
