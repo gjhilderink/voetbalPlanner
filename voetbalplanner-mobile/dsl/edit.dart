@@ -1161,6 +1161,8 @@ void buildEditFlow(App app) {
   app.raw((project) => _addWedstrijdScoreSection(project));
   app.raw((project) => _addWedstrijdGuestInviteSection(project));
   app.raw((project) => _addWedstrijdActionsFab(project));
+  // De inline coach-secties zijn vervangen door de FAB-dialoog: van de pagina af.
+  app.raw((project) => _removeInlineCoachSections(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
   app.raw((project) {
     _fixListViewItemNameByNodeName(project, 'WisselAanvraagPage',  'TeamMembersListView',  'member');
@@ -20573,23 +20575,26 @@ void _addWedstrijdActionsFab(FFProject project) {
   fab.triggerActions.add(FFTriggerActions(
     trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP), rootAction: resetNode));
 
-  // Alleen zichtbaar met beheerrechten (matchMagOpstelling == 'true').
-  final magField = wc.classModel.stateFields
-      .cast<FFWidgetClassStateField?>()
-      .firstWhere((x) => x?.parameter.identifier.name == 'matchMagOpstelling', orElse: () => null);
-  if (magField != null) {
-    final magVar = varFromPageState(magField.parameter.identifier.deepCopy())
-      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
-    setConditionalVisibility(fab, variable: codeExpressionVar(
-      expression: "m == 'true'",
-      arguments: [CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-          value: FFValue(variable: magVar))],
-      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean))));
-  }
-
+  // Geen Visibility-wrapper: die verstoorde de opmaak/positie t.o.v. de dashboard-
+  // FAB. De FAB is nu identiek aan het dashboard; de acties in de dialoog zijn
+  // server-side afgeschermd voor niet-coaches.
   wc.node.children.add(fab);
   wc.node.childPropertyMap['floatingActionButton'] =
       FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: fab.key)]);
+}
+
+// Verwijdert de oude inline coach-secties (doelpunt- en gastspeler-sectie) van
+// de wedstrijddetail; die zijn vervangen door de MatchActionsSheet-dialoog (FAB).
+// De data-loads (scoreTeamMembers, goals, dialogTeams) worden door de sectie-
+// functies gedaan en blijven behouden; alleen de UI-containers gaan weg.
+void _removeInlineCoachSections(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  for (final name in const ['ScoreSectionContainer', 'GuestInviteSectionContainer']) {
+    for (final n in findDescendants(wc.node, (x) => x.name == name).toList()) {
+      removeByKey(wc.node, n.key);
+    }
+  }
 }
 
 // Maakt de Info-tab-content-kolom scrollbaar zodat lange inhoud (info + coach-
