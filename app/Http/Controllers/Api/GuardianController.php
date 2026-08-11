@@ -183,7 +183,7 @@ class GuardianController extends Controller
                 'id'         => $link->id,
                 'status'     => $link->status,
                 'childName'  => $child->name,
-                'expiresAt'  => $link->expires_at->toISOString(),
+                'expiresAt'  => $link->expires_at->format('d-m-Y H:i'),
             ],
             'message' => 'Koppelverzoek verstuurd. Het lid wordt gevraagd dit te bevestigen.',
         ], 201);
@@ -212,8 +212,8 @@ class GuardianController extends Controller
                 'id'            => $link->id,
                 'guardianName'  => $link->guardian?->name ?? '',
                 'guardianEmail' => $link->guardian?->email ?? '',
-                'requestedAt'   => $link->created_at->toISOString(),
-                'expiresAt'     => $link->expires_at->toISOString(),
+                'requestedAt'   => $link->created_at->format('d-m-Y H:i'),
+                'expiresAt'     => $link->expires_at->format('d-m-Y H:i'),
             ]);
 
         // Kale array (geen {success,data,message}-wrapper): de app parset de
@@ -353,7 +353,7 @@ class GuardianController extends Controller
             'email'      => $link->child?->email ?? '',
             'externalId' => $link->child?->external_id ?? '',
             'dateOfBirth'=> $link->child?->date_of_birth?->format('Y-m-d'),
-            'approvedAt' => $link->resolved_at?->toISOString(),
+            'approvedAt' => $link->resolved_at?->format('d-m-Y H:i') ?? '',
         ]);
 
         // Kale array (zie children-parsing in de app).

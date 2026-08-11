@@ -30,10 +30,10 @@ class GuardianLinkResource extends JsonResource
             'childEmail'      => $this->child?->email ?? '',
             'childExternalId' => $this->child?->external_id ?? '',
 
-            'requestedAt'     => $this->created_at?->toISOString(),
-            'expiresAt'       => $this->expires_at?->toISOString(),
-            'resolvedAt'      => $this->resolved_at?->toISOString(),
-            'revokedAt'       => $this->revoked_at?->toISOString(),
+            'requestedAt'     => $this->created_at?->format('d-m-Y H:i') ?? '',
+            'expiresAt'       => $this->expires_at?->format('d-m-Y H:i') ?? '',
+            'resolvedAt'      => $this->resolved_at?->format('d-m-Y H:i') ?? '',
+            'revokedAt'       => $this->revoked_at?->format('d-m-Y H:i') ?? '',
         ];
     }
 }
