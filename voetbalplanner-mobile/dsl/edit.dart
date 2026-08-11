@@ -85,6 +85,34 @@ void _buildQuickActionsSheet(App app) {
   );
 }
 
+// Bottom sheet met coach-acties op de wedstrijddetail (via de FAB). Elke optie
+// zet AppState.matchActionMode en sluit de sheet; de wedstrijddetail toont dan
+// de bijbehorende sectie (doelpunt toevoegen / gastspeler uitnodigen).
+void _buildMatchActionsSheet(App app) {
+  app.component(
+    'MatchActionsSheet',
+    description: 'Bottom sheet met coach-acties op de wedstrijddetail: doelpunt toevoegen of gastspeler uitnodigen.',
+    body: Column(
+      crossAxis: CrossAxis.stretch,
+      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
+      spacing: 12,
+      children: [
+        Text('Wedstrijd-acties', style: Styles.titleMedium),
+        Button('Doelpunt toevoegen',
+            name: 'MaGoalButton',
+            onTap: [UpdateAppState.set('matchActionMode', 'goal'), DismissDialog()],
+            width: double.infinity,
+            padding: 14),
+        Button('Gastspeler uitnodigen',
+            name: 'MaInviteButton',
+            onTap: [UpdateAppState.set('matchActionMode', 'invite'), DismissDialog()],
+            width: double.infinity,
+            padding: 14),
+      ],
+    ),
+  );
+}
+
 void _addDashboardQuickActionsFab(FFProject project) {
   final wc = findPage(project, name: 'DashboardPage');
   if (wc == null) return;
@@ -513,6 +541,9 @@ void buildEditFlow(App app) {
   try { app.state('pendingMatchId',            string); } catch (_) {}
   // True als de gebruiker aan >1 team gekoppeld is (dashboard team-switcher).
   try { app.state('hasMultipleTeams',          bool_); } catch (_) {}
+  // Coach-actie gekozen via de FAB op de wedstrijddetail: '' | 'goal' | 'invite'.
+  // Bepaalt welke coach-sectie (doelpunt / gastspeler) getoond wordt.
+  try { app.state('matchActionMode',           string); } catch (_) {}
 
   // ── Chat custom actions ───────────────────────────────────────────────────────
   // Declared at DSL level so CallCustomAction.named(...) in _buildChatDetailPage
@@ -1128,6 +1159,7 @@ void buildEditFlow(App app) {
   // Coach: doelpunten/score-sectie op de wedstrijddetail (ná afmelden, zelfde kolom).
   app.raw((project) => _addWedstrijdScoreSection(project));
   app.raw((project) => _addWedstrijdGuestInviteSection(project));
+  app.raw((project) => _addWedstrijdActionsFab(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
   app.raw((project) {
     _fixListViewItemNameByNodeName(project, 'WisselAanvraagPage',  'TeamMembersListView',  'member');
@@ -1144,6 +1176,7 @@ void buildEditFlow(App app) {
   // ── Snelmenu: + FAB op DashboardPage met snelle acties (bottom sheet) ───────
   _buildQuickActionsSheet(app);
   app.raw((project) => _addDashboardQuickActionsFab(project));
+  _buildMatchActionsSheet(app);
 
   // ─── Banner (marketing) feature ────────────────────────────────────────────
   // Banner struct for the GetBanners API response.
@@ -20064,14 +20097,22 @@ void _addWedstrijdGuestInviteSection(FFProject project) {
     return n.hasFollowUpAction() && hasTeamsLoad(n.followUpAction);
   }
   if (!wc.node.triggerActions.any((t) => t.hasRootAction() && hasTeamsLoad(t.rootAction))) {
-    _appendToFirstPageLoadChain(wc.node, Actions.apiCallNode(
+    // Reset de FAB-actiemodus bij elke page-load zodat de coach-secties standaard
+    // verborgen zijn (je opent ze via de FAB), gevolgd door het laden van de teams.
+    final resetNode = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.updateAppState(project,
+          updates: [StateFieldUpdate.set('matchActionMode', '')]),
+    );
+    resetNode.followUpAction = Actions.apiCallNode(
       project, endpointName: 'GetGuestInviteTeams', groupName: 'VoetbalPlannerAPI',
       outputVariableName: 'guestTeamsLoad', nodeKey: wc.node.key,
       onSuccess: (ctx) => Actions.chain([
         Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
             updates: [StateFieldUpdate.setFromVariable('inviteTeams', ctx.responseVar)]),
       ]),
-    ));
+    );
+    _appendToFirstPageLoadChain(wc.node, resetNode);
   }
 
   // 2. Rebuild de sectie fris.
@@ -20139,11 +20180,25 @@ void _addWedstrijdGuestInviteSection(FFProject project) {
         teamsList,
         memberSection,
       ]);
-  setConditionalVisibility(container, variable: codeExpressionVar(
-      expression: "m == 'true'",
-      arguments: [CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-          value: FFValue(variable: magVar))],
-      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean))));
+  // Alleen zichtbaar met beheerrechten én als via de FAB 'Gastspeler uitnodigen'
+  // is gekozen (matchActionMode == 'invite').
+  final giActionModeId = _findAppStateFieldId(project, 'matchActionMode');
+  setConditionalVisibility(container, variable: giActionModeId == null
+      ? codeExpressionVar(
+          expression: "m == 'true'",
+          arguments: [CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: magVar))],
+          returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)))
+      : codeExpressionVar(
+          expression: "m == 'true' && a == 'invite'",
+          arguments: [
+            CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                value: FFValue(variable: magVar)),
+            CodeExpressionArg(name: 'a', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                value: FFValue(variable: varFromAppState(giActionModeId.deepCopy())
+                  ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key))),
+          ],
+          returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean))));
 
   // Plaats onderaan dezelfde kolom als de score-sectie / afmeld-knop.
   final afmeldBtn = findDescendants(wc.node, (n) => n.name == 'MatchAfmeldButton').firstOrNull;
@@ -20245,6 +20300,47 @@ void _addDashboardGuestInvitations(FFProject project) {
   // Plaats bovenaan de dashboard-kolom (net vóór "mijn wedstrijden").
   final anchorIdx = bodyCol.children.indexWhere((c) => identical(c, anchor));
   bodyCol.children.insert(anchorIdx >= 0 ? anchorIdx : 0, container);
+}
+
+// Coach-FAB op de wedstrijddetail: opent de MatchActionsSheet (doelpunt
+// toevoegen / gastspeler uitnodigen). Alleen zichtbaar met beheerrechten
+// (matchMagOpstelling == 'true'). Rebuild elke push.
+void _addWedstrijdActionsFab(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  if (project.getWidgetClassByName('MatchActionsSheet') == null) return;
+
+  // Bestaande FAB verwijderen zodat we hem vers opbouwen (met juiste visibility).
+  final existing = wc.node.childPropertyMap['floatingActionButton'];
+  if (existing != null) {
+    for (final ref in existing.keyRefs) {
+      removeByKey(wc.node, ref.key);
+    }
+    wc.node.childPropertyMap.remove('floatingActionButton');
+  }
+
+  final fab = UI.fab(iconName: 'add', name: 'MatchActionsFab');
+  // Custom dialog (i.p.v. bottom sheet) zodat de opties de dialog met
+  // DismissDialog() kunnen sluiten na het kiezen.
+  Actions.onTap(fab, Actions.customDialog(project, componentName: 'MatchActionsSheet'));
+
+  // Alleen tonen met beheerrechten.
+  final magField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((x) => x?.parameter.identifier.name == 'matchMagOpstelling', orElse: () => null);
+  if (magField != null) {
+    final magVar = varFromPageState(magField.parameter.identifier.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+    setConditionalVisibility(fab, variable: codeExpressionVar(
+      expression: "m == 'true'",
+      arguments: [CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: magVar))],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean))));
+  }
+
+  wc.node.children.add(fab);
+  wc.node.childPropertyMap['floatingActionButton'] =
+      FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: fab.key)]);
 }
 
 // Maakt de Info-tab-content-kolom scrollbaar zodat lange inhoud (info + coach-
@@ -20760,19 +20856,29 @@ void _addWedstrijdScoreSection(FFProject project) {
     children: [header],
   );
   ensureControls(container);
+  // Alleen zichtbaar met beheerrechten én als via de FAB 'Doelpunt toevoegen'
+  // is gekozen (matchActionMode == 'goal').
+  final scActionModeId = _findAppStateFieldId(project, 'matchActionMode');
   setConditionalVisibility(
     container,
-    variable: codeExpressionVar(
-      expression: "m == 'true'",
-      arguments: [
-        CodeExpressionArg(
-          name: 'm',
-          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-          value: FFValue(variable: magVar),
-        ),
-      ],
-      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
-    ),
+    variable: scActionModeId == null
+        ? codeExpressionVar(
+            expression: "m == 'true'",
+            arguments: [
+              CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                  value: FFValue(variable: magVar)),
+            ],
+            returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)))
+        : codeExpressionVar(
+            expression: "m == 'true' && a == 'goal'",
+            arguments: [
+              CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                  value: FFValue(variable: magVar)),
+              CodeExpressionArg(name: 'a', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                  value: FFValue(variable: varFromAppState(scActionModeId.deepCopy())
+                    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key))),
+            ],
+            returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean))),
   );
   parentCol.children.add(container);
 }

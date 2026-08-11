@@ -113,6 +113,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const matchActionMode = ffai.ProjectAppStateFieldHandle(
+    name: "matchActionMode",
+    key: "5esalezy",
+    typeName: "String",
+    persisted: false,
+  );
   static const matchGoals = ffai.ProjectAppStateFieldHandle(
     name: "matchGoals",
     key: "01d8gbk7",
@@ -282,6 +288,7 @@ abstract final class AppState {
     loginEmail,
     loginError,
     loginPassword,
+    matchActionMode,
     matchGoals,
     pendingAfmeldReason,
     pendingDirectUserEmail,

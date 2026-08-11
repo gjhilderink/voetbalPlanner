@@ -478,39 +478,39 @@ abstract final class WedstrijdDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_dff2502g",
+                            key: "Text_1gy6o4xg",
                             type: "Text",
                             path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[3]",
                             name: "ScoreAddLabel",
                             text: "Kies de speler, vul de minuut en plaats:",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_ueyxgduv",
+                            key: "Container_1aaxcet0",
                             type: "Container",
                             path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[4]",
                             name: "ScoreSelectedControls",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_81fag4nt",
+                                key: "Column_zeqomfyj",
                                 type: "Column",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[4].children[0]",
                                 name: "ScoreSelectedControlsCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_jobj15f1",
+                                    key: "Text_6b0h2jar",
                                     type: "Text",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[4].children[0].children[0]",
                                     name: "ScoreSelectedText",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "TextField_g00fzdph",
+                                    key: "TextField_05oryxdy",
                                     type: "TextField",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[4].children[0].children[1]",
                                     name: "ScoreMinuteField",
                                     text: "Minuut (optioneel)",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Button_e12d6mdi",
+                                    key: "Button_owljag4q",
                                     type: "Button",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[4].children[0].children[2]",
                                     name: "ScoreAddButton",
@@ -520,7 +520,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Button_jffn198z",
+                                    key: "Button_rxffgrf5",
                                     type: "Button",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[4].children[0].children[3]",
                                     name: "ScoreCancelButton",
@@ -534,19 +534,19 @@ abstract final class WedstrijdDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_mgrnlte4",
+                            key: "Container_256t32vt",
                             type: "Container",
                             path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[5]",
                             name: "ScoreMembersScroll",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "ListView_glqpmfme",
+                                key: "ListView_epbs5qr6",
                                 type: "ListView",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[5].children[0]",
                                 name: "ScoreMembersList",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_tpqsilxw",
+                                    key: "Container_26126d3o",
                                     type: "Container",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[5].children[0].children[0]",
                                     name: "ScoreMemberRow",
@@ -555,7 +555,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_igevalez",
+                                        key: "Text_ncw9xtdk",
                                         type: "Text",
                                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7].children[5].children[0].children[0].children[0]",
                                         name: "ScoreMemberName",
@@ -569,21 +569,21 @@ abstract final class WedstrijdDetailPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_sxphxs2n",
+                        key: "Text_twb17w8o",
                         type: "Text",
                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[8]",
                         name: "MatchAfmeldHeader",
                         text: "Af-/aanmelden",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "TextField_9qtxbvcq",
+                        key: "TextField_gz5qxly4",
                         type: "TextField",
                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[9]",
                         name: "MatchReasonField",
                         text: "Reden (bij afmelden)",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Button_ngunxc9o",
+                        key: "Button_0mvg3tju",
                         type: "Button",
                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[10]",
                         name: "MatchAfmeldButton",
@@ -593,7 +593,7 @@ abstract final class WedstrijdDetailPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Button_wal7v382",
+                        key: "Button_prwguz3o",
                         type: "Button",
                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[11]",
                         name: "MatchAanmeldButton",
@@ -603,33 +603,33 @@ abstract final class WedstrijdDetailPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Column_ybp0o7k3",
+                        key: "Column_otxtf96a",
                         type: "Column",
                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12]",
                         name: "GuestInviteSectionContainer",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_728ox6y9",
+                            key: "Text_zwt9witc",
                             type: "Text",
                             path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12].children[0]",
                             name: "GuestInviteHeader",
                             text: "Gastspeler uitnodigen",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_myvlzq4s",
+                            key: "Text_a6d1deh5",
                             type: "Text",
                             path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12].children[1]",
                             name: "GuestInviteTeamLabel",
                             text: "Kies eerst het team van de gastspeler:",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "ListView_bqzjm6ch",
+                            key: "ListView_lzy2ncd9",
                             type: "ListView",
                             path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12].children[2]",
                             name: "GuestInviteTeamList",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_yox23i2b",
+                                key: "Container_03me7oqi",
                                 type: "Container",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12].children[2].children[0]",
                                 name: "GuestInviteTeamRow",
@@ -638,7 +638,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_kg40praf",
+                                    key: "Text_p9ldpw5r",
                                     type: "Text",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12].children[2].children[0].children[0]",
                                     name: "GuestInviteTeamName",
@@ -648,26 +648,26 @@ abstract final class WedstrijdDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Column_7rzmkjt1",
+                            key: "Column_7h5nl1yu",
                             type: "Column",
                             path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12].children[3]",
                             name: "GuestInviteMemberSection",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_kqv789dq",
+                                key: "Text_43p9ejg5",
                                 type: "Text",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12].children[3].children[0]",
                                 name: "GuestInviteMemberLabel",
                                 text: "Kies de gastspeler:",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "ListView_txr3945x",
+                                key: "ListView_wuhovlzx",
                                 type: "ListView",
                                 path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12].children[3].children[1]",
                                 name: "GuestInviteMemberList",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_bd3ad92o",
+                                    key: "Container_ci5sgbfm",
                                     type: "Container",
                                     path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12].children[3].children[1].children[0]",
                                     name: "GuestInviteMemberRow",
@@ -676,7 +676,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_5x818fgz",
+                                        key: "Text_5qd7knh2",
                                         type: "Text",
                                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[12].children[3].children[1].children[0].children[0]",
                                         name: "GuestInviteMemberName",
@@ -781,6 +781,25 @@ abstract final class WedstrijdDetailPageWidgets {
                     ],
                   ),
                 ],
+              ),
+            ],
+          ),
+        ],
+        "floatingActionButton": <ffai.ProjectWidgetHandle>[
+          ffai.ProjectWidgetHandle(
+            key: "FloatingActionButton_wr1ll3y3",
+            type: "FloatingActionButton",
+            path: "WedstrijdDetailPage.floatingActionButton[0]",
+            name: "MatchActionsFab",
+            triggers: const <String>[
+              "ON_TAP",
+            ],
+            children: <ffai.ProjectWidgetHandle>[
+              ffai.ProjectWidgetHandle(
+                key: "Icon_7k3tdfnw",
+                type: "Icon",
+                path: "WedstrijdDetailPage.floatingActionButton[0].children[0]",
+                name: "FAB Icon",
               ),
             ],
           ),

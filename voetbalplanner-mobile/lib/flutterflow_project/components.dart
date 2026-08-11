@@ -4,6 +4,7 @@ library;
 
 import 'package:flutterflow_ai/flutterflow_ai.dart' as ffai;
 import 'components/bar_duty_card.dart' show BarDutyCardComponentHandle;
+import 'components/match_actions_sheet.dart' show MatchActionsSheetComponentHandle;
 import 'components/match_card.dart' show MatchCardComponentHandle;
 import 'components/quick_actions_sheet.dart' show QuickActionsSheetComponentHandle;
 import 'components/status_badge.dart' show StatusBadgeComponentHandle;
@@ -11,12 +12,14 @@ import 'components/swap_request_card.dart' show SwapRequestCardComponentHandle;
 
 abstract final class Components {
   static final barDutyCard = BarDutyCardComponentHandle();
+  static final matchActionsSheet = MatchActionsSheetComponentHandle();
   static final matchCard = MatchCardComponentHandle();
   static final quickActionsSheet = QuickActionsSheetComponentHandle();
   static final statusBadge = StatusBadgeComponentHandle();
   static final swapRequestCard = SwapRequestCardComponentHandle();
   static final all = <ffai.ProjectComponentHandle>[
     barDutyCard,
+    matchActionsSheet,
     matchCard,
     quickActionsSheet,
     statusBadge,
