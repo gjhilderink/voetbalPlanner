@@ -1045,7 +1045,7 @@ void buildEditFlow(App app) {
   app.editPageState(ff.Pages.wedstrijdDetailPage, (state) {
     for (final f in const [
       'matchOpponent', 'matchDatetime', 'matchLocation', 'matchArrivalTime',
-      'matchCoachName', 'matchFruitHeroName', 'matchNotes', 'apiStatus',
+      'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchNotes', 'apiStatus',
       'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
       'matchTeamId', 'selectedScorerName', 'inviteTeamId',
     ]) {
@@ -9964,7 +9964,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
   // working code in FlutterFlow; storing individual strings is reliable.
   for (final name in const [
     'matchOpponent', 'matchDatetime', 'matchLocation',
-    'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchNotes',
+    'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchNotes',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
     'matchGoalsSummary', 'matchTeamId', 'selectedScorerName',
   ]) {
@@ -9995,6 +9995,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchArrivalTime':   r'$.arrivalTime',
           'matchCoachName':     r'$.coachName',
           'matchFruitHeroName': r'$.fruitHeroName',
+          'matchVlaggerName':   r'$.vlaggerName',
           'matchNotes':         r'$.notes',
           'matchStatus':        r'$.mijn_status',
           'matchMagAfmelden':   r'$.mag_afmelden',
@@ -10418,6 +10419,34 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
       bound++;
     }
     stderr.writeln('[DEBUG WedstrijdDetailPage] fallback bound $bound nodes');
+
+    // Vlagger-rij invoegen ná Fruitheld (geen ontworpen node → zelf bouwen).
+    if (findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_matchVlaggerName').isEmpty) {
+      final fhValue = findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_fruitHeroName').firstOrNull;
+      final vlagVar = stateVar('matchVlaggerName');
+      if (fhValue != null && vlagVar != null) {
+        final p1 = findParentByKey(wc.node, fhValue.key);
+        final p2 = p1 != null ? findParentByKey(wc.node, p1.parent.key) : null;
+        if (p1 != null && p2 != null) {
+          final item = p1.parent;
+          final list = p2.parent;
+          final valueText = UI.text('-', name: 'MatchInfoValue_matchVlaggerName', style: UITextStyle.bodyMedium);
+          valueText.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+            expression: "x ?? ''",
+            arguments: [CodeExpressionArg(name: 'x', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                value: FFValue(variable: vlagVar))],
+            returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String))));
+          final vlagItem = UI.column(name: 'MatchInfoItemVlagger', crossAxisAlignment: UICrossAxisAlignment.start,
+            spacing: 2, children: [
+              UI.text('Vlagger', style: UITextStyle.labelSmall, color: UIColor.secondaryText),
+              valueText,
+            ]);
+          final idx = list.children.indexWhere((c) => identical(c, item));
+          list.children.insert(idx >= 0 ? idx + 1 : list.children.length, vlagItem);
+        }
+      }
+    }
+
     // De api-status ("OK"/"FAILED") was een debug-readout bovenaan de tab.
     // Verwijderen (ook eerder ingevoegde exemplaren van vorige pushes).
     final statusParent = findDescendants(wc.node, (n) =>
@@ -20025,6 +20054,19 @@ void _addGuestInviteEndpoints(FFProject project) {
         headers: ['Authorization: Bearer [bearerToken]']);
   }
 
+  // POST /matches/[matchId]/vlagger?memberId=.. — coach kiest de vlagger.
+  const vlaggerUrl = '/matches/[matchId]/vlagger?memberId=[memberId]';
+  if (has('SetMatchFlagger')) {
+    updateApiEndpoint(project, name: 'SetMatchFlagger', groupName: groupName,
+        url: vlaggerUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'SetMatchFlagger',
+        url: vlaggerUrl, method: FFApiEndpoint_CallType.POST, bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str(), 'memberId': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
   if (!has('GetGuestInviteTeams')) {
     addEndpointToGroup(project, groupName: groupName, name: 'GetGuestInviteTeams',
         url: '/guest-invite/teams', method: FFApiEndpoint_CallType.GET,
@@ -20354,6 +20396,7 @@ void _buildMatchActionsDialogBody(FFProject project) {
   final hasAdd    = findApiEndpoint(project, name: 'AddGoalV2', groupName: 'VoetbalPlannerAPI') != null;
   final hasInvite = findApiEndpoint(project, name: 'InviteGuestToMatch', groupName: 'VoetbalPlannerAPI') != null;
   final hasMbrs   = findApiEndpoint(project, name: 'GetScorerMembers', groupName: 'VoetbalPlannerAPI') != null;
+  final hasFlag   = findApiEndpoint(project, name: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI') != null;
   if (!hasAdd || !hasInvite || !hasMbrs) return;
 
   final k = wc.node.key;
@@ -20379,7 +20422,11 @@ void _buildMatchActionsDialogBody(FFProject project) {
     return b;
   }
   final menuView = UI.column(name: 'MaMenuView', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 10,
-      children: [menuBtn('Doelpunt toevoegen', 'goal'), menuBtn('Gastspeler uitnodigen', 'invite')]);
+      children: [
+        menuBtn('Doelpunt toevoegen', 'goal'),
+        menuBtn('Vlagger kiezen', 'flag'),
+        menuBtn('Gastspeler uitnodigen', 'invite'),
+      ]);
   setConditionalVisibility(menuView, variable: viewIs('menu'));
   root.children.add(menuView);
 
@@ -20433,6 +20480,50 @@ void _buildMatchActionsDialogBody(FFProject project) {
       ]);
   setConditionalVisibility(goalView, variable: viewIs('goal'));
   root.children.add(goalView);
+
+  // ── Vlagger-picker (iedereen uit het team van de wedstrijd) ──
+  if (hasFlag) {
+    final flagVar = appVar(membersScoreId!);
+    final flagList = UI.listView(name: 'MaFlagList', shrinkWrap: true, spacing: 2,
+        dynamicSource: DynamicSource(variable: flagVar, itemName: 'fm'));
+    final flagName = UI.text('', name: 'MaFlagName', style: UITextStyle.bodyMedium);
+    flagName.props.text.textValue = FFStringValue(variable: generatorVarField(flagList.key, 'name'));
+    final flagRow = UI.container(name: 'MaFlagRow', width: double.infinity,
+        padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: flagName);
+    flagRow.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {'matchId': appVar(matchIdId!), 'memberId': generatorVarField(flagList.key, 'id')},
+        outputVariableName: 'maSetFlag', nodeKey: flagRow.key,
+        onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Vlagger opgeslagen.'),
+          followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
+            action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('dialogView', 'menu')]))),
+        onFailure: (ctx) => Actions.chain([Actions.snackBar('Opslaan mislukt — controleer je rechten.')]))));
+    flagList.children.add(flagRow);
+    final flagScroll = UI.container(name: 'MaFlagScroll', height: 200, clipContent: true, child: flagList);
+
+    // "Geen vlagger" — wist de vlagger (lege memberId).
+    final clearFlagBtn = UI.button('Geen vlagger', name: 'MaClearFlagBtn', width: double.infinity);
+    clearFlagBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {'matchId': appVar(matchIdId!), 'memberId': varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)},
+        outputVariableName: 'maClearFlag', nodeKey: clearFlagBtn.key,
+        onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Vlagger verwijderd.'),
+          followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
+            action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('dialogView', 'menu')]))),
+        onFailure: (ctx) => Actions.chain([Actions.snackBar('Mislukt — controleer je rechten.')]))));
+
+    final flagView = UI.column(name: 'MaFlagView', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
+        children: [
+          UI.text('Kies de vlagger (uit het team):', name: 'MaFlagLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
+          flagScroll, clearFlagBtn, backBtn(),
+        ]);
+    setConditionalVisibility(flagView, variable: viewIs('flag'));
+    root.children.add(flagView);
+  }
 
   // ── Gastspeler-picker ──
   final teamsVar = appVar(teamsId!);

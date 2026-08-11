@@ -157,6 +157,12 @@ final class WedstrijdDetailPageState {
         key: "3zv59rop",
         typeName: "String",
       );
+  ffai.ProjectStateFieldHandle get matchVlaggerName =>
+      const ffai.ProjectStateFieldHandle(
+        name: "matchVlaggerName",
+        key: "z1r2iyg6",
+        typeName: "String",
+      );
   ffai.ProjectStateFieldHandle get selectedScorerName =>
       const ffai.ProjectStateFieldHandle(
         name: "selectedScorerName",
@@ -417,6 +423,27 @@ abstract final class WedstrijdDetailPageWidgets {
                               ),
                             ],
                           ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Column_gddp7smz",
+                            type: "Column",
+                            path: "WedstrijdDetailPage.body[0].children[1].children[0].children[5].children[1]",
+                            name: "MatchInfoItemVlagger",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_er21unt3",
+                                type: "Text",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[5].children[1].children[0]",
+                                name: "Text",
+                                text: "Vlagger",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_y7trn6y0",
+                                type: "Text",
+                                path: "WedstrijdDetailPage.body[0].children[1].children[0].children[5].children[1].children[1]",
+                                name: "MatchInfoValue_matchVlaggerName",
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
@@ -449,21 +476,21 @@ abstract final class WedstrijdDetailPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_soqwxnmj",
+                        key: "Text_eovxmz0m",
                         type: "Text",
                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[7]",
                         name: "MatchAfmeldHeader",
                         text: "Af-/aanmelden",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "TextField_foi0rodl",
+                        key: "TextField_zngkfbnn",
                         type: "TextField",
                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[8]",
                         name: "MatchReasonField",
                         text: "Reden (bij afmelden)",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Button_m0c1yicp",
+                        key: "Button_3hf75uf2",
                         type: "Button",
                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[9]",
                         name: "MatchAfmeldButton",
@@ -473,7 +500,7 @@ abstract final class WedstrijdDetailPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Button_e9yoxrbj",
+                        key: "Button_cc3lxgv9",
                         type: "Button",
                         path: "WedstrijdDetailPage.body[0].children[1].children[0].children[10]",
                         name: "MatchAanmeldButton",
@@ -580,7 +607,7 @@ abstract final class WedstrijdDetailPageWidgets {
         ],
         "floatingActionButton": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "FloatingActionButton_im8u5rvu",
+            key: "FloatingActionButton_tqinh77h",
             type: "FloatingActionButton",
             path: "WedstrijdDetailPage.floatingActionButton[0]",
             name: "MatchActionsFab",
@@ -589,7 +616,7 @@ abstract final class WedstrijdDetailPageWidgets {
             ],
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Icon_5ahpu42b",
+                key: "Icon_3xpnx9ds",
                 type: "Icon",
                 path: "WedstrijdDetailPage.floatingActionButton[0].children[0]",
                 name: "FAB Icon",
