@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ReleaseNote extends Model
 {
@@ -41,5 +42,34 @@ class ReleaseNote extends Model
     public function feature(): BelongsTo
     {
         return $this->belongsTo(Feature::class);
+    }
+
+    /** Verzendlog: alle mails die voor deze release note zijn verstuurd. */
+    public function sends(): HasMany
+    {
+        return $this->hasMany(ReleaseNoteSend::class);
+    }
+
+    /**
+     * "Echt" verzonden = minstens één geslaagde mail naar een selectie of naar
+     * iedereen (een testmail naar de beheerder zelf telt niet mee).
+     */
+    public function wasSent(): bool
+    {
+        return $this->sends()
+            ->where('status', 'sent')
+            ->whereIn('scope', ['selected', 'all'])
+            ->exists();
+    }
+
+    /** Tijdstip van de laatste geslaagde (niet-test) verzending, of null. */
+    public function lastSentAt(): ?\Illuminate\Support\Carbon
+    {
+        $max = $this->sends()
+            ->where('status', 'sent')
+            ->whereIn('scope', ['selected', 'all'])
+            ->max('sent_at');
+
+        return $max ? \Illuminate\Support\Carbon::parse($max) : null;
     }
 }

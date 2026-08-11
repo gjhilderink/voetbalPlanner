@@ -8,6 +8,7 @@ use App\Filament\Resources\ReleaseNoteResource\Pages;
 use App\Mail\ReleaseNoteMail;
 use App\Models\Member;
 use App\Models\ReleaseNote;
+use App\Models\ReleaseNoteSend;
 use App\Models\User;
 use Filament\Actions;
 use Filament\Forms;
@@ -112,6 +113,16 @@ class ReleaseNoteResource extends Resource
                     ->dateTime('d-m-Y')
                     ->placeholder('—')
                     ->sortable(),
+
+                Tables\Columns\IconColumn::make('verzonden')
+                    ->label('Verzonden')
+                    ->boolean()
+                    ->getStateUsing(fn(ReleaseNote $record): bool => $record->wasSent()),
+
+                Tables\Columns\TextColumn::make('laatst_verzonden')
+                    ->label('Laatst verzonden')
+                    ->placeholder('—')
+                    ->getStateUsing(fn(ReleaseNote $record): ?string => $record->lastSentAt()?->format('d-m-Y H:i')),
             ])
             ->defaultSort('released_at', 'desc')
             ->actions([
@@ -255,8 +266,10 @@ class ReleaseNoteResource extends Resource
             }
             try {
                 Mail::to($to)->send(new ReleaseNoteMail($notes, $club));
+                static::recordSends($notes, [$to], 'self', 'sent');
                 Notification::make()->success()->title('Testmail verstuurd naar ' . $to)->send();
             } catch (\Throwable $e) {
+                static::recordSends($notes, [$to], 'self', 'failed');
                 Notification::make()->danger()->title('Versturen mislukt')->body($e->getMessage())->send();
             }
             return;
@@ -305,8 +318,10 @@ class ReleaseNoteResource extends Resource
         foreach ($emails->chunk(50) as $chunk) {
             try {
                 Mail::to($toAddress)->bcc($chunk->all())->send(new ReleaseNoteMail($notes, $club));
+                static::recordSends($notes, $chunk->all(), $scope, 'sent');
                 $sent += $chunk->count();
             } catch (\Throwable $e) {
+                static::recordSends($notes, $chunk->all(), $scope, 'failed');
                 $failed += $chunk->count();
                 Log::error('[ReleaseNoteMail] batch mislukt', ['error' => $e->getMessage()]);
             }
@@ -320,6 +335,52 @@ class ReleaseNoteResource extends Resource
                 ->body('Zie de logs voor details.')
                 ->send();
         }
+    }
+
+    /**
+     * Registreert per release note en per ontvanger een logregel, zodat het
+     * admin-paneel kan tonen dat (en naar wie/wanneer) er gemaild is.
+     *
+     * @param \Illuminate\Support\Collection<int,ReleaseNote> $notes
+     * @param iterable<string>                                $emails
+     */
+    protected static function recordSends(\Illuminate\Support\Collection $notes, iterable $emails, string $scope, string $status): void
+    {
+        $now    = now();
+        $userId = auth()->id();
+
+        $emails = collect($emails)
+            ->map(fn($e) => strtolower(trim((string) $e)))
+            ->filter()
+            ->unique();
+
+        $rows = [];
+        foreach ($notes as $note) {
+            foreach ($emails as $email) {
+                $rows[] = [
+                    'id'              => (string) \Illuminate\Support\Str::uuid(),
+                    'release_note_id' => $note->id,
+                    'email'           => $email,
+                    'scope'           => $scope,
+                    'status'          => $status,
+                    'sent_by_user_id' => $userId,
+                    'sent_at'         => $now,
+                    'created_at'      => $now,
+                    'updated_at'      => $now,
+                ];
+            }
+        }
+
+        if (! empty($rows)) {
+            ReleaseNoteSend::insert($rows);
+        }
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            ReleaseNoteResource\RelationManagers\SendsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
