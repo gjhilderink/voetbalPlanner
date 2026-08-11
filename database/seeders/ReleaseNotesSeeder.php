@@ -172,6 +172,20 @@ class ReleaseNotesSeeder extends Seeder
                 'description' => 'Bij de ouder/verzorger-verzoeken werd de datum/tijd als lange technische reeks '
                     . 'getoond. Die staat nu netjes als dag-maand-jaar met tijd.',
             ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Snelknop op de wedstrijd (coach)',
+                'description' => 'Voor coaches en leiders staat er nu een + knop rechtsonder op een wedstrijd. '
+                    . 'Daarmee open je een handig menu om snel een doelpunt toe te voegen of een gastspeler uit '
+                    . 'te nodigen, overzichtelijk in een pop-up.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Mijn uitnodigingen op het dashboard',
+                'description' => 'Ben je als gastspeler uitgenodigd? Onder aan je dashboard vind je nu het kopje '
+                    . '"Mijn uitnodigingen" met de wedstrijden waarvoor je bent gevraagd; tik erop om de details '
+                    . 'te bekijken.',
+            ],
         ];
 
         $sort = 0;
