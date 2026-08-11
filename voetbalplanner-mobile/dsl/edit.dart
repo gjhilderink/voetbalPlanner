@@ -100,12 +100,12 @@ void _buildMatchActionsSheet(App app) {
         Text('Wedstrijd-acties', style: Styles.titleMedium),
         Button('Doelpunt toevoegen',
             name: 'MaGoalButton',
-            onTap: [UpdateAppState.set('matchActionMode', 'goal'), DismissDialog()],
+            onTap: [UpdateAppState.set(ff.AppState.matchActionMode, 'goal'), DismissDialog()],
             width: double.infinity,
             padding: 14),
         Button('Gastspeler uitnodigen',
             name: 'MaInviteButton',
-            onTap: [UpdateAppState.set('matchActionMode', 'invite'), DismissDialog()],
+            onTap: [UpdateAppState.set(ff.AppState.matchActionMode, 'invite'), DismissDialog()],
             width: double.infinity,
             padding: 14),
       ],
@@ -20313,7 +20313,7 @@ void _addWedstrijdActionsFab(FFProject project) {
   // Bestaande FAB verwijderen zodat we hem vers opbouwen (met juiste visibility).
   final existing = wc.node.childPropertyMap['floatingActionButton'];
   if (existing != null) {
-    for (final ref in existing.keyRefs) {
+    for (final ref in existing.keyRefs.toList()) {
       removeByKey(wc.node, ref.key);
     }
     wc.node.childPropertyMap.remove('floatingActionButton');
@@ -20321,22 +20321,10 @@ void _addWedstrijdActionsFab(FFProject project) {
 
   final fab = UI.fab(iconName: 'add', name: 'MatchActionsFab');
   // Custom dialog (i.p.v. bottom sheet) zodat de opties de dialog met
-  // DismissDialog() kunnen sluiten na het kiezen.
+  // DismissDialog() kunnen sluiten na het kiezen. Zelfde opbouw als de dashboard-
+  // FAB (geen Visibility-wrapper) zodat de uitlijning rechtsonder identiek is; de
+  // acties in het menu zijn server-side afgeschermd voor niet-coaches.
   Actions.onTap(fab, Actions.customDialog(project, componentName: 'MatchActionsSheet'));
-
-  // Alleen tonen met beheerrechten.
-  final magField = wc.classModel.stateFields
-      .cast<FFWidgetClassStateField?>()
-      .firstWhere((x) => x?.parameter.identifier.name == 'matchMagOpstelling', orElse: () => null);
-  if (magField != null) {
-    final magVar = varFromPageState(magField.parameter.identifier.deepCopy())
-      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
-    setConditionalVisibility(fab, variable: codeExpressionVar(
-      expression: "m == 'true'",
-      arguments: [CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-          value: FFValue(variable: magVar))],
-      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean))));
-  }
 
   wc.node.children.add(fab);
   wc.node.childPropertyMap['floatingActionButton'] =

@@ -46,20 +46,20 @@ abstract final class MatchActionsSheetWidgets {
       name: "MatchActionsSheet",
       children: <ffai.ProjectWidgetHandle>[
         ffai.ProjectWidgetHandle(
-          key: "Column_1m2uqh4a",
+          key: "Column_qe0c6t2g",
           type: "Column",
           path: "MatchActionsSheet.children[0]",
           name: "Column",
           children: <ffai.ProjectWidgetHandle>[
             ffai.ProjectWidgetHandle(
-              key: "Text_4yph71v4",
+              key: "Text_5b6nlnbu",
               type: "Text",
               path: "MatchActionsSheet.children[0].children[0]",
               name: "Text",
               text: "Wedstrijd-acties",
             ),
             ffai.ProjectWidgetHandle(
-              key: "Button_s3s83n53",
+              key: "Button_gevuk8l2",
               type: "Button",
               path: "MatchActionsSheet.children[0].children[1]",
               name: "MaGoalButton",
@@ -69,7 +69,7 @@ abstract final class MatchActionsSheetWidgets {
               ],
             ),
             ffai.ProjectWidgetHandle(
-              key: "Button_by9a4gox",
+              key: "Button_6nmb31pe",
               type: "Button",
               path: "MatchActionsSheet.children[0].children[2]",
               name: "MaInviteButton",
