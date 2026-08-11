@@ -113,6 +113,19 @@ class MatchResource extends Resource
                     ->searchable()
                     ->nullable()
                     ->placeholder('Selecteer fruitheld...'),
+                Forms\Components\Select::make('vlagger_id')
+                    ->label('Vlagger')
+                    ->options(function (Get $get): array {
+                        $teamId = $get('team_id');
+                        $query = Member::where('is_active', true)->orderBy('name');
+                        if ($teamId) {
+                            $query->whereHas('teams', fn($q) => $q->where('teams.id', $teamId));
+                        }
+                        return $query->pluck('name', 'id')->toArray();
+                    })
+                    ->searchable()
+                    ->nullable()
+                    ->placeholder('Selecteer vlagger...'),
                 Forms\Components\Select::make('drivers')
                     ->label('Rijders (uitwedstrijd)')
                     ->multiple()
