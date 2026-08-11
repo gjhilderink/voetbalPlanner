@@ -20573,6 +20573,20 @@ void _addWedstrijdActionsFab(FFProject project) {
   fab.triggerActions.add(FFTriggerActions(
     trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP), rootAction: resetNode));
 
+  // Alleen zichtbaar met beheerrechten (matchMagOpstelling == 'true').
+  final magField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((x) => x?.parameter.identifier.name == 'matchMagOpstelling', orElse: () => null);
+  if (magField != null) {
+    final magVar = varFromPageState(magField.parameter.identifier.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+    setConditionalVisibility(fab, variable: codeExpressionVar(
+      expression: "m == 'true'",
+      arguments: [CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: magVar))],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean))));
+  }
+
   wc.node.children.add(fab);
   wc.node.childPropertyMap['floatingActionButton'] =
       FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: fab.key)]);
