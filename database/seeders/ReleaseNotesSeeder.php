@@ -186,6 +186,20 @@ class ReleaseNotesSeeder extends Seeder
                     . '"Mijn uitnodigingen" met de wedstrijden waarvoor je bent gevraagd; tik erop om de details '
                     . 'te bekijken.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Vlagger bij een wedstrijd',
+                'description' => 'Per wedstrijd kan nu een vlagger (grensrechter) worden gekozen uit het team. '
+                    . 'De coach stelt de vlagger in via de app of de beheerder in het admin-paneel, en de naam '
+                    . 'is voor iedereen zichtbaar op het info-tabblad van de wedstrijd, direct onder de coach.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Coach standaard gekoppeld aan een wedstrijd',
+                'description' => 'De coach die aan het team hangt, wordt voortaan automatisch als coach bij een '
+                    . 'wedstrijd ingevuld. Je hoeft dit niet meer per wedstrijd handmatig te doen; een eigen keuze '
+                    . 'blijft uiteraard behouden.',
+            ],
         ];
 
         $sort = 0;
