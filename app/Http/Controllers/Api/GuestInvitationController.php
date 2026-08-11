@@ -197,4 +197,38 @@ class GuestInvitationController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Uitnodiging ingetrokken.']);
     }
+
+    /**
+     * POST /v1/matches/{match}/guest-invite/remove?memberId=..
+     *
+     * Coach verwijdert een gastspeler-uitnodiging van deze wedstrijd op basis van
+     * het member-id (handig vanaf het info-tabblad, waar we member-id's tonen).
+     */
+    public function removeByMember(Request $request, FootballMatch $match): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je hebt geen rechten om gastspelers te verwijderen.',
+            ], 403);
+        }
+
+        $memberId = trim((string) $request->input('memberId', ''));
+        if ($memberId === '') {
+            return response()->json(['success' => false, 'message' => 'Geen speler opgegeven.'], 422);
+        }
+
+        MatchGuestInvitation::query()
+            ->where('match_id', $match->id)
+            ->where('member_id', $memberId)
+            ->where('status', 'active')
+            ->update([
+                'status'             => 'revoked',
+                'revoked_by_user_id' => $user->id,
+                'revoked_at'         => now(),
+            ]);
+
+        return response()->json(['success' => true, 'message' => 'Gastspeler verwijderd.']);
+    }
 }
