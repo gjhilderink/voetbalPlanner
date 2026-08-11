@@ -124,12 +124,17 @@ class MatchSyncService
             $attrs,
         );
 
-        // Default: koppel de coach die al aan het team hangt aan de wedstrijd,
-        // zolang er nog geen coach is ingesteld (handmatige keuze blijft staan).
-        if (! $match->coach_id) {
-            $coachId = $this->teamCoachId($teamId);
-            if ($coachId) {
-                $match->coach_id = $coachId;
+        // Default: koppel de coach(es) die al aan het team hangen aan de wedstrijd,
+        // zolang er nog geen coach is gekozen (handmatige keuze blijft staan).
+        $coachIds = $this->teamCoachIds($teamId);
+        if (! empty($coachIds)) {
+            // Many-to-many (match_coaches): dit is wat het admin-paneel én de app tonen.
+            if ($match->coaches()->count() === 0) {
+                $match->coaches()->syncWithoutDetaching($coachIds);
+            }
+            // Enkelvoudig coach_id als fallback voor de app.
+            if (! $match->coach_id) {
+                $match->coach_id = $coachIds[0];
                 $match->save();
             }
         }
@@ -137,11 +142,11 @@ class MatchSyncService
         return $match;
     }
 
-    /** Default-coach (member-id) van een team; gecachet per sync-run. */
-    private function teamCoachId(string $teamId): ?string
+    /** Default-coach(es) (member-ids) die aan een team hangen; gecachet per sync-run. */
+    private function teamCoachIds(string $teamId): array
     {
         if (! array_key_exists($teamId, $this->teamCoachCache)) {
-            $this->teamCoachCache[$teamId] = Team::find($teamId)?->coaches()->first()?->id;
+            $this->teamCoachCache[$teamId] = Team::find($teamId)?->coaches()->pluck('members.id')->all() ?? [];
         }
         return $this->teamCoachCache[$teamId];
     }
