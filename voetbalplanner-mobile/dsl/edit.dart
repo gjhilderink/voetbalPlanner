@@ -20575,9 +20575,21 @@ void _addWedstrijdActionsFab(FFProject project) {
   fab.triggerActions.add(FFTriggerActions(
     trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP), rootAction: resetNode));
 
-  // Geen Visibility-wrapper: die verstoorde de opmaak/positie t.o.v. de dashboard-
-  // FAB. De FAB is nu identiek aan het dashboard; de acties in de dialoog zijn
-  // server-side afgeschermd voor niet-coaches.
+  // Alleen zichtbaar voor coaches (matchMagOpstelling == 'true'). De scaffold-FAB-
+  // slot regelt de rechtsonder-positie; de Visibility toont/verbergt alleen.
+  final magField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((x) => x?.parameter.identifier.name == 'matchMagOpstelling', orElse: () => null);
+  if (magField != null) {
+    final magVar = varFromPageState(magField.parameter.identifier.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+    setConditionalVisibility(fab, variable: codeExpressionVar(
+      expression: "m == 'true'",
+      arguments: [CodeExpressionArg(name: 'm', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: magVar))],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean))));
+  }
+
   wc.node.children.add(fab);
   wc.node.childPropertyMap['floatingActionButton'] =
       FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: fab.key)]);
