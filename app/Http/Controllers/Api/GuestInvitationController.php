@@ -153,7 +153,9 @@ class GuestInvitationController extends Controller
                 'opponentLogo'   => $inv->match->opponent_logo ?? '',
                 'matchDatetime'  => $inv->match->match_datetime?->format('d-m-Y H:i') ?? '',
                 'location'       => $inv->match->location ?? '',
-                'isHome'         => (bool) $inv->match->is_home,
+                // String i.p.v. bool: de app-struct GuestInvitation heeft alleen
+                // string-velden (codeExpressie vergelijkt op 'true').
+                'isHome'         => $inv->match->is_home ? 'true' : 'false',
                 'teamName'       => $inv->match->team?->name ?? '',
                 'invitedByName'  => $inv->invitedBy?->name ?? '',
             ])

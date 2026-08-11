@@ -69,7 +69,7 @@ class DiagnoseCoaches extends Command
                     if (! $match->team_id) {
                         continue;
                     }
-                    $coachIdsByTeam[$match->team_id] ??= Team::find($match->team_id)?->coaches()->pluck('members.id')->all() ?? [];
+                    $coachIdsByTeam[$match->team_id] ??= Team::find($match->team_id)?->matchDefaultCoaches()->pluck('id')->all() ?? [];
                     $coachIds = $coachIdsByTeam[$match->team_id];
                     if (empty($coachIds)) {
                         continue;

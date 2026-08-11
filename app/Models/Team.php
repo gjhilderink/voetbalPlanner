@@ -58,6 +58,22 @@ class Team extends Model
             ->withTimestamps();
     }
 
+    /**
+     * Leden die als default-coach van een wedstrijd gelden. Eerst de echte
+     * coaches (rol coach); heeft het team die niet, dan vallen we terug op
+     * leiders/assistent-coaches. Retourneert een Collection<Member>.
+     */
+    public function matchDefaultCoaches(): \Illuminate\Support\Collection
+    {
+        $coaches = $this->members()->wherePivot('role', Member::ROLE_COACH)->get();
+        if ($coaches->isNotEmpty()) {
+            return $coaches;
+        }
+        return $this->members()
+            ->wherePivotIn('role', [Member::ROLE_LEIDER, Member::ROLE_ASSISTANT])
+            ->get();
+    }
+
     public function club(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Club::class);

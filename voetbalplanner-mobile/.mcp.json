@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "flutterflow_ai": {
+      "type": "stdio",
+      "command": "dart",
+      "args": [
+        "run",
+        "C:\\Users\\Gerrit-JanHilderink\\voetbalPlanner\\voetbalplanner-mobile\\.flutterflow/sdk/flutterflow_ai\\mcp\\server.dart",
+        "--dir",
+        "C:\\Users\\Gerrit-JanHilderink\\voetbalPlanner\\voetbalplanner-mobile"
+      ],
+      "env": {}
+    }
+  }
+}

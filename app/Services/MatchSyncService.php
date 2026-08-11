@@ -146,7 +146,7 @@ class MatchSyncService
     private function teamCoachIds(string $teamId): array
     {
         if (! array_key_exists($teamId, $this->teamCoachCache)) {
-            $this->teamCoachCache[$teamId] = Team::find($teamId)?->coaches()->pluck('members.id')->all() ?? [];
+            $this->teamCoachCache[$teamId] = Team::find($teamId)?->matchDefaultCoaches()->pluck('id')->all() ?? [];
         }
         return $this->teamCoachCache[$teamId];
     }

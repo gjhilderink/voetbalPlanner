@@ -10391,6 +10391,39 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     return v;
   }
 
+  // Bouwt een info-rij (label + waarde) met dezelfde opmaak overal. Vroeg
+  // gedeclareerd zodat zowel het fallback-pad (met TabBar) als het
+  // MatchInfoColumn-pad 'm kan gebruiken.
+  FFNode infoRow(String label, String stateFieldName) {
+    final valueText = UI.text('-', name: 'MatchInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
+    final v = stateVar(stateFieldName);
+    // Bind via "x ?? ''" zodat de waarde nooit null is — anders genereert FF
+    // _model.X! en crasht de pagina op een null-veld (bv. bardienst zonder notities).
+    if (v != null) {
+      valueText.props.text.textValue = FFStringValue(
+        variable: codeExpressionVar(
+          expression: "x ?? ''",
+          arguments: [
+            CodeExpressionArg(
+              name: 'x',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: v),
+            ),
+          ],
+          returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+        ),
+      );
+    }
+    return UI.container(
+      name: 'MatchInfoRow_$stateFieldName',
+      padding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
+      child: UI.column(crossAxisAlignment: UICrossAxisAlignment.start, spacing: 2, children: [
+        UI.text(label, style: UITextStyle.labelSmall, color: UIColor.secondaryText),
+        valueText,
+      ]),
+    );
+  }
+
   final infoColumn = findDescendants(wc.node, (n) => n.name == 'MatchInfoColumn').firstOrNull;
   if (infoColumn == null) {
     // Page has a TabBar; bind value nodes by name.
@@ -10420,30 +10453,30 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     }
     stderr.writeln('[DEBUG WedstrijdDetailPage] fallback bound $bound nodes');
 
-    // Vlagger-rij invoegen ná Fruitheld (geen ontworpen node → zelf bouwen).
-    if (findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_matchVlaggerName').isEmpty) {
-      final fhValue = findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_fruitHeroName').firstOrNull;
-      final vlagVar = stateVar('matchVlaggerName');
-      if (fhValue != null && vlagVar != null) {
-        final p1 = findParentByKey(wc.node, fhValue.key);
-        final p2 = p1 != null ? findParentByKey(wc.node, p1.parent.key) : null;
-        if (p1 != null && p2 != null) {
-          final item = p1.parent;
-          final list = p2.parent;
-          final valueText = UI.text('-', name: 'MatchInfoValue_matchVlaggerName', style: UITextStyle.bodyMedium);
-          valueText.props.text.textValue = FFStringValue(variable: codeExpressionVar(
-            expression: "x ?? ''",
-            arguments: [CodeExpressionArg(name: 'x', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-                value: FFValue(variable: vlagVar))],
-            returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String))));
-          final vlagItem = UI.column(name: 'MatchInfoItemVlagger', crossAxisAlignment: UICrossAxisAlignment.start,
-            spacing: 2, children: [
-              UI.text('Vlagger', style: UITextStyle.labelSmall, color: UIColor.secondaryText),
-              valueText,
-            ]);
-          final idx = list.children.indexWhere((c) => identical(c, item));
-          list.children.insert(idx >= 0 ? idx + 1 : list.children.length, vlagItem);
-        }
+    // Vlagger-rij ná Coach tonen.
+    // Eerdere (foutieve) invoeging als tweede child ín de Fruitheld-container
+    // opruimen: een FF Container rendert maar één child, waardoor de vlagger
+    // onzichtbaar bleef. Ook een reeds correct ingevoegde rij verwijderen zodat
+    // dit blok idempotent is bij herhaalde pushes.
+    for (final stray in [
+      ...findDescendants(wc.node, (n) => n.name == 'MatchInfoItemVlagger'),
+      ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchVlaggerName'),
+    ]) {
+      final sp = findParentByKey(wc.node, stray.key);
+      sp?.parent.children.removeWhere((c) => identical(c, stray));
+    }
+    // Nieuwe rij met dezelfde opmaak als de andere info-rijen, direct ná Coach.
+    final coachValue = findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_coachName').firstOrNull;
+    if (coachValue != null && stateVar('matchVlaggerName') != null) {
+      final cp1 = findParentByKey(wc.node, coachValue.key);                       // Column
+      final cp2 = cp1 != null ? findParentByKey(wc.node, cp1.parent.key) : null;  // MatchInfoRow-container
+      final cp3 = cp2 != null ? findParentByKey(wc.node, cp2.parent.key) : null;  // rijenlijst
+      if (cp2 != null && cp3 != null) {
+        final coachRow = cp2.parent;
+        final list = cp3.parent;
+        final idx = list.children.indexWhere((c) => identical(c, coachRow));
+        list.children.insert(idx >= 0 ? idx + 1 : list.children.length,
+            infoRow('Vlagger', 'matchVlaggerName'));
       }
     }
 
@@ -10453,36 +10486,6 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
         n.children.any((c) => c.name == 'MatchApiStatus')).firstOrNull;
     statusParent?.children.removeWhere((c) => c.name == 'MatchApiStatus');
     return;
-  }
-
-  FFNode infoRow(String label, String stateFieldName) {
-    final valueText = UI.text('-', name: 'MatchInfoValue_$stateFieldName', style: UITextStyle.bodyMedium);
-    final v = stateVar(stateFieldName);
-    // Bind via "x ?? ''" zodat de waarde nooit null is — anders genereert FF
-    // _model.X! en crasht de pagina op een null-veld (bv. bardienst zonder notities).
-    if (v != null) {
-      valueText.props.text.textValue = FFStringValue(
-        variable: codeExpressionVar(
-          expression: "x ?? ''",
-          arguments: [
-            CodeExpressionArg(
-              name: 'x',
-              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-              value: FFValue(variable: v),
-            ),
-          ],
-          returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
-        ),
-      );
-    }
-    return UI.container(
-      name: 'MatchInfoRow_$stateFieldName',
-      padding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
-      child: UI.column(crossAxisAlignment: UICrossAxisAlignment.start, spacing: 2, children: [
-        UI.text(label, style: UITextStyle.labelSmall, color: UIColor.secondaryText),
-        valueText,
-      ]),
-    );
   }
 
   infoColumn.children.clear();
