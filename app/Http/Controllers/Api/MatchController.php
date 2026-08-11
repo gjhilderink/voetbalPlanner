@@ -75,6 +75,17 @@ class MatchController extends Controller
         // Korte doelpunten-samenvatting voor het coach-scherm ("12' Jan, 45' Piet").
         $data['goals_summary'] = $match->goalsSummary();
 
+        // Uitgenodigde gastspelers (actief + niet-verlopen) als komma-lijst voor
+        // het info-tabblad.
+        $data['guestNames'] = \App\Models\MatchGuestInvitation::query()
+            ->where('match_id', $match->id)
+            ->active()
+            ->with('member:id,name')
+            ->get()
+            ->map(fn ($g) => $g->member?->name)
+            ->filter()
+            ->join(', ');
+
         return response()->json($data);
     }
 
