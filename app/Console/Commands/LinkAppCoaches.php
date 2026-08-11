@@ -34,8 +34,10 @@ class LinkAppCoaches extends Command
         $roles = [Member::ROLE_COACH, Member::ROLE_LEIDER, Member::ROLE_ASSISTANT];
         $dry   = (bool) $this->option('dry-run');
 
+        // In een whereHas-closure is $q géén relatie, dus filter direct op de
+        // pivot-kolom (user_team.role) i.p.v. wherePivotIn.
         $userQuery = User::query()
-            ->whereHas('managedTeams', fn($q) => $q->wherePivotIn('role', $roles));
+            ->whereHas('managedTeams', fn($q) => $q->whereIn('user_team.role', $roles));
         if ($email = $this->option('email')) {
             $userQuery->where('email', $email);
         }
