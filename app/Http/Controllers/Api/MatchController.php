@@ -18,6 +18,13 @@ class MatchController extends Controller
     {
         $matches = FootballMatch::query()
             ->with(['team', 'coach', 'coaches', 'fruitHero', 'drivers'])
+            // ?mine=1 beperkt tot de teams waaraan de gebruiker gekoppeld is
+            // (eigen teams via user_team/member + kinderen). Gebruikt o.a. door
+            // het rijschema zodat je alleen ritten van je eigen teams ziet.
+            ->when($request->boolean('mine'), function ($q) use ($request) {
+                $ids = $request->user()?->accessibleTeams()->pluck('id') ?? collect();
+                $q->whereIn('team_id', $ids);
+            })
             ->when($request->has('is_home'), fn($q) => $q->where('is_home', $request->boolean('is_home')))
             ->when($request->boolean('has_drivers'), fn($q) => $q->has('drivers'))
             ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
