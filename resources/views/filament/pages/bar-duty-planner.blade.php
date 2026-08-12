@@ -322,6 +322,78 @@
                 </div>
             @endfor
 
+            {{-- Handmatige bardiensten (eigen dag/tijd, buiten de vaste dagdelen) --}}
+            @if($this->hasCustomDuties())
+                <div class="bdp-shift-label">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>Handmatig / overig</span>
+                </div>
+                <div class="bdp-day-grid">
+                    @foreach($this->weekDays as $day)
+                        @php
+                            $dateStr     = $day->toDateString();
+                            $customList  = $this->customDutiesForDate($dateStr);
+                        @endphp
+                        <div class="bdp-slot bdp-slot-a" style="{{ $customList->isEmpty() ? 'opacity:.4;' : '' }}">
+                            @forelse($customList as $duty)
+                                @php
+                                    $cardClass = match($duty->status) {
+                                        'bevestigd' => 'bdp-card-bev',
+                                        'vervuld'   => 'bdp-card-ver',
+                                        default     => 'bdp-card-open',
+                                    };
+                                    $dotColor = match($duty->status) {
+                                        'bevestigd' => '#3b82f6',
+                                        'vervuld'   => '#22c55e',
+                                        default     => '#fb923c',
+                                    };
+                                    $nextStatus = match($duty->status) {
+                                        'open'      => 'bevestigd',
+                                        'bevestigd' => 'vervuld',
+                                        default     => 'open',
+                                    };
+                                @endphp
+                                <div class="bdp-card {{ $cardClass }}">
+                                    <div style="display:flex;align-items:center;gap:.35rem;font-size:.62rem;font-weight:700;color:#9ca3af;margin-bottom:.15rem;">
+                                        <span>{{ $duty->shiftLabel() }}</span>
+                                        @if($duty->timeRange())
+                                            <span style="margin-left:auto;font-weight:600;">{{ $duty->timeRange() }} · {{ $duty->requiredCount() }}p</span>
+                                        @endif
+                                    </div>
+                                    <div class="bdp-card-name">
+                                        <span class="bdp-card-dot" style="background:{{ $dotColor }};"></span>
+                                        {{ $duty->team?->name ?? '—' }}
+                                    </div>
+
+                                    @if($duty->members->isNotEmpty())
+                                        <div class="bdp-card-members">
+                                            @foreach($duty->members as $member)
+                                                <div class="bdp-card-member">
+                                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+                                                    {{ $member->name }}
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="bdp-card-empty">Geen leden</div>
+                                    @endif
+
+                                    <div class="bdp-card-actions">
+                                        <button class="bdp-act-btn" wire:click="updateDutyStatus('{{ $duty->id }}', '{{ $nextStatus }}')" title="Status wijzigen">
+                                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                                        </button>
+                                        <button class="bdp-act-btn del" wire:click="removeDuty('{{ $duty->id }}')" wire:confirm="Weet je zeker dat je deze bardienst wilt verwijderen?" title="Verwijderen">
+                                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            @empty
+                            @endforelse
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
         </div>
     </div>
 </div>

@@ -18,6 +18,9 @@ class BarDuty extends Model
 
     public const REQUIRED_MEMBERS = 2;
 
+    /** Sleutel voor een handmatige bardienst met eigen dag, tijd en bezetting. */
+    public const SHIFT_CUSTOM = 'custom';
+
     /**
      * Vaste dagdelen per weekenddag. Sleutel => definitie. `day` = Carbon
      * dayOfWeek (zondag = 0, zaterdag = 6). De shift-kolom bewaart de sleutel;
@@ -36,48 +39,58 @@ class BarDuty extends Model
 
     protected $fillable = [
         'club_id', 'team_id', 'date', 'shift', 'notes', 'status',
+        'custom_label', 'start_time', 'end_time', 'required_count',
     ];
 
     protected function casts(): array
     {
         return [
             'date' => 'date',
+            'required_count' => 'integer',
         ];
     }
 
-    /** Definitie van dit dagdeel, of null bij een onbekende/oude shift. */
+    /** Definitie van dit vaste dagdeel, of null bij handmatig/onbekend/oud. */
     public function shiftDef(): ?array
     {
         return self::SHIFTS[$this->shift] ?? null;
     }
 
-    /** Weergavelabel (bv. "Middag 1"); valt terug op de ruwe sleutel. */
+    /** Handmatige bardienst (eigen dag/tijd/bezetting), geen vast dagdeel. */
+    public function isCustom(): bool
+    {
+        return $this->shiftDef() === null;
+    }
+
+    /** Weergavelabel (bv. "Middag 1"); valt terug op eigen label of de sleutel. */
     public function shiftLabel(): string
     {
-        return $this->shiftDef()['label'] ?? ucfirst((string) $this->shift);
+        return $this->shiftDef()['label']
+            ?? ($this->custom_label ?: ($this->shift === self::SHIFT_CUSTOM ? 'Bardienst' : ucfirst((string) $this->shift)));
     }
 
     public function startTime(): string
     {
-        return $this->shiftDef()['start'] ?? '';
+        return $this->shiftDef()['start'] ?? (string) ($this->start_time ?? '');
     }
 
     public function endTime(): string
     {
-        return $this->shiftDef()['end'] ?? '';
+        return $this->shiftDef()['end'] ?? (string) ($this->end_time ?? '');
     }
 
     /** "10:30 - 13:30" of leeg als er geen tijden bekend zijn. */
     public function timeRange(): string
     {
-        $def = $this->shiftDef();
-        return $def ? "{$def['start']} - {$def['end']}" : '';
+        $start = $this->startTime();
+        $end   = $this->endTime();
+        return ($start && $end) ? "{$start} - {$end}" : '';
     }
 
-    /** Benodigde bezetting van dit dagdeel (2 of 3); fallback 2. */
+    /** Benodigde bezetting (2 of 3 bij vaste dagdelen; eigen aantal bij handmatig); fallback 2. */
     public function requiredCount(): int
     {
-        return $this->shiftDef()['required'] ?? self::REQUIRED_MEMBERS;
+        return $this->shiftDef()['required'] ?? $this->required_count ?? self::REQUIRED_MEMBERS;
     }
 
     /** Dagdelen die op deze datum gelden (op basis van de weekdag). */

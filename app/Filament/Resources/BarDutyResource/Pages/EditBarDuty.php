@@ -20,6 +20,11 @@ class EditBarDuty extends EditRecord
         ];
     }
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return BarDutyResource::normalizeFormData($data);
+    }
+
     protected function afterSave(): void
     {
         $this->getRecord()->refreshStatus();

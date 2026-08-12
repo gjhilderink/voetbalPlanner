@@ -15,6 +15,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Filters\Filter;
@@ -76,6 +77,34 @@ class BarDutyResource extends Resource
     {
         return $schema->components([
             Section::make('Bardienst')->schema([
+                Forms\Components\Radio::make('shift_type')
+                    ->label('Soort bardienst')
+                    ->options([
+                        'vast'      => 'Vast dagdeel (za/zo)',
+                        'handmatig' => 'Handmatig (eigen dag & tijd)',
+                    ])
+                    ->descriptions([
+                        'vast'      => 'Kies een van de vaste weekend-dagdelen.',
+                        'handmatig' => 'Plan zelf een dag, begin- en eindtijd en bezetting.',
+                    ])
+                    ->inline()
+                    ->dehydrated(false)
+                    ->live()
+                    ->default('vast')
+                    ->afterStateHydrated(function (Forms\Components\Radio $component, ?BarDuty $record) {
+                        $component->state($record && $record->isCustom() ? 'handmatig' : 'vast');
+                    })
+                    ->afterStateUpdated(function (string $state, Set $set) {
+                        if ($state === 'handmatig') {
+                            $set('shift', null);
+                        } else {
+                            $set('custom_label', null);
+                            $set('start_time', null);
+                            $set('end_time', null);
+                            $set('required_count', null);
+                        }
+                    })
+                    ->columnSpanFull(),
                 Forms\Components\DatePicker::make('date')
                     ->label('Datum')
                     ->displayFormat('d-m-Y')
@@ -83,13 +112,41 @@ class BarDutyResource extends Resource
                     ->required(),
                 Forms\Components\Select::make('shift')
                     ->label('Dagdeel')
-                    ->options(fn(\Filament\Schemas\Components\Utilities\Get $get) => $get('date')
+                    ->options(fn(Get $get) => $get('date')
                         ? collect(\App\Models\BarDuty::shiftsForDate(\Carbon\Carbon::parse($get('date'))))
                             ->mapWithKeys(fn($def, $key) => [$key => "{$def['label']} ({$def['start']}–{$def['end']})"])
                             ->all()
                         : [])
                     ->helperText('Alleen op zaterdag en zondag zijn er dagdelen.')
-                    ->required(),
+                    ->visible(fn(Get $get) => $get('shift_type') !== 'handmatig')
+                    ->required(fn(Get $get) => $get('shift_type') !== 'handmatig'),
+                Forms\Components\TextInput::make('custom_label')
+                    ->label('Omschrijving')
+                    ->placeholder('bijv. Toernooi, Feestavond')
+                    ->maxLength(60)
+                    ->visible(fn(Get $get) => $get('shift_type') === 'handmatig'),
+                Forms\Components\TimePicker::make('start_time')
+                    ->label('Begintijd')
+                    ->seconds(false)
+                    ->format('H:i')
+                    ->displayFormat('H:i')
+                    ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
+                    ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
+                Forms\Components\TimePicker::make('end_time')
+                    ->label('Eindtijd')
+                    ->seconds(false)
+                    ->format('H:i')
+                    ->displayFormat('H:i')
+                    ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
+                    ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
+                Forms\Components\TextInput::make('required_count')
+                    ->label('Aantal personen')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(10)
+                    ->default(2)
+                    ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
+                    ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
                 Forms\Components\Select::make('team_id')
                     ->label('Elftal (verantwoordelijk)')
                     ->options(function (): array {
@@ -114,7 +171,7 @@ class BarDutyResource extends Resource
                 Forms\Components\Select::make('members')
                     ->label('Ingeplande leden')
                     ->multiple()
-                    ->maxItems(fn(Get $get) => \App\Models\BarDuty::SHIFTS[$get('shift')]['required'] ?? 2)
+                    ->maxItems(fn(Get $get) => \App\Models\BarDuty::SHIFTS[$get('shift')]['required'] ?? ((int) $get('required_count') ?: 2))
                     ->relationship(
                         name: 'members',
                         titleAttribute: 'name',
@@ -148,13 +205,10 @@ class BarDutyResource extends Resource
                 Tables\Columns\TextColumn::make('shift')
                     ->label('Dagdeel')
                     ->badge()
-                    ->formatStateUsing(function ($state, $record) {
-                        $def = \App\Models\BarDuty::SHIFTS[$state] ?? null;
-                        return $def
-                            ? "{$def['label']} ({$def['start']}–{$def['end']})"
-                            : ucfirst((string) $state);
-                    })
-                    ->color('info'),
+                    ->formatStateUsing(fn($state, BarDuty $record) => trim(
+                        $record->shiftLabel() . ($record->timeRange() ? ' (' . $record->timeRange() . ')' : '')
+                    ))
+                    ->color(fn(BarDuty $record) => $record->isCustom() ? 'gray' : 'info'),
                 Tables\Columns\TextColumn::make('team.name')
                     ->label('Elftal')
                     ->sortable(),
@@ -344,6 +398,28 @@ class BarDutyResource extends Resource
             ->defaultGroup('date')
             ->defaultSort('date')
             ->striped();
+    }
+
+    /**
+     * Normaliseert het formulier: een handmatige bardienst (geen vast dagdeel)
+     * krijgt shift = 'custom' met eigen tijden/bezetting; een vast dagdeel wist
+     * de handmatige velden weer.
+     */
+    public static function normalizeFormData(array $data): array
+    {
+        $shift = $data['shift'] ?? null;
+
+        if (empty($shift) || !isset(BarDuty::SHIFTS[$shift])) {
+            $data['shift']          = BarDuty::SHIFT_CUSTOM;
+            $data['required_count'] = (int) ($data['required_count'] ?? BarDuty::REQUIRED_MEMBERS) ?: BarDuty::REQUIRED_MEMBERS;
+        } else {
+            $data['custom_label']   = null;
+            $data['start_time']     = null;
+            $data['end_time']       = null;
+            $data['required_count'] = null;
+        }
+
+        return $data;
     }
 
     public static function getPages(): array

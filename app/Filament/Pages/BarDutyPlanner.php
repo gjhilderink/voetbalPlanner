@@ -15,6 +15,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 
@@ -134,6 +135,20 @@ class BarDutyPlanner extends Page
         )->values();
     }
 
+    /** Handmatige (custom) bardiensten op deze datum — buiten de vaste dagdelen. */
+    public function customDutiesForDate(string $date): Collection
+    {
+        return $this->duties->filter(
+            fn($d) => $d->date->toDateString() === $date && $d->isCustom()
+        )->values();
+    }
+
+    /** Zijn er handmatige bardiensten in de getoonde week? */
+    public function hasCustomDuties(): bool
+    {
+        return $this->duties->contains(fn($d) => $d->isCustom());
+    }
+
     public function dropTeamOnSlot(string $date, string $shift, string $teamId): void
     {
         $existing = BarDuty::where('club_id', filament()->getTenant()?->id)
@@ -181,6 +196,27 @@ class BarDutyPlanner extends Page
                 ->color('primary')
                 ->form([
                     Grid::make(2)->schema([
+                        Forms\Components\Radio::make('shift_type')
+                            ->label('Soort bardienst')
+                            ->options([
+                                'vast'      => 'Vast dagdeel (za/zo)',
+                                'handmatig' => 'Handmatig (eigen dag & tijd)',
+                            ])
+                            ->inline()
+                            ->dehydrated(false)
+                            ->live()
+                            ->default('vast')
+                            ->afterStateUpdated(function (string $state, Set $set) {
+                                if ($state === 'handmatig') {
+                                    $set('shift', null);
+                                } else {
+                                    $set('custom_label', null);
+                                    $set('start_time', null);
+                                    $set('end_time', null);
+                                    $set('required_count', null);
+                                }
+                            })
+                            ->columnSpanFull(),
                         Forms\Components\DatePicker::make('date')
                             ->label('Datum')
                             ->displayFormat('d-m-Y')
@@ -195,8 +231,29 @@ class BarDutyPlanner extends Page
                                     $key => "{$def['label']} ({$def['start']}–{$def['end']})",
                                 ])->all())
                             ->helperText('Alleen op zaterdag en zondag zijn er dagdelen.')
-                            ->live()
-                            ->required(),
+                            ->visible(fn(Get $get) => $get('shift_type') !== 'handmatig')
+                            ->required(fn(Get $get) => $get('shift_type') !== 'handmatig')
+                            ->live(),
+                        Forms\Components\TextInput::make('custom_label')
+                            ->label('Omschrijving')
+                            ->placeholder('bijv. Toernooi, Feestavond')
+                            ->maxLength(60)
+                            ->visible(fn(Get $get) => $get('shift_type') === 'handmatig'),
+                        Forms\Components\TimePicker::make('start_time')
+                            ->label('Begintijd')
+                            ->seconds(false)->format('H:i')->displayFormat('H:i')
+                            ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
+                            ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
+                        Forms\Components\TimePicker::make('end_time')
+                            ->label('Eindtijd')
+                            ->seconds(false)->format('H:i')->displayFormat('H:i')
+                            ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
+                            ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
+                        Forms\Components\TextInput::make('required_count')
+                            ->label('Aantal personen')
+                            ->numeric()->minValue(1)->maxValue(10)->default(2)
+                            ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
+                            ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
                         Forms\Components\Select::make('team_id')
                             ->label('Elftal (verantwoordelijk)')
                             ->options(fn() => Team::where('club_id', filament()->getTenant()?->id)
@@ -217,7 +274,7 @@ class BarDutyPlanner extends Page
                         Forms\Components\Select::make('member_ids')
                             ->label('Leden')
                             ->multiple()
-                            ->maxItems(fn(Get $get) => BarDuty::SHIFTS[$get('shift')]['required'] ?? 2)
+                            ->maxItems(fn(Get $get) => BarDuty::SHIFTS[$get('shift')]['required'] ?? ((int) $get('required_count') ?: 2))
                             ->options(fn(Get $get) => Member::query()
                                 ->when(
                                     $get('team_id'),
@@ -235,13 +292,19 @@ class BarDutyPlanner extends Page
                     ]),
                 ])
                 ->action(function (array $data): void {
+                    $isCustom = empty($data['shift']) || !isset(BarDuty::SHIFTS[$data['shift']]);
+
                     $duty = BarDuty::create([
-                        'club_id' => filament()->getTenant()?->id,
-                        'team_id' => $data['team_id'],
-                        'date'    => $data['date'],
-                        'shift'   => $data['shift'],
-                        'status'  => $data['status'] ?? 'open',
-                        'notes'   => $data['notes'] ?? null,
+                        'club_id'        => filament()->getTenant()?->id,
+                        'team_id'        => $data['team_id'],
+                        'date'           => $data['date'],
+                        'shift'          => $isCustom ? BarDuty::SHIFT_CUSTOM : $data['shift'],
+                        'status'         => $data['status'] ?? 'open',
+                        'notes'          => $data['notes'] ?? null,
+                        'custom_label'   => $isCustom ? ($data['custom_label'] ?? null) : null,
+                        'start_time'     => $isCustom ? ($data['start_time'] ?? null) : null,
+                        'end_time'       => $isCustom ? ($data['end_time'] ?? null) : null,
+                        'required_count' => $isCustom ? ((int) ($data['required_count'] ?? 2) ?: 2) : null,
                     ]);
 
                     if (!empty($data['member_ids'])) {

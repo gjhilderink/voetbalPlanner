@@ -234,6 +234,19 @@ class ReleaseNotesSeeder extends Seeder
                     . 'misklikken. De gekozen vlagger en gastspelers zie je op het info-tabblad van de wedstrijd, en als '
                     . 'coach kun je ze daar ook weer verwijderen.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Mijn bardiensten op het dashboard',
+                'description' => 'Op het dashboard zie je onder "Mijn bardiensten" nu alleen de bardiensten waarvoor je zelf '
+                    . 'bent aangemeld, in plaats van alle bardiensten van je team(s).',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Handmatige bardiensten op elke dag en tijd',
+                'description' => 'Naast de vaste weekend-dagdelen kan de club nu ook op andere dagen en tijden een bardienst '
+                    . 'inplannen met een eigen omschrijving, begin- en eindtijd en aantal personen, en daar een elftal of leden '
+                    . 'aan toewijzen.',
+            ],
         ];
 
         $sort = 0;

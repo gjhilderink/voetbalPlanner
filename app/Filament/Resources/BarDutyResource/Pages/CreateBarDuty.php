@@ -14,7 +14,7 @@ class CreateBarDuty extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['club_id'] = filament()->getTenant()?->id;
-        return $data;
+        return BarDutyResource::normalizeFormData($data);
     }
 
     protected function afterCreate(): void
