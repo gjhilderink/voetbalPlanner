@@ -106,6 +106,16 @@ class OnboardingSlideResource extends Resource
                     ->maxLength(2000)
                     ->columnSpanFull(),
 
+                Forms\Components\FileUpload::make('background_path')
+                    ->label('Achtergrond (optioneel)')
+                    ->helperText('Afbeelding op de volledige slide. Zonder achtergrond wordt de standaardkleur gebruikt.')
+                    ->image()
+                    ->maxSize(5120)
+                    ->disk('public')
+                    ->directory('onboarding_backgrounds')
+                    ->imageEditor()
+                    ->columnSpanFull(),
+
                 Forms\Components\Toggle::make('is_active')
                     ->label('Zichtbaar')
                     ->default(true)
@@ -133,6 +143,13 @@ class OnboardingSlideResource extends Resource
                         . e((string) $state) . '</span>&nbsp;'
                         . e(OnboardingSlide::$icons[$state] ?? (string) $state)
                     )),
+
+                Tables\Columns\ImageColumn::make('background_path')
+                    ->label('Achtergrond')
+                    ->disk('public')
+                    ->height(40)
+                    ->extraImgAttributes(['style' => 'object-fit:cover;border-radius:4px;'])
+                    ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('title')
                     ->label('Titel')

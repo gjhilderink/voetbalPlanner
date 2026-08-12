@@ -23,6 +23,7 @@ class OnboardingSlide extends Model
         'title',
         'body',
         'icon',
+        'background_path',
         'sort_order',
         'is_active',
     ];

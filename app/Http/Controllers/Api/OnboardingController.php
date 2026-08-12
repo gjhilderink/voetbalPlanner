@@ -26,9 +26,10 @@ class OnboardingController extends Controller
             ->activeOrdered()
             ->get()
             ->map(fn (OnboardingSlide $s) => [
-                'icon'  => $s->icon ?: 'info',
-                'title' => $s->title ?? '',
-                'body'  => $s->body ?? '',
+                'icon'       => $s->icon ?: 'info',
+                'title'      => $s->title ?? '',
+                'body'       => $s->body ?? '',
+                'background' => $s->background_path ? asset('storage/' . $s->background_path) : '',
             ])
             ->values();
 
