@@ -200,6 +200,13 @@ class ReleaseNotesSeeder extends Seeder
                     . 'wedstrijd ingevuld. Je hoeft dit niet meer per wedstrijd handmatig te doen; een eigen keuze '
                     . 'blijft uiteraard behouden.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Rondleiding bij de eerste keer inloggen',
+                'description' => 'Nieuw in de app? Bij de eerste keer inloggen zie je nu een korte rondleiding met '
+                    . 'uitleg over wedstrijden, rijschema & bardienst, chat en de coach-functies. Wil je \'m later '
+                    . 'nog eens bekijken? Via je profiel kun je de rondleiding met één tik opnieuw starten.',
+            ],
         ];
 
         $sort = 0;
