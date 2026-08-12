@@ -42,7 +42,10 @@ class BarDutyResource extends JsonResource
         return [
             'id'           => $this->id,
             'date'         => $this->date?->format('d-m-Y') ?? '',
-            'shift'        => $this->shift ?? '',
+            // 'shift' is de weergave die de app toont: label + tijden ("Ochtend ·
+            // 10:30 - 13:30"). De ruwe sleutel staat in 'shiftKey'.
+            'shift'        => trim($this->shiftLabel() . ($this->timeRange() ? ' · ' . $this->timeRange() : '')),
+            'shiftKey'     => $this->shift ?? '',
             'shiftLabel'   => $this->shiftLabel(),
             'timeRange'    => $this->timeRange(),
             'startTime'    => $this->startTime(),
