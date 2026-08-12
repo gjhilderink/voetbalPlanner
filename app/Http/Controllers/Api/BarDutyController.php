@@ -33,6 +33,12 @@ class BarDutyController extends Controller
             )
             ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
             ->when($request->status, fn($q, $s) => $q->where('status', $s))
+            // Standaard alleen toekomstige bardiensten (vandaag telt mee); verleden
+            // verbergen. Te overrulen met een expliciete date_from of include_past=1.
+            ->when(
+                !$request->filled('date_from') && !$request->boolean('include_past'),
+                fn($q) => $q->whereDate('date', '>=', now()->toDateString())
+            )
             ->when($request->date_from, fn($q, $d) => $q->whereDate('date', '>=', $d))
             ->when($request->date_to, fn($q, $d) => $q->whereDate('date', '<=', $d))
             ->orderBy('date')
