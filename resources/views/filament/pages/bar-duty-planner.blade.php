@@ -200,10 +200,21 @@
             {{-- Day headers --}}
             <div class="bdp-day-grid" style="margin-bottom:2px;">
                 @foreach($this->weekDays as $day)
+                    @php $match1 = $this->firstMatchFor($day->toDateString()); @endphp
                     <div class="bdp-day-head {{ $day->isToday() ? 'bdp-day-today' : 'bdp-day-normal' }}">
                         <div class="dn">{{ $day->locale('nl')->isoFormat('ddd') }}</div>
                         <div class="dd">{{ $day->format('d') }}</div>
                         <div class="dm">{{ $day->locale('nl')->isoFormat('MMM') }}</div>
+                        @if($match1)
+                            <div style="margin-top:.35rem;padding-top:.3rem;border-top:1px solid rgba(0,0,0,.06);font-size:.6rem;line-height:1.25;">
+                                <div style="font-weight:800;letter-spacing:.03em;color:{{ $match1->is_home ? '#16a34a' : '#ea580c' }};">
+                                    {{ $match1->is_home ? 'THUIS' : 'UIT' }} · {{ $match1->match_datetime?->format('H:i') }}
+                                </div>
+                                <div style="font-weight:600;color:#6b7280;" title="{{ $match1->opponent }}">
+                                    {{ \Illuminate\Support\Str::limit($match1->opponent, 20) }}
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 @endforeach
             </div>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Models\BarDuty;
+use App\Models\FootballMatch;
 use App\Models\Member;
 use App\Models\Team;
 use Carbon\Carbon;
@@ -83,6 +84,45 @@ class BarDutyPlanner extends Page
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
+    }
+
+    /**
+     * Het "eerste elftal" van de club (heuristiek): team waarvan de naam op " 1"
+     * eindigt, anders exact de clubnaam, anders het eerste team op naam.
+     */
+    #[Computed]
+    public function firstTeam(): ?Team
+    {
+        $club  = filament()->getTenant();
+        $teams = $this->teams;
+
+        return $teams->first(fn(Team $t) => (bool) preg_match('/\s1$/', trim($t->name)))
+            ?? $teams->first(fn(Team $t) => mb_strtolower(trim($t->name)) === mb_strtolower(trim($club?->name ?? '')))
+            ?? $teams->first();
+    }
+
+    /** Wedstrijden van het eerste elftal in de getoonde week, per datum. */
+    #[Computed]
+    public function firstTeamMatches(): Collection
+    {
+        $team = $this->firstTeam();
+        if (!$team) {
+            return collect();
+        }
+        $start = Carbon::parse($this->weekStart)->startOfDay();
+        $end   = Carbon::parse($this->weekStart)->endOfWeek()->endOfDay();
+
+        return FootballMatch::where('team_id', $team->id)
+            ->whereBetween('match_datetime', [$start, $end])
+            ->orderBy('match_datetime')
+            ->get()
+            ->groupBy(fn(FootballMatch $m) => $m->match_datetime?->toDateString());
+    }
+
+    /** De (eerste) wedstrijd van het eerste elftal op deze datum, of null. */
+    public function firstMatchFor(string $date): ?FootballMatch
+    {
+        return $this->firstTeamMatches->get($date)?->first();
     }
 
     public function dutiesForSlot(string $date, string $shift): Collection
