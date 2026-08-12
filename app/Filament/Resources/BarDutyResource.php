@@ -183,6 +183,16 @@ class BarDutyResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\TernaryFilter::make('verleden')
+                    ->label('Periode')
+                    ->placeholder('Alleen komende')
+                    ->trueLabel('Alles (incl. verleden)')
+                    ->falseLabel('Alleen verleden')
+                    ->queries(
+                        true:  fn(Builder $q) => $q,
+                        false: fn(Builder $q) => $q->whereDate('date', '<', now()->toDateString()),
+                        blank: fn(Builder $q) => $q->whereDate('date', '>=', now()->toDateString()),
+                    ),
                 SelectFilter::make('team_id')
                     ->label('Elftal')
                     ->options(function (): array {
