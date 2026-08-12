@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\MemberResource\Pages;
+use App\Filament\Support\TeamFilter;
 use App\Models\Member;
 use App\Models\Team;
 use App\Services\WhatsAppService;
@@ -16,6 +17,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Table;
 
 class MemberResource extends Resource
@@ -261,13 +263,19 @@ class MemberResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            // Filters staan boven de tabel (niet in het dropdown-menu) zodat het
+            // team-filter altijd in beeld is; de keuze blijft per sessie staan.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns(3)
+            ->persistFiltersInSession()
             ->filters([
                 Tables\Filters\SelectFilter::make('teams')
                     ->label('Team')
-                    ->relationship('teams', 'name')
+                    ->relationship('teams', 'name', modifyQueryUsing: fn (Builder $query) => TeamFilter::scopeQuery($query))
                     ->searchable()
                     ->preload()
-                    ->multiple(),
+                    ->multiple()
+                    ->placeholder('Alle teams'),
                 Tables\Filters\SelectFilter::make('role')
                     ->label('Rol')
                     ->options([

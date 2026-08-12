@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\MatchResource\Pages;
+use App\Filament\Support\TeamFilter;
 use App\Models\FootballMatch;
 use App\Models\Member;
 use Filament\Actions;
@@ -14,6 +15,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -191,7 +193,19 @@ class MatchResource extends Resource
                     ->placeholder('—')
                     ->toggleable(),
             ])
+            // Filters staan boven de tabel (niet in het dropdown-menu) zodat het
+            // team-filter altijd in beeld is; de keuze blijft per sessie staan.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns(3)
+            ->persistFiltersInSession()
             ->filters([
+                Tables\Filters\SelectFilter::make('team')
+                    ->label('Team')
+                    ->relationship('team', 'name', modifyQueryUsing: fn (Builder $query) => TeamFilter::scopeQuery($query))
+                    ->searchable()
+                    ->preload()
+                    ->multiple()
+                    ->placeholder('Alle teams'),
                 // Standaard (blanco keuze) verbergt wedstrijden ouder dan een week.
                 Tables\Filters\TernaryFilter::make('periode')
                     ->label('Periode')
@@ -211,9 +225,6 @@ class MatchResource extends Resource
                         'cancelled' => 'Geannuleerd',
                         'postponed' => 'Uitgesteld',
                     ]),
-                Tables\Filters\SelectFilter::make('team')
-                    ->relationship('team', 'name')
-                    ->label('Team'),
             ])
             ->defaultSort('match_datetime')
             ->actions([
