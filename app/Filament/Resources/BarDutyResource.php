@@ -79,14 +79,16 @@ class BarDutyResource extends Resource
                 Forms\Components\DatePicker::make('date')
                     ->label('Datum')
                     ->displayFormat('d-m-Y')
+                    ->live()
                     ->required(),
                 Forms\Components\Select::make('shift')
-                    ->label('Dienst')
-                    ->options([
-                        'ochtend' => 'Ochtend',
-                        'middag'  => 'Middag',
-                        'avond'   => 'Avond',
-                    ])
+                    ->label('Dagdeel')
+                    ->options(fn(\Filament\Schemas\Components\Utilities\Get $get) => $get('date')
+                        ? collect(\App\Models\BarDuty::shiftsForDate(\Carbon\Carbon::parse($get('date'))))
+                            ->mapWithKeys(fn($def, $key) => [$key => "{$def['label']} ({$def['start']}–{$def['end']})"])
+                            ->all()
+                        : [])
+                    ->helperText('Alleen op zaterdag en zondag zijn er dagdelen.')
                     ->required(),
                 Forms\Components\Select::make('team_id')
                     ->label('Elftal (verantwoordelijk)')
@@ -110,9 +112,9 @@ class BarDutyResource extends Resource
                     ->default('open')
                     ->required(),
                 Forms\Components\Select::make('members')
-                    ->label('Ingeplande leden (max. 2)')
+                    ->label('Ingeplande leden')
                     ->multiple()
-                    ->maxItems(2)
+                    ->maxItems(fn(Get $get) => \App\Models\BarDuty::SHIFTS[$get('shift')]['required'] ?? 2)
                     ->relationship(
                         name: 'members',
                         titleAttribute: 'name',
@@ -144,20 +146,15 @@ class BarDutyResource extends Resource
                     ->formatStateUsing(fn($state) => $state?->locale('nl')->isoFormat('ddd DD-MM-YYYY'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('shift')
-                    ->label('Dienst')
+                    ->label('Dagdeel')
                     ->badge()
-                    ->formatStateUsing(fn($state) => match($state) {
-                        'ochtend' => 'Ochtend',
-                        'middag'  => 'Middag',
-                        'avond'   => 'Avond',
-                        default   => $state,
+                    ->formatStateUsing(function ($state, $record) {
+                        $def = \App\Models\BarDuty::SHIFTS[$state] ?? null;
+                        return $def
+                            ? "{$def['label']} ({$def['start']}–{$def['end']})"
+                            : ucfirst((string) $state);
                     })
-                    ->color(fn($state) => match($state) {
-                        'ochtend' => 'info',
-                        'middag'  => 'warning',
-                        'avond'   => 'primary',
-                        default   => 'gray',
-                    }),
+                    ->color('info'),
                 Tables\Columns\TextColumn::make('team.name')
                     ->label('Elftal')
                     ->sortable(),
@@ -198,12 +195,10 @@ class BarDutyResource extends Resource
                     })
                     ->placeholder('Alle elftallen'),
                 SelectFilter::make('shift')
-                    ->label('Dienst')
-                    ->options([
-                        'ochtend' => 'Ochtend',
-                        'middag'  => 'Middag',
-                        'avond'   => 'Avond',
-                    ]),
+                    ->label('Dagdeel')
+                    ->options(collect(\App\Models\BarDuty::SHIFTS)->mapWithKeys(fn($def, $key) => [
+                        $key => ($def['day'] === 6 ? 'Za ' : 'Zo ') . $def['label'],
+                    ])->all()),
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options([
@@ -256,9 +251,9 @@ class BarDutyResource extends Resource
                         && in_array($record->team_id, auth()->user()->managedTeamIds()->all()))
                     ->form(fn(BarDuty $record): array => [
                         Forms\Components\Select::make('members')
-                            ->label('Leden (max. 2)')
+                            ->label('Leden')
                             ->multiple()
-                            ->maxItems(2)
+                            ->maxItems($record->requiredCount())
                             ->options(
                                 Member::query()
                                     ->when(
@@ -271,7 +266,7 @@ class BarDutyResource extends Resource
                                     ->all()
                             )
                             ->default($record->members->pluck('id')->all())
-                            ->helperText('Selecteer maximaal 2 leden uit het elftal'),
+                            ->helperText('Selecteer maximaal ' . $record->requiredCount() . ' leden uit het elftal'),
                     ])
                     ->action(function (BarDuty $record, array $data): void {
                         $record->members()->sync($data['members'] ?? []);
@@ -300,12 +295,8 @@ class BarDutyResource extends Resource
                             ->default(
                                 'Hallo! Je staat ingepland voor bardienst op '
                                 . $record->date?->locale('nl')->isoFormat('ddd D MMMM')
-                                . ' (' . match($record->shift) {
-                                    'ochtend' => 'ochtend',
-                                    'middag'  => 'middag',
-                                    'avond'   => 'avond',
-                                    default   => $record->shift,
-                                } . ')'
+                                . ' (' . $record->shiftLabel()
+                                . ($record->timeRange() ? ' ' . $record->timeRange() : '') . ')'
                                 . '. Graag aanwezig zijn!'
                             )
                             ->rows(4)

@@ -143,14 +143,17 @@ class BarDutyPlanner extends Page
                             ->label('Datum')
                             ->displayFormat('d-m-Y')
                             ->default(fn() => Carbon::parse($this->weekStart))
+                            ->live()
                             ->required(),
                         Forms\Components\Select::make('shift')
-                            ->label('Dienst')
-                            ->options([
-                                'ochtend' => 'Ochtend',
-                                'middag'  => 'Middag',
-                                'avond'   => 'Avond',
-                            ])
+                            ->label('Dagdeel')
+                            ->options(fn(Get $get) => collect(
+                                    BarDuty::shiftsForDate(Carbon::parse($get('date') ?: $this->weekStart))
+                                )->mapWithKeys(fn($def, $key) => [
+                                    $key => "{$def['label']} ({$def['start']}–{$def['end']})",
+                                ])->all())
+                            ->helperText('Alleen op zaterdag en zondag zijn er dagdelen.')
+                            ->live()
                             ->required(),
                         Forms\Components\Select::make('team_id')
                             ->label('Elftal (verantwoordelijk)')
@@ -170,9 +173,9 @@ class BarDutyPlanner extends Page
                             ->default('open')
                             ->required(),
                         Forms\Components\Select::make('member_ids')
-                            ->label('Leden (max. 2)')
+                            ->label('Leden')
                             ->multiple()
-                            ->maxItems(2)
+                            ->maxItems(fn(Get $get) => BarDuty::SHIFTS[$get('shift')]['required'] ?? 2)
                             ->options(fn(Get $get) => Member::query()
                                 ->when(
                                     $get('team_id'),
@@ -181,7 +184,7 @@ class BarDutyPlanner extends Page
                                 )
                                 ->where('is_active', true)->orderBy('name')
                                 ->pluck('name', 'id')->all())
-                            ->helperText('Selecteer eerst een elftal')
+                            ->helperText('Selecteer eerst een elftal. Aantal hangt af van het dagdeel (2 of 3).')
                             ->columnSpanFull(),
                         Forms\Components\Textarea::make('notes')
                             ->label('Opmerkingen')
@@ -222,16 +225,17 @@ class BarDutyPlanner extends Page
                             ->get()
                             ->mapWithKeys(fn($d) => [
                                 $d->id => $d->date?->locale('nl')->isoFormat('ddd D MMM')
-                                    . ' – ' . ucfirst($d->shift)
+                                    . ' – ' . $d->shiftLabel()
+                                    . ($d->timeRange() ? ' ' . $d->timeRange() : '')
                                     . ($d->team ? ' (' . $d->team->name . ')' : ''),
                             ])->all())
                         ->searchable()
                         ->required()
                         ->live(),
                     Forms\Components\Select::make('member_ids')
-                        ->label('Leden (max. 2)')
+                        ->label('Leden')
                         ->multiple()
-                        ->maxItems(2)
+                        ->maxItems(fn(Get $get) => BarDuty::find($get('duty_id'))?->requiredCount() ?? 2)
                         ->options(fn(Get $get) => $get('duty_id')
                             ? Member::whereHas('teams', fn($q) => $q->where(
                                 'teams.id',

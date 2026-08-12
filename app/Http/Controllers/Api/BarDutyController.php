@@ -56,13 +56,16 @@ class BarDutyController extends Controller
     {
         $this->authorizeRole(['super_admin', 'club_admin', 'bar_commissie']);
 
+        $shiftKeys  = implode(',', array_keys(BarDuty::SHIFTS));
+        $maxMembers = BarDuty::SHIFTS[$request->input('shift')]['required'] ?? 3;
+
         $validated = $request->validate([
             'date'         => 'required|date_format:Y-m-d',
-            'shift'        => 'required|in:ochtend,middag,avond',
+            'shift'        => "required|in:{$shiftKeys}",
             'team_id'      => 'nullable|uuid|exists:teams,id',
             'status'       => 'sometimes|in:open,bevestigd,vervuld',
             'notes'        => 'nullable|string|max:2000',
-            'member_ids'   => 'nullable|array|max:2',
+            'member_ids'   => "nullable|array|max:{$maxMembers}",
             'member_ids.*' => 'uuid|exists:members,id',
         ]);
 
@@ -94,9 +97,10 @@ class BarDutyController extends Controller
         $this->authorizeRole(['super_admin', 'club_admin', 'bar_commissie']);
         $this->authorizeAccess($barDuty);
 
+        $shiftKeys = implode(',', array_keys(BarDuty::SHIFTS));
         $validated = $request->validate([
             'date'    => 'sometimes|date_format:Y-m-d',
-            'shift'   => 'sometimes|in:ochtend,middag,avond',
+            'shift'   => "sometimes|in:{$shiftKeys}",
             'team_id' => 'sometimes|nullable|uuid|exists:teams,id',
             'status'  => 'sometimes|in:open,bevestigd,vervuld',
             'notes'   => 'nullable|string|max:2000',
@@ -139,7 +143,7 @@ class BarDutyController extends Controller
         $this->authorizeAccess($barDuty);
 
         $validated = $request->validate([
-            'member_ids'   => 'required|array|max:2',
+            'member_ids'   => 'required|array|max:' . $barDuty->requiredCount(),
             'member_ids.*' => 'uuid|exists:members,id',
         ]);
 
@@ -193,7 +197,7 @@ class BarDutyController extends Controller
             ], 422);
         }
 
-        if (($memberIds->count() + $userIds->count()) >= BarDuty::REQUIRED_MEMBERS) {
+        if (($memberIds->count() + $userIds->count()) >= $barDuty->requiredCount()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Deze bardienst is al vol.',

@@ -208,40 +208,40 @@
                 @endforeach
             </div>
 
-            {{-- Shift rows --}}
+            {{-- Dagdeel-rijen: za/zo hebben elk 4 dagdelen (eigen tijden), door-de-week geen --}}
             @php
-                $shifts = [
-                    'ochtend' => ['label'=>'Ochtend', 'dot'=>'#60a5fa', 'slot'=>'bdp-slot-o'],
-                    'middag'  => ['label'=>'Middag',  'dot'=>'#fbbf24', 'slot'=>'bdp-slot-m'],
-                    'avond'   => ['label'=>'Avond',   'dot'=>'#c084fc', 'slot'=>'bdp-slot-a'],
-                ];
+                $slotColors = ['#60a5fa', '#fbbf24', '#f472b6', '#c084fc'];
             @endphp
 
-            @foreach($shifts as $shift => $meta)
-                {{-- Shift label --}}
-                <div class="bdp-shift-label">
-                    <span class="bdp-dot" style="width:8px;height:8px;background:{{ $meta['dot'] }};border-radius:50%;display:inline-block;flex-shrink:0;"></span>
-                    <span>{{ $meta['label'] }}</span>
-                </div>
-
-                <div class="bdp-day-grid">
+            @for($row = 0; $row < 4; $row++)
+                <div class="bdp-day-grid" style="margin-top:.5rem;">
                     @foreach($this->weekDays as $day)
                         @php
-                            $dateStr    = $day->toDateString();
-                            $slotDuties = $this->dutiesForSlot($dateStr, $shift);
+                            $dateStr   = $day->toDateString();
+                            $dayShifts = \App\Models\BarDuty::shiftsForDate($day);
+                            $shiftKey  = array_keys($dayShifts)[$row] ?? null;
+                            $def       = array_values($dayShifts)[$row] ?? null;
+                            $slotDuties = $shiftKey ? $this->dutiesForSlot($dateStr, $shiftKey) : collect();
                         @endphp
 
+                        @if($shiftKey)
                         <div
-                            class="bdp-slot {{ $meta['slot'] }}"
+                            class="bdp-slot"
                             @dragover.prevent="$el.classList.add('over')"
                             @dragleave="$el.classList.remove('over')"
                             @drop.prevent="
                                 $el.classList.remove('over');
                                 if (dragType === 'team' && draggingTeamId) {
-                                    $wire.dropTeamOnSlot('{{ $dateStr }}', '{{ $shift }}', draggingTeamId);
+                                    $wire.dropTeamOnSlot('{{ $dateStr }}', '{{ $shiftKey }}', draggingTeamId);
                                 }
                             "
                         >
+                            <div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.3rem;font-size:.66rem;font-weight:700;color:#6b7280;">
+                                <span class="bdp-dot" style="width:8px;height:8px;background:{{ $slotColors[$row] ?? '#9ca3af' }};border-radius:50%;display:inline-block;flex-shrink:0;"></span>
+                                <span>{{ $def['label'] }}</span>
+                                <span style="margin-left:auto;font-weight:600;color:#9ca3af;">{{ $def['start'] }}–{{ $def['end'] }} · {{ $def['required'] }}p</span>
+                            </div>
+
                             @forelse($slotDuties as $duty)
                                 @php
                                     $cardClass = match($duty->status) {
@@ -302,11 +302,14 @@
                                 <div class="bdp-empty-hint">
                                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                 </div>
-                            @endempty
+                            @endforelse
                         </div>
+                        @else
+                        <div class="bdp-slot" style="opacity:.4;"></div>
+                        @endif
                     @endforeach
                 </div>
-            @endforeach
+            @endfor
 
         </div>
     </div>

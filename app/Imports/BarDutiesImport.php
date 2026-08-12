@@ -40,47 +40,44 @@ class BarDutiesImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
         foreach ($rows as $index => $row) {
             $rowNum = $index + 2;
 
-            $dateRaw  = trim((string) ($row['datum']       ?? ''));
-            $shift    = trim((string) ($row['dienst']      ?? ''));
-            $teamName = trim((string) ($row['elftal']      ?? ''));
-            $lid1     = trim((string) ($row['lid_1']       ?? ''));
-            $lid2     = trim((string) ($row['lid_2']       ?? ''));
-            $status   = trim((string) ($row['status']      ?? 'open'));
-            $notes    = trim((string) ($row['opmerkingen'] ?? ''));
+            $dateRaw    = trim((string) ($row['datum'] ?? ''));
+            $shiftLabel = trim((string) ($row['dagdeel'] ?? ($row['dienst'] ?? '')));
+            $teamName   = trim((string) ($row['elftal'] ?? ''));
+            $lid1       = trim((string) ($row['lid_1'] ?? ''));
+            $lid2       = trim((string) ($row['lid_2'] ?? ''));
+            $lid3       = trim((string) ($row['lid_3'] ?? ''));
+            $status     = trim((string) ($row['status'] ?? 'open'));
+            $notes      = trim((string) ($row['opmerkingen'] ?? ''));
 
-            if ($dateRaw === '' && $teamName === '') {
+            // Sjabloon-rijen zonder ingevuld elftal (én zonder leden) overslaan.
+            if ($teamName === '' && $lid1 === '' && $lid2 === '' && $lid3 === '') {
+                continue;
+            }
+            if ($dateRaw === '') {
                 continue;
             }
 
             // Parse date (accepts d-m-Y or Y-m-d)
             try {
                 $date = Carbon::createFromFormat('d-m-Y', $dateRaw)
-                    ?? Carbon::parse($dateRaw);
+                    ?: Carbon::parse($dateRaw);
             } catch (\Throwable) {
                 $this->errors[] = "Rij {$rowNum}: ongeldige datum '{$dateRaw}'";
                 $this->skipped++;
                 continue;
             }
 
-            // Normalise shift
-            $shiftMap = [
-                'ochtend' => 'ochtend',
-                'morning' => 'ochtend',
-                'middag'  => 'middag',
-                'afternoon' => 'middag',
-                'avond'   => 'avond',
-                'evening' => 'avond',
-            ];
-            $shiftKey = $shiftMap[mb_strtolower($shift)] ?? null;
+            // Dagdeel-sleutel op basis van datum (za/zo) + labeltekst.
+            $shiftKey = BarDuty::resolveShiftKey($date, $shiftLabel);
             if (!$shiftKey) {
-                $this->errors[] = "Rij {$rowNum}: onbekende dienst '{$shift}' (gebruik Ochtend/Middag/Avond)";
+                $this->errors[] = "Rij {$rowNum}: onbekend dagdeel '{$shiftLabel}' voor {$date->format('d-m-Y')}";
                 $this->skipped++;
                 continue;
             }
 
-            // Resolve team
-            $team = $teams->get(mb_strtolower($teamName));
-            if (!$team && $teamName !== '') {
+            // Resolve team (optioneel)
+            $team = $teamName !== '' ? $teams->get(mb_strtolower($teamName)) : null;
+            if ($teamName !== '' && !$team) {
                 $this->errors[] = "Rij {$rowNum}: elftal '{$teamName}' niet gevonden";
                 $this->skipped++;
                 continue;
@@ -96,19 +93,17 @@ class BarDutiesImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
             ];
             $statusKey = $statusMap[mb_strtolower($status)] ?? 'open';
 
-            $duty = BarDuty::create([
-                'club_id' => $this->clubId,
-                'team_id' => $team?->id,
-                'date'    => $date->toDateString(),
-                'shift'   => $shiftKey,
-                'status'  => $statusKey,
-                'notes'   => $notes ?: null,
-            ]);
+            // Bestaand dagdeel bijwerken of aanmaken (elftal toewijzen).
+            $duty = BarDuty::updateOrCreate(
+                ['club_id' => $this->clubId, 'date' => $date->toDateString(), 'shift' => $shiftKey],
+                ['team_id' => $team?->id, 'status' => $statusKey, 'notes' => $notes ?: null],
+            );
 
-            // Attach up to 2 members
+            // Leden koppelen (tot de bezetting van het dagdeel).
             $memberIds = [];
-            foreach ([$lid1, $lid2] as $lidName) {
+            foreach ([$lid1, $lid2, $lid3] as $lidName) {
                 if ($lidName === '') continue;
+                if (count($memberIds) >= $duty->requiredCount()) break;
                 $member = $members->get(mb_strtolower($lidName));
                 if ($member) {
                     $memberIds[] = $member->id;
@@ -118,6 +113,7 @@ class BarDutiesImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
             }
             if ($memberIds) {
                 $duty->members()->sync($memberIds);
+                $duty->refreshStatus();
             }
 
             $this->imported++;

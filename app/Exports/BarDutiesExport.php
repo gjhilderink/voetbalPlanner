@@ -39,10 +39,12 @@ class BarDutiesExport implements FromCollection, WithHeadings, WithMapping, Shou
     {
         return [
             'Datum',
-            'Dienst',
+            'Dagdeel',
+            'Tijd',
             'Elftal',
             'Lid 1',
             'Lid 2',
+            'Lid 3',
             'Status',
             'Opmerkingen',
         ];
@@ -50,13 +52,6 @@ class BarDutiesExport implements FromCollection, WithHeadings, WithMapping, Shou
 
     public function map($record): array
     {
-        $shiftLabel = match($record->shift) {
-            'ochtend' => 'Ochtend',
-            'middag'  => 'Middag',
-            'avond'   => 'Avond',
-            default   => $record->shift,
-        };
-
         $statusLabel = match($record->status) {
             'open'      => 'Open',
             'bevestigd' => 'Bevestigd',
@@ -68,10 +63,12 @@ class BarDutiesExport implements FromCollection, WithHeadings, WithMapping, Shou
 
         return [
             $record->date?->format('d-m-Y'),
-            $shiftLabel,
+            $record->shiftLabel(),
+            $record->timeRange(),
             $record->team?->name ?? '',
             $members->get(0, ''),
             $members->get(1, ''),
+            $members->get(2, ''),
             $statusLabel,
             $record->notes ?? '',
         ];

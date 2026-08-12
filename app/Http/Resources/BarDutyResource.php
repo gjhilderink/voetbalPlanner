@@ -31,8 +31,10 @@ class BarDutyResource extends JsonResource
         //  - gebruiker zit nog niet op de bardienst
         //  - gebruiker is als lid/coach of als ouder aan het gekoppelde team
         //    verbonden (geen team = open voor de hele club)
+        $required = $this->requiredCount();
+
         $canSelfAssign = false;
-        if ($user && ! $isAssignedToMe && $memberCount < BarDuty::REQUIRED_MEMBERS) {
+        if ($user && ! $isAssignedToMe && $memberCount < $required) {
             $canSelfAssign = ! $this->team_id
                 || $user->accessibleTeams()->contains('id', $this->team_id);
         }
@@ -41,13 +43,17 @@ class BarDutyResource extends JsonResource
             'id'           => $this->id,
             'date'         => $this->date?->format('d-m-Y') ?? '',
             'shift'        => $this->shift ?? '',
+            'shiftLabel'   => $this->shiftLabel(),
+            'timeRange'    => $this->timeRange(),
+            'startTime'    => $this->startTime(),
+            'endTime'      => $this->endTime(),
             'status'       => $this->status ?? '',
             'teamName'     => $this->team?->name ?? '',
             'members'      => $names->join(', '),
             'notes'        => $this->notes ?? '',
             'isAssignedToMe' => $isAssignedToMe,
             'memberCount'    => $memberCount,
-            'requiredCount'  => BarDuty::REQUIRED_MEMBERS,
+            'requiredCount'  => $required,
             'canSelfAssign'  => $canSelfAssign,
         ];
     }
