@@ -87,8 +87,9 @@ class BarDutyPlanner extends Page
     }
 
     /**
-     * Het "eerste elftal" van de club (heuristiek): team waarvan de naam op " 1"
-     * eindigt, anders exact de clubnaam, anders het eerste team op naam.
+     * Het "eerste elftal" van de club. Eerst het handmatig gemarkeerde team
+     * (is_first_team); anders een heuristiek (naam eindigt op " 1", anders exact
+     * de clubnaam, anders het eerste team op naam).
      */
     #[Computed]
     public function firstTeam(): ?Team
@@ -96,7 +97,8 @@ class BarDutyPlanner extends Page
         $club  = filament()->getTenant();
         $teams = $this->teams;
 
-        return $teams->first(fn(Team $t) => (bool) preg_match('/\s1$/', trim($t->name)))
+        return $teams->first(fn(Team $t) => (bool) $t->is_first_team)
+            ?? $teams->first(fn(Team $t) => (bool) preg_match('/\s1$/', trim($t->name)))
             ?? $teams->first(fn(Team $t) => mb_strtolower(trim($t->name)) === mb_strtolower(trim($club?->name ?? '')))
             ?? $teams->first();
     }

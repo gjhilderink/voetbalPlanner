@@ -45,6 +45,10 @@ class TeamResource extends Resource
                 Forms\Components\Toggle::make('is_active')
                     ->label('Actief')
                     ->default(true),
+                Forms\Components\Toggle::make('is_first_team')
+                    ->label('Eerste elftal')
+                    ->helperText('Toont de wedstrijd van dit team bovenaan de bardienst-planner.')
+                    ->default(false),
                 Forms\Components\TextInput::make('external_id')
                     ->label('Extern ID')
                     ->disabled(),
@@ -61,6 +65,7 @@ class TeamResource extends Resource
                 Tables\Columns\TextColumn::make('age_group')->label('Leeftijdsklasse'),
                 Tables\Columns\TextColumn::make('season')->label('Seizoen'),
                 Tables\Columns\IconColumn::make('is_active')->label('Actief')->boolean(),
+                Tables\Columns\IconColumn::make('is_first_team')->label('1e elftal')->boolean(),
                 Tables\Columns\TextColumn::make('members_count')
                     ->label('Leden')
                     ->counts('members'),

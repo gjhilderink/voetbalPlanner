@@ -18,13 +18,14 @@ class Team extends Model
 
     protected $fillable = [
         'external_id', 'name', 'category', 'age_group',
-        'season', 'photo', 'is_active', 'last_synced_at', 'club_id',
+        'season', 'photo', 'is_active', 'is_first_team', 'last_synced_at', 'club_id',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_first_team' => 'boolean',
             'last_synced_at' => 'datetime',
         ];
     }
