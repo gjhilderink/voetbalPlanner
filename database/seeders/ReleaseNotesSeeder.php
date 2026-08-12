@@ -214,6 +214,26 @@ class ReleaseNotesSeeder extends Seeder
                     . 'toevoegen, herordenen en per slide een titel, tekst, een strak icoon en zelfs een eigen '
                     . 'achtergrondafbeelding kiezen. Zo laat je nieuwe leden precies zien wat jouw club belangrijk vindt.',
             ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Doelpunt toevoegen werkt vlot (coach)',
+                'description' => 'Na het plaatsen van een doelpunt sluit het venster nu netjes en wordt het tabblad '
+                    . '"Doelpunten" direct bijgewerkt — geen vastlopende pop-up meer. Bij het invullen van de minuut '
+                    . 'verschijnt bovendien een cijfertoetsenbord.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Aantal doelpunten op het tabblad',
+                'description' => 'Op het tabblad "Doelpunten" zie je nu in een rood telbolletje meteen hoeveel '
+                    . 'doelpunten er zijn geregistreerd; dit werkt direct bij zodra je er een toevoegt of verwijdert.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Vlagger & gastspeler makkelijker beheren (coach)',
+                'description' => 'Je selecteert eerst een naam en bevestigt daarna met een knop — meer controle, minder '
+                    . 'misklikken. De gekozen vlagger en gastspelers zie je op het info-tabblad van de wedstrijd, en als '
+                    . 'coach kun je ze daar ook weer verwijderen.',
+            ],
         ];
 
         $sort = 0;
