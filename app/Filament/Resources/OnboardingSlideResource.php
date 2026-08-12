@@ -71,9 +71,18 @@ class OnboardingSlideResource extends Resource
                 Forms\Components\Select::make('icon')
                     ->label('Icoon')
                     ->options(OnboardingSlide::$icons)
-                    ->default('info')
+                    ->default('ℹ️')
                     ->required()
                     ->searchable()
+                    ->live()
+                    ->columnSpan(1),
+
+                Forms\Components\Placeholder::make('icon_preview')
+                    ->label('Voorbeeld')
+                    ->content(fn (\Filament\Schemas\Components\Utilities\Get $get): \Illuminate\Support\HtmlString =>
+                        new \Illuminate\Support\HtmlString(
+                            '<span style="font-size:3rem;line-height:1">' . e((string) $get('icon')) . '</span>'
+                        ))
                     ->columnSpan(1),
 
                 Forms\Components\TextInput::make('sort_order')
