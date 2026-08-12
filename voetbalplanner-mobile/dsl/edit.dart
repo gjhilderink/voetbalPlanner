@@ -535,6 +535,9 @@ void buildEditFlow(App app) {
   try { app.state('pendingMatchId',            string); } catch (_) {}
   // True als de gebruiker aan >1 team gekoppeld is (dashboard team-switcher).
   try { app.state('hasMultipleTeams',          bool_); } catch (_) {}
+  // Onboarding gezien? Persistent (overleeft herstart); standaard false zodat de
+  // slides bij de eerste keer inloggen verschijnen.
+  try { app.state('onboardingSeen',            bool_.withDefault(false), persisted: true); } catch (_) {}
   // Coach-actie gekozen via de FAB op de wedstrijddetail: '' | 'goal' | 'invite'.
   // Bepaalt welke weergave de MatchActionsSheet-dialoog toont (menu/picker).
   try { app.state('matchActionMode',           string); } catch (_) {}
@@ -544,6 +547,12 @@ void buildEditFlow(App app) {
   try { app.state('dialogMatchId',             string); } catch (_) {}
   try { app.state('dialogScorerName',          string); } catch (_) {}
   try { app.state('dialogTeamId',              string); } catch (_) {}
+  // Geselecteerde (nog niet bevestigde) vlagger/gastspeler in de coach-dialoog:
+  // eerst kiezen, dan met een knop bevestigen.
+  try { app.state('dialogFlaggerId',           string); } catch (_) {}
+  try { app.state('dialogFlaggerName',         string); } catch (_) {}
+  try { app.state('dialogGuestId',             string); } catch (_) {}
+  try { app.state('dialogGuestName',           string); } catch (_) {}
 
   // ── Chat custom actions ───────────────────────────────────────────────────────
   // Declared at DSL level so CallCustomAction.named(...) in _buildChatDetailPage
@@ -636,6 +645,19 @@ void buildEditFlow(App app) {
   app.raw((project) => _buildBugReportPageBody(project));
   app.raw((project) => _wireBugReportTextFields(project));
   app.raw((project) => _wireBugReportSubmit(project));
+
+  // ─── Onboarding-slides (eerste keer inloggen) ─────────────────────────────
+  // Pagina eerst (ensurePage), dan de gate op de WedstrijdenPage-load en de
+  // reset-knop op het profiel (beide navigeren naar OnboardingPage).
+  _buildOnboardingPage(app);
+  app.raw((project) => _gateWedstrijdenOnboarding(project));
+  app.raw((project) => _addOnboardingResetButton(project));
+  // Slides per club aanpasbaar: struct/endpoint/app-state + custom icon-widget,
+  // daarna de PageView data-gedreven maken (laden + generator).
+  app.raw((project) => _addOnboardingSlideBackend(project));
+  app.raw((project) => _wireOnboardingDynamicSlides(project));
+  app.raw((project) => _makeOnboardingFullScreen(project));
+  app.raw((project) => _addOnboardingClubLogo(project));
 
   // ─── Wissel (swap) feature ────────────────────────────────────────────────
   app.raw((project) => _addSwapStructFields(project));
@@ -1045,7 +1067,7 @@ void buildEditFlow(App app) {
   app.editPageState(ff.Pages.wedstrijdDetailPage, (state) {
     for (final f in const [
       'matchOpponent', 'matchDatetime', 'matchLocation', 'matchArrivalTime',
-      'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchNotes', 'apiStatus',
+      'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames', 'matchNotes', 'apiStatus',
       'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
       'matchTeamId', 'selectedScorerName', 'inviteTeamId',
     ]) {
@@ -1054,6 +1076,9 @@ void buildEditFlow(App app) {
     // Gastspeler-uitnodigen: club-teams + spelers van het gekozen team.
     state.ensureField('inviteTeams', listOf(ff.Structs.teamOption));
     state.ensureField('inviteGuestMembers', listOf(ff.Structs.swapMember));
+    // Uitgenodigde gastspelers van deze wedstrijd (voor de lijst met
+    // verwijderknoppen op het info-tabblad).
+    state.ensureField('matchGuests', listOf(ff.Structs.swapMember));
   });
   // Bind matchId + coachName on the MatchCard instance via the DSL compile path.
   app.editPage(ff.Pages.wedstrijdenPage, (page) {
@@ -1083,6 +1108,7 @@ void buildEditFlow(App app) {
     _wireWedstrijdDetailPageLoad(project);
     _bindWedstrijdDetailAppBarTitle(project);
     _bindWedstrijdDetailInfoTexts(project);
+    _addWedstrijdGuestManagement(project);
     _fixMatchInfoWidth(project);
     _makeWedstrijdDetailInfoTabScrollable(project);
   });
@@ -1145,6 +1171,8 @@ void buildEditFlow(App app) {
     // basis-rijen zodat _wireRijschemaCardDriverRow's `insert(2, ...)` werkt.
     _restoreRijschemaBodyIfMissing(project);
     _ensureRijschemaCardBaseRows(project);
+    _addRijschemaOpponentLogo(project);
+    _scopeDriveScheduleToOwnTeams(project);
     _wireRijschemaNavigation(project);
     _wireRijschemaCardDriverRow(project);
   });
@@ -1161,6 +1189,8 @@ void buildEditFlow(App app) {
   app.raw((project) => _addWedstrijdScoreSection(project));
   app.raw((project) => _addWedstrijdGuestInviteSection(project));
   app.raw((project) => _addWedstrijdActionsFab(project));
+  // Rood telbolletje met het aantal doelpunten op de Doelpunten-tab.
+  app.raw((project) => _addGoalsTabBadge(project));
   // De inline coach-secties zijn vervangen door de FAB-dialoog: van de pagina af.
   app.raw((project) => _removeInlineCoachSections(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
@@ -1227,6 +1257,9 @@ void buildEditFlow(App app) {
   app.raw((project) {
     _addDashboardAppBar(project);
     _buildDashboardContent(project);
+    // Dashboard toont "Mijn bardiensten": alleen de bardiensten waarvoor de
+    // gebruiker zelf is aangemeld (isAssignedToMe), niet alle team-bardiensten.
+    _filterDashboardDutiesToMine(project);
     // Custom action moet bestaan vóór _wireDashboardLoad die 'm vooraan de
     // on-load chain hangt.
     _ensureRefreshCurrentTeamAction(project);
@@ -4785,6 +4818,472 @@ void _buildBugReportPage(App app) {
   );
 }
 
+// Onboarding-slides die bij de eerste keer inloggen worden getoond. Swipebare
+// PageView (met dots) + "Overslaan" en "Aan de slag". Beide sluitknoppen zetten
+// de persistente vlag onboardingSeen=true en gaan naar de WedstrijdenPage.
+// De vlag is via het profiel te resetten (_addOnboardingResetButton).
+void _buildOnboardingPage(App app) {
+  DslWidget slide(String iconName, String title, String desc) => Column(
+        name: 'OnboardingSlide',
+        mainAxis: MainAxis.center,
+        crossAxis: CrossAxis.center,
+        spacing: 18,
+        padding: EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+        children: [
+          Icon(iconName, size: 88, color: Colors.primary),
+          Text(title, style: Styles.headlineSmall, textAlign: TextAlign.center, color: Colors.primaryText),
+          Text(desc, style: Styles.bodyLarge, textAlign: TextAlign.center,
+              color: Colors.secondaryText, maxLines: 6, overflow: TextOverflow.ellipsis),
+        ],
+      );
+
+  // Gedeelde afsluit-actie: markeer als bekeken en ga naar de app.
+  final finish = <DslAction>[
+    UpdateAppState.set(ff.AppState.onboardingSeen, true),
+    Navigate(ff.Pages.wedstrijdenPage, replaceRoute: true),
+  ];
+
+  app.ensurePage(
+    'OnboardingPage',
+    description: 'Uitleg van de app bij de eerste keer inloggen; via het profiel opnieuw te bekijken.',
+    route: 'onboarding',
+    body: Scaffold(
+      body: Column(
+        name: 'OnboardingRoot',
+        children: [
+          Row(
+            name: 'OnboardingSkipRow',
+            mainAxis: MainAxis.end,
+            padding: EdgeInsets.only(top: 8, right: 8),
+            children: [
+              Button('Overslaan', variant: ButtonVariant.text, onTap: finish, name: 'OnboardingSkipBtn'),
+            ],
+          ),
+          Expanded(
+            PageView(
+              name: 'OnboardingPager',
+              showIndicator: true,
+              children: [
+                slide('waving_hand', 'Welkom bij VoetbalPlanner',
+                    'Alles voor jouw team op één plek: wedstrijden, rijschema, bardienst en meer. Swipe verder voor een korte rondleiding.'),
+                slide('sports_soccer', 'Wedstrijden altijd bij de hand',
+                    'Bekijk je wedstrijden met datum en locatie en meld je met één tik af of aan. Je ziet ook wie er rijdt en wie fruit meeneemt.'),
+                slide('directions_car', 'Rijschema & bardienst',
+                    'Zie in één oogopslag wanneer jij moet rijden of achter de bar staat. Ruilen regel je met een wisselverzoek.'),
+                slide('chat', 'Blijf in contact',
+                    'Chat met je team, in groepen of één-op-één, en ontvang meldingen bij belangrijk nieuws.'),
+                slide('verified_user', 'Extra voor coaches',
+                    'Als coach stel je eenvoudig de opstelling, doelpunten, vlagger en gastspelers in — direct vanaf de wedstrijd.'),
+              ],
+            ),
+          ),
+          Container(
+            name: 'OnboardingBottom',
+            padding: EdgeInsets.all(20),
+            child: Button('Aan de slag', width: double.infinity, color: Colors.primary,
+                textColor: Colors.primaryBackground, onTap: finish, name: 'OnboardingStartBtn'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Wikkelt de WedstrijdenPage-load (eerste ON_INIT_STATE) in een conditional:
+// als onboardingSeen == false → naar OnboardingPage (replaceRoute), anders de
+// normale load. Zo verschijnt de onboarding bij de eerste keer inloggen,
+// ongeacht het login-pad (wachtwoord, magic-link, biometrisch, koude start).
+// Idempotent: strip een eerder gate en herbouw.
+void _gateWedstrijdenOnboarding(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdenPage');
+  if (wc == null) return;
+  final onbWc = findPage(project, name: 'OnboardingPage');
+  if (onbWc == null) return;
+  // onboardingSeen is op DSL-niveau gedeclareerd (app.state) + persistent gemaakt
+  // in _fixLoginButtonBindings; hier alleen opzoeken.
+  final seenId = _findAppStateFieldId(project, 'onboardingSeen');
+  if (seenId == null) return;
+
+  final trig = wc.node.triggerActions.cast<FFTriggerActions?>().firstWhere(
+    (t) => t != null && t.hasTrigger() &&
+           t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE && t.hasRootAction(),
+    orElse: () => null);
+  if (trig == null) return;
+
+  final onbKey = onbWc.node.key;
+  // Herken een eerder door ons geplaatst gate: conditional met false_action +
+  // true-tak die naar OnboardingPage navigeert. Strip 'm zodat we vers wrappen.
+  FFActionNode original = trig.rootAction;
+  if (original.hasConditionActions()) {
+    final ca = original.conditionActions;
+    final trueAct = ca.trueActions.isNotEmpty ? ca.trueActions.first.trueAction : null;
+    final navsOnb = trueAct != null && trueAct.hasAction() && trueAct.action.hasNavigate() &&
+        trueAct.action.navigate.pageNodeKeyRef.key == onbKey;
+    if (navsOnb && ca.hasFalseAction()) {
+      original = ca.falseAction;
+    }
+  }
+
+  final notSeen = varFromAppState(seenId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)
+    ..operations.add(FFVariableOperation(negate: FFNegateBoolean()));
+  final navNode = FFActionNode(key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(project, pageName: 'OnboardingPage', replaceRoute: true));
+  trig.rootAction = Actions.conditional(
+      condition: notSeen, trueActions: navNode, falseActions: original);
+}
+
+// Knop op de ProfielPage: reset de onboarding-vlag én toon de slides meteen.
+void _addOnboardingResetButton(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+  if (project.getWidgetClassByName('OnboardingPage') == null) return;
+  _removeProfielButton(project, 'OnboardingResetButton');
+
+  final button = UI.button('Onboarding opnieuw bekijken',
+      name: 'OnboardingResetButton', width: double.infinity);
+  final resetNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('onboardingSeen', 'false')]),
+    followUpAction: FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(project, pageName: 'OnboardingPage', replaceRoute: true)),
+  );
+  Actions.onTapChain(button, resetNode);
+
+  FFNode? targetColumn;
+  for (final c in findDescendants(wc.node, (n) => n.type == FFWidgetType.Column)) {
+    if (c.children.any((ch) => ch.key == 'Button_wvz4j2lc' || ch.name == 'GuardianButton')) {
+      targetColumn = c;
+      break;
+    }
+  }
+  targetColumn ??= () {
+    final b = getPropertyChild(wc.node, 'body');
+    return (b != null && b.type == FFWidgetType.Column) ? b : null;
+  }();
+  if (targetColumn != null) {
+    targetColumn.children.add(button);
+  } else {
+    wc.node.children.add(button);
+  }
+}
+
+// ─── Onboarding-slides per club (data-gedreven) ───────────────────────────────
+
+// Icoon-preset (Material-iconnamen). MOET synchroon lopen met
+// OnboardingSlide::$icons in Laravel. Per item wordt het matchende icoon getoond
+// (conditionele zichtbaarheid) — een strak Material line-icoon i.p.v. emoji.
+const List<String> _kOnboardingIconNames = [
+  'celebration', 'sports_soccer', 'directions_car', 'local_bar', 'chat',
+  'shield', 'groups', 'event', 'notifications', 'emoji_events', 'star', 'info',
+];
+
+// Struct OnboardingSlide + endpoint GetOnboardingSlides + app-state lijstveld.
+void _addOnboardingSlideBackend(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  if (findDataStruct(project, name: 'OnboardingSlide') == null) {
+    addDataStruct(project, name: 'OnboardingSlide',
+      description: 'Eén onboarding-slide: icoon, titel, tekst en optionele achtergrond.',
+      fields: [
+        structField('icon',       stringType, description: 'Material-iconnaam'),
+        structField('title',      stringType, description: 'Titel'),
+        structField('body',       stringType, description: 'Tekst'),
+        structField('background', stringType, description: 'Achtergrond-afbeelding (URL)'),
+      ]);
+  }
+  // Achtergrond-veld op een reeds bestaande struct alsnog toevoegen (idempotent).
+  final obStruct = findDataStruct(project, name: 'OnboardingSlide');
+  if (obStruct != null && !obStruct.fields.any((f) => f.identifier.name == 'background')) {
+    obStruct.fields.add(FFParameter(
+      identifier: FFIdentifier(name: 'background', key: generateRandomAlphaNumericString()),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)));
+  }
+  if (findApiEndpoint(project, name: 'GetOnboardingSlides', groupName: groupName) == null) {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetOnboardingSlides',
+      url: '/onboarding-slides', method: FFApiEndpoint_CallType.GET,
+      bodyType: FFApiEndpoint_BodyType.NONE, variables: {},
+      headers: ['Authorization: Bearer [bearerToken]'],
+      responseDataStructName: 'OnboardingSlide', responseDataStructIsList: true);
+  } else {
+    updateApiEndpoint(project, name: 'GetOnboardingSlides', groupName: groupName,
+      responseDataStructName: 'OnboardingSlide', responseDataStructIsList: true);
+  }
+  if (!project.appState.fields.any((f) => f.parameter.identifier.name == 'onboardingSlides')) {
+    final struct = project.backend.dataSchemaConfig.dataStructs.cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'OnboardingSlide', orElse: () => null);
+    if (struct != null) {
+      final param = FFParameter(
+        identifier: FFIdentifier(name: 'onboardingSlides', key: generateRandomAlphaNumericString()),
+        dataType: dataStructType(struct.identifier.deepCopy()));
+      param.isList = true;
+      project.appState.fields.add(FFAppStateField(parameter: param));
+    }
+  }
+}
+
+// Maakt de OnboardingPage-PageView data-gedreven: laadt de slides van de club
+// (GetOnboardingSlides -> app-state onboardingSlides) en zet een generator op de
+// PageView met één template-slide (icoon via custom widget + titel/tekst gebonden
+// aan het item). Idempotent.
+void _wireOnboardingDynamicSlides(FFProject project) {
+  final wc = findPage(project, name: 'OnboardingPage');
+  if (wc == null) return;
+  final slidesId = _findAppStateFieldId(project, 'onboardingSlides');
+  if (slidesId == null) return;
+  if (findApiEndpoint(project, name: 'GetOnboardingSlides', groupName: 'VoetbalPlannerAPI') == null) return;
+
+  // 1. Slides laden bij page-load (idempotent).
+  bool hasLoad(FFActionNode n) {
+    if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetOnboardingSlides') return true;
+    if (n.hasFollowUpAction() && hasLoad(n.followUpAction)) return true;
+    return false;
+  }
+  final alreadyLoads = wc.node.triggerActions.any((t) => t.hasRootAction() && hasLoad(t.rootAction));
+  if (!alreadyLoads) {
+    Actions.onPageLoadChain(wc.node, Actions.apiCallNode(project,
+      endpointName: 'GetOnboardingSlides', groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {},
+      outputVariableName: 'onboardingSlidesLoad', nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('onboardingSlides', ctx.responseVar)]),
+      ])));
+  }
+
+  // 2. PageView data-gedreven maken (elke stap idempotent, zodat een eerdere
+  //    (custom-widget) versie ook gemigreerd wordt).
+  final pager = findDescendants(wc.node, (n) => n.name == 'OnboardingPager').firstOrNull;
+  if (pager == null) return;
+
+  // Houd één slide over als template.
+  if (pager.children.length > 1) {
+    pager.children.removeRange(1, pager.children.length);
+  }
+  if (pager.children.isEmpty) return;
+  // De content-slide (kan na een eerdere push al in een Stack-wrapper zitten).
+  final template = findDescendants(pager,
+          (n) => n.name == 'OnboardingSlide' && n.type == FFWidgetType.Column).firstOrNull
+      ?? pager.children.first;
+
+  // Icoon-slot: statische Icon, of een eerder geplaatste 'OnboardingSlideIcon'
+  // (custom widget / Text / icoon-kolom) → vervang door strakke Material-iconen.
+  // Per preset-icoon één Icon met conditionele zichtbaarheid (item.icon == naam);
+  // slechts één is zichtbaar. Zo krijgen we een dynamisch Material line-icoon in
+  // een generator (custom-widget-params werken daar niet).
+  final iconIdx = template.children.indexWhere(
+      (c) => c.type == FFWidgetType.Icon || c.name == 'OnboardingSlideIcon');
+  if (iconIdx >= 0) {
+    FFNode condIcon(String iconName) {
+      final ic = UI.icon(iconName, size: 76, color: UIColor.primary);
+      setConditionalVisibility(ic, variable: codeExpressionVar(
+        expression: "(x ?? '') == '$iconName'",
+        arguments: [CodeExpressionArg(name: 'x',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: generatorVarField(pager.key, 'icon')))],
+        returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean))));
+      return ic;
+    }
+    final iconCol = UI.column(name: 'OnboardingSlideIcon',
+        mainAxisAlignment: UIMainAxisAlignment.center,
+        children: _kOnboardingIconNames.map(condIcon).toList());
+    template.children[iconIdx] = iconCol;
+  }
+
+  // Titel/tekst binden aan het item (de resterende Text-nodes ná het icoon).
+  final texts = template.children
+      .where((c) => c.type == FFWidgetType.Text && c.name != 'OnboardingSlideIcon')
+      .toList();
+  if (texts.length >= 2) {
+    texts[0].props.text.textValue = FFStringValue(variable: generatorVarField(pager.key, 'title'));
+    texts[1].props.text.textValue = FFStringValue(variable: generatorVarField(pager.key, 'body'));
+  }
+
+  // Achtergrond per slide: wikkel de content in een Stack met een vullende Image
+  // (gebonden aan item.background), alleen zichtbaar als er een achtergrond is.
+  if (pager.children.first.name != 'OnboardingSlideStack') {
+    final bg = FFNode(
+      key: generateRandomAlphaNumericString(),
+      type: FFWidgetType.Image,
+      name: 'OnboardingSlideBg',
+      props: FFWidgetProperties(image: FFImage(
+        type:      FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue: FFStringValue(variable: generatorVarField(pager.key, 'background')),
+        fit:       FFBoxFit.FF_BOX_FIT_COVER,
+        cached:    true,
+        dimensions: FFDimensions(
+          width:  FFDim(pixelsValue: FFDoubleValue(inputValue: double.infinity)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: double.infinity)),
+        ),
+      )),
+    );
+    setConditionalVisibility(bg, variable: conditionVar(
+      generatorVarField(pager.key, 'background'), FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+    final stack = UI.stack(name: 'OnboardingSlideStack', children: [bg, template]);
+    final idx = pager.children.indexWhere((c) => identical(c, template));
+    pager.children[idx >= 0 ? idx : 0] = stack;
+  }
+
+  // Generator op de PageView zetten (idempotent).
+  if (!pager.hasGeneratorVariable()) {
+    pager.generatorVariable = DynamicSource(
+      variable: varFromAppState(slidesId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      itemName: 'slide',
+    ).toGeneratorVariable(pager.key);
+  }
+}
+
+// Zet de PageView full-screen met de "Overslaan" (boven) en "Aan de slag" (onder)
+// eróverheen, zodat de per-slide achtergrond het HELE scherm vult — ook achter de
+// header en footer. Scaffold-body: Column -> Stack[ PageView(vult), overlay ].
+// Idempotent.
+void _makeOnboardingFullScreen(FFProject project) {
+  final wc = findPage(project, name: 'OnboardingPage');
+  if (wc == null) return;
+
+  // Scaffold-SafeArea uit zodat de achtergrond edge-to-edge is (tot onder de
+  // status bar / home indicator). De overlay heeft eigen safe-area-padding.
+  FFNode? scaffoldNode = wc.node.props.hasScaffold() ? wc.node : null;
+  scaffoldNode ??= findDescendants(wc.node, (n) => n.props.hasScaffold()).firstOrNull;
+  if (scaffoldNode != null && scaffoldNode.props.scaffold.safeArea) {
+    final sc = scaffoldNode.props.scaffold.deepCopy();
+    sc.safeArea = false;
+    scaffoldNode.props.scaffold = sc;
+  }
+
+  if (findDescendants(wc.node, (n) => n.name == 'OnboardingFullStack').isNotEmpty) return;
+
+  final pager  = findDescendants(wc.node, (n) => n.name == 'OnboardingPager').firstOrNull;
+  final skip   = findDescendants(wc.node, (n) => n.name == 'OnboardingSkipRow').firstOrNull;
+  final bottom = findDescendants(wc.node, (n) => n.name == 'OnboardingBottom').firstOrNull;
+  final root   = findDescendants(wc.node, (n) => n.name == 'OnboardingRoot').firstOrNull;
+  if (pager == null || skip == null || bottom == null || root == null) return;
+  final rootParent = findParentByKey(wc.node, root.key);
+  if (rootParent == null) return;
+
+  // PageView vult het hele scherm.
+  final pv = pager.props.pageView.deepCopy();
+  pv.dimensions = FFDimensions(
+    width:  FFDim(pixelsValue: FFDoubleValue(inputValue: double.infinity)),
+    height: FFDim(pixelsValue: FFDoubleValue(inputValue: double.infinity)),
+  );
+  pager.props.pageView = pv;
+
+  // Losmaken uit de huidige Column-structuur.
+  for (final n in [pager, skip, bottom]) {
+    final p = findParentByKey(wc.node, n.key);
+    p?.parent.children.removeWhere((c) => identical(c, n));
+  }
+
+  // Overlay: skip boven, knop onder (spaceBetween); padding voor de safe-area.
+  final overlayCol = UI.column(name: 'OnboardingOverlayCol',
+      mainAxisAlignment: UIMainAxisAlignment.spaceBetween, children: [skip, bottom]);
+  final overlay = UI.container(name: 'OnboardingOverlay',
+      width: double.infinity, height: double.infinity,
+      padding: UIEdgeInsets.only(top: 36, bottom: 12), child: overlayCol);
+
+  final stack = UI.stack(name: 'OnboardingFullStack',
+      width: double.infinity, height: double.infinity, children: [pager, overlay]);
+
+  _replaceChildRef(rootParent.parent, root, stack);
+}
+
+// Zet het clublogo (AppState.clubLogoUrl) linksboven op de onboarding, naast de
+// "Overslaan"-knop. Alleen zichtbaar als er een logo bekend is. Idempotent.
+void _addOnboardingClubLogo(FFProject project) {
+  final wc = findPage(project, name: 'OnboardingPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'OnboardingClubLogo').isNotEmpty) return;
+  final logoId = _findAppStateFieldId(project, 'clubLogoUrl');
+  if (logoId == null) return;
+  final skip = findDescendants(wc.node, (n) => n.name == 'OnboardingSkipRow').firstOrNull;
+  if (skip == null) return;
+  final parentRes = findParentByKey(wc.node, skip.key);
+  if (parentRes == null) return;
+
+  FFVariable logoVar() => varFromAppState(logoId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final logo = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.Image,
+    name: 'OnboardingClubLogo',
+    props: FFWidgetProperties(image: FFImage(
+      type:      FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+      pathValue: FFStringValue(variable: logoVar()),
+      fit:       FFBoxFit.FF_BOX_FIT_CONTAIN,
+      cached:    true,
+      dimensions: FFDimensions(
+        width:  FFDim(pixelsValue: FFDoubleValue(inputValue: 120.0)),
+        height: FFDim(pixelsValue: FFDoubleValue(inputValue: 40.0)),
+      ),
+    )),
+  );
+  setConditionalVisibility(logo, variable: conditionVar(
+      logoVar(), FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+  final logoWrap = UI.container(name: 'OnboardingLogoWrap',
+      padding: UIEdgeInsets.only(left: 4), child: logo);
+
+  // Vervang de skip-rij door een rij [logo | skip] (logo links, Overslaan rechts).
+  final topRow = UI.row(name: 'OnboardingTopRow',
+      mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
+      crossAxisAlignment: UICrossAxisAlignment.center, children: [logoWrap, skip]);
+  final idx = parentRes.parent.children.indexWhere((c) => identical(c, skip));
+  if (idx >= 0) parentRes.parent.children[idx] = topRow;
+}
+
+// Rood telbolletje met het aantal doelpunten, rechtsboven op de Doelpunten-tab.
+// FF-tabs zijn tekst/icoon-only, dus we overlayen een badge via een Stack rond de
+// TabBar. Gebonden aan page-state 'goals' (aantal), zichtbaar zodra er >0 zijn en
+// werkt meteen bij na toevoegen (de FAB ververst 'goals'). Idempotent.
+void _addGoalsTabBadge(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'MatchGoalsBadgeStack').isNotEmpty) return;
+
+  final tabbar = findDescendants(wc.node, (n) => n.name == 'MatchDetailTabs').firstOrNull;
+  if (tabbar == null) return;
+  final tabParent = findParentByKey(wc.node, tabbar.key);
+  if (tabParent == null) return;
+
+  final goalsId = _findPageStateFieldId(project, 'WedstrijdDetailPage', 'goals');
+  final goalsField = wc.classModel.stateFields.cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'goals', orElse: () => null);
+  if (goalsId == null || goalsField == null) return;
+  final goalsType = goalsField.parameter.dataType;
+
+  FFVariable countExpr(String expr, FFBaseDataType ret) => codeExpressionVar(
+    expression: expr,
+    arguments: [CodeExpressionArg(name: 'g', dataType: goalsType.deepCopy(),
+        value: FFValue(variable: varFromPageState(goalsId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)))],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: ret)));
+
+  final countText = UI.text('', name: 'GoalsTabBadgeText',
+      style: UITextStyle.labelSmall, color: UIColor.secondaryBackground);
+  countText.props.text.textValue = FFStringValue(
+      variable: countExpr("(g?.length ?? 0).toString()", FFBaseDataType.String));
+  final badge = UI.container(name: 'GoalsTabBadge', color: UIColor.error, borderRadius: 20,
+      padding: UIEdgeInsets.symmetric(horizontal: 6, vertical: 1), child: countText);
+  setConditionalVisibility(badge, variable: countExpr("(g?.length ?? 0) > 0", FFBaseDataType.Boolean));
+  final wrap = UI.container(name: 'GoalsTabBadgeWrap',
+      padding: UIEdgeInsets.only(right: 18, top: 2), child: badge);
+
+  final stack = UI.stack(name: 'MatchGoalsBadgeStack', children: [tabbar, wrap]);
+  // Kinderen rechtsboven uitlijnen (badge in de rechterbovenhoek; de TabBar vult
+  // de stack en verandert visueel niet).
+  final st = stack.props.stack.deepCopy();
+  st.childAlignment = FFAlignment(
+    xValue: FFDoubleValue(inputValue: 1.0),
+    yValue: FFDoubleValue(inputValue: -1.0));
+  stack.props.stack = st;
+  _replaceChildRef(tabParent.parent, tabbar, stack);
+}
+
 // Custom Dart action die de bug submit met multipart upload (max 5 screenshots).
 void _ensureBugReportCustomAction(FFProject project) {
   const _code = r'''
@@ -6405,6 +6904,8 @@ void _fixLoginButtonBindings(FFProject project) {
   // Nieuw: relatiecode (lidnummer) en profielfoto-URL.
   _ensureAppStateField(project, 'relatiecode',      FFBaseDataType.String, persisted: true);
   _ensureAppStateField(project, 'profilePhotoUrl',  FFBaseDataType.String, persisted: true);
+
+  // onboardingSeen wordt al persistent gedeclareerd via app.state (persisted: true).
 
   // Resolve WedstrijdenPage route so the custom action can navigate via GoRouter.
   final wedstrijdenWc = findPage(project, name: 'WedstrijdenPage');
@@ -9964,7 +10465,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
   // working code in FlutterFlow; storing individual strings is reliable.
   for (final name in const [
     'matchOpponent', 'matchDatetime', 'matchLocation',
-    'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchNotes',
+    'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames', 'matchNotes',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
     'matchGoalsSummary', 'matchTeamId', 'selectedScorerName',
   ]) {
@@ -9996,6 +10497,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchCoachName':     r'$.coachName',
           'matchFruitHeroName': r'$.fruitHeroName',
           'matchVlaggerName':   r'$.vlaggerName',
+          'matchGuestNames':    r'$.guestNames',
           'matchNotes':         r'$.notes',
           'matchStatus':        r'$.mijn_status',
           'matchMagAfmelden':   r'$.mag_afmelden',
@@ -10461,11 +10963,14 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     for (final stray in [
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoItemVlagger'),
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchVlaggerName'),
+      ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchGuestNames'),
     ]) {
       final sp = findParentByKey(wc.node, stray.key);
       sp?.parent.children.removeWhere((c) => identical(c, stray));
     }
-    // Nieuwe rij met dezelfde opmaak als de andere info-rijen, direct ná Coach.
+    // Nieuwe rijen met dezelfde opmaak als de andere info-rijen, direct ná Coach:
+    // eerst Vlagger, dan Gastspelers (die laatste alleen zichtbaar als er
+    // daadwerkelijk gastspelers zijn uitgenodigd).
     final coachValue = findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_coachName').firstOrNull;
     if (coachValue != null && stateVar('matchVlaggerName') != null) {
       final cp1 = findParentByKey(wc.node, coachValue.key);                       // Column
@@ -10474,9 +10979,17 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
       if (cp2 != null && cp3 != null) {
         final coachRow = cp2.parent;
         final list = cp3.parent;
-        final idx = list.children.indexWhere((c) => identical(c, coachRow));
-        list.children.insert(idx >= 0 ? idx + 1 : list.children.length,
-            infoRow('Vlagger', 'matchVlaggerName'));
+        final baseIdx = list.children.indexWhere((c) => identical(c, coachRow));
+        var at = baseIdx >= 0 ? baseIdx + 1 : list.children.length;
+        list.children.insert(at, infoRow('Vlagger', 'matchVlaggerName'));
+        at++;
+        if (stateVar('matchGuestNames') != null) {
+          final guestRow = infoRow('Gastspelers', 'matchGuestNames');
+          setConditionalVisibility(guestRow, variable: conditionVar(
+            stateVar('matchGuestNames')!, FFCondition_Relation.NOT_EQUAL_TO,
+            varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+          list.children.insert(at, guestRow);
+        }
       }
     }
 
@@ -10499,6 +11012,152 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     infoRow('Fruitheid', 'matchFruitHeroName'),
     infoRow('Notities', 'matchNotes'),
   ]);
+}
+
+// Coach-beheer op het info-tabblad: verwijder de vlagger en verwijder
+// uitgenodigde gastspelers. Laadt de gastspelers (matchGuests) bij page-load en
+// ververst na een verwijderactie. De hele sectie is alleen zichtbaar met
+// beheerrechten (matchMagOpstelling == 'true'). Idempotent.
+void _addWedstrijdGuestManagement(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final matchIdParam = wc.params.values.cast<FFParameter?>().firstWhere(
+      (p) => p?.hasIdentifier() == true && p?.identifier.name == 'matchId', orElse: () => null);
+  final guestsId = _findPageStateFieldId(project, 'WedstrijdDetailPage', 'matchGuests');
+  if (authTokenId == null || matchIdParam == null || guestsId == null) return;
+  if (findApiEndpoint(project, name: 'GetMatchGuestsList', groupName: 'VoetbalPlannerAPI') == null) return;
+  final hasRemoveEp = findApiEndpoint(project, name: 'RemoveGuestFromMatch', groupName: 'VoetbalPlannerAPI') != null;
+  final hasFlagEp   = findApiEndpoint(project, name: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI') != null;
+
+  FFDataTypeV2 strT() => FFDataTypeV2(scalarType: FFBaseDataType.String);
+  FFDataTypeV2 boolT() => FFDataTypeV2(scalarType: FFBaseDataType.Boolean);
+  FFVariable? stateVar(String name) {
+    final id = _findPageStateFieldId(project, 'WedstrijdDetailPage', name);
+    if (id == null) return null;
+    return varFromPageState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  }
+  FFVariable matchIdVar() => varFromPageParam(matchIdParam.identifier.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  // 1. Gastspelers laden bij page-load (idempotent).
+  bool hasGuestLoad(FFActionNode n) {
+    if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetMatchGuestsList') return true;
+    if (n.hasFollowUpAction() && hasGuestLoad(n.followUpAction)) return true;
+    return false;
+  }
+  final alreadyLoads = wc.node.triggerActions.any((t) => t.hasRootAction() && hasGuestLoad(t.rootAction));
+  if (!alreadyLoads) {
+    _appendToFirstPageLoadChain(wc.node, Actions.apiCallNode(project,
+      endpointName: 'GetMatchGuestsList', groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {'matchId': matchIdVar()},
+      outputVariableName: 'matchGuestsLoad', nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+            updates: [StateFieldUpdate.setFromVariable('matchGuests', ctx.responseVar)]),
+      ])));
+  }
+
+  FFActionNode refreshGuests(String outName, String nodeKey) => Actions.apiCallNode(project,
+      endpointName: 'GetMatchGuestsList', groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {'matchId': matchIdVar()},
+      outputVariableName: outName, nodeKey: nodeKey,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+            updates: [StateFieldUpdate.setFromVariable('matchGuests', ctx.responseVar)]),
+      ]));
+
+  // 2. Beheer-sectie bouwen en na de info-rijen plaatsen.
+  final coachRow = findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_coachName').firstOrNull;
+  final listParent = coachRow != null ? findParentByKey(wc.node, coachRow.key) : null;
+  final list = listParent?.parent;
+  if (list == null) return;
+  list.children.removeWhere((c) => c.name == 'MatchGuestMgmtSection');
+
+  final children = <FFNode>[
+    UI.text('Beheer (coach)', name: 'MatchGuestMgmtHeader', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
+  ];
+
+  // Vlagger verwijderen (zichtbaar zodra er een vlagger is).
+  if (hasFlagEp) {
+    final delFlagBtn = UI.button('Vlagger verwijderen', name: 'MatchDelFlagBtn', width: double.infinity);
+    delFlagBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {'matchId': matchIdVar(), 'memberId': varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)},
+        outputVariableName: 'infoDelFlag', nodeKey: delFlagBtn.key,
+        onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Vlagger verwijderd.'),
+          followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
+            action: Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+                updates: [StateFieldUpdate.set('matchVlaggerName', '')]))),
+        onFailure: (ctx) => Actions.chain([Actions.snackBar('Verwijderen mislukt.')]))));
+    final vlagVar = stateVar('matchVlaggerName');
+    if (vlagVar != null) {
+      setConditionalVisibility(delFlagBtn, variable: conditionVar(
+          vlagVar, FFCondition_Relation.NOT_EQUAL_TO,
+          varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+    }
+    children.add(delFlagBtn);
+  }
+
+  // Gastspelers-lijst met verwijderknoppen.
+  if (hasRemoveEp) {
+    children.add(UI.text('Gastspelers verwijderen:', name: 'MatchGuestMgmtLabel',
+        style: UITextStyle.labelSmall, color: UIColor.secondaryText));
+    final guestsVar = varFromPageState(guestsId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+    final guestList = UI.listView(name: 'MatchGuestMgmtList', shrinkWrap: true, spacing: 2,
+        dynamicSource: DynamicSource(variable: guestsVar, itemName: 'mg'));
+    final gName = UI.text('', name: 'MatchGuestMgmtName', style: UITextStyle.bodyMedium);
+    gName.props.text.textValue = FFStringValue(variable: generatorVarField(guestList.key, 'name'));
+    UI.expanded(gName);
+    final delBtn = UI.container(name: 'MatchGuestMgmtDel', padding: UIEdgeInsets.all(6),
+        child: UI.icon('delete', size: 20, color: UIColor.error));
+    delBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project, endpointName: 'RemoveGuestFromMatch', groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {'matchId': matchIdVar(), 'memberId': generatorVarField(guestList.key, 'id')},
+        outputVariableName: 'infoDelGuest', nodeKey: delBtn.key,
+        onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Gastspeler verwijderd.'),
+          followUpAction: refreshGuests('infoDelGuestRefresh', delBtn.key)),
+        onFailure: (ctx) => Actions.chain([Actions.snackBar('Verwijderen mislukt.')]))));
+    final gRow = UI.row(name: 'MatchGuestMgmtRow', spacing: 8,
+        crossAxisAlignment: UICrossAxisAlignment.center, children: [gName, delBtn]);
+    guestList.children.add(gRow);
+    children.add(guestList);
+  }
+
+  final col = UI.column(name: 'MatchGuestMgmtCol', crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 6, children: children);
+  final section = UI.container(name: 'MatchGuestMgmtSection',
+      padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 0), child: col);
+  final magVar = stateVar('matchMagOpstelling');
+  if (magVar != null) {
+    setConditionalVisibility(section, variable: codeExpressionVar(
+        expression: "(m ?? '') == 'true'",
+        arguments: [CodeExpressionArg(name: 'm', dataType: strT(), value: FFValue(variable: magVar))],
+        returnType: FFParameter(dataType: boolT())));
+  }
+  list.children.add(section);
+
+  // Read-only "Gastspelers"-tekstrij verbergen voor coaches (die zien de
+  // beheer-lijst); niet-coaches houden de tekstweergave.
+  final guestTextRow = findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchGuestNames').firstOrNull;
+  final gnVar = stateVar('matchGuestNames');
+  final magVar2 = stateVar('matchMagOpstelling');
+  if (guestTextRow != null && gnVar != null && magVar2 != null) {
+    setConditionalVisibility(guestTextRow, variable: codeExpressionVar(
+        expression: "(g ?? '') != '' && (m ?? '') != 'true'",
+        arguments: [
+          CodeExpressionArg(name: 'g', dataType: strT(), value: FFValue(variable: gnVar)),
+          CodeExpressionArg(name: 'm', dataType: strT(), value: FFValue(variable: magVar2)),
+        ],
+        returnType: FFParameter(dataType: boolT())));
+  }
 }
 
 // Forces the Info tab content on WedstrijdDetailPage to be full-width.
@@ -14009,29 +14668,38 @@ void _buildDashboardMatchesList(FFProject project, FFWidgetClass wc) {
   final opponentText = UI.text('', name: 'DashboardMatchOpponent', style: UITextStyle.bodyMedium);
   opponentText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'opponent'));
 
-  // Thuis/Uit-badge: reken de bool isHome om naar 'Thuis'/'Uit'.
-  final homeAwayVar = codeExpressionVar(
-    expression: "(isHome ?? false) ? 'Thuis' : 'Uit'",
-    arguments: [
-      CodeExpressionArg(
-        name: 'isHome',
-        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
-        value: FFValue(variable: generatorVarField(listView.key, 'isHome')),
-      ),
+  // Thuis/Uit-badges: identieke opmaak/kleuren als op de Wedstrijdenpagina
+  // (MatchCard) — Thuis = primary, Uit = secondaryText, tekst in
+  // secondaryBackground, padding h10/v4, radius 8. Per item zichtbaar op isHome.
+  FFNode dashHomeAwayBadge(String label, UIColor bg, FFCondition_Relation rel) {
+    // 5px padding rondom de tekst ín de badge: FF zet container-padding als een
+    // buitenste wrapper (rond de pill), dus de padding hoort op de tekst-node.
+    final badgeText = UI.text(label, name: 'DashboardMatch${label}Text',
+        style: UITextStyle.labelSmall, color: UIColor.secondaryBackground);
+    badgeText.props.padding = FFPadding(
+        type: FFPadding_PaddingType.FF_PADDING_ALL, allValue: FFDoubleValue(inputValue: 5.0));
+    final badge = UI.container(
+      name: 'DashboardMatch${label}Badge',
+      borderRadius: 8,
+      color: bg,
+      child: badgeText,
+    );
+    final visVar = conditionVar(
+      generatorVarField(listView.key, 'isHome'),
+      rel,
+      varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+    ).variable;
+    setConditionalVisibility(badge, variable: visVar);
+    return badge;
+  }
+
+  final homeAwayBadge = UI.row(
+    name: 'DashboardMatchHomeAwayRow',
+    spacing: 6,
+    children: [
+      dashHomeAwayBadge('Thuis', UIColor.primary, FFCondition_Relation.EQUAL_TO),
+      dashHomeAwayBadge('Uit', UIColor.secondaryText, FFCondition_Relation.NOT_EQUAL_TO),
     ],
-    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
-  );
-  final homeAwayText = UI.text('', name: 'DashboardMatchHomeAway',
-      style: UITextStyle.labelSmall, color: UIColor.secondaryBackground);
-  homeAwayText.props.text.textValue = FFStringValue(variable: homeAwayVar);
-  homeAwayText.props.padding =
-      FFPadding(type: FFPadding_PaddingType.FF_PADDING_ALL, allValue: FFDoubleValue(inputValue: 5.0));
-  final homeAwayBadge = UI.container(
-    name: 'DashboardMatchHomeAwayBadge',
-    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    borderRadius: 8,
-    color: UIColor.primary,
-    child: homeAwayText,
   );
 
   // Datum + tijd.
@@ -14357,6 +15025,29 @@ void _buildDashboardDutiesList(FFProject project, FFWidgetClass wc) {
 
   listView.children.add(card);
   container.children.add(listView);
+
+  // Alleen de bardiensten tonen waarvoor de gebruiker zelf is aangemeld.
+  setConditionalVisibility(
+    card,
+    variable: generatorVarField(listView.key, 'isAssignedToMe'),
+  );
+}
+
+// Idempotent: zorgt dat de dashboard-bardienstkaart alleen zichtbaar is als de
+// gebruiker voor die bardienst is aangemeld (isAssignedToMe). Werkt ook op een
+// reeds gebouwde lijst (waar _buildDashboardDutiesList vroegtijdig stopt).
+void _filterDashboardDutiesToMine(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  final listView = findDescendants(wc.node, (n) => n.name == 'DashboardDutiesList').firstOrNull;
+  final card = findDescendants(wc.node, (n) => n.name == 'DashboardDutyCard').firstOrNull;
+  if (listView == null || card == null) return;
+
+  setConditionalVisibility(
+    card,
+    variable: generatorVarField(listView.key, 'isAssignedToMe'),
+  );
 }
 
 // Custom action: ververst het huidige team vanuit /auth/me zonder opnieuw in
@@ -15195,6 +15886,117 @@ void _ensureRijschemaCardBaseRows(FFProject project) {
       cardColumn.children.isEmpty ? opponentRow : dateRow,
     );
   }
+}
+
+// Zet het clublogo van de uit-club (tegenstander) vóór de tegenstandernaam op
+// elke rijschema-kaart. Het rijschema toont uitsluitend uitwedstrijden, dus de
+// tegenstander is de club waar je heen rijdt. De bestaande bal-icon blijft als
+// fallback wanneer er geen logo bekend is. Idempotent.
+// Vervangt overal in `parent` de verwijzing naar `oldChild` door `newChild`
+// (zowel in de children-lijst als in de childPropertyMap), ongeacht via welke
+// property de child gekoppeld is. Zo kunnen we een node "inpakken" zonder de
+// interne container-structuur te kennen.
+void _replaceChildRef(FFNode parent, FFNode oldChild, FFNode newChild) {
+  final idx = parent.children.indexWhere((c) => identical(c, oldChild));
+  if (idx >= 0) parent.children[idx] = newChild;
+  for (final entry in parent.childPropertyMap.entries) {
+    final refs = entry.value.keyRefs;
+    for (var i = 0; i < refs.length; i++) {
+      if (refs[i].key == oldChild.key) {
+        refs[i] = FFNodeKeyReference(key: newChild.key);
+      }
+    }
+  }
+}
+
+// Zet het clublogo van de uit-club (tegenstander) GROOT links naast de kaart-
+// inhoud, net als op de Wedstrijdenpagina (MatchCard): de kaart-container krijgt
+// een Row [logo | tekstkolom]. Vierkant (CONTAIN-fit) zodat het hele logo zicht-
+// baar blijft; een bal-icon als fallback wanneer er geen logo is. Idempotent.
+void _addRijschemaOpponentLogo(FFProject project) {
+  final wc = findPage(project, name: 'RijschemaPage');
+  if (wc == null) return;
+  final container = findByKey(wc.node, 'Container_od2z9b8b');
+  final cardColumn = findByKey(wc.node, 'Column_cx7sodso');
+  if (container == null || cardColumn == null || cardColumn.children.isEmpty) return;
+
+  // Opruimen: verwijder een eerder inline-logo uit de tegenstander-rij en haal
+  // de kleine bal-icon daar weg (het grote logo links vervangt die).
+  final opponentRow = cardColumn.children.first;
+  if (opponentRow.type == FFWidgetType.Row) {
+    opponentRow.children.removeWhere((c) =>
+        c.name == 'RijCardOpponentLogoWrap' ||
+        c.name == 'RijCardOpponentLogo' ||
+        c.type == FFWidgetType.Icon);
+  }
+
+  // Bouw het logo-slot: groot logo (CONTAIN) óf een bal-icon als fallback.
+  final logo = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.Image,
+    name: 'RijCardOpponentLogo',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type:       FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue:  FFStringValue(variable: generatorVarField('ListView_55kreos3', 'opponentLogo')),
+        fit:        FFBoxFit.FF_BOX_FIT_CONTAIN,
+        cached:     true,
+        dimensions: FFDimensions(
+          width:  FFDim(pixelsValue: FFDoubleValue(inputValue: 48.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 48.0)),
+        ),
+      ),
+    ),
+  );
+  setConditionalVisibility(logo, variable: conditionVar(
+    generatorVarField('ListView_55kreos3', 'opponentLogo'),
+    FFCondition_Relation.NOT_EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable);
+
+  final fallbackIcon = UI.icon('sports_soccer', size: 40, color: UIColor.primary);
+  fallbackIcon.name = 'RijCardOpponentLogoFallback';
+  setConditionalVisibility(fallbackIcon, variable: conditionVar(
+    generatorVarField('ListView_55kreos3', 'opponentLogo'),
+    FFCondition_Relation.EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable);
+
+  final logoSlot = UI.column(name: 'RijCardLogoSlot', children: [logo, fallbackIcon]);
+  final leftWrap = UI.container(
+    name: 'RijCardOpponentLogoWrap',
+    padding: UIEdgeInsets.only(right: 10),
+    child: logoSlot,
+  );
+
+  // Al hergestructureerd (RijCardTopRow bestaat)? Dan alleen het logo-slot
+  // vervangen. Anders de tekstkolom in een Row [logo | kolom] wikkelen.
+  final existingTop = findByKey(wc.node, 'RijCardTopRow');
+  if (existingTop != null) {
+    existingTop.children.removeWhere((c) => c.name == 'RijCardOpponentLogoWrap');
+    existingTop.children.insert(0, leftWrap);
+    return;
+  }
+
+  UI.expanded(cardColumn); // tekst krijgt de resterende breedte
+  final topRow = UI.row(
+    name: 'RijCardTopRow',
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [leftWrap, cardColumn],
+  );
+  _replaceChildRef(container, cardColumn, topRow);
+}
+
+// Scopet het rijschema op de eigen teams: voeg mine=1 toe aan de GetDriveSchedule-
+// URL (backend beperkt dan tot accessibleTeams). Idempotent.
+void _scopeDriveScheduleToOwnTeams(FFProject project) {
+  final group = findApiGroup(project, name: 'VoetbalPlannerAPI');
+  if (group == null) return;
+  final ep = group.endpoints
+      .cast<FFApiEndpoint?>()
+      .firstWhere((e) => e?.identifier.name == 'GetDriveSchedule', orElse: () => null);
+  if (ep == null) return;
+  ep.url = '/matches?is_home=false&has_drivers=1&mine=1&per_page=50';
 }
 
 // ─── Herstel RijschemaPage body als die leeg is ───────────────────────────────
@@ -20078,6 +20880,34 @@ void _addGuestInviteEndpoints(FFProject project) {
         responseDataStructName: 'TeamOption', responseDataStructIsList: true);
   }
 
+  // GET /matches/[matchId]/guests -> [{id, name}] (member-id + naam) voor de
+  // gebonden gastspeler-lijst met verwijderknoppen op het info-tabblad.
+  const guestsUrl = '/matches/[matchId]/guests';
+  if (has('GetMatchGuestsList')) {
+    updateApiEndpoint(project, name: 'GetMatchGuestsList', groupName: groupName,
+        url: guestsUrl, method: FFApiEndpoint_CallType.GET, bodyType: FFApiEndpoint_BodyType.NONE,
+        responseDataStructName: 'SwapMember', responseDataStructIsList: true);
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetMatchGuestsList',
+        url: guestsUrl, method: FFApiEndpoint_CallType.GET, bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str()},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'SwapMember', responseDataStructIsList: true);
+  }
+
+  // POST /matches/[matchId]/guest-invite/remove?memberId=.. — coach verwijdert gast.
+  const removeGuestUrl = '/matches/[matchId]/guest-invite/remove?memberId=[memberId]';
+  if (has('RemoveGuestFromMatch')) {
+    updateApiEndpoint(project, name: 'RemoveGuestFromMatch', groupName: groupName,
+        url: removeGuestUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'RemoveGuestFromMatch',
+        url: removeGuestUrl, method: FFApiEndpoint_CallType.POST, bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str(), 'memberId': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
   if (!has('GetMyGuestInvitations')) {
     addEndpointToGroup(project, groupName: groupName, name: 'GetMyGuestInvitations',
         url: '/guest-invitations', method: FFApiEndpoint_CallType.GET,
@@ -20394,7 +21224,12 @@ void _buildMatchActionsDialogBody(FFProject project) {
   final teamsId   = _findAppStateFieldId(project, 'dialogTeams');
   final membersId = _findAppStateFieldId(project, 'dialogMembers');
   final authId    = _findAppStateFieldId(project, 'authToken');
-  if ([viewId, matchIdId, scorerId, teamIdId, membersScoreId, teamsId, membersId, authId]
+  final flagIdId   = _findAppStateFieldId(project, 'dialogFlaggerId');
+  final flagNameId = _findAppStateFieldId(project, 'dialogFlaggerName');
+  final guestIdId   = _findAppStateFieldId(project, 'dialogGuestId');
+  final guestNameId = _findAppStateFieldId(project, 'dialogGuestName');
+  if ([viewId, matchIdId, scorerId, teamIdId, membersScoreId, teamsId, membersId, authId,
+       flagIdId, flagNameId, guestIdId, guestNameId]
       .any((x) => x == null)) return;
   final hasAdd    = findApiEndpoint(project, name: 'AddGoalV2', groupName: 'VoetbalPlannerAPI') != null;
   final hasInvite = findApiEndpoint(project, name: 'InviteGuestToMatch', groupName: 'VoetbalPlannerAPI') != null;
@@ -20461,7 +21296,8 @@ void _buildMatchActionsDialogBody(FFProject project) {
         StateFieldUpdate.setFromVariable('dialogScorerName', generatorVarField(scorerList.key, 'name'))]))));
   scorerList.children.add(scorerRow);
   final scorerScroll = UI.container(name: 'MaScorerScroll', height: 200, clipContent: true, child: scorerList);
-  final minuteField = UI.textField(name: 'MaMinuteField', labelText: 'Minuut (optioneel)');
+  final minuteField = UI.textField(name: 'MaMinuteField', labelText: 'Minuut (optioneel)',
+      keyboardType: UIKeyboardType.number);
   final placeBtn = UI.button('Doelpunt plaatsen', name: 'MaPlaceBtn', width: double.infinity);
   placeBtn.triggerActions.add(FFTriggerActions(
     trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
@@ -20471,10 +21307,17 @@ void _buildMatchActionsDialogBody(FFProject project) {
         'scorerName': appVar(scorerId), 'minute': varFromTextFieldValue(minuteField.key),
       },
       outputVariableName: 'maAddGoal', nodeKey: placeBtn.key,
-      onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
-        action: Actions.snackBar('Doelpunt toegevoegd.'),
-        followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
-          action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('dialogScorerName', '')]))),
+      // Na succes: reset de keuze, SLUIT de bottomsheet (navigateBack) — dat
+      // triggert de FAB-post-close die de doelpunten-tab ververst — en toon de
+      // snackbar (die achter de sheet zou wegvallen; nu zichtbaar na sluiten).
+      onSuccess: (ctx) => Actions.chain([
+        Actions.snackBar('Doelpunt toegevoegd.'),
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.set('dialogScorerName', ''),
+          StateFieldUpdate.set('dialogView', 'menu'),
+        ]),
+        Actions.navigateBack(),
+      ]),
       onFailure: (ctx) => Actions.chain([Actions.snackBar('Opslaan mislukt — controleer je rechten.')]))));
   final goalView = UI.column(name: 'MaGoalView', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
       children: [
@@ -20493,18 +21336,43 @@ void _buildMatchActionsDialogBody(FFProject project) {
     flagName.props.text.textValue = FFStringValue(variable: generatorVarField(flagList.key, 'name'));
     final flagRow = UI.container(name: 'MaFlagRow', width: double.infinity,
         padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: flagName);
+    // Tik = selecteren (nog niet opslaan): onthoud id + naam van de gekozen speler.
     flagRow.triggerActions.add(FFTriggerActions(
       trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: FFActionNode(key: generateRandomAlphaNumericString(),
+        action: Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('dialogFlaggerId', generatorVarField(flagList.key, 'id')),
+          StateFieldUpdate.setFromVariable('dialogFlaggerName', generatorVarField(flagList.key, 'name')),
+        ]))));
+    flagList.children.add(flagRow);
+    final flagScroll = UI.container(name: 'MaFlagScroll', height: 180, clipContent: true, child: flagList);
+
+    // Gekozen naam + bevestig-knop (alleen zichtbaar zodra er iets gekozen is).
+    final flagSelText = UI.text('', name: 'MaFlagSelected', style: UITextStyle.bodyMedium, color: UIColor.primary);
+    flagSelText.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+        expression: "(n ?? '') == '' ? '' : 'Gekozen: ' + (n ?? '')",
+        arguments: [CodeExpressionArg(name: 'n', dataType: str(), value: FFValue(variable: appVar(flagNameId!)))],
+        returnType: FFParameter(dataType: str())));
+    final addFlagBtn = UI.button('Vlagger toevoegen', name: 'MaAddFlagBtn', width: double.infinity);
+    addFlagBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
       rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI',
-        dynamicVariables: {'matchId': appVar(matchIdId!), 'memberId': generatorVarField(flagList.key, 'id')},
-        outputVariableName: 'maSetFlag', nodeKey: flagRow.key,
+        dynamicVariables: {'matchId': appVar(matchIdId!), 'memberId': appVar(flagIdId!)},
+        outputVariableName: 'maSetFlag', nodeKey: addFlagBtn.key,
         onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
           action: Actions.snackBar('Vlagger opgeslagen.'),
           followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
-            action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('dialogView', 'menu')]))),
+            action: Actions.updateAppState(project, updates: [
+              StateFieldUpdate.set('dialogView', 'menu'),
+              StateFieldUpdate.set('dialogFlaggerId', ''),
+              StateFieldUpdate.set('dialogFlaggerName', ''),
+            ]))),
         onFailure: (ctx) => Actions.chain([Actions.snackBar('Opslaan mislukt — controleer je rechten.')]))));
-    flagList.children.add(flagRow);
-    final flagScroll = UI.container(name: 'MaFlagScroll', height: 200, clipContent: true, child: flagList);
+    final flagConfirm = UI.column(name: 'MaFlagConfirm', crossAxisAlignment: UICrossAxisAlignment.stretch,
+        spacing: 4, children: [flagSelText, addFlagBtn]);
+    setConditionalVisibility(flagConfirm, variable: conditionVar(
+        appVar(flagIdId!), FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
 
     // "Geen vlagger" — wist de vlagger (lege memberId).
     final clearFlagBtn = UI.button('Geen vlagger', name: 'MaClearFlagBtn', width: double.infinity);
@@ -20522,7 +21390,7 @@ void _buildMatchActionsDialogBody(FFProject project) {
     final flagView = UI.column(name: 'MaFlagView', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
         children: [
           UI.text('Kies de vlagger (uit het team):', name: 'MaFlagLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
-          flagScroll, clearFlagBtn, backBtn(),
+          flagScroll, flagConfirm, clearFlagBtn, backBtn(),
         ]);
     setConditionalVisibility(flagView, variable: viewIs('flag'));
     root.children.add(flagView);
@@ -20556,20 +21424,52 @@ void _buildMatchActionsDialogBody(FFProject project) {
   gName.props.text.textValue = FFStringValue(variable: generatorVarField(gMembersList.key, 'name'));
   final gRow = UI.container(name: 'MaGuestRow', width: double.infinity,
       padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: gName);
+  // Tik = selecteren (nog niet uitnodigen): onthoud id + naam.
   gRow.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: FFActionNode(key: generateRandomAlphaNumericString(),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable('dialogGuestId', generatorVarField(gMembersList.key, 'id')),
+        StateFieldUpdate.setFromVariable('dialogGuestName', generatorVarField(gMembersList.key, 'name')),
+      ]))));
+  gMembersList.children.add(gRow);
+  final gMembersScroll = UI.container(name: 'MaGuestScroll', height: 160, clipContent: true, child: gMembersList);
+
+  // Gekozen naam + bevestig-knop (zichtbaar zodra er een speler gekozen is).
+  final gSelText = UI.text('', name: 'MaGuestSelected', style: UITextStyle.bodyMedium, color: UIColor.primary);
+  gSelText.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+      expression: "(n ?? '') == '' ? '' : 'Gekozen: ' + (n ?? '')",
+      arguments: [CodeExpressionArg(name: 'n', dataType: str(), value: FFValue(variable: appVar(guestNameId!)))],
+      returnType: FFParameter(dataType: str())));
+  final addGuestBtn = UI.button('Gastspeler toevoegen', name: 'MaAddGuestBtn', width: double.infinity);
+  addGuestBtn.triggerActions.add(FFTriggerActions(
     trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
     rootAction: Actions.apiCallNode(project, endpointName: 'InviteGuestToMatch', groupName: 'VoetbalPlannerAPI',
       dynamicVariables: {
         'matchId': appVar(matchIdId), 'teamId': appVar(teamIdId!),
-        'memberId': generatorVarField(gMembersList.key, 'id'),
+        'memberId': appVar(guestIdId!),
       },
-      outputVariableName: 'maInvite', nodeKey: gRow.key,
-      onSuccess: (ctx) => Actions.chain([Actions.snackBar('Gastspeler uitgenodigd.')]),
+      outputVariableName: 'maInvite', nodeKey: addGuestBtn.key,
+      // Na succes terug naar het menu (zichtbare terugkoppeling; de snackbar valt
+      // anders achter de bottomsheet weg) en de picker schoon opruimen.
+      onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+        action: Actions.snackBar('Gastspeler uitgenodigd.'),
+        followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.updateAppState(project, updates: [
+            StateFieldUpdate.set('dialogView', 'menu'),
+            StateFieldUpdate.set('dialogTeamId', ''),
+            StateFieldUpdate.set('dialogGuestId', ''),
+            StateFieldUpdate.set('dialogGuestName', ''),
+          ]))),
       onFailure: (ctx) => Actions.chain([Actions.snackBar('Uitnodigen mislukt — controleer je rechten.')]))));
-  gMembersList.children.add(gRow);
-  final gMembersScroll = UI.container(name: 'MaGuestScroll', height: 180, clipContent: true, child: gMembersList);
+  final gConfirm = UI.column(name: 'MaGuestConfirm', crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 4, children: [gSelText, addGuestBtn]);
+  setConditionalVisibility(gConfirm, variable: conditionVar(
+      appVar(guestIdId!), FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+
   final gMembersSection = UI.column(name: 'MaGuestSection', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 4,
-      children: [UI.text('Kies de gastspeler:', name: 'MaGuestLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText), gMembersScroll]);
+      children: [UI.text('Kies de gastspeler:', name: 'MaGuestLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText), gMembersScroll, gConfirm]);
   setConditionalVisibility(gMembersSection, variable: conditionVar(
       appVar(teamIdId), FFCondition_Relation.NOT_EQUAL_TO,
       varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
@@ -20653,7 +21553,12 @@ void _addWedstrijdActionsFab(FFProject project) {
       (p) => p?.hasIdentifier() == true && p?.identifier.name == 'matchId', orElse: () => null);
   final hasGoalsList = findApiEndpoint(project, name: 'GetMatchGoalsList', groupName: 'VoetbalPlannerAPI') != null;
   if (authTokenId != null && matchIdParam != null && hasGoalsList) {
-    openNode.followUpAction = Actions.apiCallNode(project, endpointName: 'GetMatchGoalsList',
+    // Na sluiten van de sheet: doelpunten verversen -> page-state 'goals' (zodat
+    // de Doelpunten-tab bijwerkt) en daarná de gastspeler-lijst. De gasten-
+    // refresh moet ín de goals-onSuccess-chain (niet als followUpAction, want dat
+    // overschrijft de onSuccess die 'goals' zet).
+    final hasGuestsList = findApiEndpoint(project, name: 'GetMatchGuestsList', groupName: 'VoetbalPlannerAPI') != null;
+    final goalsRefresh = Actions.apiCallNode(project, endpointName: 'GetMatchGoalsList',
       groupName: 'VoetbalPlannerAPI',
       dynamicVariables: {
         'token': varFromAppState(authTokenId.deepCopy()),
@@ -20661,10 +21566,26 @@ void _addWedstrijdActionsFab(FFProject project) {
           ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
       },
       outputVariableName: 'fabGoalsRefresh', nodeKey: fab.key,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
-            updates: [StateFieldUpdate.setFromVariable('goals', ctx.responseVar)]),
-      ]));
+      onSuccess: (ctx) {
+        final setGoals = FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+              updates: [StateFieldUpdate.setFromVariable('goals', ctx.responseVar)]));
+        if (hasGuestsList) {
+          setGoals.followUpAction = Actions.apiCallNode(project, endpointName: 'GetMatchGuestsList',
+            groupName: 'VoetbalPlannerAPI',
+            dynamicVariables: {
+              'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
+                ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+            },
+            outputVariableName: 'fabGuestsRefresh', nodeKey: fab.key,
+            onSuccess: (ctx2) => Actions.chain([
+              Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+                  updates: [StateFieldUpdate.setFromVariable('matchGuests', ctx2.responseVar)]),
+            ]));
+        }
+        return setGoals;
+      });
+    openNode.followUpAction = goalsRefresh;
   }
   fab.triggerActions.add(FFTriggerActions(
     trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP), rootAction: resetNode));
@@ -21057,7 +21978,8 @@ void _addWedstrijdScoreSection(FFProject project) {
       ),
     );
 
-    final minuteField = UI.textField(name: 'ScoreMinuteField', labelText: 'Minuut (optioneel)');
+    final minuteField = UI.textField(name: 'ScoreMinuteField', labelText: 'Minuut (optioneel)',
+        keyboardType: UIKeyboardType.number);
 
     // "Doelpunt plaatsen": AddGoalV2(scorer_name = gekozen speler) -> refresh.
     final placeBtn = UI.button('Doelpunt plaatsen', name: 'ScoreAddButton', width: double.infinity);

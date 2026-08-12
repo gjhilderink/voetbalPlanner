@@ -21,6 +21,7 @@ import 'pages/guardian_self_register_page.dart' show guardianSelfRegisterPageHan
 import 'pages/login_page.dart' show loginPageHandle;
 import 'pages/magic_link_verify_page.dart' show magicLinkVerifyPageHandle;
 import 'pages/news_page.dart' show newsPageHandle;
+import 'pages/onboarding_page.dart' show onboardingPageHandle;
 import 'pages/profiel_page.dart' show profielPageHandle;
 import 'pages/rijschema_detail_page.dart' show rijschemaDetailPageHandle;
 import 'pages/rijschema_page.dart' show rijschemaPageHandle;
@@ -51,6 +52,7 @@ abstract final class Pages {
   static final loginPage = loginPageHandle;
   static final magicLinkVerifyPage = magicLinkVerifyPageHandle;
   static final newsPage = newsPageHandle;
+  static final onboardingPage = onboardingPageHandle;
   static final profielPage = profielPageHandle;
   static final rijschemaDetailPage = rijschemaDetailPageHandle;
   static final rijschemaPage = rijschemaPageHandle;
@@ -80,6 +82,7 @@ abstract final class Pages {
     loginPage,
     magicLinkVerifyPage,
     newsPage,
+    onboardingPage,
     profielPage,
     rijschemaDetailPage,
     rijschemaPage,

@@ -173,13 +173,13 @@ abstract final class MatchCardWidgets {
                       name: "MatchCardHomeAwayRow",
                       children: <ffai.ProjectWidgetHandle>[
                         ffai.ProjectWidgetHandle(
-                          key: "Container_jbcdvav3",
+                          key: "Container_xlt9q8x2",
                           type: "Container",
                           path: "MatchCard.children[0].children[0].children[1].children[0].children[0]",
                           name: "MatchCardThuisBadge",
                           children: <ffai.ProjectWidgetHandle>[
                             ffai.ProjectWidgetHandle(
-                              key: "Text_e5y4gf3n",
+                              key: "Text_n8jaiuv8",
                               type: "Text",
                               path: "MatchCard.children[0].children[0].children[1].children[0].children[0].children[0]",
                               name: "Text",
@@ -188,13 +188,13 @@ abstract final class MatchCardWidgets {
                           ],
                         ),
                         ffai.ProjectWidgetHandle(
-                          key: "Container_qzjxmzlh",
+                          key: "Container_a1rpwflm",
                           type: "Container",
                           path: "MatchCard.children[0].children[0].children[1].children[0].children[1]",
                           name: "MatchCardUitBadge",
                           children: <ffai.ProjectWidgetHandle>[
                             ffai.ProjectWidgetHandle(
-                              key: "Text_ibyhhi48",
+                              key: "Text_a3pabbff",
                               type: "Text",
                               path: "MatchCard.children[0].children[0].children[1].children[0].children[1].children[0]",
                               name: "Text",

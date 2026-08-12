@@ -232,6 +232,16 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle onboardingSlide = ffai.StructHandle(
+    "OnboardingSlide",
+    <String, ffai.DslType>{
+      "background": ffai.string,
+      "body": ffai.string,
+      "icon": ffai.string,
+      "title": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle staffGroupItem = ffai.StructHandle(
     "StaffGroupItem",
     <String, ffai.DslType>{
@@ -324,6 +334,7 @@ abstract final class Structs {
     loginResponse,
     matchGoal,
     newsItem,
+    onboardingSlide,
     staffGroupItem,
     swapMember,
     swapRequest,
@@ -1138,6 +1149,7 @@ abstract final class CustomCode {
   static const widgets = <String>[
     "ChatBadgeOverlay",
     "ConvUnreadBadge",
+    "DynamicMaterialIcon",
     "HighlightedNameList",
   ];
 }

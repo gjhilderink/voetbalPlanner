@@ -59,6 +59,30 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const dialogFlaggerId = ffai.ProjectAppStateFieldHandle(
+    name: "dialogFlaggerId",
+    key: "i94o89ne",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogFlaggerName = ffai.ProjectAppStateFieldHandle(
+    name: "dialogFlaggerName",
+    key: "jtu5dy6y",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogGuestId = ffai.ProjectAppStateFieldHandle(
+    name: "dialogGuestId",
+    key: "3wdvxeec",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogGuestName = ffai.ProjectAppStateFieldHandle(
+    name: "dialogGuestName",
+    key: "hdrdqhn1",
+    typeName: "String",
+    persisted: false,
+  );
   static const dialogMatchId = ffai.ProjectAppStateFieldHandle(
     name: "dialogMatchId",
     key: "nxsv4d50",
@@ -158,6 +182,18 @@ abstract final class AppState {
   static const matchGoals = ffai.ProjectAppStateFieldHandle(
     name: "matchGoals",
     key: "01d8gbk7",
+    typeName: "List<DataStruct<?>>",
+    persisted: false,
+  );
+  static const onboardingSeen = ffai.ProjectAppStateFieldHandle(
+    name: "onboardingSeen",
+    key: "i35maa6o",
+    typeName: "Boolean",
+    persisted: true,
+  );
+  static const onboardingSlides = ffai.ProjectAppStateFieldHandle(
+    name: "onboardingSlides",
+    key: "0ea093vk",
     typeName: "List<DataStruct<?>>",
     persisted: false,
   );
@@ -315,6 +351,10 @@ abstract final class AppState {
     currentConversationId,
     currentTeamId,
     currentTeamName,
+    dialogFlaggerId,
+    dialogFlaggerName,
+    dialogGuestId,
+    dialogGuestName,
     dialogMatchId,
     dialogMembers,
     dialogScorerName,
@@ -332,6 +372,8 @@ abstract final class AppState {
     loginPassword,
     matchActionMode,
     matchGoals,
+    onboardingSeen,
+    onboardingSlides,
     pendingAfmeldReason,
     pendingDirectUserEmail,
     pendingDirectUserId,
