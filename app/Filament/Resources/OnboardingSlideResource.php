@@ -71,7 +71,7 @@ class OnboardingSlideResource extends Resource
                 Forms\Components\Select::make('icon')
                     ->label('Icoon')
                     ->options(OnboardingSlide::$icons)
-                    ->default('ℹ️')
+                    ->default('info')
                     ->required()
                     ->searchable()
                     ->live()
@@ -81,7 +81,8 @@ class OnboardingSlideResource extends Resource
                     ->label('Voorbeeld')
                     ->content(fn (\Filament\Schemas\Components\Utilities\Get $get): \Illuminate\Support\HtmlString =>
                         new \Illuminate\Support\HtmlString(
-                            '<span style="font-size:3rem;line-height:1">' . e((string) $get('icon')) . '</span>'
+                            '<span class="material-icons" style="font-size:3rem;line-height:1;color:var(--primary-600,#2563eb)">'
+                            . e((string) ($get('icon') ?: 'info')) . '</span>'
                         ))
                     ->columnSpan(1),
 
@@ -126,8 +127,12 @@ class OnboardingSlideResource extends Resource
 
                 Tables\Columns\TextColumn::make('icon')
                     ->label('Icoon')
-                    ->formatStateUsing(fn($state) => OnboardingSlide::$icons[$state] ?? $state)
-                    ->badge(),
+                    ->html()
+                    ->formatStateUsing(fn($state) => new \Illuminate\Support\HtmlString(
+                        '<span class="material-icons" style="font-size:1.4rem;vertical-align:middle">'
+                        . e((string) $state) . '</span>&nbsp;'
+                        . e(OnboardingSlide::$icons[$state] ?? (string) $state)
+                    )),
 
                 Tables\Columns\TextColumn::make('title')
                     ->label('Titel')

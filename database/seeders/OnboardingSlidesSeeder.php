@@ -16,15 +16,15 @@ use Illuminate\Database\Seeder;
 class OnboardingSlidesSeeder extends Seeder
 {
     private array $defaults = [
-        ['icon' => '👋', 'title' => 'Welkom bij VoetbalPlanner',
+        ['icon' => 'celebration',    'title' => 'Welkom bij VoetbalPlanner',
          'body' => 'Alles voor jouw team op één plek: wedstrijden, rijschema, bardienst en meer. Swipe verder voor een korte rondleiding.'],
-        ['icon' => '⚽', 'title' => 'Wedstrijden altijd bij de hand',
+        ['icon' => 'sports_soccer',  'title' => 'Wedstrijden altijd bij de hand',
          'body' => 'Bekijk je wedstrijden met datum en locatie en meld je met één tik af of aan. Je ziet ook wie er rijdt en wie fruit meeneemt.'],
-        ['icon' => '🚗', 'title' => 'Rijschema & bardienst',
+        ['icon' => 'directions_car', 'title' => 'Rijschema & bardienst',
          'body' => 'Zie in één oogopslag wanneer jij moet rijden of achter de bar staat. Ruilen regel je met een wisselverzoek.'],
-        ['icon' => '💬', 'title' => 'Blijf in contact',
+        ['icon' => 'chat',           'title' => 'Blijf in contact',
          'body' => 'Chat met je team, in groepen of één-op-één, en ontvang meldingen bij belangrijk nieuws.'],
-        ['icon' => '✅', 'title' => 'Extra voor coaches',
+        ['icon' => 'shield',         'title' => 'Extra voor coaches',
          'body' => 'Als coach stel je eenvoudig de opstelling, doelpunten, vlagger en gastspelers in — direct vanaf de wedstrijd.'],
     ];
 

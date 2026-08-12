@@ -74,6 +74,12 @@ class AdminPanelProvider extends PanelProvider
                         : '';
                 }
             )
+            // Material Icons-webfont, zodat de onboarding-slide-iconen (Material-
+            // iconnamen) ook in het admin-paneel als echt icoon te zien zijn.
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn(): string => '<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">',
+            )
             ->renderHook(
                 PanelsRenderHook::BODY_START,
                 fn(): string => Blade::render('@if(app(\Lab404\Impersonate\Services\ImpersonateManager::class)->isImpersonating())

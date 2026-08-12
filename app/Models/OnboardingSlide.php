@@ -33,22 +33,24 @@ class OnboardingSlide extends Model
     ];
 
     /**
-     * Vaste icoon-preset (emoji => label). De app rendert het icoon als een grote
-     * emoji-tekst, zodat het per slide dynamisch kan zijn.
+     * Vaste icoon-preset (Material-iconnaam => label). De app rendert het
+     * bijbehorende strakke Material line-icoon; Filament toont het via het
+     * Material Icons-webfont. Houd deze lijst in sync met de app (edit.dart:
+     * _kOnboardingIconNames).
      */
     public static array $icons = [
-        '👋' => '👋 Welkom',
-        '⚽' => '⚽ Voetbal / wedstrijden',
-        '🚗' => '🚗 Auto / rijschema',
-        '🍺' => '🍺 Bar / bardienst',
-        '💬' => '💬 Chat',
-        '✅' => '✅ Coach / rechten',
-        '👥' => '👥 Team',
-        '📅' => '📅 Agenda',
-        '🔔' => '🔔 Meldingen',
-        '🏆' => '🏆 Beker / prijs',
-        '⭐' => '⭐ Ster',
-        'ℹ️' => 'ℹ️ Info',
+        'celebration'    => 'Welkom',
+        'sports_soccer'  => 'Voetbal',
+        'directions_car' => 'Auto / rijschema',
+        'local_bar'      => 'Bar / bardienst',
+        'chat'           => 'Chat',
+        'shield'         => 'Coach / rechten',
+        'groups'         => 'Team',
+        'event'          => 'Agenda',
+        'notifications'  => 'Meldingen',
+        'emoji_events'   => 'Beker / prijs',
+        'star'           => 'Ster',
+        'info'           => 'Info',
     ];
 
     public function club(): BelongsTo
