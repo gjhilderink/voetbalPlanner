@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\TrainingController;
 use App\Http\Controllers\Api\NewsItemController;
+use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\StaffGroupController;
 use App\Http\Controllers\Api\SwapRequestController;
 use App\Http\Controllers\Api\SyncController;
@@ -108,6 +109,9 @@ Route::prefix('v1')->group(function () {
 
         // Documentation
         Route::get('/documentation', [DocumentationController::class, 'index']);
+
+        // Onboarding-slides (per club aanpasbaar, voor de rondleiding in de app)
+        Route::get('/onboarding-slides', [OnboardingController::class, 'index']);
 
         // Branding
         Route::get('/branding', [BrandingController::class, 'show']);
