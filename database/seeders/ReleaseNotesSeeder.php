@@ -207,6 +207,13 @@ class ReleaseNotesSeeder extends Seeder
                     . 'uitleg over wedstrijden, rijschema & bardienst, chat en de coach-functies. Wil je \'m later '
                     . 'nog eens bekijken? Via je profiel kun je de rondleiding met één tik opnieuw starten.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Rondleiding aanpasbaar per club',
+                'description' => 'Beheerders kunnen de onboarding-rondleiding nu volledig zelf samenstellen: slides '
+                    . 'toevoegen, herordenen en per slide een titel, tekst, een strak icoon en zelfs een eigen '
+                    . 'achtergrondafbeelding kiezen. Zo laat je nieuwe leden precies zien wat jouw club belangrijk vindt.',
+            ],
         ];
 
         $sort = 0;
