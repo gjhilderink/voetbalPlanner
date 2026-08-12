@@ -45,4 +45,18 @@ class TeamFilter
     {
         return self::scopeQuery(Team::query())->pluck('teams.name', 'teams.id')->all();
     }
+
+    /**
+     * Elftallen waartoe een export beperkt moet blijven: null voor beheerders
+     * (geen beperking), anders de teams die deze gebruiker beheert — gelijk aan
+     * wat de lijst zelf toont.
+     *
+     * @return array<string>|null
+     */
+    public static function allowedTeamIds(): ?array
+    {
+        $user = auth()->user();
+
+        return $user && ! $user->isAdmin() ? $user->managedTeamIds()->all() : null;
+    }
 }
