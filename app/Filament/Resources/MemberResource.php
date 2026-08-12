@@ -7,7 +7,6 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\MemberResource\Pages;
 use App\Filament\Support\TeamFilter;
 use App\Models\Member;
-use App\Models\Team;
 use App\Services\WhatsAppService;
 use Filament\Actions;
 use Filament\Notifications\Notification;
@@ -79,7 +78,7 @@ class MemberResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('team_id')
                             ->label('Team')
-                            ->options(fn () => Team::query()->orderBy('name')->pluck('name', 'id'))
+                            ->options(fn () => TeamFilter::options())
                             ->searchable()
                             ->preload()
                             ->required()

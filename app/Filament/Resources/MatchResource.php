@@ -35,7 +35,10 @@ class MatchResource extends Resource
             Section::make('Wedstrijdgegevens')->schema([
                 Forms\Components\Select::make('team_id')
                     ->label('Team')
-                    ->relationship('team', 'name')
+                    // Alleen elftallen van de eigen club (en, voor niet-beheerders,
+                    // de eigen elftallen); zonder scope stonden hier de teams van
+                    // álle clubs in de lijst.
+                    ->relationship('team', 'name', modifyQueryUsing: fn (Builder $query) => TeamFilter::scopeQuery($query))
                     ->required()
                     ->live()
                     ->searchable()

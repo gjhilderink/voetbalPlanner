@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\TrainingScheduleResource\Pages;
+use App\Filament\Support\TeamFilter;
 use App\Models\Team;
 use App\Models\TrainingSchedule;
 use Filament\Actions;
@@ -153,7 +154,10 @@ class TrainingScheduleResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('team_id')
                     ->label('Team')
-                    ->relationship('team', 'name'),
+                    ->relationship('team', 'name', modifyQueryUsing: fn (Builder $query) => TeamFilter::scopeQuery($query))
+                    ->searchable()
+                    ->preload()
+                    ->placeholder('Alle teams'),
             ])
             ->actions([
                 Actions\EditAction::make()->visible(fn() => static::canCreate()),

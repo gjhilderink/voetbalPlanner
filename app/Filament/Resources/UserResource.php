@@ -6,9 +6,9 @@ namespace App\Filament\Resources;
 
 use App\Enums\UserRole;
 use App\Filament\Resources\UserResource\Pages;
+use App\Filament\Support\TeamFilter;
 use App\Models\Club;
 use App\Models\Member;
-use App\Models\Team;
 use App\Models\User;
 use Filament\Actions;
 use Filament\Forms;
@@ -95,7 +95,7 @@ class UserResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('team_id')
                             ->label('Team')
-                            ->options(fn () => Team::query()->orderBy('name')->pluck('name', 'id'))
+                            ->options(fn () => TeamFilter::options())
                             ->searchable()
                             ->required()
                             ->distinct(),
