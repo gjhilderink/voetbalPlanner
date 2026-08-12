@@ -33,22 +33,22 @@ class OnboardingSlide extends Model
     ];
 
     /**
-     * Vaste icoon-preset (Material-iconnaam => label). Dezelfde namen kent de
-     * app (custom widget DynamicMaterialIcon); houd beide in sync.
+     * Vaste icoon-preset (emoji => label). De app rendert het icoon als een grote
+     * emoji-tekst, zodat het per slide dynamisch kan zijn.
      */
     public static array $icons = [
-        'waving_hand'     => 'Zwaaiende hand (welkom)',
-        'sports_soccer'   => 'Voetbal (wedstrijden)',
-        'directions_car'  => 'Auto (rijschema)',
-        'sports_bar'      => 'Bar (bardienst)',
-        'chat'            => 'Chat',
-        'verified_user'   => 'Coach / rechten',
-        'groups'          => 'Team',
-        'calendar_today'  => 'Agenda',
-        'notifications'   => 'Meldingen',
-        'emoji_events'    => 'Beker / prijs',
-        'star'            => 'Ster',
-        'info'            => 'Info',
+        '👋' => '👋 Welkom',
+        '⚽' => '⚽ Voetbal / wedstrijden',
+        '🚗' => '🚗 Auto / rijschema',
+        '🍺' => '🍺 Bar / bardienst',
+        '💬' => '💬 Chat',
+        '✅' => '✅ Coach / rechten',
+        '👥' => '👥 Team',
+        '📅' => '📅 Agenda',
+        '🔔' => '🔔 Meldingen',
+        '🏆' => '🏆 Beker / prijs',
+        '⭐' => '⭐ Ster',
+        'ℹ️' => 'ℹ️ Info',
     ];
 
     public function club(): BelongsTo
