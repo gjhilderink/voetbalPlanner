@@ -10,6 +10,10 @@
     @else
         <script src="https://cdn.tailwindcss.com"></script>
     @endif
+
+    @if (($recaptchaEnabled ?? false) && ($recaptchaSiteKey ?? ''))
+        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    @endif
 </head>
 <body class="bg-gray-50 text-gray-900 antialiased font-sans min-h-screen">
 
@@ -153,6 +157,16 @@
                           class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition resize-y">{{ old('notes') }}</textarea>
             </div>
         </div>
+
+        @if (($recaptchaEnabled ?? false) && ($recaptchaSiteKey ?? ''))
+            {{-- Anti-spam --}}
+            <div>
+                <div class="g-recaptcha" data-sitekey="{{ $recaptchaSiteKey }}"></div>
+                @error('captcha')
+                    <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+            </div>
+        @endif
 
         {{-- Verzenden --}}
         <div class="flex items-center justify-between">

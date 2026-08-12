@@ -55,6 +55,9 @@ class ManageSettings extends Page
         $this->form->fill([
             'registration_notification_email'    => Setting::get('registration_notification_email', '', null),
             'registration_notification_subject'  => Setting::get('registration_notification_subject', '', null),
+            'recaptcha_enabled'    => Setting::get('recaptcha_enabled', '0', null) === '1',
+            'recaptcha_site_key'   => Setting::get('recaptcha_site_key', '', null),
+            'recaptcha_secret_key' => Setting::get('recaptcha_secret_key', '', null),
             'smtp_host'         => Setting::get('smtp_host', config('mail.mailers.smtp.host', ''), null),
             'smtp_port'         => Setting::get('smtp_port', config('mail.mailers.smtp.port', '587'), null),
             'smtp_encryption'   => Setting::get('smtp_encryption', config('mail.mailers.smtp.encryption', 'tls'), null),
@@ -112,6 +115,18 @@ class ManageSettings extends Page
                             ->maxLength(255)
                             ->placeholder('Nieuwe clubaanvraag: {club_naam}')
                             ->helperText('Gebruik {club_naam} als variabele. Leeg = standaard onderwerp.'),
+
+                        Toggle::make('recaptcha_enabled')
+                            ->label('Anti-spam (Google reCAPTCHA) op aanmeldformulier')
+                            ->helperText('Beschermt het clubaanvraag-formulier tegen spam. Vul hieronder de site- en secret-key in (reCAPTCHA v2 "Ik ben geen robot").'),
+                        TextInput::make('recaptcha_site_key')
+                            ->label('reCAPTCHA site key')
+                            ->maxLength(255),
+                        TextInput::make('recaptcha_secret_key')
+                            ->label('reCAPTCHA secret key')
+                            ->password()
+                            ->revealable()
+                            ->maxLength(255),
                     ]),
 
                 Section::make('E-mail / SMTP')
@@ -373,6 +388,9 @@ class ManageSettings extends Page
         if (auth()->user()?->hasRole('super_admin')) {
             Setting::set('registration_notification_email',   $data['registration_notification_email'] ?? '', 'system', false, null);
             Setting::set('registration_notification_subject', $data['registration_notification_subject'] ?? '', 'system', false, null);
+            Setting::set('recaptcha_enabled',    !empty($data['recaptcha_enabled']) ? '1' : '0', 'system', false, null);
+            Setting::set('recaptcha_site_key',   $data['recaptcha_site_key'] ?? '', 'system', false, null);
+            Setting::set('recaptcha_secret_key', $data['recaptcha_secret_key'] ?? '', 'system', true, null);
             Setting::set('smtp_host',         $data['smtp_host'] ?? '', 'smtp', false, null);
             Setting::set('smtp_port',         $data['smtp_port'] ?? '587', 'smtp', false, null);
             Setting::set('smtp_encryption',   $data['smtp_encryption'] ?? 'tls', 'smtp', false, null);
