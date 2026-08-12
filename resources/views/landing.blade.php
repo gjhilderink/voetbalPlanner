@@ -259,5 +259,34 @@
     </div>
 </footer>
 
+{{-- Cookiemelding --}}
+<div id="cookie-notice" style="display:none" class="fixed bottom-0 inset-x-0 z-50 p-4">
+    <div class="max-w-4xl mx-auto bg-gray-900 text-gray-100 rounded-xl shadow-lg p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <p class="text-sm leading-relaxed flex-1">
+            We gebruiken alleen functionele cookies om deze website goed te laten werken. Door de site te blijven gebruiken ga je hiermee akkoord.
+            <a href="{{ route('privacy') }}" class="underline hover:text-white">Meer info</a>.
+        </p>
+        <button id="cookie-accept" type="button"
+                class="shrink-0 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
+            Akkoord
+        </button>
+    </div>
+</div>
+<script>
+    (function () {
+        try {
+            var KEY = 'vp_cookie_ok';
+            var el = document.getElementById('cookie-notice');
+            if (!el) return;
+            if (!localStorage.getItem(KEY)) el.style.display = '';
+            var btn = document.getElementById('cookie-accept');
+            if (btn) btn.addEventListener('click', function () {
+                try { localStorage.setItem(KEY, '1'); } catch (e) {}
+                el.style.display = 'none';
+            });
+        } catch (e) {}
+    })();
+</script>
+
 </body>
 </html>
