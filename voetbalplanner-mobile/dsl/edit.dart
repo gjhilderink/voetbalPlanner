@@ -40,7 +40,7 @@ import 'package:flutterflow_ai/src/ui/actions.dart' show Actions;
 import 'package:flutterflow_ai/src/ui/ui.dart' show UI;
 import 'package:flutterflow_ai/src/ui/ui_types.dart'
     show UIBoxFit, UIColor, UITextStyle, UIMainAxisAlignment, UICrossAxisAlignment, UIEdgeInsets,
-         UIProgressShape, UIKeyboardType, DynamicSource;
+         UIProgressShape, UIKeyboardType, UIButtonVariant, DynamicSource;
 import 'package:voetbalplanner_mobile/flutterflow_project.dart' as ff;
 
 // ── Snelmenu: bottom-sheet component + '+'-FAB op DashboardPage ───────────────
@@ -534,7 +534,10 @@ void buildEditFlow(App app) {
   try { app.state('pendingAfmeldReason',       string); } catch (_) {}
   try { app.state('pendingMatchId',            string); } catch (_) {}
   // True als de gebruiker aan >1 team gekoppeld is (dashboard team-switcher).
-  try { app.state('hasMultipleTeams',          bool_); } catch (_) {}
+  // Persistent: refreshCurrentTeam() heeft vier vroege returns waarin deze vlag
+  // niet gezet wordt, dus zonder opslag was de switcher na een koude start weg
+  // zodra die call traag was of faalde.
+  try { app.state('hasMultipleTeams',          bool_, persisted: true); } catch (_) {}
   // Onboarding gezien? Persistent (overleeft herstart); standaard false zodat de
   // slides bij de eerste keer inloggen verschijnen.
   try { app.state('onboardingSeen',            bool_.withDefault(false), persisted: true); } catch (_) {}
@@ -1284,6 +1287,7 @@ void buildEditFlow(App app) {
     // wordt de GetAgendaUpcoming-call uit de on-load-chain gewist.
     _ensureAgendaItemsAppStateField(project);
     _addDashboardAgendaSection(project);
+    _addDashboardAgendaViewAll(project);
     // TrainingDetailPage-inhoud + kaart aantikbaar maken.
     _wireTrainingDetailPage(project);
     _wireTrainingCardNavigation(project);
@@ -22894,6 +22898,65 @@ void _addDashboardTrainingsSection(FFProject project) {
   parentCol.children.add(section);
 }
 
+// 'Bekijk alles' onder het agendablok + de kaarten aantikbaar maken.
+//
+// Losse functie omdat _addDashboardAgendaSection idempotent is en een bestaande
+// sectie overslaat; daar iets aan toevoegen raakt de al aangemaakte nodes niet.
+void _addDashboardAgendaViewAll(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  // Kaart → detailpagina, net als de andere dashboardkaarten.
+  final listView =
+      findDescendants(wc.node, (n) => n.name == 'DashboardAgendaList').firstOrNull;
+  final card =
+      findDescendants(wc.node, (n) => n.name == 'DashboardAgendaCard').firstOrNull;
+  if (listView != null && card != null && card.triggerActions.isEmpty) {
+    Actions.addTriggerChain(
+      card,
+      FFActionTriggerType.ON_TAP,
+      FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.navigate(
+          project,
+          pageName: 'AgendaDetailPage',
+          params: {
+            'agendaItemId': VariableParamValue(generatorVarField(listView.key, 'id')),
+          },
+        ),
+      ),
+    );
+  }
+
+  // 'Bekijk alles' onder de lijst.
+  final col =
+      findDescendants(wc.node, (n) => n.name == 'DashboardAgendaCol').firstOrNull;
+  if (col == null) return;
+  if (findDescendants(wc.node, (n) => n.name == 'DashboardAgendaViewAll').isNotEmpty) {
+    return;
+  }
+
+  final button = UI.button(
+    'Bekijk alles',
+    name: 'DashboardAgendaViewAll',
+    variant: UIButtonVariant.text,
+    iconName: 'arrow_forward',
+    iconSize: 18,
+    textColor: UIColor.primary,
+  );
+
+  Actions.addTriggerChain(
+    button,
+    FFActionTriggerType.ON_TAP,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(project, pageName: 'AgendaPage'),
+    ),
+  );
+
+  col.children.add(button);
+}
+
 // Trekt de kopjes van de dashboardsecties gelijk. "Mijn Rijschema" en "Mijn
 // bardiensten" gebruiken titleSmall met 12px links; de trainingen-, agenda- en
 // uitnodigingenkop weken af (titleMedium, en bij uitnodigingen 5px links).
@@ -22940,14 +23003,16 @@ void _alignDashboardSectionHeaders(FFProject project) {
 // nooit gezet wordt — één trage of mislukte call en de switcher was die sessie
 // verdwenen. Persistent maken bewaart de laatst bekende waarde, zodat de
 // switcher meteen staat en de refresh hem alleen nog corrigeert.
+// Alleen availableTeams: dat veld wordt via een raw helper aangemaakt, niet via
+// app.state(). hasMultipleTeams staat wél in de DSL en is daar op persisted
+// gezet — hem hier óók muteren laat ensureAppStateField afketsen op een
+// afwijkende payload ('ensure*' is create-if-missing).
 void _persistTeamSwitcherState(FFProject project) {
-  for (final name in ['hasMultipleTeams', 'availableTeams']) {
-    final field = project.appState.fields
-        .cast<FFAppStateField?>()
-        .firstWhere((f) => f?.parameter.identifier.name == name, orElse: () => null);
-    if (field != null && !field.persisted) {
-      field.persisted = true;
-    }
+  final field = project.appState.fields
+      .cast<FFAppStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'availableTeams', orElse: () => null);
+  if (field != null && !field.persisted) {
+    field.persisted = true;
   }
 }
 
