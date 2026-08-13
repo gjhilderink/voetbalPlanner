@@ -19,9 +19,15 @@ class TrainingController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $teamId = $request->query('team_id')
-            ?? $request->user()?->member?->teams()->first()?->id
-            ?? $request->user()?->managedTeams()->first()?->id;
+        // ?: en niet ??: de app stuurt team_id altijd mee, ook leeg. Met ?? zou
+        // een lege string blijven staan, de fallbacks overslaan en hieronder een
+        // lege lijst opleveren — het dashboard toonde dan de kop zonder
+        // trainingen. resolveMember() i.p.v. member: dat vangt ook leden die
+        // alleen via e-mail aan hun account hangen (zelfde als afmelden()).
+        $teamId = $request->query('team_id') ?: null;
+        $teamId = $teamId
+            ?: $request->user()?->resolveMember()?->teams()->first()?->id
+            ?: $request->user()?->managedTeams()->first()?->id;
 
         if (!$teamId) {
             return response()->json([]);
