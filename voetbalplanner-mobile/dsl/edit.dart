@@ -1291,6 +1291,7 @@ void buildEditFlow(App app) {
     _wireDashboardCardNavigation(project);
     // Team-switcher bovenaan (alleen bij >1 team); switcht wedstrijden + trainingen.
     _addDashboardTeamSwitcher(project);
+    _persistTeamSwitcherState(project);
     _addDashboardGuestInvitations(project);
     // Kopjes van alle dashboardsecties gelijktrekken — moet ná álle
     // sectie-builders, anders bestaan de nodes nog niet.
@@ -22927,6 +22928,26 @@ void _alignDashboardSectionHeaders(FFProject project) {
       rightValue: FFDoubleValue(inputValue: 12),
       bottomValue: FFDoubleValue(inputValue: 4),
     );
+  }
+}
+
+// Maakt de teamswitcher stabiel over een koude start heen.
+//
+// De switcher rendert alleen bij `hasMultipleTeams`, en de chips komen uit
+// `availableTeams`. Beide stonden niet persistent, dus na een herstart waren ze
+// leeg tot refreshCurrentTeam() ze opnieuw vulde. Die actie heeft vier vroege
+// returns (leeg token, geen HTTP 200, success != true, exception) waarin de vlag
+// nooit gezet wordt — één trage of mislukte call en de switcher was die sessie
+// verdwenen. Persistent maken bewaart de laatst bekende waarde, zodat de
+// switcher meteen staat en de refresh hem alleen nog corrigeert.
+void _persistTeamSwitcherState(FFProject project) {
+  for (final name in ['hasMultipleTeams', 'availableTeams']) {
+    final field = project.appState.fields
+        .cast<FFAppStateField?>()
+        .firstWhere((f) => f?.parameter.identifier.name == name, orElse: () => null);
+    if (field != null && !field.persisted) {
+      field.persisted = true;
+    }
   }
 }
 

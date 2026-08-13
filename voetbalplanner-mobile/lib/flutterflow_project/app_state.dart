@@ -27,7 +27,7 @@ abstract final class AppState {
     name: "availableTeams",
     key: "rx96978y",
     typeName: "List<DataStruct<TeamOption>>",
-    persisted: false,
+    persisted: true,
   );
   static const bugScreenshotPaths = ffai.ProjectAppStateFieldHandle(
     name: "bugScreenshotPaths",
@@ -153,7 +153,7 @@ abstract final class AppState {
     name: "hasMultipleTeams",
     key: "8um4fn3m",
     typeName: "Boolean",
-    persisted: false,
+    persisted: true,
   );
   static const hasUnreadTeamChat = ffai.ProjectAppStateFieldHandle(
     name: "hasUnreadTeamChat",
