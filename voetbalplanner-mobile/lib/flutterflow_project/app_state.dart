@@ -11,6 +11,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const agendaItems = ffai.ProjectAppStateFieldHandle(
+    name: "agendaItems",
+    key: "tvf9t4sx",
+    typeName: "List<DataStruct<AgendaItem>>",
+    persisted: false,
+  );
   static const authToken = ffai.ProjectAppStateFieldHandle(
     name: "authToken",
     key: "ec4o0d2q",
@@ -343,6 +349,7 @@ abstract final class AppState {
   );
   static const all = <ffai.ProjectAppStateFieldHandle>[
     accentColor,
+    agendaItems,
     authToken,
     availableTeams,
     bugScreenshotPaths,

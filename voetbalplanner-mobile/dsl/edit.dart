@@ -1280,6 +1280,10 @@ void buildEditFlow(App app) {
     _addDashboardTrainingsSection(project);
     // Status-iconen (aangemeld/afgemeld) onder de trainingskaart.
     _addTrainingCardStatusIcons(project);
+    // Verenigingsagenda op het dashboard — ook ná _wireDashboardLoad, anders
+    // wordt de GetAgendaUpcoming-call uit de on-load-chain gewist.
+    _ensureAgendaItemsAppStateField(project);
+    _addDashboardAgendaSection(project);
     // TrainingDetailPage-inhoud + kaart aantikbaar maken.
     _wireTrainingDetailPage(project);
     _wireTrainingCardNavigation(project);
@@ -20885,11 +20889,11 @@ void _buildAgendaPages(App app) {
         outputAs: 'agendaDetailRes',
         params: {'agendaItemId': PageParam('agendaItemId')},
         onSuccess: (res) => [
-          SetState('item', res),
-          SetState('isLoading', false),
+          SetState(ff.Pages.agendaDetailPage.state.item, res),
+          SetState(ff.Pages.agendaDetailPage.state.isLoading, false),
         ],
         onFailure: [
-          SetState('isLoading', false),
+          SetState(ff.Pages.agendaDetailPage.state.isLoading, false),
           Snackbar('Deze activiteit kon niet worden geladen.'),
         ],
       ),
@@ -20906,11 +20910,11 @@ void _buildAgendaPages(App app) {
             spacing: 14,
             padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             children: [
-              Text(State('item')['categoryLabel'],
+              Text(State(ff.Pages.agendaDetailPage.state.item)['categoryLabel'],
                   name: 'AgendaDetailCategory',
                   style: Styles.labelMedium,
                   color: Colors.primary),
-              Text(State('item')['title'],
+              Text(State(ff.Pages.agendaDetailPage.state.item)['title'],
                   name: 'AgendaDetailTitle',
                   style: Styles.headlineSmall,
                   color: Colors.primaryText,
@@ -20922,7 +20926,7 @@ void _buildAgendaPages(App app) {
                 crossAxis: CrossAxis.center,
                 children: [
                   Icon('event', size: 20, color: Colors.secondaryText),
-                  Text(State('item')['dateLabel'],
+                  Text(State(ff.Pages.agendaDetailPage.state.item)['dateLabel'],
                       name: 'AgendaDetailDate',
                       style: Styles.bodyMedium,
                       color: Colors.primaryText),
@@ -20934,7 +20938,7 @@ void _buildAgendaPages(App app) {
                 crossAxis: CrossAxis.center,
                 children: [
                   Icon('schedule', size: 20, color: Colors.secondaryText),
-                  Text(State('item')['timeLabel'],
+                  Text(State(ff.Pages.agendaDetailPage.state.item)['timeLabel'],
                       name: 'AgendaDetailTime',
                       style: Styles.bodyMedium,
                       color: Colors.primaryText),
@@ -20946,7 +20950,7 @@ void _buildAgendaPages(App app) {
                 crossAxis: CrossAxis.center,
                 children: [
                   Icon('place', size: 20, color: Colors.secondaryText),
-                  Text(State('item')['location'],
+                  Text(State(ff.Pages.agendaDetailPage.state.item)['location'],
                       name: 'AgendaDetailLocation',
                       style: Styles.bodyMedium,
                       color: Colors.primaryText,
@@ -20960,7 +20964,7 @@ void _buildAgendaPages(App app) {
                 crossAxis: CrossAxis.center,
                 children: [
                   Icon('group', size: 20, color: Colors.secondaryText),
-                  Text(State('item')['audienceLabel'],
+                  Text(State(ff.Pages.agendaDetailPage.state.item)['audienceLabel'],
                       name: 'AgendaDetailAudience',
                       style: Styles.bodyMedium,
                       color: Colors.secondaryText,
@@ -20968,13 +20972,13 @@ void _buildAgendaPages(App app) {
                       overflow: TextOverflow.ellipsis),
                 ],
               ),
-              Text(State('item')['description'],
+              Text(State(ff.Pages.agendaDetailPage.state.item)['description'],
                   name: 'AgendaDetailDescription',
                   style: Styles.bodyLarge,
                   color: Colors.primaryText,
                   maxLines: 40,
                   overflow: TextOverflow.ellipsis),
-              Text(State('item')['extraInfo'],
+              Text(State(ff.Pages.agendaDetailPage.state.item)['extraInfo'],
                   name: 'AgendaDetailExtra',
                   style: Styles.bodyMedium,
                   color: Colors.secondaryText,
@@ -20986,7 +20990,7 @@ void _buildAgendaPages(App app) {
                 name: 'AgendaDetailRegistrationBox',
                 // Structvelden zijn strings ('true'/'false'), dus expliciet
                 // vergelijken — visible: verwacht een boolean.
-                visible: Equals(State('item')['registrationEnabled'], 'true'),
+                visible: Equals(State(ff.Pages.agendaDetailPage.state.item)['registrationEnabled'], 'true'),
                 padding: EdgeInsets.all(14),
                 color: Colors.secondaryBackground,
                 borderRadius: 12,
@@ -21001,7 +21005,7 @@ void _buildAgendaPages(App app) {
                       crossAxis: CrossAxis.center,
                       children: [
                         Icon('how_to_reg', size: 20, color: Colors.primary),
-                        Text(State('item')['goingCount'],
+                        Text(State(ff.Pages.agendaDetailPage.state.item)['goingCount'],
                             name: 'AgendaDetailGoingCount',
                             style: Styles.titleSmall,
                             color: Colors.primaryText),
@@ -21018,7 +21022,7 @@ void _buildAgendaPages(App app) {
                       width: double.infinity,
                       color: Colors.primary,
                       textColor: Colors.primaryBackground,
-                      visible: Equals(State('item')['canRegister'], 'true'),
+                      visible: Equals(State(ff.Pages.agendaDetailPage.state.item)['canRegister'], 'true'),
                       onTap: ApiCall(
                         _aanmeldenAgendaEp,
                         outputAs: 'agendaAanmeldRes',
@@ -21032,7 +21036,7 @@ void _buildAgendaPages(App app) {
                             _getAgendaDetailEp,
                             outputAs: 'agendaReloadAfterJoinRes',
                             params: {'agendaItemId': PageParam('agendaItemId')},
-                            onSuccess: (r) => [SetState('item', r)],
+                            onSuccess: (r) => [SetState(ff.Pages.agendaDetailPage.state.item, r)],
                           ),
                         ],
                         onFailure: [Snackbar('Aanmelden is niet gelukt.')],
@@ -21044,7 +21048,7 @@ void _buildAgendaPages(App app) {
                       icon: 'close',
                       width: double.infinity,
                       variant: ButtonVariant.outlined,
-                      visible: Equals(State('item')['isRegistered'], 'true'),
+                      visible: Equals(State(ff.Pages.agendaDetailPage.state.item)['isRegistered'], 'true'),
                       onTap: ApiCall(
                         _afmeldenAgendaEp,
                         outputAs: 'agendaAfmeldRes',
@@ -21055,7 +21059,7 @@ void _buildAgendaPages(App app) {
                             _getAgendaDetailEp,
                             outputAs: 'agendaReloadAfterLeaveRes',
                             params: {'agendaItemId': PageParam('agendaItemId')},
-                            onSuccess: (r) => [SetState('item', r)],
+                            onSuccess: (r) => [SetState(ff.Pages.agendaDetailPage.state.item, r)],
                           ),
                         ],
                         onFailure: [Snackbar('Afmelden is niet gelukt.')],
@@ -21073,8 +21077,8 @@ void _buildAgendaPages(App app) {
                 icon: 'open_in_new',
                 width: double.infinity,
                 variant: ButtonVariant.outlined,
-                visible: Not(Equals(State('item')['externalUrl'], '')),
-                onTap: LaunchUrl(State('item')['externalUrl']),
+                visible: Not(Equals(State(ff.Pages.agendaDetailPage.state.item)['externalUrl'], '')),
+                onTap: LaunchUrl(State(ff.Pages.agendaDetailPage.state.item)['externalUrl']),
               ),
               Button(
                 'Toevoegen aan mijn agenda',
@@ -21082,7 +21086,7 @@ void _buildAgendaPages(App app) {
                 icon: 'calendar_month',
                 width: double.infinity,
                 variant: ButtonVariant.outlined,
-                onTap: LaunchUrl(State('item')['googleCalendarUrl']),
+                onTap: LaunchUrl(State(ff.Pages.agendaDetailPage.state.item)['googleCalendarUrl']),
               ),
             ],
           ),
@@ -21106,18 +21110,18 @@ void _buildAgendaPages(App app) {
       ApiCall(
         _getAgendaCategoriesEp,
         outputAs: 'agendaCategoriesRes',
-        onSuccess: (res) => [SetState('categories', res)],
+        onSuccess: (res) => [SetState(ff.Pages.agendaPage.state.categories, res)],
       ),
       ApiCall(
         _getAgendaEp,
         outputAs: 'agendaListRes',
-        params: {'limit': '50', 'category': State('selectedCategory')},
+        params: {'limit': '50', 'category': State(ff.Pages.agendaPage.state.selectedCategory)},
         onSuccess: (res) => [
-          SetState('items', res),
-          SetState('isLoading', false),
+          SetState(ff.Pages.agendaPage.state.items, res),
+          SetState(ff.Pages.agendaPage.state.isLoading, false),
         ],
         onFailure: [
-          SetState('isLoading', false),
+          SetState(ff.Pages.agendaPage.state.isLoading, false),
           Snackbar('De agenda kon niet worden geladen.'),
         ],
       ),
@@ -21135,7 +21139,7 @@ void _buildAgendaPages(App app) {
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: ListView(
               name: 'AgendaCategoryChips',
-              source: State('categories'),
+              source: State(ff.Pages.agendaPage.state.categories),
               horizontal: true,
               spacing: 8,
               itemBuilder: (cat) => Container(
@@ -21148,12 +21152,12 @@ void _buildAgendaPages(App app) {
                     style: Styles.labelMedium,
                     color: Colors.primaryText),
                 onTap: [
-                  SetState('selectedCategory', cat['slug']),
+                  SetState(ff.Pages.agendaPage.state.selectedCategory, cat['slug']),
                   ApiCall(
                     _getAgendaEp,
                     outputAs: 'agendaFilterRes',
                     params: {'limit': '50', 'category': cat['slug']},
-                    onSuccess: (res) => [SetState('items', res)],
+                    onSuccess: (res) => [SetState(ff.Pages.agendaPage.state.items, res)],
                     onFailure: [Snackbar('Filteren is niet gelukt.')],
                   ),
                 ],
@@ -21165,19 +21169,19 @@ void _buildAgendaPages(App app) {
           Container(
             name: 'AgendaClearFilterWrap',
             padding: EdgeInsets.symmetric(horizontal: 16),
-            visible: Not(Equals(State('selectedCategory'), '')),
+            visible: Not(Equals(State(ff.Pages.agendaPage.state.selectedCategory), '')),
             child: Button(
               'Toon alles',
               name: 'AgendaClearFilterButton',
               icon: 'filter_alt_off',
               variant: ButtonVariant.text,
               onTap: [
-                SetState('selectedCategory', ''),
+                SetState(ff.Pages.agendaPage.state.selectedCategory, ''),
                 ApiCall(
                   _getAgendaEp,
                   outputAs: 'agendaClearFilterRes',
                   params: {'limit': '50', 'category': ''},
-                  onSuccess: (res) => [SetState('items', res)],
+                  onSuccess: (res) => [SetState(ff.Pages.agendaPage.state.items, res)],
                 ),
               ],
             ),
@@ -21186,7 +21190,7 @@ void _buildAgendaPages(App app) {
           Expanded(
             ListView(
               name: 'AgendaList',
-              source: State('items'),
+              source: State(ff.Pages.agendaPage.state.items),
               spacing: 10,
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               itemBuilder: (item) => Container(
@@ -22864,6 +22868,178 @@ void _addDashboardTrainingsSection(FFProject project) {
     padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 8),
     child: UI.column(
       name: 'DashboardTrainingsCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 8,
+      children: [header, listView],
+    ),
+  );
+
+  parentCol.children.add(section);
+}
+
+// AppState 'agendaItems' = List<AgendaItem>, gevuld door GetAgendaUpcoming
+// (dashboardblok "Binnenkort").
+void _ensureAgendaItemsAppStateField(FFProject project) {
+  if (project.appState.fields.any(
+    (f) => f.parameter.identifier.name == 'agendaItems',
+  )) return;
+  final struct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'AgendaItem', orElse: () => null);
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(name: 'agendaItems', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+// Dashboardsectie "Binnenkort bij <club>": de eerstvolgende drie activiteiten
+// uit de verenigingsagenda, met een knop naar de volledige agenda.
+//
+// Bewust compact (max drie, kleine kaarten) zodat de persoonlijke secties
+// erboven — wedstrijden, bardiensten, rijschema — dominant blijven.
+// Moet ná _wireDashboardLoad draaien, die de on-load-chain elke push opnieuw
+// opbouwt; anders wordt de GetAgendaUpcoming-call er weer uit gewist.
+void _addDashboardAgendaSection(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  // 1. onLoad: agenda ophalen -> AppState.agendaItems.
+  final hasEndpoint = findApiEndpoint(
+        project, name: 'GetAgendaUpcoming', groupName: 'VoetbalPlannerAPI') != null;
+  if (hasEndpoint) {
+    bool hasLoad(FFActionNode node) {
+      if (node.hasAction() &&
+          node.action.hasDatabase() &&
+          node.action.database.hasApiCall() &&
+          node.action.database.apiCall.hasEndpointIdentifier() &&
+          node.action.database.apiCall.endpointIdentifier.name == 'GetAgendaUpcoming') {
+        return true;
+      }
+      if (node.hasFollowUpAction() && hasLoad(node.followUpAction)) return true;
+      return false;
+    }
+
+    final already = wc.node.triggerActions
+        .any((t) => t.hasRootAction() && hasLoad(t.rootAction));
+    if (!already) {
+      _appendToFirstPageLoadChain(
+        wc.node,
+        Actions.apiCallNode(
+          project,
+          endpointName: 'GetAgendaUpcoming',
+          groupName: 'VoetbalPlannerAPI',
+          outputVariableName: 'agendaLoad',
+          nodeKey: wc.node.key,
+          onSuccess: (ctx) => Actions.chain([
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable('agendaItems', ctx.responseVar),
+            ]),
+          ]),
+        ),
+      );
+    }
+  }
+
+  // 2. Sectie-UI (idempotent).
+  if (findDescendants(wc.node, (n) => n.name == 'DashboardAgendaContainer').isNotEmpty) {
+    return;
+  }
+
+  // Onder de trainingen plaatsen; bestaat die sectie nog niet, dan onder de
+  // wedstrijden — dan staat de agenda nooit bovenaan het dashboard.
+  final anchor =
+      findDescendants(wc.node, (n) => n.name == 'DashboardTrainingsContainer').firstOrNull ??
+      findDescendants(wc.node, (n) => n.name == 'DashboardMatchesContainer').firstOrNull;
+  if (anchor == null) return;
+
+  final parentCol = findDescendants(wc.node, (_) => true)
+      .where((n) => n.children.any((c) => identical(c, anchor)))
+      .firstOrNull;
+  if (parentCol == null) return;
+
+  final agendaId = _findAppStateFieldId(project, 'agendaItems');
+  if (agendaId == null) return;
+  final agendaVar = varFromAppState(agendaId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  // Kop met de clubnaam uit de branding, zodat het per club klopt ("Binnenkort
+  // bij Bon Boys"). Twee losse teksten in een rij: FFStringValue kent geen
+  // prefix, dus samenvoegen in één tekstveld kan niet.
+  final clubNameId = _findAppStateFieldId(project, 'clubName');
+  final FFNode header;
+  if (clubNameId != null) {
+    final clubText = UI.text('', name: 'DashboardAgendaClubName',
+        style: UITextStyle.titleMedium);
+    clubText.props.text.textValue =
+        FFStringValue(variable: varFromAppState(clubNameId.deepCopy()));
+    header = UI.row(
+      name: 'DashboardAgendaHeaderRow',
+      spacing: 4,
+      children: [
+        UI.text('Binnenkort bij',
+            name: 'DashboardAgendaHeader', style: UITextStyle.titleMedium),
+        clubText,
+      ],
+    );
+  } else {
+    header = UI.text('Binnenkort bij de club',
+        name: 'DashboardAgendaHeader', style: UITextStyle.titleMedium);
+  }
+
+  final listView = UI.listView(
+    name: 'DashboardAgendaList',
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    dynamicSource: DynamicSource(variable: agendaVar, itemName: 'agendaItem'),
+  );
+  // Verplicht binnen een scrollende Column — zonder shrinkWrap rendert de
+  // ListView niets.
+  listView.props.listView.shrinkWrapValue = FFBooleanValue(inputValue: true);
+
+  FFNode field(String name, String fieldName, UITextStyle style, {UIColor? color}) {
+    final t = UI.text('', name: name, style: style, color: color);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(listView.key, fieldName));
+    return t;
+  }
+
+  final card = UI.container(
+    name: 'DashboardAgendaCard',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.secondaryBackground,
+    child: UI.row(
+      name: 'DashAgendaRow',
+      spacing: 12,
+      children: [
+        UI.icon('event', size: 24, color: UIColor.primary),
+        UI.column(
+          name: 'DashAgendaInfo',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 2,
+          children: [
+            field('DashAgendaTitle', 'title', UITextStyle.bodyMedium),
+            UI.row(name: 'DashAgendaWhen', spacing: 8, children: [
+              field('DashAgendaDate', 'dateLabel', UITextStyle.bodySmall, color: UIColor.primary),
+              field('DashAgendaTime', 'timeLabel', UITextStyle.bodySmall),
+            ]),
+            field('DashAgendaLocation', 'location', UITextStyle.bodySmall),
+            field('DashAgendaCategory', 'categoryLabel', UITextStyle.bodySmall),
+          ],
+        ),
+      ],
+    ),
+  );
+  listView.children.add(card);
+
+  final section = UI.container(
+    name: 'DashboardAgendaContainer',
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    child: UI.column(
+      name: 'DashboardAgendaCol',
       crossAxisAlignment: UICrossAxisAlignment.start,
       spacing: 8,
       children: [header, listView],
