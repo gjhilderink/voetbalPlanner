@@ -21,6 +21,15 @@ class ReleaseNotesSeeder extends Seeder
         $features = [
             [
                 'type'        => 'feature',
+                'title'       => 'Verenigingsagenda',
+                'description' => 'Alle verenigingsactiviteiten staan nu bij elkaar in de agenda: het toernooi, '
+                    . 'de bazaar, clubavonden, vrijwilligersactiviteiten en de oliebollentraining. Je ziet per '
+                    . 'activiteit de datum, tijd, locatie en waar het over gaat, en je kunt je in één tik '
+                    . 'aanmelden als dat nodig is. De eerstvolgende activiteiten staan ook op je dashboard, '
+                    . 'en met "Toevoegen aan mijn agenda" zet je een activiteit in je eigen kalender.',
+            ],
+            [
+                'type'        => 'feature',
                 'title'       => 'Account verwijderen vanuit de app',
                 'description' => 'Je kunt nu vanaf je profiel je account volledig zelf verwijderen. '
                     . 'Na een duidelijke bevestiging worden al je gegevens én je chatgeschiedenis '
