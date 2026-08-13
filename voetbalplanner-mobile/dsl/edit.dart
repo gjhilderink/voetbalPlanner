@@ -2402,6 +2402,11 @@ void _setupNavBar(FFProject project) {
   addNavBarPage(project, pageName: 'BardienPage',     iconName: 'sports_bar');
   addNavBarPage(project, pageName: 'ChatsPage',       iconName: 'chat');
   addNavBarPage(project, pageName: 'ProfielPage',     iconName: 'person');
+  // Verenigingsagenda. Alleen toevoegen als de pagina bestaat — bij een push
+  // waarin AgendaPage nog niet is aangemaakt zou dit anders stukgaan.
+  if (findPage(project, name: 'AgendaPage') != null) {
+    addNavBarPage(project, pageName: 'AgendaPage', iconName: 'event');
+  }
   // Fix ordering: DashboardPage must be first; ChatsPage before ProfielPage.
   final pages = listNavBarPages(project);
   final dashIdx    = pages.indexOf('DashboardPage');
@@ -2412,6 +2417,14 @@ void _setupNavBar(FFProject project) {
   }
   if (chatsIdx > profielIdx && chatsIdx >= 0 && profielIdx >= 0) {
     reorderNavBarPage(project, pageName: 'ChatsPage', newIndex: profielIdx);
+  }
+  // Agenda achter de team-tabs (Bardienst) en vóór Chats/Profiel, zodat de
+  // persoonlijke tabs vooraan blijven staan.
+  final withAgenda = listNavBarPages(project);
+  final agendaIdx  = withAgenda.indexOf('AgendaPage');
+  final bardienIdx = withAgenda.indexOf('BardienPage');
+  if (agendaIdx >= 0 && bardienIdx >= 0 && agendaIdx != bardienIdx + 1) {
+    reorderNavBarPage(project, pageName: 'AgendaPage', newIndex: bardienIdx + 1);
   }
   // addNavBarPage is idempotent: when ChatsPage is already in pageKeyRefOrder
   // it returns early WITHOUT setting navBarItem.show = true. Force-set it here
