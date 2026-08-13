@@ -19,6 +19,55 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle agendaCategory = ffai.StructHandle(
+    "AgendaCategory",
+    <String, ffai.DslType>{
+      "color": ffai.string,
+      "icon": ffai.string,
+      "id": ffai.string,
+      "name": ffai.string,
+      "slug": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
+  static final ffai.StructHandle agendaItem = ffai.StructHandle(
+    "AgendaItem",
+    <String, ffai.DslType>{
+      "allowGuests": ffai.string,
+      "audienceLabel": ffai.string,
+      "canRegister": ffai.string,
+      "categoryColor": ffai.string,
+      "categoryIcon": ffai.string,
+      "categoryLabel": ffai.string,
+      "categorySlug": ffai.string,
+      "dateLabel": ffai.string,
+      "description": ffai.string,
+      "externalUrl": ffai.string,
+      "extraInfo": ffai.string,
+      "goingCount": ffai.string,
+      "googleCalendarUrl": ffai.string,
+      "icsUrl": ffai.string,
+      "id": ffai.string,
+      "imageUrl": ffai.string,
+      "isFull": ffai.string,
+      "isHighlighted": ffai.string,
+      "isPast": ffai.string,
+      "isRegistered": ffai.string,
+      "location": ffai.string,
+      "locationUrl": ffai.string,
+      "myStatus": ffai.string,
+      "registrationEnabled": ffai.string,
+      "registrationOpen": ffai.string,
+      "showParticipants": ffai.string,
+      "spotsLeft": ffai.string,
+      "startDate": ffai.string,
+      "startTime": ffai.string,
+      "summary": ffai.string,
+      "timeLabel": ffai.string,
+      "title": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle banner = ffai.StructHandle(
     "Banner",
     <String, ffai.DslType>{
@@ -317,6 +366,8 @@ abstract final class Structs {
   );
   static final all = <ffai.StructHandle>[
     afmelding,
+    agendaCategory,
+    agendaItem,
     banner,
     barDuty,
     clubBranding,

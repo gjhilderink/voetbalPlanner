@@ -775,6 +775,8 @@ void buildEditFlow(App app) {
   // Native endpoints voor score-beheer (doelpunten ophalen/toevoegen/verwijderen).
   app.raw((project) => _addScoreEndpoints(project));
   app.raw((project) => _addGuestInviteEndpoints(project));
+  // Verenigingsagenda: structs + endpoints (lijst, categorieën, detail, aan-/afmelden).
+  app.raw((project) => _addAgendaEndpoints(project));
   // (De dashboard-trainingen-sectie wordt verderop toegevoegd, ná _wireDashboardLoad
   // die de on-load-chain elke push opnieuw opbouwt — anders wordt GetTrainings gewist.)
 
@@ -20816,6 +20818,146 @@ void _addScoreEndpoints(FFProject project) {
       responseDataStructName: 'SwapMember',
       responseDataStructIsList: true,
     );
+  }
+}
+
+// ─── Verenigingsagenda ────────────────────────────────────────────────────────
+
+// Structs + endpoints voor de verenigingsagenda (backend: /api/v1/agenda).
+//
+// Alle structvelden zijn String, net als bij GuestInvitation: de backend levert
+// datum, tijd en booleans al als kant-en-klare tekst aan, zodat de app niets
+// hoeft te formatteren. Dat is hier extra belangrijk omdat de opgeslagen tijden
+// Nederlandse wandkloktijd zijn en een ISO-conversie er twee uur naast zou zitten.
+void _addAgendaEndpoints(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  bool has(String n) => findApiEndpoint(project, name: n, groupName: groupName) != null;
+  FFDataTypeV2 str() => FFDataTypeV2(scalarType: FFBaseDataType.String);
+
+  if (findDataStruct(project, name: 'AgendaItem') == null) {
+    addDataStruct(
+      project,
+      name: 'AgendaItem',
+      description: 'Activiteit uit de verenigingsagenda (weergavevelden voor de app).',
+      fields: [
+        structField('id',            stringType, description: 'Activiteit ID'),
+        structField('title',         stringType, description: 'Titel'),
+        structField('summary',       stringType, description: 'Korte omschrijving'),
+        structField('description',   stringType, description: 'Volledige omschrijving'),
+        structField('extraInfo',     stringType, description: 'Aanvullende informatie'),
+        structField('imageUrl',      stringType, description: 'Afbeelding (URL)'),
+        structField('categorySlug',  stringType, description: 'Categorie-sleutel'),
+        structField('categoryLabel', stringType, description: 'Categorie-naam'),
+        structField('categoryColor', stringType, description: 'Categorie-kleur (hex)'),
+        structField('categoryIcon',  stringType, description: 'Material-iconnaam'),
+        structField('dateLabel',     stringType, description: "Datum, bv. 'za 12 september'"),
+        structField('timeLabel',     stringType, description: "Tijd, bv. '10:00 – 17:00'"),
+        structField('startDate',     stringType, description: 'Begindatum dd-mm-jjjj'),
+        structField('startTime',     stringType, description: 'Begintijd uu:mm'),
+        structField('location',      stringType, description: 'Locatie'),
+        structField('locationUrl',   stringType, description: 'Routelink'),
+        structField('externalUrl',   stringType, description: 'Externe link'),
+        structField('audienceLabel', stringType, description: 'Voor wie de activiteit bedoeld is'),
+        structField('registrationEnabled', stringType, description: "'true' als aanmelden aanstaat"),
+        structField('registrationOpen',    stringType, description: "'true' als aanmelden nog kan"),
+        structField('goingCount',    stringType, description: 'Aantal aangemelde personen'),
+        structField('spotsLeft',     stringType, description: 'Resterende plaatsen (leeg = onbeperkt)'),
+        structField('isFull',        stringType, description: "'true' als de activiteit vol zit"),
+        structField('allowGuests',   stringType, description: "'true' als introducés mogen"),
+        structField('showParticipants', stringType, description: "'true' als de deelnemerslijst zichtbaar is"),
+        structField('myStatus',      stringType, description: "'aangemeld', 'afgemeld' of leeg"),
+        structField('isRegistered',  stringType, description: "'true' als ik ben aangemeld"),
+        structField('canRegister',   stringType, description: "'true' als ik me nog kan aanmelden"),
+        structField('icsUrl',        stringType, description: 'Downloadlink .ics'),
+        structField('googleCalendarUrl', stringType, description: 'Toevoegen aan Google Agenda'),
+        structField('isHighlighted', stringType, description: "'true' als uitgelicht"),
+        structField('isPast',        stringType, description: "'true' als de activiteit voorbij is"),
+      ],
+    );
+  }
+
+  if (findDataStruct(project, name: 'AgendaCategory') == null) {
+    addDataStruct(
+      project,
+      name: 'AgendaCategory',
+      description: 'Categorie voor het filter op de agendapagina.',
+      fields: [
+        structField('id',    stringType, description: 'Categorie ID'),
+        structField('slug',  stringType, description: 'Sleutel voor het filter'),
+        structField('name',  stringType, description: 'Naam'),
+        structField('color', stringType, description: 'Kleur (hex)'),
+        structField('icon',  stringType, description: 'Material-iconnaam'),
+      ],
+    );
+  }
+
+  // Lijst met optioneel categoriefilter. Een lege [category] levert gewoon alles.
+  const listUrl = '/agenda?limit=[limit]&category=[category]';
+  if (has('GetAgenda')) {
+    updateApiEndpoint(project, name: 'GetAgenda', groupName: groupName,
+        url: listUrl, method: FFApiEndpoint_CallType.GET,
+        responseDataStructName: 'AgendaItem', responseDataStructIsList: true);
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetAgenda',
+        url: listUrl, method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'limit': str(), 'category': str()},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'AgendaItem', responseDataStructIsList: true);
+  }
+
+  // Aparte call voor het dashboardblok: alleen de eerstvolgende drie.
+  if (!has('GetAgendaUpcoming')) {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetAgendaUpcoming',
+        url: '/agenda?limit=3&days=90', method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE, variables: {},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'AgendaItem', responseDataStructIsList: true);
+  }
+
+  if (!has('GetAgendaCategories')) {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetAgendaCategories',
+        url: '/agenda/categories', method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE, variables: {},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'AgendaCategory', responseDataStructIsList: true);
+  }
+
+  if (!has('GetAgendaDetail')) {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetAgendaDetail',
+        url: '/agenda/[agendaItemId]', method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'agendaItemId': str()},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'AgendaItem');
+  }
+
+  // POST met query-params: FF interpoleert [var] alleen in de URL, niet in een
+  // JSON-body. Laravel's validate() leest query-params net zo goed.
+  const aanmeldUrl = '/agenda/[agendaItemId]/aanmelden?guest_count=[guestCount]';
+  if (has('AanmeldenAgenda')) {
+    updateApiEndpoint(project, name: 'AanmeldenAgenda', groupName: groupName,
+        url: aanmeldUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'AanmeldenAgenda',
+        url: aanmeldUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'agendaItemId': str(), 'guestCount': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
+  const afmeldUrl = '/agenda/[agendaItemId]/afmelden';
+  if (has('AfmeldenAgenda')) {
+    updateApiEndpoint(project, name: 'AfmeldenAgenda', groupName: groupName,
+        url: afmeldUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'AfmeldenAgenda',
+        url: afmeldUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'agendaItemId': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
   }
 }
 
