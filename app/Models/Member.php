@@ -60,6 +60,12 @@ class Member extends Model
             ->withTimestamps();
     }
 
+    /** Staf-/commissiegroepen waar dit lid in zit (StaffGroup::members). */
+    public function staffGroups(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(StaffGroup::class, 'staff_group_member');
+    }
+
     public function matchesAsCoach(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(FootballMatch::class, 'coach_id');

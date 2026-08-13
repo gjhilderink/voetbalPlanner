@@ -120,6 +120,12 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         return $this->belongsToMany(Team::class, 'user_team')->withPivot('role');
     }
 
+    /** Staf-/commissiegroepen waar dit account direct aan hangt (StaffGroup::users). */
+    public function staffGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(StaffGroup::class, 'staff_group_user');
+    }
+
     public function managedTeamIds(): Collection
     {
         return $this->managedTeams()->pluck('teams.id');
