@@ -3,6 +3,8 @@
 library;
 
 import 'package:flutterflow_ai/flutterflow_ai.dart' as ffai;
+import 'pages/agenda_detail_page.dart' show agendaDetailPageHandle;
+import 'pages/agenda_page.dart' show agendaPageHandle;
 import 'pages/bardien_detail_page.dart' show bardienDetailPageHandle;
 import 'pages/bardien_page.dart' show bardienPageHandle;
 import 'pages/bug_report_page.dart' show bugReportPageHandle;
@@ -34,6 +36,8 @@ import 'pages/wissel_aanvraag_page.dart' show wisselAanvraagPageHandle;
 import 'pages/wissel_verzoeken_page.dart' show wisselVerzoekenPageHandle;
 
 abstract final class Pages {
+  static final agendaDetailPage = agendaDetailPageHandle;
+  static final agendaPage = agendaPageHandle;
   static final bardienDetailPage = bardienDetailPageHandle;
   static final bardienPage = bardienPageHandle;
   static final bugReportPage = bugReportPageHandle;
@@ -64,6 +68,8 @@ abstract final class Pages {
   static final wisselAanvraagPage = wisselAanvraagPageHandle;
   static final wisselVerzoekenPage = wisselVerzoekenPageHandle;
   static final all = <ffai.ProjectPageHandle>[
+    agendaDetailPage,
+    agendaPage,
     bardienDetailPage,
     bardienPage,
     bugReportPage,

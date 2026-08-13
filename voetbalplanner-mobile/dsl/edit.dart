@@ -777,6 +777,9 @@ void buildEditFlow(App app) {
   app.raw((project) => _addGuestInviteEndpoints(project));
   // Verenigingsagenda: structs + endpoints (lijst, categorieën, detail, aan-/afmelden).
   app.raw((project) => _addAgendaEndpoints(project));
+  // Agendaschermen — ná _addAgendaEndpoints, want ApiCall resolveert de
+  // endpoints op naam tegen het project en faalt als ze nog niet bestaan.
+  _buildAgendaPages(app);
   // (De dashboard-trainingen-sectie wordt verderop toegevoegd, ná _wireDashboardLoad
   // die de on-load-chain elke push opnieuw opbouwt — anders wordt GetTrainings gewist.)
 
@@ -20819,6 +20822,434 @@ void _addScoreEndpoints(FFProject project) {
       responseDataStructIsList: true,
     );
   }
+}
+
+// ─── Verenigingsagenda: schermen ──────────────────────────────────────────────
+
+// Endpoint-waardeobjecten voor de agenda. Ze wórden hier niet aangemaakt — dat
+// doet _addAgendaEndpoints via ruwe proto — maar ApiCall resolveert op naam +
+// groepsnaam tegen het project (_findApiEndpointOrThrow), dus attachToGroup()
+// volstaat om naar het bestaande endpoint te verwijzen.
+Endpoint _agendaEndpoint(Endpoint e) => e..attachToGroup('VoetbalPlannerAPI');
+
+Endpoint get _getAgendaEp => _agendaEndpoint(Endpoint.get(
+      'GetAgenda',
+      '/agenda?limit=[limit]&category=[category]',
+      variables: {'limit': string, 'category': string},
+      response: listOf(ff.Structs.agendaItem),
+    ));
+
+Endpoint get _getAgendaCategoriesEp => _agendaEndpoint(Endpoint.get(
+      'GetAgendaCategories',
+      '/agenda/categories',
+      response: listOf(ff.Structs.agendaCategory),
+    ));
+
+Endpoint get _getAgendaDetailEp => _agendaEndpoint(Endpoint.get(
+      'GetAgendaDetail',
+      '/agenda/[agendaItemId]',
+      variables: {'agendaItemId': string},
+      response: ff.Structs.agendaItem,
+    ));
+
+Endpoint get _aanmeldenAgendaEp => _agendaEndpoint(Endpoint.post(
+      'AanmeldenAgenda',
+      '/agenda/[agendaItemId]/aanmelden?guest_count=[guestCount]',
+      variables: {'agendaItemId': string, 'guestCount': string},
+    ));
+
+Endpoint get _afmeldenAgendaEp => _agendaEndpoint(Endpoint.post(
+      'AfmeldenAgenda',
+      '/agenda/[agendaItemId]/afmelden',
+      variables: {'agendaItemId': string},
+    ));
+
+// Agendapagina (lijst) + detailpagina. De backend levert datum, tijd en de
+// booleans al als kant-en-klare tekst, dus de schermen formatteren zelf niets.
+void _buildAgendaPages(App app) {
+  // Detailpagina eerst, zodat de lijst ernaartoe kan navigeren met de handle.
+  final detailPage = app.ensurePage(
+    'AgendaDetailPage',
+    description: 'Detail van een verenigingsactiviteit, met aan-/afmelden en toevoegen aan je eigen agenda.',
+    route: 'agenda-detail',
+    // withDefault: een verplichte param laat een cold-start deep link crashen.
+    params: {'agendaItemId': string.withDefault('')},
+    state: {
+      'item':      ff.Structs.agendaItem,
+      'isLoading': bool_.withDefault(true),
+      'isSaving':  bool_.withDefault(false),
+    },
+    onLoad: [
+      ApiCall(
+        _getAgendaDetailEp,
+        outputAs: 'agendaDetailRes',
+        params: {'agendaItemId': PageParam('agendaItemId')},
+        onSuccess: (res) => [
+          SetState('item', res),
+          SetState('isLoading', false),
+        ],
+        onFailure: [
+          SetState('isLoading', false),
+          Snackbar('Deze activiteit kon niet worden geladen.'),
+        ],
+      ),
+    ],
+    body: Scaffold(
+      appBar: AppBar(title: 'Activiteit'),
+      body: Column(
+        name: 'AgendaDetailScroll',
+        scrollable: true,
+        children: [
+          Column(
+            name: 'AgendaDetailColumn',
+            crossAxis: CrossAxis.start,
+            spacing: 14,
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            children: [
+              Text(State('item')['categoryLabel'],
+                  name: 'AgendaDetailCategory',
+                  style: Styles.labelMedium,
+                  color: Colors.primary),
+              Text(State('item')['title'],
+                  name: 'AgendaDetailTitle',
+                  style: Styles.headlineSmall,
+                  color: Colors.primaryText,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis),
+              Row(
+                name: 'AgendaDetailWhenRow',
+                spacing: 8,
+                crossAxis: CrossAxis.center,
+                children: [
+                  Icon('event', size: 20, color: Colors.secondaryText),
+                  Text(State('item')['dateLabel'],
+                      name: 'AgendaDetailDate',
+                      style: Styles.bodyMedium,
+                      color: Colors.primaryText),
+                ],
+              ),
+              Row(
+                name: 'AgendaDetailTimeRow',
+                spacing: 8,
+                crossAxis: CrossAxis.center,
+                children: [
+                  Icon('schedule', size: 20, color: Colors.secondaryText),
+                  Text(State('item')['timeLabel'],
+                      name: 'AgendaDetailTime',
+                      style: Styles.bodyMedium,
+                      color: Colors.primaryText),
+                ],
+              ),
+              Row(
+                name: 'AgendaDetailLocationRow',
+                spacing: 8,
+                crossAxis: CrossAxis.center,
+                children: [
+                  Icon('place', size: 20, color: Colors.secondaryText),
+                  Text(State('item')['location'],
+                      name: 'AgendaDetailLocation',
+                      style: Styles.bodyMedium,
+                      color: Colors.primaryText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+              Row(
+                name: 'AgendaDetailAudienceRow',
+                spacing: 8,
+                crossAxis: CrossAxis.center,
+                children: [
+                  Icon('group', size: 20, color: Colors.secondaryText),
+                  Text(State('item')['audienceLabel'],
+                      name: 'AgendaDetailAudience',
+                      style: Styles.bodyMedium,
+                      color: Colors.secondaryText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+              Text(State('item')['description'],
+                  name: 'AgendaDetailDescription',
+                  style: Styles.bodyLarge,
+                  color: Colors.primaryText,
+                  maxLines: 40,
+                  overflow: TextOverflow.ellipsis),
+              Text(State('item')['extraInfo'],
+                  name: 'AgendaDetailExtra',
+                  style: Styles.bodyMedium,
+                  color: Colors.secondaryText,
+                  maxLines: 20,
+                  overflow: TextOverflow.ellipsis),
+
+              // Aanmeldblok — alleen zichtbaar als aanmelden aanstaat.
+              Container(
+                name: 'AgendaDetailRegistrationBox',
+                // Structvelden zijn strings ('true'/'false'), dus expliciet
+                // vergelijken — visible: verwacht een boolean.
+                visible: Equals(State('item')['registrationEnabled'], 'true'),
+                padding: EdgeInsets.all(14),
+                color: Colors.secondaryBackground,
+                borderRadius: 12,
+                child: Column(
+                  name: 'AgendaDetailRegistrationColumn',
+                  crossAxis: CrossAxis.start,
+                  spacing: 10,
+                  children: [
+                    Row(
+                      name: 'AgendaDetailCountRow',
+                      spacing: 8,
+                      crossAxis: CrossAxis.center,
+                      children: [
+                        Icon('how_to_reg', size: 20, color: Colors.primary),
+                        Text(State('item')['goingCount'],
+                            name: 'AgendaDetailGoingCount',
+                            style: Styles.titleSmall,
+                            color: Colors.primaryText),
+                        Text('aangemeld',
+                            name: 'AgendaDetailGoingLabel',
+                            style: Styles.bodyMedium,
+                            color: Colors.secondaryText),
+                      ],
+                    ),
+                    Button(
+                      'Ik ben erbij',
+                      name: 'AgendaAanmeldButton',
+                      icon: 'check',
+                      width: double.infinity,
+                      color: Colors.primary,
+                      textColor: Colors.primaryBackground,
+                      visible: Equals(State('item')['canRegister'], 'true'),
+                      onTap: ApiCall(
+                        _aanmeldenAgendaEp,
+                        outputAs: 'agendaAanmeldRes',
+                        params: {
+                          'agendaItemId': PageParam('agendaItemId'),
+                          'guestCount': '0',
+                        },
+                        onSuccess: (res) => [
+                          Snackbar('Je bent aangemeld.'),
+                          ApiCall(
+                            _getAgendaDetailEp,
+                            outputAs: 'agendaReloadAfterJoinRes',
+                            params: {'agendaItemId': PageParam('agendaItemId')},
+                            onSuccess: (r) => [SetState('item', r)],
+                          ),
+                        ],
+                        onFailure: [Snackbar('Aanmelden is niet gelukt.')],
+                      ),
+                    ),
+                    Button(
+                      'Toch niet',
+                      name: 'AgendaAfmeldButton',
+                      icon: 'close',
+                      width: double.infinity,
+                      variant: ButtonVariant.outlined,
+                      visible: Equals(State('item')['isRegistered'], 'true'),
+                      onTap: ApiCall(
+                        _afmeldenAgendaEp,
+                        outputAs: 'agendaAfmeldRes',
+                        params: {'agendaItemId': PageParam('agendaItemId')},
+                        onSuccess: (res) => [
+                          Snackbar('Je bent afgemeld.'),
+                          ApiCall(
+                            _getAgendaDetailEp,
+                            outputAs: 'agendaReloadAfterLeaveRes',
+                            params: {'agendaItemId': PageParam('agendaItemId')},
+                            onSuccess: (r) => [SetState('item', r)],
+                          ),
+                        ],
+                        onFailure: [Snackbar('Afmelden is niet gelukt.')],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Externe link en kalender. De .ics-download zit achter auth, dus
+              // die openen we in de browser met de sessie van de app.
+              Button(
+                'Meer informatie',
+                name: 'AgendaExternalLinkButton',
+                icon: 'open_in_new',
+                width: double.infinity,
+                variant: ButtonVariant.outlined,
+                visible: Not(Equals(State('item')['externalUrl'], '')),
+                onTap: LaunchUrl(State('item')['externalUrl']),
+              ),
+              Button(
+                'Toevoegen aan mijn agenda',
+                name: 'AgendaAddToCalendarButton',
+                icon: 'calendar_month',
+                width: double.infinity,
+                variant: ButtonVariant.outlined,
+                onTap: LaunchUrl(State('item')['googleCalendarUrl']),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+
+  // Lijstpagina.
+  app.ensurePage(
+    'AgendaPage',
+    description: 'Verenigingsagenda: alle activiteiten van de club, met filter per categorie.',
+    route: 'agenda',
+    state: {
+      'items':            listOf(ff.Structs.agendaItem),
+      'categories':       listOf(ff.Structs.agendaCategory),
+      'selectedCategory': string.withDefault(''),
+      'isLoading':        bool_.withDefault(true),
+    },
+    onLoad: [
+      ApiCall(
+        _getAgendaCategoriesEp,
+        outputAs: 'agendaCategoriesRes',
+        onSuccess: (res) => [SetState('categories', res)],
+      ),
+      ApiCall(
+        _getAgendaEp,
+        outputAs: 'agendaListRes',
+        params: {'limit': '50', 'category': State('selectedCategory')},
+        onSuccess: (res) => [
+          SetState('items', res),
+          SetState('isLoading', false),
+        ],
+        onFailure: [
+          SetState('isLoading', false),
+          Snackbar('De agenda kon niet worden geladen.'),
+        ],
+      ),
+    ],
+    body: Scaffold(
+      appBar: AppBar(title: 'Agenda'),
+      body: Column(
+        name: 'AgendaPageColumn',
+        crossAxis: CrossAxis.start,
+        children: [
+          // Categoriefilter: horizontaal scrollende chips.
+          Container(
+            name: 'AgendaFilterBar',
+            height: 56,
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: ListView(
+              name: 'AgendaCategoryChips',
+              source: State('categories'),
+              horizontal: true,
+              spacing: 8,
+              itemBuilder: (cat) => Container(
+                name: 'AgendaCategoryChip',
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                color: Colors.secondaryBackground,
+                borderRadius: 20,
+                child: Text(cat['name'],
+                    name: 'AgendaCategoryChipLabel',
+                    style: Styles.labelMedium,
+                    color: Colors.primaryText),
+                onTap: [
+                  SetState('selectedCategory', cat['slug']),
+                  ApiCall(
+                    _getAgendaEp,
+                    outputAs: 'agendaFilterRes',
+                    params: {'limit': '50', 'category': cat['slug']},
+                    onSuccess: (res) => [SetState('items', res)],
+                    onFailure: [Snackbar('Filteren is niet gelukt.')],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // "Alles"-knop om het filter weer los te laten.
+          Container(
+            name: 'AgendaClearFilterWrap',
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            visible: Not(Equals(State('selectedCategory'), '')),
+            child: Button(
+              'Toon alles',
+              name: 'AgendaClearFilterButton',
+              icon: 'filter_alt_off',
+              variant: ButtonVariant.text,
+              onTap: [
+                SetState('selectedCategory', ''),
+                ApiCall(
+                  _getAgendaEp,
+                  outputAs: 'agendaClearFilterRes',
+                  params: {'limit': '50', 'category': ''},
+                  onSuccess: (res) => [SetState('items', res)],
+                ),
+              ],
+            ),
+          ),
+
+          Expanded(
+            ListView(
+              name: 'AgendaList',
+              source: State('items'),
+              spacing: 10,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              itemBuilder: (item) => Container(
+                name: 'AgendaListCard',
+                padding: EdgeInsets.all(14),
+                color: Colors.secondaryBackground,
+                borderRadius: 12,
+                child: Column(
+                  name: 'AgendaCardColumn',
+                  crossAxis: CrossAxis.start,
+                  spacing: 6,
+                  children: [
+                    // De datum staat bovenaan elke kaart en werkt zo als
+                    // datumkop; de lijst komt al chronologisch binnen.
+                    Text(item['dateLabel'],
+                        name: 'AgendaCardDate',
+                        style: Styles.labelMedium,
+                        color: Colors.primary),
+                    Text(item['title'],
+                        name: 'AgendaCardTitle',
+                        style: Styles.titleSmall,
+                        color: Colors.primaryText,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                    Text(item['summary'],
+                        name: 'AgendaCardSummary',
+                        style: Styles.bodyMedium,
+                        color: Colors.secondaryText,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                    Row(
+                      name: 'AgendaCardMetaRow',
+                      spacing: 12,
+                      crossAxis: CrossAxis.center,
+                      children: [
+                        Text(item['timeLabel'],
+                            name: 'AgendaCardTime',
+                            style: Styles.bodySmall,
+                            color: Colors.secondaryText),
+                        Text(item['location'],
+                            name: 'AgendaCardLocation',
+                            style: Styles.bodySmall,
+                            color: Colors.secondaryText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                    Text(item['categoryLabel'],
+                        name: 'AgendaCardCategory',
+                        style: Styles.bodySmall,
+                        color: Colors.primary),
+                  ],
+                ),
+                onTap: Navigate.to(detailPage, params: {
+                  'agendaItemId': item['id'],
+                }),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 // ─── Verenigingsagenda ────────────────────────────────────────────────────────
