@@ -1292,6 +1292,9 @@ void buildEditFlow(App app) {
     // Team-switcher bovenaan (alleen bij >1 team); switcht wedstrijden + trainingen.
     _addDashboardTeamSwitcher(project);
     _addDashboardGuestInvitations(project);
+    // Kopjes van alle dashboardsecties gelijktrekken — moet ná álle
+    // sectie-builders, anders bestaan de nodes nog niet.
+    _alignDashboardSectionHeaders(project);
     _removeClubLogoDebug(project);
   });
 
@@ -22888,6 +22891,43 @@ void _addDashboardTrainingsSection(FFProject project) {
   );
 
   parentCol.children.add(section);
+}
+
+// Trekt de kopjes van de dashboardsecties gelijk. "Mijn Rijschema" en "Mijn
+// bardiensten" gebruiken titleSmall met 12px links; de trainingen-, agenda- en
+// uitnodigingenkop weken af (titleMedium, en bij uitnodigingen 5px links).
+//
+// Aparte fix-functie omdat de sectie-builders idempotent zijn: die slaan een
+// bestaande sectie over, dus een wijziging in hun UI-code raakt de al
+// aangemaakte nodes niet.
+void _alignDashboardSectionHeaders(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  const headerNames = [
+    'DashboardTrainingsHeader',
+    'DashboardAgendaHeader',
+    'DashboardAgendaClubName',
+    'GuestInvHeader',
+  ];
+
+  for (final name in headerNames) {
+    final node = findDescendants(wc.node, (n) => n.name == name).firstOrNull;
+    if (node == null) continue;
+    node.props.text.themeStyle = FFText_ThemeStyle.TITLE_SMALL;
+  }
+
+  // Uitnodigingen stond op 5px links; gelijktrekken met de rest.
+  final invWrap =
+      findDescendants(wc.node, (n) => n.name == 'GuestInvHeaderWrap').firstOrNull;
+  if (invWrap != null) {
+    invWrap.props.padding = FFPadding(
+      leftValue: FFDoubleValue(inputValue: 12),
+      topValue: FFDoubleValue(inputValue: 4),
+      rightValue: FFDoubleValue(inputValue: 12),
+      bottomValue: FFDoubleValue(inputValue: 4),
+    );
+  }
 }
 
 // AppState 'agendaItems' = List<AgendaItem>, gevuld door GetAgendaUpcoming
