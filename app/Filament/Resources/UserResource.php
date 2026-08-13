@@ -64,11 +64,28 @@ class UserResource extends Resource
             ])->columns(2),
 
             Section::make('Club')->schema([
+                // Standaard de club waarin je werkt. Zonder default bleef dit veld
+                // leeg en kreeg een nieuwe gebruiker géén club — de placeholder
+                // "alle clubs" oogde bovendien als een normale keuze.
                 Forms\Components\Select::make('club_id')
                     ->label('Club')
-                    ->options(Club::where('is_active', true)->orderBy('name')->pluck('name', 'id'))
+                    ->default(fn () => filament()->getTenant()?->id ?? auth()->user()?->club_id)
+                    ->options(function (): array {
+                        $query = Club::where('is_active', true)->orderBy('name');
+
+                        // Alleen een super admin kan een gebruiker aan een andere
+                        // club hangen of clubloos laten.
+                        if (! auth()->user()?->hasRole('super_admin')) {
+                            $query->whereKey(filament()->getTenant()?->id ?? auth()->user()?->club_id);
+                        }
+
+                        return $query->pluck('name', 'id')->all();
+                    })
                     ->searchable()
-                    ->placeholder('— Alle clubs (super admin) —')
+                    ->required(fn (): bool => ! (auth()->user()?->hasRole('super_admin') ?? false))
+                    ->placeholder(fn (): string => auth()->user()?->hasRole('super_admin')
+                        ? '— Alle clubs (super admin) —'
+                        : 'Kies een club')
                     ->helperText('Super admins hebben automatisch toegang tot alle clubs en hebben geen club-koppeling nodig.')
                     ->columnSpanFull(),
             ]),
