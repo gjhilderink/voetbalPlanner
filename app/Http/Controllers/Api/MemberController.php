@@ -15,6 +15,9 @@ class MemberController extends Controller
     public function index(Request $request): JsonResponse
     {
         $members = Member::query()
+            // Leden hangen via hun teams aan een club; zonder deze regel kwamen
+            // de leden van alle clubs terug.
+            ->whereHas('teams', fn($q) => $q->where('club_id', $request->user()?->club_id))
             ->when($request->team_id, fn($q, $id) => $q->whereHas('teams', fn($q) => $q->where('teams.id', $id)))
             ->when($request->role, fn($q, $r) => $q->where('role', $r))
             ->when($request->search, fn($q, $s) => $q->where('name', 'like', "%{$s}%"))

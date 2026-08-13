@@ -187,11 +187,16 @@ class User extends Authenticatable implements FilamentUser, HasTenants
 
         $teams = $this->managedTeams()->get();
 
-        if ($this->member) {
-            $teams = $teams->merge($this->member->teams);
+        // resolveMember() i.p.v. de directe member-relatie: leden die alleen via
+        // e-mail aan hun account hangen (geen user_id op het lid) hielden anders
+        // een lege teamlijst over, waardoor 'alleen mijn teams' niets opleverde.
+        $member = $this->resolveMember();
+
+        if ($member) {
+            $teams = $teams->merge($member->teams);
 
             $childMemberIds = \App\Models\GuardianLink::query()
-                ->where('guardian_member_id', $this->member->id)
+                ->where('guardian_member_id', $member->id)
                 ->where('status', 'approved')
                 ->pluck('child_member_id');
 

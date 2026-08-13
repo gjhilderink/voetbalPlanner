@@ -17,6 +17,9 @@ class TeamController extends Controller
     public function index(Request $request): JsonResponse
     {
         $teams = Team::query()
+            // Altijd binnen de eigen club; zonder deze regel kwamen de teams van
+            // alle clubs terug.
+            ->where('club_id', $request->user()?->club_id)
             ->when($request->boolean('active_only', true), fn($q) => $q->where('is_active', true))
             ->when($request->season, fn($q, $s) => $q->where('season', $s))
             ->when($request->search, fn($q, $s) => $q->where('name', 'like', "%{$s}%"))

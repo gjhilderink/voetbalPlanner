@@ -16,18 +16,28 @@ class MatchController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+        // De app stuurt team_id altijd mee, ook leeg; een lege string telt hier
+        // als "niet opgegeven" (zie ook TrainingController).
+        $teamId = $request->query('team_id') ?: null;
+
         $matches = FootballMatch::query()
             ->with(['team', 'coach', 'coaches', 'fruitHero', 'drivers'])
+            // Altijd binnen de eigen club. Zonder deze regel gaf een call zonder
+            // team_id én zonder mine=1 alle wedstrijden van álle clubs terug.
+            ->whereHas('team', fn($t) => $t->where('club_id', $user?->club_id))
             // ?mine=1 beperkt tot de teams waaraan de gebruiker gekoppeld is
             // (eigen teams via user_team/member + kinderen). Gebruikt o.a. door
             // het rijschema zodat je alleen ritten van je eigen teams ziet.
-            ->when($request->boolean('mine'), function ($q) use ($request) {
-                $ids = $request->user()?->accessibleTeams()->pluck('id') ?? collect();
+            // Zonder expliciet team gebeurt dat nu ook: standaard je eigen teams,
+            // niet de hele club.
+            ->when($request->boolean('mine') || ! $teamId, function ($q) use ($user) {
+                $ids = $user?->accessibleTeams()->pluck('id') ?? collect();
                 $q->whereIn('team_id', $ids);
             })
             ->when($request->has('is_home'), fn($q) => $q->where('is_home', $request->boolean('is_home')))
             ->when($request->boolean('has_drivers'), fn($q) => $q->has('drivers'))
-            ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
+            ->when($teamId, fn($q, $id) => $q->where('team_id', $id))
             ->when($request->status, fn($q, $s) => $q->where('status', $s))
             ->when($request->upcoming, fn($q) => $q->where('match_datetime', '>=', now()))
             ->when($request->date_from, fn($q, $d) => $q->where('match_datetime', '>=', $d))
