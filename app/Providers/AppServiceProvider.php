@@ -84,8 +84,18 @@ class AppServiceProvider extends ServiceProvider
                 Config::set('mail.from.address', $fromAddr);
                 Config::set('mail.from.name',    $fromName);
             }
-        } catch (\Throwable) {
-            // Database not yet available (e.g. during migrations) — use .env defaults.
+        } catch (\Throwable $e) {
+            // Database nog niet beschikbaar (bv. tijdens migraties) — dan zijn de
+            // .env-waarden de bedoeling en is dit geen fout.
+            //
+            // Maar ook een mislukte decrypt() van smtp_password komt hier terecht
+            // (bv. na een APP_KEY-wissel). Dan valt de mailer stil terug op .env
+            // en faalt versturen met '535 Incorrect authentication data', zónder
+            // enig spoor. Vandaar deze regel: zonder logging is dat vrijwel niet
+            // te vinden.
+            \Log::warning('[SMTP] instellingen niet toegepast, .env-waarden blijven gelden', [
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }
