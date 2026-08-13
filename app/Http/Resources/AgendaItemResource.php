@@ -62,11 +62,11 @@ class AgendaItemResource extends JsonResource
             'startTime' => $this->is_all_day ? '' : $start->format('H:i'),
             'endDate'   => $end?->format('d-m-Y') ?? '',
             'endTime'   => ($this->is_all_day || ! $end) ? '' : $end->format('H:i'),
-            'isAllDay'  => (bool) $this->is_all_day,
+            'isAllDay'  => self::boolText($this->is_all_day),
             'dateLabel' => self::dateLabel($start),
             'timeLabel' => self::timeLabel($this->is_all_day, $start, $end),
-            'daysUntil' => (int) floor(now()->startOfDay()->diffInDays($start->copy()->startOfDay(), false)),
-            'isPast'    => $this->isPast(),
+            'daysUntil' => (string) (int) floor(now()->startOfDay()->diffInDays($start->copy()->startOfDay(), false)),
+            'isPast'    => self::boolText($this->isPast()),
 
             'location'    => (string) $this->location,
             'locationUrl' => (string) $this->location_url,
@@ -75,29 +75,40 @@ class AgendaItemResource extends JsonResource
             'audience'      => $this->audience,
             'audienceLabel' => $this->audienceLabel(),
 
-            'registrationEnabled'  => (bool) $this->registration_enabled,
-            'registrationOpen'     => $this->isRegistrationOpen(),
+            'registrationEnabled'  => self::boolText($this->registration_enabled),
+            'registrationOpen'     => self::boolText($this->isRegistrationOpen()),
             'registrationClosesAt' => $this->registration_closes_at?->format('d-m-Y H:i') ?? '',
-            'capacity'         => $this->capacity,
-            'goingCount'       => $goingCount,
-            'spotsLeft'        => $this->spotsLeft(),
-            'isFull'           => $this->isFull(),
-            'allowGuests'      => (bool) $this->allow_guests,
-            'showParticipants' => (bool) $this->show_participants,
+            'capacity'         => $this->capacity === null ? '' : (string) $this->capacity,
+            'goingCount'       => (string) $goingCount,
+            'spotsLeft'        => $this->spotsLeft() === null ? '' : (string) $this->spotsLeft(),
+            'isFull'           => self::boolText($this->isFull()),
+            'allowGuests'      => self::boolText($this->allow_guests),
+            'showParticipants' => self::boolText($this->show_participants),
 
             'myStatus'      => $myReg?->status ?? '',
-            'myGuestCount'  => (int) ($myReg?->guest_count ?? 0),
-            'isRegistered'  => $myReg?->status === AgendaRegistration::STATUS_GOING,
-            'canRegister'   => $this->isRegistrationOpen()
+            'myGuestCount'  => (string) (int) ($myReg?->guest_count ?? 0),
+            'isRegistered'  => self::boolText($myReg?->status === AgendaRegistration::STATUS_GOING),
+            'canRegister'   => self::boolText($this->isRegistrationOpen()
                 && ($myReg?->status !== AgendaRegistration::STATUS_GOING)
-                && ! $this->isFull(),
+                && ! $this->isFull()),
 
             'icsUrl'             => url("/api/v1/agenda/{$this->id}/ics"),
             'googleCalendarUrl'  => $ics->googleUrl($this->resource),
             'outlookCalendarUrl' => $ics->outlookUrl($this->resource),
 
-            'isHighlighted' => (bool) $this->is_highlighted,
+            'isHighlighted' => self::boolText($this->is_highlighted),
         ];
+    }
+
+    /**
+     * Booleans als 'true'/'false'-tekst. De AgendaItem-struct in de app
+     * declareert al deze velden als String; een echte JSON-boolean wordt daar
+     * naar null gecast, waardoor de zichtbaarheidschecks (Equals(..., 'true'))
+     * nooit matchen en het aanmeldblok onzichtbaar blijft.
+     */
+    private static function boolText(mixed $value): string
+    {
+        return $value ? 'true' : 'false';
     }
 
     /** "za 12 september" — of met jaartal als het niet dit jaar is. */
