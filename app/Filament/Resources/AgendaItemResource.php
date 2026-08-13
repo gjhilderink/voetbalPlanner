@@ -67,9 +67,12 @@ class AgendaItemResource extends Resource
             $query->where('club_id', auth()->user()?->club_id);
         }
 
+        // Twee aggregaten: aangemelde personen én hun introducés. De capaciteit
+        // telt introducés mee, dus de kolom moet dat ook doen.
         return $query
             ->with(['category', 'teams:id,name', 'staffGroups:id,name'])
-            ->withCount(['registrations as going_count' => fn ($q) => $q->where('status', 'aangemeld')]);
+            ->withCount(['registrations as going_people' => fn ($q) => $q->going()])
+            ->withSum(['registrations as going_guests' => fn ($q) => $q->going()], 'guest_count');
     }
 
     /** Categorieën van de eigen club, voor de keuzelijst. */
@@ -285,12 +288,18 @@ class AgendaItemResource extends Resource
                         : Str::limit($record->audienceLabel(), 30))
                     ->color(fn ($state): string => $state === AgendaItem::AUDIENCE_EVERYONE ? 'gray' : 'info'),
 
-                Tables\Columns\TextColumn::make('going_count')
+                Tables\Columns\TextColumn::make('going_people')
                     ->label('Aangemeld')
                     ->badge()
-                    ->formatStateUsing(fn ($state, AgendaItem $record): string => $record->capacity
-                        ? "{$state} / {$record->capacity}"
-                        : (string) $state),
+                    ->color(fn (AgendaItem $record): string => $record->capacity
+                        && (int) $record->going_people + (int) $record->going_guests >= $record->capacity
+                            ? 'danger'
+                            : 'gray')
+                    ->formatStateUsing(function ($state, AgendaItem $record): string {
+                        $total = (int) $state + (int) $record->going_guests;
+
+                        return $record->capacity ? "{$total} / {$record->capacity}" : (string) $total;
+                    }),
 
                 Tables\Columns\IconColumn::make('is_published')->label('Live')->boolean(),
             ])

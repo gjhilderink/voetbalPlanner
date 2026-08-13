@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\LineupController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\TrainingController;
+use App\Http\Controllers\Api\AgendaController;
 use App\Http\Controllers\Api\NewsItemController;
 use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\StaffGroupController;
@@ -122,6 +123,17 @@ Route::prefix('v1')->group(function () {
         // Nieuws
         Route::get('/news', [NewsItemController::class, 'index']);
         Route::get('/news/{newsItem}', [NewsItemController::class, 'show']);
+
+        // Verenigingsagenda. LET OP: /agenda/categories staat bewust vóór
+        // /agenda/{agendaItem}, anders vangt de wildcard 'categories' op.
+        Route::get('/agenda', [AgendaController::class, 'index']);
+        Route::get('/agenda/categories', [AgendaController::class, 'categories']);
+        Route::get('/agenda/{agendaItem}', [AgendaController::class, 'show']);
+        Route::get('/agenda/{agendaItem}/deelnemers', [AgendaController::class, 'participants']);
+        Route::get('/agenda/{agendaItem}/ics', [AgendaController::class, 'ics']);
+        // Af-/aanmelden via POST (shared-host-veilig, zoals bij wedstrijden)
+        Route::post('/agenda/{agendaItem}/aanmelden', [AgendaController::class, 'aanmelden']);
+        Route::post('/agenda/{agendaItem}/afmelden', [AgendaController::class, 'afmelden']);
 
         // Teams
         Route::get('/teams', [TeamController::class, 'index']);
