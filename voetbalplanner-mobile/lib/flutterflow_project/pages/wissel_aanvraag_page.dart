@@ -53,7 +53,7 @@ final class WisselAanvraagPageState {
       const ffai.ProjectStateFieldHandle(
         name: "teamMembers",
         key: "fx6kjsg2",
-        typeName: "List<DataStruct<?>>",
+        typeName: "List<DataStruct<SwapMember>>",
       );
 }
 

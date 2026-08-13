@@ -36,6 +36,8 @@ Don't run the check on every command — once at the start of the session is eno
 
 If the user pasted a `FlutterFlow AI Selector v1` block, use it before any broad page/component inspection:
 
+**Widget references (`[#N]`).** Context attached from the IDE ("Add Widget to Context") arrives as inline references like `[#1]`, `[#2]` in the prose, with the full selector blocks collected in a trailing `Context:` footer — each headed by `[#N] Name (Type)`. Resolve every `[#N]` to its block in that footer and treat it as the widget the user means. A message that carries these references (or a raw selector block) **together with any instruction is an actionable request about those widgets** — act on it; do not reply "No response requested".
+
 1. Parse the pasted block for `project_id`, `scope_kind`, `scope_name`, `selector_path`, `node_key`, `node_name`, and `node_type`.
 2. Run `flutterflow ai inspect <project_id> --page|--component <scope_name> --selector-path <selector_path> --dsl-json` to resolve the target widget.
 3. Verify the returned `node_type` and `node_name` match expectations from the pasted block.
@@ -107,7 +109,7 @@ The decision rule:
 ```
 flutterflow_ai__patch({
   project_id: <id>,
-  commit_message: 'fast-patch: <op summary>',
+  commit_message: '<op summary>',
   node_key: ff.pages.Home.widgets.welcomeTitle.key,
   widget_type: ff.pages.Home.widgets.welcomeTitle.type,
   patches: [
@@ -127,27 +129,7 @@ flutterflow_ai__patch({
 - `color` (theme tokens): `{ op: 'color', value: { token: 'primary' } }`. Valid slots: `primary`, `secondary`, `tertiary`, `alternate`, `primaryBackground`, `secondaryBackground`, `primaryText`, `secondaryText`, `accent1`–`accent4`, `success`, `warning`, `error`, `info`.
 - `colorArgb` (raw ARGB int): `{ op: 'colorArgb', value: 0xFFE91E63 }`. Use this when the user asks for a specific hex/RGB color that doesn't map to a theme slot. Both ops target the same widgets (Text, Button, Icon, IconButton, Container, Card, Divider, TextField); they write to different proto leaves.
 
-**Op surface (current snapshot, ~100 ops):**
-
-The complete list lives in `kFastPatchOps` (in the SDK's generated `fast_patch_ops.g.dart`) and is too long to enumerate inline. Highlights by category:
-
-- **Text/typography**: `text`, `fontFamily`, `fontSize`, `fontWeight` (w100–w900), `fontStyle` (normal/italic), `textAlign` (start/center/end/justify), `textDecoration` (none/underline/strikethrough), `overflow` (clip/ellipsis/fade/visible), `maxLines`, `lineHeight`, `letterSpacing`
-- **Color / visibility**: `color` (token), `colorArgb` (raw int), `visible`, `opacity`
-- **Sizing / spacing**: `width`, `height`, `borderRadius`, `spacing`. `paddingAll` and `aspectRatio`-equivalents stay slow-path
-- **Container styling**: `boxShape`, `clipContent`, `safeArea`, `borderColor`, `borderWidth`
-- **AppBar**: `appBarTitle`, `appBarCenterTitle`, `appBarElevation`
-- **Button**: `buttonVariant`, `buttonLoading`, `buttonElevation`, `buttonIconPosition` (leading/trailing)
-- **TextField (~14)**: `textFieldLabel`, `textFieldHint`, `textFieldFilled`, `textFieldBorder` (outline/underline/none), `textFieldMaxLength`, `textFieldLinesMin/Max`, `keyboardType`, `obscureText`, `readOnly`, `autofocus`, `textFieldFillColor`, `textFieldHintColor`, `textFieldLabelColor`, `textFieldCursorColor`
-- **Slider/Switch/Checkbox/Progress**: per-side color ops (`sliderColorActive/Inactive`, `switchColorActive/ActiveTrack/InactiveThumb/InactiveTrack`, `checkboxColorActive/Check/Unchecked`, `progressColorForeground/Background`), `sliderMin/Max/Divisions`, `progressShape`, `progressBarRadius`, `disabled`
-- **Dropdown**: `dropdownHint`, `dropdownLabel`, `dropdownElevation`, `dropdownInitialOption`
-- **Divider**: `dividerThickness`, `dividerStyle` (solid/dotted/dashed/dashDotted), `dividerIndentStart`, `dividerIndentEnd`
-- **Card**: `cardElevation`
-- **Charts**: `chartShowGrid`, `chartShowLegend`, `chartShowBorder`, `chartGridColor`, `chartBorderWidth`, plus per-type configs (`barChart*`, `pieChart*`)
-- **Map**: `mapZoom`, `mapType` (normal/terrain/hybrid/satellite)
-- **Image**: `imageFit` (fill/contain/cover/fitWidth/fitHeight/none/scaleDown)
-- **HTML**: `htmlContent`
-- **Shader**: `shaderAnimationMode`, `shaderBackgroundColor`, `shaderInteractive`, `shaderCache`, `shaderAnimationDurationMs/DelayMs/Loop/Reverse`
-- **App-scoped (no node_key needed)**: `darkMode`, `primaryFont`, `secondaryFont`
+**Op surface (~100 ops):** the complete, always-current list is `flutterflow ai docs fast-lane` (generated from the live `kFastPatchOps` table). It covers text/typography, `color`/`colorArgb`/`visible`/`opacity`, sizing (`width`/`height`/`borderRadius`/`spacing`), container styling, AppBar, Button, ~14 TextField ops, Slider/Switch/Checkbox/Progress per-side colors, Dropdown, Divider, Card, Charts, Map, Image `imageFit`, `htmlContent`, Shader, and app-scoped ops (`darkMode`, `primaryFont`, `secondaryFont` — no `node_key` needed). Don't enumerate from memory; check the doc when unsure whether an op exists.
 
 **When in doubt, try the fast lane first.** A wrong op name returns `invalid_request` in <500ms with a list of valid ops; the slow path takes 2+ minutes whether the op exists or not. The cost of a wrong fast-lane guess is one extra round-trip; the cost of defaulting to slow path is the full 2+ minutes.
 
@@ -213,6 +195,14 @@ Quick summary; read `flutterflow ai docs edit-apis` for the full reference with 
 - **Page metadata** — use brownfield helpers: `setPageRoute`, `setPageRequiresAuth`, `updatePage`. Do NOT touch `routePath` on `ensurePageRouteSettings()` directly (skips normalization).
 - **Removing entities** — `app.removePage/Component/Collection/Table/DataStruct/Enum/ActionBlock/AppEvent/CustomFunction/CustomAction/CustomWidget/SpacingToken/RadiusToken/ShadowToken`. Fails loudly if the name is also declared in the same App. There is no `app.removeProject(...)`.
 - **Edit property patches** — `page.update(selection, (patch) { ... })` exposes typed methods on `EditWidgetPatch` (`text`, `color`, `visible`, `spacing`, `padding`, `borderRadius`, `size`, `icon`, `margin`, `alignment`, `border`, `shadow`, `opacity`, etc.). Escape hatch: `page.mutateNode(selection, (node) { ... })`.
+
+## Branches & merges
+
+FlutterFlow projects have branches — each branch is its own FFProject linked back to the trunk; `commit()` / `flutterflow ai run` write to whichever branch `.flutterflow/config.yaml` marks active. Read `flutterflow ai docs branches` for the full reference (every branch command, the 8-step merge loop, reading a `ConflictSpec`, anti-patterns).
+
+- **Switch first**: run `flutterflow ai branch current` if unsure; `branch checkout <name>` regenerates context against the new branch. The active branch's project_id is what every `run`/`commit` writes to.
+- **Merge loop** (in order, not free-form): `merge start --from <branch>` → `merge auto` (clears trivial cases) → `merge status` → `merge explain <file> --json` → edit `working/<path>` (remove `<<<<<<<`/`=======`/`>>>>>>>` markers) → `merge resolve <file>` → `merge verify` (the no-loss verifier — never bypass with `--accept-drops` unsilenced) → `merge commit -m "<msg>"`. `merge abort` to bail.
+- **Never** edit the `initial/` / `base/` / `head/` three-way reference dirs, and never run two merges at once in one workspace.
 
 ## Runtime Artifacts
 
@@ -293,11 +283,18 @@ Quick map:
 - **Validation runs automatically** — format + identifier + shape. Catch `CustomCodeDuplicateError` / `CustomCodeValidationError`. **Not** caught: type correctness against the rest of the project — use the staging sandbox (`.ffai_staging/` + `dart analyze`) for non-trivial code that references `FFAppState` / structs / generated types.
 - **Pub deps** — pub.dev discovery is your job; the SDK only records the resolution. Declare the dep next to the artifact that imports it.
 - **Param typing** — `DslType` covers scalars, `listOf(T)`, `classRef(handle)`, `customEnumRef(handle)`, `app.enum_/struct` handles, Firestore/Postgres handles, `action`. For uncovered types (`Document`, `SQLiteRow`, RevenueCat, etc.) drop into `app.raw(...)` and set `FFParameter.dataType` directly.
-- **Folder organization** — when the target project has `useFolderOrganizedCustomCode` on (an IDE-owned opt-in) and the **standard layout** is present (well-known `__ff_custom_code__` root), the SDK auto-files new artifacts into the synthetic `CustomCode/Functions|Widgets|Actions` tree. Pass `folderKey:` on any `add*`/`ensure*`/`update*` helper or DSL declaration to override (use `kCustomCodeFolderKey` for the synthetic root explicitly — `''` falls back to the legacy paths, NOT the root). On **adopted layouts** (rare, brownfield only — migration grafted onto a pre-existing user folder named `custom_code`), the SDK does NOT auto-default; pass `folderKey:` explicitly with the adopted folder's key (durable across IDE renames). Without it, items land unfiled at the merged panel root (codegen still resolves them via the legacy paths). On flag-off projects `folder_key` stays empty and `folderKey:` is silently ignored. The SDK never flips the flag — that's the IDE's job. Full notes: `flutterflow ai docs custom-code` → "Folder organization".
+- **Folder organization** — only relevant when the target project has `useFolderOrganizedCustomCode` on (an IDE-owned opt-in the SDK reads but never flips). On the standard layout the SDK auto-files new artifacts into the synthetic `CustomCode/Functions|Widgets|Actions` tree; pass `folderKey:` to override (`kCustomCodeFolderKey` = synthetic root; `''` falls back to legacy paths, NOT the root). On adopted layouts (rare brownfield) you must pass `folderKey:` explicitly. Full rules — standard vs adopted layout, fallbacks, flag-off behavior: `flutterflow ai docs custom-code` → "Folder organization".
+
+## Test Pilot (AI e2e testing)
+
+Author natural-language e2e tests that a vision agent runs against your app. Tests live OUTSIDE the project proto, so they have their own rules:
+- Declare with `app.testGroup('Auth', tests: [app.qaTest('login', instructions: ..., expectedOutcome: ...)])`. `flutterflow ai run` applies them after the push.
+- **No `id:` = create; `id:` = update in place.** Re-running a create file duplicates the group — to edit a test later, discover its id with the `testpilot.list` MCP tool and pass it back via `app.qaTest(id:)`. Nothing is ever deleted implicitly.
+- Run/read results via MCP: `testpilot.run` (starts a run; costs credits, takes minutes) then poll `testpilot.get_run`. Run `flutterflow ai docs test-pilot` for the full guide.
 
 ## AI Agents
 
-Project-level AI agents in five modalities — CHAT, TTS (text-to-speech), STT (speech-to-text), IMAGE_GEN, VIDEO_GEN. Each is declared on `app.*` (greenfield) or via the matching helper (brownfield), and invoked from an action chain through the kind-specific action node.
+Project-level AI agents in five modalities. Declared on `app.*` (greenfield) or via the matching helper (brownfield), invoked from an action chain through the kind-specific node. Read `flutterflow ai docs ai-agents` for the full reference (sub-config value objects, required fields, multimodal inputs, validation, code samples).
 
 | Kind | DSL (greenfield) | Helper (brownfield) | Action chain entry |
 | --- | --- | --- | --- |
@@ -307,93 +304,487 @@ Project-level AI agents in five modalities — CHAT, TTS (text-to-speech), STT (
 | IMAGE_GEN | `app.imageGenAgent` | `addImageGenAgent` | `GenerateImage` |
 | VIDEO_GEN | `app.videoGenAgent` | `addVideoGenAgent` | `GenerateVideo` |
 
-Shared CRUD: `removeAiAgent`, `updateAiAgent`, `findAiAgent`, `listAiAgents` (all kinds; `updateAiAgent` is kind-preserving — to change kind, remove and re-add).
+- Provider/kind support is restricted: CHAT → google/openai/anthropic, TTS/STT → elevenlabs, IMAGE_GEN → openai/google, VIDEO_GEN → google. Unsupported pairs throw `AiAgentValidationError` at the SDK boundary.
+- Every agent needs a non-empty `description` + `model.model`, and an `apiKey` EXCEPT `google + chat` (runs client-side via `firebase_vertexai`). CHAT also needs ≥1 `AiMessage.system(...)`, a non-empty `requestInputs`, and a non-null `response`.
+- `CallAiAgent` / `ClearAiAgentMessages` both require a stable `conversationId:` (codegen pairs send/clear by matching it).
+- Shared CRUD: `removeAiAgent`, `updateAiAgent` (kind-preserving), `findAiAgent`, `listAiAgents`. Validation throws typed `AiAgentError` subclasses — catch the subtype, don't regex messages.
 
-Sub-config value objects (in `dsl/ai_agent.dart`):
-- `AiModel(provider, model, apiKey?, parameters?, messages?)` — `apiKey` may be null when Firebase AI Logic provides credentials at the workspace level.
-- `AiModelParameters(temperature?, maxTokens?, topP?)` — nullable; unset stays unset.
-- `AiMessage.system/user/assistant(text)` — chat-history rows for `AiModel.messages`.
-- `AiResponse.plaintext/markdown/json/dataType` (CHAT only) — drives the typed output of `CallAiAgent(... outputAs:)`. `AiResponse.json(structs: [...])` constrains JSON to one or more DataStructs; `AiResponse.dataType(struct:)` returns a typed struct.
-- `AiRequestInputs(plaintext:, image:, audio:, video:, pdf:, dataStructs:)` (CHAT only) — which input modalities the agent accepts.
-- `AiAgentDeployment(timeoutSeconds?, memory?, requireAuthentication?, minInstances?, maxInstances?, outputTtlDays?)` — cloud-function knobs.
-- `AudioInput.networkUrl(url) | AudioInput.asset(asset)` (STT only) — sealed source for `TranscribeAudio.audio`.
+## Integrations
 
-Provider/kind support matrix (matches the cloud-function templates in `flutterflow_codegen/lib/server/agent_util.dart`). Unsupported pairs are rejected at the SDK boundary with `AiAgentValidationError`:
+First-class enable + actions for third-party integrations. Enable via `app.*` (greenfield) or the matching `configure*` helper (brownfield); wire actions from an action chain.
 
-| Kind | Supported providers |
-| --- | --- |
-| CHAT | google, openai, anthropic |
-| TTS | elevenlabs |
-| STT | elevenlabs |
-| IMAGE_GEN | openai, google |
-| VIDEO_GEN | google |
+### RevenueCat
 
-Required fields per agent (matches codegen's project validator). Every `addX/chatAgent/...` call must satisfy these or `AiAgentValidationError` fires before any proto mutation:
-
-- non-empty `description`
-- non-empty `model.model` string
-- `apiKey` on `AiModel` — EXCEPT for `google + chat` (runs client-side via `firebase_vertexai`). Google IMAGE_GEN and VIDEO_GEN both need a key.
-- For CHAT: at least one `AiMessage.system(...)` in `model.messages`, a non-empty `requestInputs` (at least `AiRequestInputs(plaintext: true)`), and a non-null `response`.
-
-Greenfield CHAT example:
+Enable billing and wire platform SDK keys. Each key may be a `String` literal or a `secretRef(name)` — **prefer `secretRef` so the literal key never lands in DSL source**. Set the secret out-of-band first (`integrations.set_secret`); the compiler resolves it against the project's environment values. At least one of `appStoreKey` / `playStoreKey` / `webBillingKey` is required.
 
 ```dart
-final intent = app.struct('Intent', {'name': string});
-final classifier = app.chatAgent(
-  'Classifier',
-  description: 'Classifies user intent.',
-  model: AiModel(
-    provider: AiModelProvider.openai,
-    model: 'gpt-4o-mini',
-    apiKey: 'sk-...',
-    messages: [AiMessage.system('You are a JSON-only classifier.')],
-  ),
-  requestInputs: AiRequestInputs(),
-  response: AiResponse.json(structs: [intent]),
+// Enable (greenfield)
+app.revenueCat(
+  appStoreKey: secretRef('REVENUECAT_APP_STORE_KEY'),
+  playStoreKey: secretRef('REVENUECAT_PLAY_STORE_KEY'),
+  debugLogging: false,          // default
+  loadDataAfterAppLaunch: true, // default
 );
-app.state('chatId', string);
-Button(onTap: [
-  CallAiAgent(
-    classifier,
-    conversationId: AppState('chatId'),
-    message: State('userQuery'),
-    outputAs: 'reply',
-  ),
-  SetState('lastReply', value: ActionOutput('reply')),
-]);
+
+// Idempotent enable — no-ops if already active on the project
+app.ensureRevenueCat(appStoreKey: secretRef('REVENUECAT_APP_STORE_KEY'));
+
+// Brownfield: configureRevenueCat(project, appStoreKey: ...); isRevenueCatActive(project)
 ```
 
-`CallAiAgent` and `ClearAiAgentMessages` both require `conversationId:` — codegen validates send/clear pairing by matching this value. Use a stable per-thread string (`AppState('currentChatId')`).
-
-Multimodal CHAT inputs map to the proto `*_input` oneofs and reuse the same sealed types where possible:
+Actions (require RevenueCat enabled on the project):
 
 ```dart
-CallAiAgent(
-  assistant,
-  conversationId: AppState('chatId'),
-  message: State('q'),
-  image: ImageInput.networkUrl(AppState('imageUrl')),
-  audio: AudioInput.asset(AppState('voiceClip')),
-  video: VideoInput.asset(AppState('clip')),
-  pdf: PdfInput.upload(AppState('document')),
+Actions.revenueCatPurchase(packageId: 'pkg_pro');
+Actions.revenueCatPaywall(entitlementId: 'premium');
+Actions.revenueCatRestore();
+```
+
+### Stripe
+
+Enable payments and wire the test/production credential pairs. Each credential key (and `appleMerchantId`) may be a `String` literal or a `secretRef(name)` — **prefer `secretRef` so the literal key never lands in DSL source**. Set the secret out-of-band first (`integrations.set_secret`); the compiler resolves it against the project's environment values. At least one publishable/secret key across `testCredentials` / `prodCredentials` is required.
+
+```dart
+// Enable (greenfield)
+app.stripe(
+  testCredentials: StripeCredentials(
+    publishableKey: secretRef('STRIPE_TEST_PUBLISHABLE_KEY'),
+    secretKey: secretRef('STRIPE_TEST_SECRET_KEY'),
+  ),
+  prodCredentials: StripeCredentials(
+    publishableKey: secretRef('STRIPE_PROD_PUBLISHABLE_KEY'),
+    secretKey: secretRef('STRIPE_PROD_SECRET_KEY'),
+  ),
+  merchantName: 'Acme Inc',
+  merchantCountryCode: 'US',
+  production: false, // default: test mode
+);
+
+// Idempotent enable — no-ops if already active on the project
+app.ensureStripe(
+  testCredentials: StripeCredentials(
+    publishableKey: secretRef('STRIPE_TEST_PUBLISHABLE_KEY'),
+  ),
+);
+
+// Brownfield: configureStripe(project, testPublishableKey: ...); isStripeActive(project)
+```
+
+Actions (require Stripe enabled on the project). `amount` and `currencyCode` are required; `currencyCode` is a plain string, `email` is an `FFVariable` resolving to the customer's email:
+
+```dart
+Actions.stripeSinglePayment(amount: '1999', currencyCode: 'usd', email: emailVar, description: 'Pro plan');
+```
+
+### Braintree
+
+Enable payments and wire the test/sandbox and production credential sets. Each credential field may be a `String` literal or a `secretRef(name)` — **prefer `secretRef` so the literal key never lands in DSL source**. Set the secret out-of-band first (`integrations.set_secret`); the compiler resolves it against the project's environment values. At least one credential field across `testCredentials` / `prodCredentials` is required.
+
+```dart
+// Enable (greenfield)
+app.braintree(
+  testCredentials: BraintreeCredentials(
+    merchantId: secretRef('BRAINTREE_TEST_MERCHANT_ID'),
+    tokenizationKey: secretRef('BRAINTREE_TEST_TOKENIZATION_KEY'),
+    publicKey: secretRef('BRAINTREE_TEST_PUBLIC_KEY'),
+    privateKey: secretRef('BRAINTREE_TEST_PRIVATE_KEY'),
+  ),
+  prodCredentials: BraintreeCredentials(
+    merchantId: secretRef('BRAINTREE_PROD_MERCHANT_ID'),
+    tokenizationKey: secretRef('BRAINTREE_PROD_TOKENIZATION_KEY'),
+    publicKey: secretRef('BRAINTREE_PROD_PUBLIC_KEY'),
+    privateKey: secretRef('BRAINTREE_PROD_PRIVATE_KEY'),
+  ),
+  production: false, // default: sandbox mode
+);
+
+// Idempotent enable — no-ops if already active on the project
+app.ensureBraintree(
+  testCredentials: BraintreeCredentials(
+    tokenizationKey: secretRef('BRAINTREE_TEST_TOKENIZATION_KEY'),
+  ),
+);
+
+// Brownfield: configureBraintree(project, testMerchantId: ...); isBraintreeActive(project)
+```
+
+Actions (require Braintree enabled on the project). `amount` is required and `FFValue`-wrapped; `currencyCode` / `countryCode` are plain strings, `taxRate` / `shippingCost` are plain doubles:
+
+```dart
+Actions.braintreeSinglePayment(amount: '19.99', currencyCode: 'USD', transactionName: 'Pro plan');
+```
+
+### Razorpay
+
+Enable payments and wire the test and production credential sets. Each credential field may be a `String` literal or a `secretRef(name)` — **prefer `secretRef` so the literal key never lands in DSL source**. Set the secret out-of-band first (`integrations.set_secret`); the compiler resolves it against the project's environment values. At least one credential field across `testCredentials` / `prodCredentials` is required.
+
+```dart
+app.razorpay(
+  testCredentials: RazorpayCredentials(
+    keyId: secretRef('RAZORPAY_TEST_KEY_ID'),
+    keySecret: secretRef('RAZORPAY_TEST_KEY_SECRET'),
+  ),
+  prodCredentials: RazorpayCredentials(
+    keyId: secretRef('RAZORPAY_PROD_KEY_ID'),
+    keySecret: secretRef('RAZORPAY_PROD_KEY_SECRET'),
+  ),
+  businessName: 'Acme Inc.',
+);
+
+// Idempotent variant — no-op if Razorpay is already active on the project:
+app.ensureRazorpay(
+  testCredentials: RazorpayCredentials(
+    keyId: secretRef('RAZORPAY_TEST_KEY_ID'),
+    keySecret: secretRef('RAZORPAY_TEST_KEY_SECRET'),
+  ),
+);
+// Brownfield: configureRazorpay(project, testKeyId: ...); isRazorpayActive(project)
+```
+
+Actions (require Razorpay enabled on the project). `amount`, `currencyCode`, and `receiptNumber` are required and `FFValue`-wrapped; `description` / `userName` / `userEmail` / `userContact` are optional:
+
+```dart
+Actions.razorpaySinglePayment(amount: '50000', currencyCode: 'INR', receiptNumber: 'rcpt_001', description: 'Pro plan');
+```
+
+### AdMob
+
+Enable AdMob and wire the platform app keys. Prefer `secretRef(...)` for the app keys so the literal never lands in DSL source. At least one of `iosAppKey` / `androidAppKey` is required.
+
+```dart
+app.adMob(
+  iosAppKey: secretRef('ADMOB_IOS_APP_KEY'),
+  androidAppKey: secretRef('ADMOB_ANDROID_APP_KEY'),
+  showTestAds: true,
+  maxAdContentRating: AdMobContentRating.pg,
+);
+
+// Idempotent variant — no-op if AdMob is already active on the project:
+app.ensureAdMob(androidAppKey: secretRef('ADMOB_ANDROID_APP_KEY'));
+
+// Brownfield: configureAdMob(project, iosAppKey: ...); isAdMobActive(project)
+```
+
+Actions (require AdMob enabled on the project). Ad unit IDs are public identifiers (plain strings, not secrets):
+
+```dart
+Actions.adMobLoadInterstitial(iosAdUnitId: 'ca-app-pub-.../ios', androidAdUnitId: 'ca-app-pub-.../android');
+Actions.adMobShowInterstitial();
+Actions.adMobRequestConsent();
+Actions.adMobCheckConsentNotRequired();
+```
+
+### Gemini
+
+Enable Gemini and wire the API key. The config lives on `project.appSettings.geminiSettings`. `apiKey` may be a `String` literal or a `secretRef(name)` — **prefer `secretRef` so the literal key never lands in DSL source**. Set the secret out-of-band first (`integrations.set_secret`); the compiler resolves it against the project's environment values. `apiKey` is required.
+
+```dart
+app.gemini(apiKey: secretRef('GEMINI_API_KEY'));
+
+// Idempotent variant — no-op if Gemini is already active on the project:
+app.ensureGemini(apiKey: secretRef('GEMINI_API_KEY'));
+
+// Brownfield: configureGemini(project, apiKey: ...); isGeminiActive(project)
+```
+
+Actions (require Gemini enabled on the project). `prompt` is `FFValue`-wrapped; the image action takes exactly one of `imageNetworkUrl` / `uploadedImageFile` (both `FFVariable`s):
+
+```dart
+Actions.geminiGenerateText(prompt: 'Summarize the following text');
+Actions.geminiCountTokens(prompt: 'How many tokens is this?');
+Actions.geminiGenerateTextFromImage(prompt: 'Describe this image', imageNetworkUrl: someVariable);
+```
+
+### Mux
+
+Wire the Mux broadcast API access tokens (enable-only — no action). The config lives on `project.appSettings.muxBroadcastApiAccessTokens` (not `backend`). There is no separate enabled flag; Mux is active once a non-empty token is present. Each token may be a `String` literal or a `secretRef(name)` — **prefer `secretRef` so the literal secret never lands in DSL source**. Set the secret out-of-band first (`integrations.set_secret`); the compiler resolves it against the project's environment values. At least one of `tokenId` / `tokenSecret` is required.
+
+```dart
+app.mux(
+  tokenId: secretRef('MUX_TOKEN_ID'),
+  tokenSecret: secretRef('MUX_TOKEN_SECRET'),
+);
+
+// Idempotent variant — no-op if Mux is already active on the project:
+app.ensureMux(tokenId: secretRef('MUX_TOKEN_ID'));
+
+// Brownfield: configureMux(project, tokenId: ...); isMuxActive(project)
+```
+
+### Firebase Analytics
+
+Enable Firebase Analytics and configure its automatic-event settings. The config lives on `project.backend.firebaseAnalyticsConfig` (not `appSettings`). No SDK keys are required here. All flags are optional; omitted ones preserve any existing value.
+
+```dart
+app.firebaseAnalytics(
+  onPageLoad: true,
+  onActionsStart: true,
+  onIndividualActions: false,
+  onAuth: true,
+);
+
+// Idempotent variant — no-op if Firebase Analytics is already active on the project:
+app.ensureFirebaseAnalytics(onPageLoad: true);
+
+// Brownfield: configureFirebaseAnalytics(project, onPageLoad: true); isFirebaseAnalyticsActive(project)
+```
+
+Action (requires Firebase Analytics enabled on the project). `eventName` and each parameter key/value are `FFValue`-wrapped:
+
+```dart
+Actions.logFirebaseEvent(eventName: 'purchase', parameters: {'item': 'pro_plan', 'value': '49.99'});
+```
+
+### Firebase Crashlytics
+
+Enable Firebase Crashlytics (enable-only — no inputs, no action). The config lives on `project.backend.firebaseCrashlyticsConfig` (not `appSettings`).
+
+```dart
+app.firebaseCrashlytics();
+
+// Idempotent variant — no-op if Firebase Crashlytics is already active on the project:
+app.ensureFirebaseCrashlytics();
+
+// Brownfield: configureFirebaseCrashlytics(project); isFirebaseCrashlyticsActive(project)
+```
+
+### Firebase Remote Config
+
+Enable Firebase Remote Config (no action). The config lives on `project.backend.firebaseRemoteConfigConfig` (not `appSettings`). Optionally author `fields` — one `RemoteConfigField` per remote-config parameter. Each field has a `name`, a `type` (any `DslType`, e.g. `string`, `int_`, `bool_`; the parameter's data type is built via the shared type machinery), and a serialized `defaultValue`.
+
+```dart
+app.firebaseRemoteConfig(fields: [
+  RemoteConfigField(name: 'welcome_message', type: string, defaultValue: 'Hi'),
+  RemoteConfigField(name: 'max_items', type: int_, defaultValue: '10'),
+]);
+
+// Enable-only (no fields):
+app.firebaseRemoteConfig();
+
+// Idempotent variant — no-op if Firebase Remote Config is already active on the project:
+app.ensureFirebaseRemoteConfig(fields: [...]);
+
+// Brownfield: configureFirebaseRemoteConfig(project); isFirebaseRemoteConfigActive(project)
+```
+
+### Firebase Performance Monitoring
+
+Enable Firebase Performance Monitoring (enable-only — no inputs, no action). The config lives on `project.backend.firebasePerformanceMonitoringConfig` (not `appSettings`).
+
+```dart
+app.firebasePerformanceMonitoring();
+
+// Idempotent variant — no-op if it is already active on the project:
+app.ensureFirebasePerformanceMonitoring();
+
+// Brownfield: configureFirebasePerformanceMonitoring(project); isFirebasePerformanceMonitoringActive(project)
+```
+
+### Firebase App Check
+
+Enable Firebase App Check (enable-only — no action). The config lives on `project.backend.firebaseAppCheckConfig` (not `appSettings`). Enabling requires no keys; all arguments are optional. Prefer `secretRef(...)` for the site keys and debug token so literals never appear in source.
+
+```dart
+app.firebaseAppCheck(
+  webRecaptchaV3SiteKey: secretRef('RECAPTCHA_V3_SITE_KEY'),
+  webRecaptchaEnterpriseSiteKey: secretRef('RECAPTCHA_ENTERPRISE_SITE_KEY'),
+  runTestModeDebugToken: secretRef('APP_CHECK_DEBUG_TOKEN'),
+  apkAndroidProvider: AppCheckAndroidProvider.playIntegrity, // or .debug
+  appleProvider: AppCheckAppleProvider.appAttest,
+  // AppCheckAppleProvider: .debug | .deviceCheck | .appAttest | .appAttestWithDeviceCheckFallback
+);
+
+// Idempotent variant — no-op if App Check is already active on the project:
+app.ensureFirebaseAppCheck(apkAndroidProvider: AppCheckAndroidProvider.playIntegrity);
+
+// Brownfield: configureFirebaseAppCheck(project, apkAndroidProvider: ...); isFirebaseAppCheckActive(project)
+```
+
+### Google Maps
+
+Wire the Google Maps API keys that power the Map widget (enable-only — there is no Google Maps action). Prefer `secretRef(...)`. At least one of `androidKey` / `iosKey` / `webKey` is required.
+
+```dart
+app.googleMaps(
+  androidKey: secretRef('GMAPS_ANDROID_KEY'),
+  iosKey: secretRef('GMAPS_IOS_KEY'),
+  webKey: secretRef('GMAPS_WEB_KEY'),
+);
+
+// Idempotent variant — no-op if keys are already configured on the project:
+app.ensureGoogleMaps(webKey: secretRef('GMAPS_WEB_KEY'));
+
+// Brownfield: configureGoogleMaps(project, androidKey: ...); isGoogleMapsActive(project)
+```
+
+### Algolia
+
+Enable Algolia search and wire the application ID, search API key, and the collections to index. The config lives on `project.backend.algoliaConfig` (not `appSettings`). Prefer `secretRef(...)` for the keys so the literal never lands in DSL source. At least one of `applicationId` / `searchApiKey` is required.
+
+```dart
+app.algolia(
+  applicationId: secretRef('ALGOLIA_APP_ID'),
+  searchApiKey: secretRef('ALGOLIA_SEARCH_API_KEY'),
+  indexedCollections: ['products', 'articles'],
+);
+
+// Idempotent variant — no-op if Algolia is already active on the project:
+app.ensureAlgolia(applicationId: secretRef('ALGOLIA_APP_ID'), searchApiKey: secretRef('ALGOLIA_SEARCH_API_KEY'));
+
+// Brownfield: configureAlgolia(project, applicationId: ...); isAlgoliaActive(project)
+```
+
+Action (requires Algolia enabled on the project). `collection` names an indexed collection, `searchTerm` is `FFValue`-wrapped, `maxResults` is a plain int:
+
+```dart
+Actions.algoliaSearch(collection: 'products', searchTerm: 'sneakers', maxResults: 20);
+```
+
+### Push notifications
+
+Enable FlutterFlow's built-in push notification delivery. No external SDK keys are required here. All arguments are optional; omitted ones preserve any existing value.
+
+```dart
+// Enable (greenfield)
+app.pushNotifications(
+  allowScheduledNotifications: true,
+  autoPromptUsersForNotificationsPermission: true,
+);
+
+// Idempotent enable — no-ops if already active on the project
+app.ensurePushNotifications(allowScheduledNotifications: true);
+
+// Brownfield: configurePushNotifications(project, ...); isPushNotificationsActive(project)
+```
+
+Actions (require push notifications enabled on the project). Recipients are `FFVariable`s resolving to a user document (or list of documents):
+
+```dart
+Actions.triggerPushNotificationToUser(user: userVar, title: 'Hi', body: 'Welcome');
+Actions.triggerPushNotificationToUsers(users: usersVar, title: 'Sale', body: 'Ends soon', imageUrl: 'https://...');
+```
+
+### OneSignal
+
+Wire the OneSignal credential keys. Each key may be a `String` literal or a `secretRef(name)` — **prefer `secretRef` so the literal key never lands in DSL source**. Set the secret out-of-band first (`integrations.set_secret`); the compiler resolves it against the project's environment values. At least one of `appId` / `apiKey` / `userKey` is required.
+
+```dart
+// Enable (greenfield)
+app.oneSignal(
+  appId: secretRef('ONESIGNAL_APP_ID'),
+  apiKey: secretRef('ONESIGNAL_API_KEY'),
+);
+
+// Idempotent enable — no-ops if already active on the project
+app.ensureOneSignal(appId: secretRef('ONESIGNAL_APP_ID'));
+
+// Brownfield: configureOneSignal(project, appId: ...); isOneSignalActive(project)
+```
+
+Actions (require OneSignal enabled on the project):
+
+```dart
+Actions.oneSignalAddUser(tags: {'plan': 'pro'}, enableEmail: true, email: 'a@b.com');
+Actions.oneSignalDeleteUser();
+```
+
+### SQLite
+
+Enable the on-device SQLite database and optionally author read/update queries. The config lives on `project.backend.sqliteConfig` (not `appSettings`). `databaseName` / `versionNumber` are optional; omitted ones preserve any existing value.
+
+Pass `queries` — a list of `SqliteQuery` — to author queries. Each query has a `name` (identifier), raw `sql` (stored verbatim, not parsed/validated), `inputs` (`SqliteQueryInput{name, type: DslType}` bind variables), `outputs` (`SqliteQueryColumn{name, type: DslType}` result columns, read queries only), and `isUpdate` (route into `update_queries` vs `read_queries`). Variable/column types are built via the shared type machinery, identical to custom-function args. When `queries` is non-empty the read/update lists are replaced wholesale; when empty they are preserved.
+
+The database initialization config (seed file / script paths that reference uploaded assets) is not authored via the SDK yet (deferred).
+
+```dart
+app.sqlite(databaseName: 'app.db', versionNumber: 1, queries: [
+  SqliteQuery(
+    name: 'getUser',
+    sql: 'SELECT id, name FROM users WHERE id = :id',
+    inputs: [SqliteQueryInput(name: 'id', type: int_)],
+    outputs: [
+      SqliteQueryColumn(name: 'id', type: int_),
+      SqliteQueryColumn(name: 'name', type: string),
+    ],
+  ),
+  SqliteQuery(
+    name: 'renameUser',
+    sql: 'UPDATE users SET name = :name WHERE id = :id',
+    inputs: [
+      SqliteQueryInput(name: 'name', type: string),
+      SqliteQueryInput(name: 'id', type: int_),
+    ],
+    isUpdate: true,
+  ),
+]);
+
+// Idempotent variant — no-op if SQLite is already active on the project:
+app.ensureSqlite(databaseName: 'app.db');
+
+// Brownfield: configureSqlite(project, databaseName: 'app.db'); isSqliteActive(project)
+```
+
+### Supabase per-environment OAuth config
+
+Author per-environment Supabase OAuth (FlutterFlow-managed) connections. Call `app.supabaseEnvironment(...)` once per environment key (e.g. `PROD`, `DEV`); each writes into `project.backend.supabaseOauthConfig.oauthConfigs[environmentKey]`. Because `supabase_oauth_config` and `supabase_self_hosted_config` share a protobuf `oneof`, this is **mutually exclusive** with the self-hosted `app.supabase(...)` path and with `app.postgres(...)` — mixing them throws.
+
+```dart
+app.supabaseEnvironment(
+  environmentKey: 'PROD',
+  url: 'https://prod.supabase.co',
+  anonKey: 'prod-anon-key',
+);
+app.supabaseEnvironment(
+  environmentKey: 'DEV',
+  url: 'https://dev.supabase.co',
+  anonKey: 'dev-anon-key',
+  googleAuth: SupabaseGoogleAuthConfig(iosClientId: '...', webClientId: '...'),
 );
 ```
 
-Edit-mode (brownfield) example — resolve by name and let the compile pass verify the kind:
+### Supabase Edge Functions
+
+Declare a Supabase Edge Function on `project.backend.supabaseEdgeFunctionsConfig.edgeFunctions`. `code` is the raw Deno/TypeScript source — stored verbatim, never parsed or validated. `parameters` (`SupabaseEdgeFunctionParam{name, type: DslType}`) and `returnType` (a `DslType`) are built via the shared type machinery. `verifyJwt` defaults to `true`, `enableCors` to `false`; `denoJson` is the optional dependency config. Multiple functions are allowed — each `name` must be unique in one app; the compiler upserts by `identifier.name` (preserving the identifier key on update).
+
+IMPORTANT: authoring an Edge Function does NOT by itself enable Supabase. The Edge-Function CALL action (below) is gated on `isSupabaseActive`, so the user still needs `app.supabase(...)` / `app.supabaseEnvironment(...)` for a call to pass gating. Declaring the function only writes the definition.
 
 ```dart
-Button(onTap: [
-  GenerateSpeech.named('Narrator', text: State('lineToRead'), outputAs: 'audio'),
-]);
+app.supabaseEdgeFunction(
+  name: 'send-welcome-email',
+  code: 'Deno.serve((req) => new Response("ok"));',
+  parameters: [SupabaseEdgeFunctionParam(name: 'name', type: string)],
+  returnType: string,
+);
+
+// Idempotent variant — no-op if a function with this name is already declared:
+app.ensureSupabaseEdgeFunction(name: 'send-welcome-email', code: '...');
+
+// Brownfield: configureSupabaseEdgeFunction(project, name: '...', code: '...');
+// isSupabaseEdgeFunctionDeclared(project, 'send-welcome-email')
 ```
 
-Validation runs before any proto mutation. Failures throw a typed subclass of `AiAgentError` — catch `AiAgentDuplicateError`, `AiAgentNotFoundError` (carries did-you-mean), `AiAgentValidationError` (carries `issues:`), or `AiAgentKindMismatchError`. Action targets are kind-checked at compile time: handle-typed call sites are statically safe; `*Agent.named(...)` defers to the compile pass.
+Call a declared Edge Function by name. Requires Supabase to be enabled on the project. Pass `parameters` (a `Map<String, String>`) to supply named arguments; each value is wrapped as an `FFArgument` value inside the call's `parameterValues.arguments`. Omit `parameters` to call with no arguments.
 
-Out of scope:
-- Model catalog sync — server-side; the SDK assumes models are valid strings.
-- Firebase AI Logic credentials — assumed pre-configured at the workspace level when `apiKey` is null on a `google + chat` agent.
-- `endpointUrl`, `editMetadata`, `createdAt`, `updatedAt` — runtime-managed proto fields, not surfaced.
-- `AiResponse.dataType` + `outputAs:` — codegen TODO (ENG-5623). The SDK throws at `CallAiAgent` construction time if you try to bind a typed-struct output until codegen catches up.
+```dart
+Actions.callSupabaseEdgeFunction(functionName: 'send-welcome-email');
+Actions.callSupabaseEdgeFunction(
+  functionName: 'send-welcome-email',
+  parameters: {'name': 'Ada', 'plan': 'pro'},
+);
+```
+
+### Custom Auth
+
+Enable Custom Authentication (enable-only). Custom auth sets the project's auth backend using your own auth implementation, wiring `project.authentication.custom`. `userDataType` names the data type identifier that holds the authenticated user's data (required); `persistAuthData` controls whether auth data is persisted locally. Custom auth is **mutually exclusive** with Firebase and Supabase auth — declaring more than one auth backend in a single app, or enabling custom auth on a project that already has Firebase/Supabase auth active, throws.
+
+```dart
+app.customAuth(userDataType: 'AppUser', persistAuthData: true);
+
+// Idempotent variant — no-op if Custom auth is already active on the project:
+app.ensureCustomAuth(userDataType: 'AppUser');
+
+// Brownfield: configureCustomAuth(project, userDataType: 'AppUser'); isCustomAuthActive(project)
+```
 
 ## Deprecated proto fields are OFF LIMITS
 

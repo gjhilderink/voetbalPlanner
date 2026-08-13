@@ -47,7 +47,7 @@ final class CreateGroupPageState {
       const ffai.ProjectStateFieldHandle(
         name: "teamMembers",
         key: "br87xkp5",
-        typeName: "List<DataStruct<?>>",
+        typeName: "List<DataStruct<SwapMember>>",
       );
 }
 

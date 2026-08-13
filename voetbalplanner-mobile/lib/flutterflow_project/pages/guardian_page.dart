@@ -23,7 +23,7 @@ final class GuardianPageState {
       const ffai.ProjectStateFieldHandle(
         name: "children",
         key: "5kijd8dc",
-        typeName: "List<DataStruct<?>>",
+        typeName: "List<DataStruct<GuardianChild>>",
       );
   ffai.ProjectStateFieldHandle get isActing =>
       const ffai.ProjectStateFieldHandle(
@@ -41,13 +41,13 @@ final class GuardianPageState {
       const ffai.ProjectStateFieldHandle(
         name: "myRequests",
         key: "ss2vqnlr",
-        typeName: "List<DataStruct<?>>",
+        typeName: "List<DataStruct<GuardianLinkSummary>>",
       );
   ffai.ProjectStateFieldHandle get pendingForMe =>
       const ffai.ProjectStateFieldHandle(
         name: "pendingForMe",
         key: "m1zrog4i",
-        typeName: "List<DataStruct<?>>",
+        typeName: "List<DataStruct<GuardianRequest>>",
       );
 }
 

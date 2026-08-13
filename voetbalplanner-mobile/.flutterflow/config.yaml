@@ -1,5 +1,5 @@
 env: prod
-flutterflow_ai_build: 3dc1c5da
-flutterflow_ai_version: 0.0.36
+flutterflow_ai_build: b5c8a09d
+flutterflow_ai_version: 0.0.40
 project_id: voetbalplanner-76ly9n
 api_base_url: https://api.flutterflow.io/v2

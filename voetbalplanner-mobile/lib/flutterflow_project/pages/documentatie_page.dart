@@ -29,7 +29,7 @@ final class DocumentatiePageState {
       const ffai.ProjectStateFieldHandle(
         name: "sections",
         key: "sdt0t2cy",
-        typeName: "List<DataStruct<?>>",
+        typeName: "List<DataStruct<DocumentSection>>",
       );
 }
 

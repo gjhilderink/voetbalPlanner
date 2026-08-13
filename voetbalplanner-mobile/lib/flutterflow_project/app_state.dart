@@ -20,7 +20,7 @@ abstract final class AppState {
   static const availableTeams = ffai.ProjectAppStateFieldHandle(
     name: "availableTeams",
     key: "rx96978y",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<TeamOption>>",
     persisted: false,
   );
   static const bugScreenshotPaths = ffai.ProjectAppStateFieldHandle(
@@ -92,7 +92,7 @@ abstract final class AppState {
   static const dialogMembers = ffai.ProjectAppStateFieldHandle(
     name: "dialogMembers",
     key: "y3g96ewm",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<SwapMember>>",
     persisted: false,
   );
   static const dialogScorerName = ffai.ProjectAppStateFieldHandle(
@@ -110,7 +110,7 @@ abstract final class AppState {
   static const dialogTeams = ffai.ProjectAppStateFieldHandle(
     name: "dialogTeams",
     key: "dn8ek5q6",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<TeamOption>>",
     persisted: false,
   );
   static const dialogView = ffai.ProjectAppStateFieldHandle(
@@ -140,7 +140,7 @@ abstract final class AppState {
   static const guestInvitations = ffai.ProjectAppStateFieldHandle(
     name: "guestInvitations",
     key: "o8co6sch",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<GuestInvitation>>",
     persisted: false,
   );
   static const hasMultipleTeams = ffai.ProjectAppStateFieldHandle(
@@ -182,7 +182,7 @@ abstract final class AppState {
   static const matchGoals = ffai.ProjectAppStateFieldHandle(
     name: "matchGoals",
     key: "01d8gbk7",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<GoalItem>>",
     persisted: false,
   );
   static const onboardingSeen = ffai.ProjectAppStateFieldHandle(
@@ -194,7 +194,7 @@ abstract final class AppState {
   static const onboardingSlides = ffai.ProjectAppStateFieldHandle(
     name: "onboardingSlides",
     key: "0ea093vk",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<OnboardingSlide>>",
     persisted: false,
   );
   static const pendingAfmeldReason = ffai.ProjectAppStateFieldHandle(
@@ -254,7 +254,7 @@ abstract final class AppState {
   static const pendingTeamMembers = ffai.ProjectAppStateFieldHandle(
     name: "pendingTeamMembers",
     key: "1vok8wo7",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<SwapMember>>",
     persisted: false,
   );
   static const pendingTrainingDate = ffai.ProjectAppStateFieldHandle(
@@ -290,7 +290,7 @@ abstract final class AppState {
   static const scoreTeamMembers = ffai.ProjectAppStateFieldHandle(
     name: "scoreTeamMembers",
     key: "jcwazvqm",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<SwapMember>>",
     persisted: false,
   );
   static const secondaryColor = ffai.ProjectAppStateFieldHandle(
@@ -302,19 +302,19 @@ abstract final class AppState {
   static const sharedBarDuties = ffai.ProjectAppStateFieldHandle(
     name: "sharedBarDuties",
     key: "i3f44xu8",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<BarDuty>>",
     persisted: false,
   );
   static const sharedTeamMembers = ffai.ProjectAppStateFieldHandle(
     name: "sharedTeamMembers",
     key: "wzszy9iv",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<SwapMember>>",
     persisted: false,
   );
   static const trainings = ffai.ProjectAppStateFieldHandle(
     name: "trainings",
     key: "ff2yon21",
-    typeName: "List<DataStruct<?>>",
+    typeName: "List<DataStruct<TrainingItem>>",
     persisted: false,
   );
   static const unreadChatCount = ffai.ProjectAppStateFieldHandle(

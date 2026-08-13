@@ -29,7 +29,7 @@ final class WisselVerzoekenPageState {
       const ffai.ProjectStateFieldHandle(
         name: "requests",
         key: "rgbzwcah",
-        typeName: "List<DataStruct<?>>",
+        typeName: "List<DataStruct<SwapRequest>>",
       );
 }
 

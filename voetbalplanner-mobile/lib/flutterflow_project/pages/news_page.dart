@@ -29,7 +29,7 @@ final class NewsPageState {
       const ffai.ProjectStateFieldHandle(
         name: "newsItems",
         key: "bka5r4yl",
-        typeName: "List<DataStruct<?>>",
+        typeName: "List<DataStruct<NewsItem>>",
       );
 }
 
