@@ -819,7 +819,6 @@ void buildEditFlow(App app) {
     ),
   ]);
   app.raw((project) => _wireAgendaCalendarButton(project));
-  app.raw((project) => _fixAgendaButtonIconColors(project));
   // (De dashboard-trainingen-sectie wordt verderop toegevoegd, ná _wireDashboardLoad
   // die de on-load-chain elke push opnieuw opbouwt — anders wordt GetTrainings gewist.)
 
@@ -11362,6 +11361,15 @@ void _applyBrandingToAllButtons(FFProject project) {
         text.colorValue = whiteColor.deepCopy();
         proto.text = text;
       }
+      // Icoon meekleuren met de tekst. Deze pass geeft élke knop een clubkleur
+      // als vulling — ook de outlined- en text-varianten, die in de DSL
+      // transparant lijken. Zonder deze regel houdt het icoon zijn eigen kleur
+      // (meestal primary) en wordt het primary-op-primary, dus onzichtbaar.
+      if (proto.hasIconValue() && proto.iconValue.hasInputValue()) {
+        final icon = proto.iconValue.deepCopy();
+        icon.inputValue.colorValue = whiteColor.deepCopy();
+        proto.iconValue = icon;
+      }
       btn.props.button = proto;
     }
   }
@@ -20983,43 +20991,6 @@ void _addDashboardMatchesEndpoint(FFProject project) {
 // De actie neemt losse strings, terwijl de agendapagina alles in één struct
 // houdt. Vandaar vier aparte state-velden die bij het laden gevuld worden — de
 // wedstrijdpagina doet dat om dezelfde reden.
-// Icoonkleur op de agenda-knoppen. Zonder expliciete kleur tekent het icoon in
-// primary, terwijl de branding-pass álle knoppen een primary vulling geeft —
-// ook de outlined varianten. Het icoon werd daardoor primary-op-primary en dus
-// onzichtbaar. Kijk hiervoor altijd naar de gegenereerde code: in de DSL lijken
-// deze knoppen transparant.
-void _fixAgendaButtonIconColors(FFProject project) {
-  // Knopnaam → icoonnaam per pagina. FFIconValue heeft geen losse kleur-setter,
-  // dus de icoonwaarde wordt in zijn geheel vervangen.
-  const perPage = <String, Map<String, String>>{
-    'AgendaDetailPage': {
-      'AgendaAanmeldButton': 'check',
-      'AgendaAfmeldButton': 'close',
-      'AgendaExternalLinkButton': 'open_in_new',
-      'AgendaAddToCalendarButton': 'calendar_month',
-    },
-    'AgendaPage': {
-      'AgendaClearFilterButton': 'filter_alt_off',
-    },
-  };
-
-  for (final page in perPage.entries) {
-    final wc = findPage(project, name: page.key);
-    if (wc == null) continue;
-
-    for (final entry in page.value.entries) {
-      final btn = findDescendants(wc.node, (n) => n.name == entry.key).firstOrNull;
-      if (btn == null || !btn.props.hasButton()) continue;
-
-      final probe = UI.button('x', name: 'probe',
-          iconName: entry.value, iconSize: 20, iconColor: UIColor.primaryBackground);
-      final b = btn.props.button.deepCopy();
-      b.iconValue = probe.props.button.iconValue.deepCopy();
-      btn.props.button = b;
-    }
-  }
-}
-
 void _wireAgendaCalendarButton(FFProject project) {
   final wc = findPage(project, name: 'AgendaDetailPage');
   if (wc == null) return;
@@ -23650,6 +23621,32 @@ void _alignCardStyling(FFProject project) {
       }
     }
   }
+
+  // Binnenruimte in de kaartrijen: zonder dit plakt de inhoud tegen de
+  // kaartrand. padding op een rij rendert als ruimte eróm, dus binnen de kaart.
+  const rowNames = [
+    'DashboardMatchRow',
+    'DashboardDutyRow',
+    'DashboardDriveRow',
+    'DashTrainRow',
+    'DashAgendaRow',
+    'GuestInvInfo',
+  ];
+  // Padding uit een wegwerp-container: FFPadding kent twee representaties
+  // (moderne *Value-velden en legacy-velden met een type). Rijen die al een
+  // legacy-padding hadden, negeerden de moderne velden — zo krijgen ze
+  // gegarandeerd dezelfde vorm als de DSL zelf produceert.
+  final paddingProbe = UI.container(name: 'padProbe', padding: UIEdgeInsets.all(5));
+  final rowPadding = paddingProbe.props.padding;
+
+  final dash = findPage(project, name: 'DashboardPage');
+  if (dash != null) {
+    for (final name in rowNames) {
+      for (final row in findDescendants(dash.node, (n) => n.name == name)) {
+        row.props.padding = rowPadding.deepCopy();
+      }
+    }
+  }
 }
 
 // Geeft de agenda-items de kleur van hun categorie.
@@ -24211,17 +24208,13 @@ void _wireTrainingDetailPage(FFProject project) {
         returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
       );
 
-  // Omlijnd: afmelden is de ingrijpende actie, aanmelden de gewone. Icoon én
-  // tekst in primaryBackground, want de branding-pass geeft ook omlijnde
-  // knoppen een primary vulling — primary erop zou onzichtbaar zijn.
+  // Icoon- en tekstkleur worden centraal gezet door _applyBrandingToAllButtons;
+  // die geeft elke knop de clubkleur als vulling en kleurt tekst én icoon mee.
   final afmeldBtn = UI.button('Afmelden', name: 'TrainAfmeldButton',
-      width: double.infinity, variant: UIButtonVariant.outlined,
-      iconName: 'logout', iconSize: 20, iconColor: UIColor.primaryBackground,
-      textColor: UIColor.primaryBackground, borderRadius: 10,
-      padding: UIEdgeInsets.all(14));
+      width: double.infinity, iconName: 'logout', iconSize: 20,
+      borderRadius: 10, padding: UIEdgeInsets.all(14));
   final aanmeldBtn = UI.button('Aanmelden', name: 'TrainAanmeldButton',
       width: double.infinity, iconName: 'check', iconSize: 20,
-      iconColor: UIColor.primaryBackground, textColor: UIColor.primaryBackground,
       borderRadius: 10, padding: UIEdgeInsets.all(14));
   setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
   setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
