@@ -11152,10 +11152,9 @@ void _addWedstrijdGuestManagement(FFProject project) {
     children.add(delFlagBtn);
   }
 
-  // Gastspelers-lijst met verwijderknoppen.
+  // Gastspelers-lijst met verwijderknoppen. Geen kopregel: het prullenbak-icoon
+  // achter elke naam maakt al duidelijk wat de knop doet.
   if (hasRemoveEp) {
-    children.add(UI.text('Gastspelers verwijderen:', name: 'MatchGuestMgmtLabel',
-        style: UITextStyle.labelSmall, color: UIColor.secondaryText));
     final guestsVar = varFromPageState(guestsId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
     final guestList = UI.listView(name: 'MatchGuestMgmtList', shrinkWrap: true, spacing: 2,
         dynamicSource: DynamicSource(variable: guestsVar, itemName: 'mg'));
