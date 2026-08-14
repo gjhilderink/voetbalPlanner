@@ -660,6 +660,8 @@ void buildEditFlow(App app) {
   app.raw((project) => _addOnboardingSlideBackend(project));
   app.raw((project) => _wireOnboardingDynamicSlides(project));
   app.raw((project) => _makeOnboardingFullScreen(project));
+  // Afsluitknoppen naar het dashboard (de pagina zelf wordt niet herbouwd).
+  app.raw((project) => _pointOnboardingFinishToDashboard(project));
   app.raw((project) => _addOnboardingClubLogo(project));
 
   // ─── Wissel (swap) feature ────────────────────────────────────────────────
@@ -4874,7 +4876,7 @@ void _buildOnboardingPage(App app) {
   // Gedeelde afsluit-actie: markeer als bekeken en ga naar de app.
   final finish = <DslAction>[
     UpdateAppState.set(ff.AppState.onboardingSeen, true),
-    Navigate(ff.Pages.wedstrijdenPage, replaceRoute: true),
+    Navigate(ff.Pages.dashboardPage, replaceRoute: true),
   ];
 
   app.ensurePage(
@@ -7046,7 +7048,7 @@ void _fixLoginButtonBindings(FFProject project) {
   // Only navigate when the action returned true.
   final navigateNode = FFActionNode(
     key: generateRandomAlphaNumericString(),
-    action: Actions.navigate(project, pageName: 'WedstrijdenPage', replaceRoute: true),
+    action: Actions.navigate(project, pageName: 'DashboardPage', replaceRoute: true),
   );
 
   final conditionalNode = Actions.conditional(
@@ -7272,7 +7274,7 @@ void _buildMagicLinkVerifyPage(App app) {
       Not(Equals(ActionOutput('sanctumToken'), '')),
       then: [
         UpdateAppState.set(ff.AppState.authToken, ActionOutput('sanctumToken')),
-        Navigate(ff.Pages.wedstrijdenPage, replaceRoute: true),
+        Navigate(ff.Pages.dashboardPage, replaceRoute: true),
       ],
       orElse: [
         Snackbar('Deze inloglink is ongeldig of verlopen.'),
@@ -23007,6 +23009,47 @@ void _addDashboardAgendaViewAll(FFProject project) {
   );
 
   col.children.add(button);
+}
+
+// Stuurt de afsluitknoppen van de onboarding naar het dashboard.
+//
+// _buildOnboardingPage gebruikt app.ensurePage en slaat een bestaande pagina
+// over, dus het aanpassen van de finish-acties daar raakt de al aangemaakte
+// knoppen niet. Vandaar deze losse patch op de navigatie-actie zelf.
+void _pointOnboardingFinishToDashboard(FFProject project) {
+  final wc = findPage(project, name: 'OnboardingPage');
+  if (wc == null) return;
+
+  final dashboard = findPage(project, name: 'DashboardPage');
+  if (dashboard == null) return;
+
+  for (final name in ['OnboardingSkipBtn', 'OnboardingStartBtn']) {
+    final button = findDescendants(wc.node, (n) => n.name == name).firstOrNull;
+    if (button == null) continue;
+
+    for (final trigger in button.triggerActions) {
+      if (!trigger.hasRootAction()) continue;
+      _retargetNavigate(trigger.rootAction, 'WedstrijdenPage', 'DashboardPage', project);
+    }
+  }
+}
+
+/// Zet een Navigate-actie in een keten om naar een andere pagina. Loopt de
+/// follow-up-keten af, want de finish-actie zet eerst onboardingSeen.
+void _retargetNavigate(FFActionNode node, String from, String to, FFProject project) {
+  if (node.hasAction() && node.action.hasNavigate()) {
+    final target = findPage(project, name: to);
+    final current = findPage(project, name: from);
+    if (target != null &&
+        current != null &&
+        node.action.navigate.hasPageNodeKeyRef() &&
+        node.action.navigate.pageNodeKeyRef.key == current.node.key) {
+      node.action.navigate.pageNodeKeyRef = FFNodeKeyReference(key: target.node.key);
+    }
+  }
+  if (node.hasFollowUpAction()) {
+    _retargetNavigate(node.followUpAction, from, to, project);
+  }
 }
 
 // Houdt de agendakaarten binnen het scherm en lijnt ze uit met de trainingen.
