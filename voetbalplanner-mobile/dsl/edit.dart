@@ -23205,6 +23205,39 @@ void _restyleMatchInfoRows(FFProject project) {
       ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
   }
 
+  // Navigatie-icoon achter de locatie: opent Google Maps op het adres. Verving
+  // de brede 'Navigeer naar locatie'-knop die onder de rij stond.
+  FFNode? navigateIconNode() {
+    final locationVar = stateVarOf('matchLocation');
+    if (locationVar == null) return null;
+
+    final mapsUrlVar = codeExpressionVar(
+      expression: "'https://maps.google.com/?q=' + Uri.encodeComponent(loc ?? '')",
+      arguments: [
+        CodeExpressionArg(
+          name: 'loc',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: locationVar),
+        ),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    );
+
+    final btn = UI.container(
+      name: 'MatchInfoNav_location',
+      padding: UIEdgeInsets.all(6),
+      child: UI.icon('directions', size: 22, color: UIColor.primary),
+    );
+    Actions.onTap(btn, FFAction(launchUrl: FFLaunchUrlAction(variable: mapsUrlVar)));
+
+    // Verbergen zonder locatie — anders opent hij een lege kaart.
+    setConditionalVisibility(btn, variable: conditionVar(
+      locationVar.deepCopy(), FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+
+    return btn;
+  }
+
   // Clublogo van de tegenstander; null als het state-veld ontbreekt. Alleen
   // zichtbaar zolang er een logo-URL is, zodat het rondje niet leeg oogt.
   FFNode? opponentLogoNode() {
@@ -23252,6 +23285,12 @@ void _restyleMatchInfoRows(FFProject project) {
             ..add(logo);
         }
       }
+      if (entry.key == 'location' &&
+          existingRow != null &&
+          findDescendants(wc.node, (n) => n.name == 'MatchInfoNav_location').isEmpty) {
+        final nav = navigateIconNode();
+        if (nav != null) existingRow.children.add(nav);
+      }
       continue;
     }
 
@@ -23298,11 +23337,13 @@ void _restyleMatchInfoRows(FFProject project) {
     );
     UI.expanded(textColumn);
 
+    final trailing = entry.key == 'location' ? navigateIconNode() : null;
+
     final row = UI.row(
       name: 'MatchInfoCardRow_${entry.key}',
       spacing: rowSpacing,
       crossAxisAlignment: UICrossAxisAlignment.center,
-      children: [iconCircle, textColumn],
+      children: [iconCircle, textColumn, if (trailing != null) trailing],
     );
 
     // De bestaande containernode wordt de kaart.
