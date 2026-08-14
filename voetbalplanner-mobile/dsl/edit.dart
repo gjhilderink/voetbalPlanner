@@ -1291,6 +1291,7 @@ void buildEditFlow(App app) {
     _ensureAgendaItemsAppStateField(project);
     _addDashboardAgendaSection(project);
     _addDashboardAgendaViewAll(project);
+    _fixDashboardAgendaCardLayout(project);
     // TrainingDetailPage-inhoud + kaart aantikbaar maken.
     _wireTrainingDetailPage(project);
     _wireTrainingCardNavigation(project);
@@ -23006,6 +23007,44 @@ void _addDashboardAgendaViewAll(FFProject project) {
   );
 
   col.children.add(button);
+}
+
+// Houdt de agendakaarten binnen het scherm en lijnt ze uit met de trainingen.
+//
+// Twee dingen gingen mis. De tekstkolom zat als gewoon kind in een Row, dus
+// zonder breedtebegrenzing: een lange datum ("za 12 september") liep rechts het
+// scherm uit. En de lijst had 12px links terwijl de trainingenlijst er 2 heeft,
+// waardoor het agendablok zichtbaar verder naar binnen stond.
+//
+// Losse functie, want _addDashboardAgendaSection slaat een bestaande sectie over.
+void _fixDashboardAgendaCardLayout(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  // 1. Tekstkolom laten meeschalen met de beschikbare breedte.
+  final info = findDescendants(wc.node, (n) => n.name == 'DashAgendaInfo').firstOrNull;
+  if (info != null && !info.props.hasExpanded()) {
+    UI.expanded(info);
+  }
+
+  // 2. Lange regels op één regel houden. Samen met de Expanded hierboven is dit
+  //    wat de kaart binnen de schermbreedte houdt.
+  for (final name in ['DashAgendaTitle', 'DashAgendaLocation', 'DashAgendaCategory']) {
+    final node = findDescendants(wc.node, (n) => n.name == name).firstOrNull;
+    if (node == null) continue;
+    node.props.text.maxLinesValue = FFIntegerValue(inputValue: 1);
+  }
+
+  // 3. Linkermarge gelijk aan de trainingenlijst.
+  final list = findDescendants(wc.node, (n) => n.name == 'DashboardAgendaList').firstOrNull;
+  if (list != null) {
+    list.props.padding = FFPadding(
+      leftValue: FFDoubleValue(inputValue: 2),
+      topValue: FFDoubleValue(inputValue: 4),
+      rightValue: FFDoubleValue(inputValue: 12),
+      bottomValue: FFDoubleValue(inputValue: 4),
+    );
+  }
 }
 
 // Trekt de kopjes van de dashboardsecties gelijk. "Mijn Rijschema" en "Mijn
