@@ -24098,6 +24098,14 @@ void _wireTrainingDetailPage(FFProject project) {
     ),
   );
 
+  // Lichtgrijze achtergrond zodat de witte kaarten uitkomen, gelijk aan de
+  // wedstrijddetail. Kleur uit een wegwerp-scaffold.
+  final bgProbe = UI.scaffold(name: 'trainBgProbe',
+      backgroundColor: const UIColor.hex(0xFFF4F5F7, dark: 0xFF121418));
+  final sc = wc.node.props.scaffold.deepCopy();
+  sc.backgroundColorValue = bgProbe.props.scaffold.backgroundColorValue;
+  wc.node.props.scaffold = sc;
+
   // Content (clear + rebuild elke push).
   col.children.clear();
 
@@ -24107,8 +24115,10 @@ void _wireTrainingDetailPage(FFProject project) {
     return t;
   }
 
-  final reasonField =
-      UI.textField(name: 'TrainReasonField', labelText: 'Reden (bij afmelden)', maxLines: 2);
+  // Alleen een hint: het label staat als vette tekst boven het veld (zie de
+  // redenkaart verderop), zoals in de screenshot.
+  final reasonField = UI.textField(
+      name: 'TrainReasonField', hintText: 'Geef een reden op (optioneel)', maxLines: 2);
 
   final statusText = UI.text('', name: 'TrainStatusText', style: UITextStyle.titleSmall);
   statusText.props.text.textValue = FFStringValue(variable: pState(localStatusId));
@@ -24125,8 +24135,15 @@ void _wireTrainingDetailPage(FFProject project) {
         returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
       );
 
-  final afmeldBtn  = UI.button('Afmelden', name: 'TrainAfmeldButton', width: double.infinity);
-  final aanmeldBtn = UI.button('Aanmelden', name: 'TrainAanmeldButton', width: double.infinity);
+  // Omlijnd en rood: afmelden is de ingrijpende actie, aanmelden de gewone.
+  final afmeldBtn = UI.button('Afmelden', name: 'TrainAfmeldButton',
+      width: double.infinity, variant: UIButtonVariant.outlined,
+      iconName: 'logout', iconSize: 20, iconColor: UIColor.primary,
+      textColor: UIColor.primary, borderRadius: 10, padding: UIEdgeInsets.all(14));
+  final aanmeldBtn = UI.button('Aanmelden', name: 'TrainAanmeldButton',
+      width: double.infinity, iconName: 'check', iconSize: 20,
+      iconColor: UIColor.primaryBackground, textColor: UIColor.primaryBackground,
+      borderRadius: 10, padding: UIEdgeInsets.all(14));
   setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
   setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
 
@@ -24289,15 +24306,123 @@ void _wireTrainingDetailPage(FFProject project) {
     kleedkamerRow = kkRow;
   }
 
+  // ── Opmaak volgens screenshots/af en aanmelden trainingen.png ──────────────
+  const cardBg  = UIColor.hex(0xFFFFFFFF, dark: 0xFF1C1F26);
+  const iconBg  = UIColor.hex(0xFFFDE8E8, dark: 0xFF3A1E1E);
+  const okBg    = UIColor.hex(0xFFEAF7EE, dark: 0xFF17301F);
+  const okText  = UIColor.hex(0xFF1E8E3E, dark: 0xFF6FD08C);
+  const emptyBg = UIColor.hex(0xFFEFEFF2, dark: 0xFF20242C);
+
+  FFNode circle(String icon) => UI.container(
+        name: 'TrainCircle_$icon',
+        width: 52, height: 52, borderRadius: 26, color: iconBg,
+        child: UI.icon(icon, size: 24, color: UIColor.primary),
+      );
+
+  // Regel met klein icoon ervoor, zoals de datum- en tijdregels in de kop.
+  FFNode iconLine(String icon, FFNode text, String name) => UI.row(
+        name: name, spacing: 8, crossAxisAlignment: UICrossAxisAlignment.center,
+        children: [UI.icon(icon, size: 18, color: UIColor.secondaryText), text],
+      );
+
+  FFNode card(String name, FFNode child) => UI.container(
+        name: name,
+        color: cardBg,
+        borderRadius: 14,
+        padding: UIEdgeInsets.all(16),
+        child: child,
+      );
+
+  // Statuspil: vol de breedte, groen bij aangemeld, grijsrood bij afgemeld.
+  FFNode statusPill(String label, String iconName, UIColor bg, UIColor fg, String status) {
+    final pill = UI.container(
+      name: 'TrainStatusPill_$status',
+      width: double.infinity,
+      borderRadius: 10,
+      padding: UIEdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      color: bg,
+      child: UI.row(
+        name: 'TrainStatusPillRow_$status',
+        spacing: 8,
+        mainAxisAlignment: UIMainAxisAlignment.center,
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: [
+          UI.icon(iconName, size: 20, color: fg),
+          UI.text(label, name: 'TrainStatusPillText_$status',
+              style: UITextStyle.titleSmall, color: fg),
+        ],
+      ),
+    );
+    setConditionalVisibility(pill, variable: showWhen(status));
+    return pill;
+  }
+
+  final headerInfo = UI.column(
+    name: 'TrainHeaderInfo',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 6,
+    children: [
+      infoText(dayLabelP, 'TrainDetailDay', UITextStyle.headlineSmall),
+      iconLine('event', infoText(dateP, 'TrainDetailDate', UITextStyle.bodyMedium), 'TrainDateLine'),
+      iconLine('schedule', infoText(startTimeP, 'TrainDetailTime', UITextStyle.bodyMedium), 'TrainTimeLine'),
+      iconLine('place', infoText(locationP, 'TrainDetailLoc', UITextStyle.bodyMedium), 'TrainLocLine'),
+      if (kleedkamerRow != null) kleedkamerRow,
+    ],
+  );
+  UI.expanded(headerInfo);
+
+  final headerCard = card(
+    'TrainHeaderCard',
+    UI.column(
+      name: 'TrainHeaderCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 14,
+      children: [
+        UI.row(
+          name: 'TrainHeaderRow',
+          spacing: 14,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [circle('event'), headerInfo],
+        ),
+        statusPill('Aangemeld', 'check', okBg, okText, 'aangemeld'),
+        statusPill('Afgemeld', 'close', emptyBg, UIColor.secondaryText, 'afgemeld'),
+      ],
+    ),
+  );
+
+  // Redenkaart: label vet, veld eronder met alleen een hint.
+  final reasonLabel = UI.text('Reden (bij afmelden)', name: 'TrainReasonLabel',
+      style: UITextStyle.titleSmall);
+  final reasonCol = UI.column(
+    name: 'TrainReasonCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 2,
+    children: [reasonLabel, reasonField],
+  );
+  UI.expanded(reasonCol);
+  final reasonCard = card(
+    'TrainReasonCard',
+    UI.row(
+      name: 'TrainReasonRow',
+      spacing: 14,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [circle('comment'), reasonCol],
+    ),
+  );
+
+  // Kop boven de knop, meebewegend met de status.
+  FFNode sectionHeader(String label, String name, String status) {
+    final t = UI.text(label, name: name, style: UITextStyle.titleSmall);
+    setConditionalVisibility(t, variable: showWhen(status));
+    return t;
+  }
+
   col.children.addAll([
-    infoText(dayLabelP, 'TrainDetailDay', UITextStyle.titleLarge),
-    infoText(dateP, 'TrainDetailDate', UITextStyle.bodyMedium),
-    infoText(startTimeP, 'TrainDetailTime', UITextStyle.bodyMedium),
-    infoText(locationP, 'TrainDetailLoc', UITextStyle.bodyMedium),
-    if (kleedkamerRow != null) kleedkamerRow,
-    statusText,
-    reasonField,
+    headerCard,
+    reasonCard,
+    sectionHeader('Afmelden voor deze training', 'TrainAfmeldHeader', 'aangemeld'),
     afmeldBtn,
+    sectionHeader('Aanmelden voor deze training', 'TrainAanmeldHeader', 'afgemeld'),
     aanmeldBtn,
     ...afmeldChildren,
   ]);
