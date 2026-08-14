@@ -23161,6 +23161,15 @@ void _restyleMatchInfoRows(FFProject project) {
 
   const rowSpacing = 10.0;
 
+  // Lichtgrijze paginaachtergrond, zodat de witte kaarten eruit springen. In
+  // donkere modus juist iets donkerder dan de kaarten. De kleur komt uit een
+  // wegwerp-scaffold, zodat de proto-opbouw hier niet nagebouwd hoeft te worden.
+  const pageBg = UIColor.hex(0xFFF4F5F7, dark: 0xFF121418);
+  final bgProbe = UI.scaffold(name: 'bgProbe', backgroundColor: pageBg);
+  final sc = wc.node.props.scaffold.deepCopy();
+  sc.backgroundColorValue = bgProbe.props.scaffold.backgroundColorValue;
+  wc.node.props.scaffold = sc;
+
   FFVariable? stateVarOf(String stateFieldName) {
     final f = wc.classModel.stateFields
         .cast<FFWidgetClassStateField?>()
