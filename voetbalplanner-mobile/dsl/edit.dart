@@ -550,6 +550,9 @@ void buildEditFlow(App app) {
   try { app.state('dialogMatchId',             string); } catch (_) {}
   try { app.state('dialogScorerName',          string); } catch (_) {}
   try { app.state('dialogTeamId',              string); } catch (_) {}
+  // Huidige notitie, bij het openen van de dialoog gevuld vanuit de pagina-state
+  // zodat het tekstveld voorgevuld is en je kunt bijwerken i.p.v. overtypen.
+  try { app.state('dialogNote',                string); } catch (_) {}
   // Geselecteerde (nog niet bevestigde) vlagger/gastspeler in de coach-dialoog:
   // eerst kiezen, dan met een knop bevestigen.
   try { app.state('dialogFlaggerId',           string); } catch (_) {}
@@ -22007,6 +22010,13 @@ void _buildMatchActionsDialogBody(FFProject project) {
       labelText: 'Notitie bij deze wedstrijd',
       maxLines: 4,
     );
+    // Voorvullen met de bestaande notitie, zodat je bijwerkt in plaats van
+    // overtypen. dialogNote wordt gezet als de FAB de dialoog opent.
+    final dialogNoteId = _findAppStateFieldId(project, 'dialogNote');
+    if (dialogNoteId != null) {
+      noteField.props.textField.initialText =
+          FFText(textValue: FFStringValue(variable: appVar(dialogNoteId)));
+    }
     final saveNoteBtn = UI.button('Notitie opslaan', name: 'MaSaveNoteBtn', width: double.infinity);
     saveNoteBtn.triggerActions.add(FFTriggerActions(
       trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
@@ -22254,8 +22264,22 @@ void _addWedstrijdActionsFab(FFProject project) {
   // rechtsonder identiek; de acties in het menu zijn server-side afgeschermd.
   // Chain: reset naar menu-weergave → open dialog → ná sluiten de doelpuntenlijst
   // verversen (een dialoog kan pagina-state niet zelf bijwerken).
+  // Bij het openen ook de huidige notitie meegeven: de dialoog kan pagina-state
+  // niet lezen, dus die gaat via app-state naar het tekstveld.
+  final notesStateField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((x) => x?.parameter.identifier.name == 'matchNotes', orElse: () => null);
+
   final resetNode = FFActionNode(key: generateRandomAlphaNumericString(),
-    action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('dialogView', 'menu')]));
+    action: Actions.updateAppState(project, updates: [
+      StateFieldUpdate.set('dialogView', 'menu'),
+      if (notesStateField != null)
+        StateFieldUpdate.setFromVariable(
+          'dialogNote',
+          varFromPageState(notesStateField.parameter.identifier.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        ),
+    ]));
   final openNode = FFActionNode(key: generateRandomAlphaNumericString(),
     action: Actions.bottomSheet(project, componentName: 'MatchActionsSheet'));
   resetNode.followUpAction = openNode;
