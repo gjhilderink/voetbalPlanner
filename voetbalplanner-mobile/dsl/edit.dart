@@ -21043,8 +21043,21 @@ void _wireAgendaCalendarButton(FFProject project) {
     returnType: FFParameter(dataType: strType),
   );
 
+  // title is niet-nullable in de custom action, maar page-state-velden komen als
+  // String? uit codegen. Door een code-expressie halen maakt er een gewone
+  // String van; zonder dit faalt de iOS-build op een type-mismatch. De
+  // wedstrijdpagina ontloopt dit doordat die een letterlijke titel meestuurt.
+  final titleVar = codeExpressionVar(
+    expression: "t ?? ''",
+    arguments: [
+      CodeExpressionArg(name: 't', dataType: strType, value: stateArg('calTitle')),
+    ],
+    returnType: FFParameter(dataType: strType),
+  );
+
   final args = FFFunctionCallValues();
-  args.arguments[_kCalTitleKey]    = FFFunctionCallValues_FFArgument(value: stateArg('calTitle'));
+  args.arguments[_kCalTitleKey]    = FFFunctionCallValues_FFArgument(
+      value: FFValue(variable: titleVar));
   args.arguments[_kCalDateKey]     = FFFunctionCallValues_FFArgument(
       value: FFValue(variable: dateTimeVar));
   args.arguments[_kCalLocationKey] = FFFunctionCallValues_FFArgument(value: stateArg('calLocation'));
