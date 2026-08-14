@@ -1082,7 +1082,7 @@ void buildEditFlow(App app) {
       'matchOpponent', 'matchDatetime', 'matchLocation', 'matchArrivalTime',
       'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames', 'matchNotes', 'apiStatus',
       'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
-      'matchTeamId', 'selectedScorerName', 'inviteTeamId',
+      'matchTeamId', 'selectedScorerName', 'inviteTeamId', 'matchOpponentLogo',
     ]) {
       state.ensureField(f, string.withDefault(''));
     }
@@ -10514,7 +10514,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
     'matchOpponent', 'matchDatetime', 'matchLocation',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames', 'matchNotes',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
-    'matchGoalsSummary', 'matchTeamId', 'selectedScorerName',
+    'matchGoalsSummary', 'matchTeamId', 'selectedScorerName', 'matchOpponentLogo',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -10551,6 +10551,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchMagOpstelling': r'$.mag_opstelling',
           'matchGoalsSummary':  r'$.goals_summary',
           'matchTeamId':        r'$.teamId',
+          'matchOpponentLogo':  r'$.opponentLogo',
         };
         final updates = <StateFieldUpdate>[
           StateFieldUpdate.set('isLoading', 'false'),
@@ -23158,6 +23159,31 @@ void _restyleMatchInfoRows(FFProject project) {
   const iconBg = UIColor.hex(0xFFFDE8E8, dark: 0xFF3A1E1E);
   const cardBg = UIColor.hex(0xFFFFFFFF, dark: 0xFF1C1F26);
 
+  const rowSpacing = 10.0;
+
+  FFVariable? stateVarOf(String stateFieldName) {
+    final f = wc.classModel.stateFields
+        .cast<FFWidgetClassStateField?>()
+        .firstWhere((x) => x?.parameter.identifier.name == stateFieldName, orElse: () => null);
+    if (f == null) return null;
+    return varFromPageState(f.parameter.identifier.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+  }
+
+  // Clublogo van de tegenstander; null als het state-veld ontbreekt. Alleen
+  // zichtbaar zolang er een logo-URL is, zodat het rondje niet leeg oogt.
+  FFNode? opponentLogoNode() {
+    final logoVar = stateVarOf('matchOpponentLogo');
+    if (logoVar == null) return null;
+    final logo = UI.image('', name: 'MatchInfoLogo_opponent',
+        width: 34, height: 34, fit: UIBoxFit.contain);
+    logo.props.image.pathValue = FFStringValue(variable: logoVar);
+    setConditionalVisibility(logo, variable: conditionVar(
+      logoVar.deepCopy(), FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+    return logo;
+  }
+
   for (final entry in icons.entries) {
     final valueNode =
         findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_${entry.key}').firstOrNull;
@@ -23171,8 +23197,26 @@ void _restyleMatchInfoRows(FFProject project) {
     if (rowParent == null) continue;
     final card = rowParent.parent;
 
-    // Al herstyled? Dan overslaan (idempotent bij herhaalde pushes).
-    if (findDescendants(card, (n) => n.name == 'MatchInfoIcon_${entry.key}').isNotEmpty) {
+    // Al herstyled? Dan alleen bijwerken wat kan wijzigen. Simpelweg overslaan
+    // zou latere aanpassingen (spacing, logo) nooit laten landen.
+    final existingCircle =
+        findDescendants(wc.node, (n) => n.name == 'MatchInfoIcon_${entry.key}').firstOrNull;
+    if (existingCircle != null) {
+      final existingRow =
+          findDescendants(wc.node, (n) => n.name == 'MatchInfoCardRow_${entry.key}').firstOrNull;
+      if (existingRow != null) {
+        final r = existingRow.props.row.deepCopy();
+        r.listSpacing = FFListSpacing(spacingValue: FFDoubleValue(inputValue: rowSpacing));
+        existingRow.props.row = r;
+      }
+      if (entry.key == 'opponent') {
+        final logo = opponentLogoNode();
+        if (logo != null) {
+          existingCircle.children
+            ..clear()
+            ..add(logo);
+        }
+      }
       continue;
     }
 
@@ -23192,13 +23236,20 @@ void _restyleMatchInfoRows(FFProject project) {
           inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT));
     }
 
+    // Bij de tegenstander het clublogo in plaats van een icoon. Valt terug op
+    // het icoon zolang er geen logo bekend is, zodat het rondje nooit leeg is.
+    FFNode circleChild = UI.icon(entry.value, size: 22, color: UIColor.primary);
+    if (entry.key == 'opponent') {
+      circleChild = opponentLogoNode() ?? circleChild;
+    }
+
     final iconCircle = UI.container(
       name: 'MatchInfoIcon_${entry.key}',
       width: 48,
       height: 48,
       borderRadius: 24,
       color: iconBg,
-      child: UI.icon(entry.value, size: 22, color: UIColor.primary),
+      child: circleChild,
     );
 
     final textColumn = UI.column(
@@ -23214,7 +23265,7 @@ void _restyleMatchInfoRows(FFProject project) {
 
     final row = UI.row(
       name: 'MatchInfoCardRow_${entry.key}',
-      spacing: 14,
+      spacing: rowSpacing,
       crossAxisAlignment: UICrossAxisAlignment.center,
       children: [iconCircle, textColumn],
     );
