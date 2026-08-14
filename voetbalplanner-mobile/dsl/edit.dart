@@ -1124,6 +1124,9 @@ void buildEditFlow(App app) {
     _addWedstrijdGuestManagement(project);
     _fixMatchInfoWidth(project);
     _makeWedstrijdDetailInfoTabScrollable(project);
+    // Kaartopmaak met icoonrondjes; ná het bouwen én verbreden van de rijen,
+    // anders herstyle je nodes die daarna weer overschreven worden.
+    _restyleMatchInfoRows(project);
   });
 
   // BarDutyCard: add barDutyId/barDutyDate params and navigate internally.
@@ -23125,6 +23128,115 @@ void _addDashboardAgendaViewAll(FFProject project) {
   );
 
   col.children.add(button);
+}
+
+// Herstyle de info-tab van de wedstrijddetail naar kaarten met een gekleurd
+// icoonrondje, zoals in screenshots/opmaak info wedstrijd detail pagina.png.
+//
+// De rijen bestaan al als container > kolom(label, waarde). Deze functie houdt
+// die containers intact — zo blijven volgorde en conditionele zichtbaarheid
+// staan — en vervangt alleen hun inhoud en opmaak.
+void _restyleMatchInfoRows(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+
+  // Icoon per veld; sluit aan bij wat het veld voorstelt.
+  const icons = <String, String>{
+    'opponent':       'checkroom',
+    'matchDatetime':  'event',
+    'location':       'place',
+    'arrivalTime':    'flag',
+    'coachName':      'group',
+    'matchVlaggerName': 'sports_score',
+    'fruitHeroName':  'restaurant',
+    'matchGuestNames': 'person_add',
+    'notes':          'assignment',
+  };
+
+  // Zacht rood rondje achter het icoon; in donkere modus iets dieper zodat het
+  // icoon leesbaar blijft.
+  const iconBg = UIColor.hex(0xFFFDE8E8, dark: 0xFF3A1E1E);
+  const cardBg = UIColor.hex(0xFFFFFFFF, dark: 0xFF1C1F26);
+
+  for (final entry in icons.entries) {
+    final valueNode =
+        findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_${entry.key}').firstOrNull;
+    if (valueNode == null) continue;
+
+    final colParent = findParentByKey(wc.node, valueNode.key);
+    if (colParent == null) continue;
+    final column = colParent.parent;
+
+    final rowParent = findParentByKey(wc.node, column.key);
+    if (rowParent == null) continue;
+    final card = rowParent.parent;
+
+    // Al herstyled? Dan overslaan (idempotent bij herhaalde pushes).
+    if (findDescendants(card, (n) => n.name == 'MatchInfoIcon_${entry.key}').isNotEmpty) {
+      continue;
+    }
+
+    // Labeltekst is het eerste Text-kind naast de waarde.
+    final labelNode = column.children
+        .where((c) => c.type == FFWidgetType.Text && !identical(c, valueNode))
+        .firstOrNull;
+
+    // Waarde krijgt meer gewicht, label wordt klein en grijs — zoals in de
+    // screenshot: label boven, waarde daaronder in het vet.
+    valueNode.props.text
+      ..themeStyle = FFText_ThemeStyle.TITLE_SMALL
+      ..maxLinesValue = FFIntegerValue(inputValue: 2);
+    if (labelNode != null) {
+      labelNode.props.text.themeStyle = FFText_ThemeStyle.LABEL_MEDIUM;
+      labelNode.props.text.colorValue = FFColorValue(
+          inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT));
+    }
+
+    final iconCircle = UI.container(
+      name: 'MatchInfoIcon_${entry.key}',
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      color: iconBg,
+      child: UI.icon(entry.value, size: 22, color: UIColor.primary),
+    );
+
+    final textColumn = UI.column(
+      name: 'MatchInfoText_${entry.key}',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 2,
+      children: [
+        if (labelNode != null) labelNode,
+        valueNode,
+      ],
+    );
+    UI.expanded(textColumn);
+
+    final row = UI.row(
+      name: 'MatchInfoCardRow_${entry.key}',
+      spacing: 14,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [iconCircle, textColumn],
+    );
+
+    // De bestaande containernode wordt de kaart.
+    card.children
+      ..clear()
+      ..add(row);
+    card.props.padding = FFPadding(
+      leftValue: FFDoubleValue(inputValue: 14),
+      topValue: FFDoubleValue(inputValue: 12),
+      rightValue: FFDoubleValue(inputValue: 14),
+      bottomValue: FFDoubleValue(inputValue: 12),
+    );
+    // Kleur + afronding overnemen van een wegwerp-container: dan hoeft de
+    // proto-opbouw van een hexkleur hier niet nagebouwd te worden.
+    final probe = UI.container(name: 'probe', color: cardBg, borderRadius: 14);
+    final deco = card.props.container.boxDecoration.deepCopy();
+    deco.colorValue = probe.props.container.boxDecoration.colorValue;
+    deco.borderRadius = probe.props.container.boxDecoration.borderRadius;
+    card.props.container.boxDecoration = deco;
+  }
 }
 
 // Geeft de agenda-items de kleur van hun categorie.
