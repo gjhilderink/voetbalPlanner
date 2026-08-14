@@ -11021,12 +11021,27 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     // daadwerkelijk gastspelers zijn uitgenodigd).
     final coachValue = findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_coachName').firstOrNull;
     if (coachValue != null && stateVar('matchVlaggerName') != null) {
-      final cp1 = findParentByKey(wc.node, coachValue.key);                       // Column
-      final cp2 = cp1 != null ? findParentByKey(wc.node, cp1.parent.key) : null;  // MatchInfoRow-container
-      final cp3 = cp2 != null ? findParentByKey(wc.node, cp2.parent.key) : null;  // rijenlijst
-      if (cp2 != null && cp3 != null) {
-        final coachRow = cp2.parent;
-        final list = cp3.parent;
+      // Zoek de kaart van Coach en de lijst waarin die staat door omhoog te
+      // lopen tot een ouder met meerdere info-rijen. Een vast aantal niveaus
+      // werkt hier niet: de kaartopmaak (_restyleMatchInfoRows) voegt een Row
+      // en een Expanded toe, waardoor de diepte per push verschilt.
+      FFNode? coachRow;
+      FFNode? list;
+      var current = coachValue;
+      for (var i = 0; i < 8; i++) {
+        final p = findParentByKey(wc.node, current.key);
+        if (p == null) break;
+        final siblingsWithValues = p.parent.children
+            .where((c) => findDescendants(c, (n) => (n.name ?? '').startsWith('MatchInfoValue_')).isNotEmpty)
+            .length;
+        if (siblingsWithValues >= 2) {
+          coachRow = current;
+          list = p.parent;
+          break;
+        }
+        current = p.parent;
+      }
+      if (coachRow != null && list != null) {
         final baseIdx = list.children.indexWhere((c) => identical(c, coachRow));
         var at = baseIdx >= 0 ? baseIdx + 1 : list.children.length;
         list.children.insert(at, infoRow('Vlagger', 'matchVlaggerName'));
@@ -11129,9 +11144,17 @@ void _addWedstrijdGuestManagement(FFProject project) {
     UI.text('Beheer (coach)', name: 'MatchGuestMgmtHeader', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
   ];
 
-  // Vlagger verwijderen (zichtbaar zodra er een vlagger is).
+  // Vlagger verwijderen (zichtbaar zodra er een vlagger is). Zelfde vorm als de
+  // gastspelers: naam met een prullenbak-icoon erachter, geen brede knop.
   if (hasFlagEp) {
-    final delFlagBtn = UI.button('Vlagger verwijderen', name: 'MatchDelFlagBtn', width: double.infinity);
+    final flagName = UI.text('', name: 'MatchDelFlagName', style: UITextStyle.bodyMedium);
+    final flagNameVar = stateVar('matchVlaggerName');
+    if (flagNameVar != null) {
+      flagName.props.text.textValue = FFStringValue(variable: flagNameVar.deepCopy());
+    }
+    UI.expanded(flagName);
+    final delFlagBtn = UI.container(name: 'MatchDelFlagBtn', padding: UIEdgeInsets.all(6),
+        child: UI.icon('delete', size: 20, color: UIColor.error));
     delFlagBtn.triggerActions.add(FFTriggerActions(
       trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
       rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI',
@@ -11143,13 +11166,17 @@ void _addWedstrijdGuestManagement(FFProject project) {
             action: Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
                 updates: [StateFieldUpdate.set('matchVlaggerName', '')]))),
         onFailure: (ctx) => Actions.chain([Actions.snackBar('Verwijderen mislukt.')]))));
+    final flagRow = UI.row(name: 'MatchDelFlagRow', spacing: 8,
+        crossAxisAlignment: UICrossAxisAlignment.center, children: [flagName, delFlagBtn]);
     final vlagVar = stateVar('matchVlaggerName');
     if (vlagVar != null) {
-      setConditionalVisibility(delFlagBtn, variable: conditionVar(
+      // Hele rij verbergen zolang er geen vlagger is — anders zie je een lege
+      // regel met alleen een prullenbak.
+      setConditionalVisibility(flagRow, variable: conditionVar(
           vlagVar, FFCondition_Relation.NOT_EQUAL_TO,
           varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
     }
-    children.add(delFlagBtn);
+    children.add(flagRow);
   }
 
   // Gastspelers-lijst met verwijderknoppen. Geen kopregel: het prullenbak-icoon
