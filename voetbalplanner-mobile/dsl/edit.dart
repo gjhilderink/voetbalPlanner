@@ -788,6 +788,37 @@ void buildEditFlow(App app) {
   // Agendaschermen — ná _addAgendaEndpoints, want ApiCall resolveert de
   // endpoints op naam tegen het project en faalt als ze nog niet bestaan.
   _buildAgendaPages(app);
+  // Losse velden voor de kalender-actie; de pagina zelf wordt niet herbouwd
+  // (ensurePage), dus dit moet via de edit-API.
+  app.editPageState(ff.Pages.agendaDetailPage, (state) {
+    state.ensureField('calTitle', string.withDefault(''));
+    state.ensureField('calDate', string.withDefault(''));
+    state.ensureField('calTime', string.withDefault(''));
+    state.ensureField('calLocation', string.withDefault(''));
+    state.ensureField('calNotes', string.withDefault(''));
+  });
+  // On-load opnieuw zetten zodat de kalendervelden meegevuld worden.
+  app.editPageOnLoad(ff.Pages.agendaDetailPage, [
+    ApiCall(
+      _getAgendaDetailEp,
+      outputAs: 'agendaDetailRes',
+      params: {'agendaItemId': PageParam('agendaItemId')},
+      onSuccess: (res) => [
+        SetState(ff.Pages.agendaDetailPage.state.item, res),
+        SetState(ff.Pages.agendaDetailPage.state.isLoading, false),
+        SetState('calTitle', res['title']),
+        SetState('calDate', res['startDate']),
+        SetState('calTime', res['startTime']),
+        SetState('calLocation', res['location']),
+        SetState('calNotes', res['summary']),
+      ],
+      onFailure: [
+        SetState(ff.Pages.agendaDetailPage.state.isLoading, false),
+        Snackbar('Deze activiteit kon niet worden geladen.'),
+      ],
+    ),
+  ]);
+  app.raw((project) => _wireAgendaCalendarButton(project));
   // (De dashboard-trainingen-sectie wordt verderop toegevoegd, ná _wireDashboardLoad
   // die de on-load-chain elke push opnieuw opbouwt — anders wordt GetTrainings gewist.)
 
@@ -20942,6 +20973,66 @@ void _addDashboardMatchesEndpoint(FFProject project) {
 }
 
 // ─── Verenigingsagenda: schermen ──────────────────────────────────────────────
+
+// Zet de knop 'Toevoegen aan mijn agenda' op dezelfde apparaatkalender-actie
+// als de wedstrijddetail, in plaats van een Google Agenda-link in de browser.
+//
+// De actie neemt losse strings, terwijl de agendapagina alles in één struct
+// houdt. Vandaar vier aparte state-velden die bij het laden gevuld worden — de
+// wedstrijdpagina doet dat om dezelfde reden.
+void _wireAgendaCalendarButton(FFProject project) {
+  final wc = findPage(project, name: 'AgendaDetailPage');
+  if (wc == null) return;
+
+  final ca = findCustomAction(project, name: 'AddEventToCalendar');
+  if (ca == null) return;
+
+  final btn =
+      findDescendants(wc.node, (n) => n.name == 'AgendaAddToCalendarButton').firstOrNull;
+  if (btn == null) return;
+
+  FFValue stateArg(String field) => _pageStateVar(project, 'AgendaDetailPage', field, wc.node.key);
+
+  // De actie parseert 'd-m-Y H:i'; de API levert datum en tijd apart, dus hier
+  // samenvoegen tot hetzelfde formaat als de wedstrijdpagina meestuurt.
+  final strType = FFDataTypeV2(scalarType: FFBaseDataType.String);
+  final dateTimeVar = codeExpressionVar(
+    expression: "((d ?? '') + ' ' + (t ?? '')).trim()",
+    arguments: [
+      CodeExpressionArg(name: 'd', dataType: strType, value: stateArg('calDate')),
+      CodeExpressionArg(name: 't', dataType: strType, value: stateArg('calTime')),
+    ],
+    returnType: FFParameter(dataType: strType),
+  );
+
+  final args = FFFunctionCallValues();
+  args.arguments[_kCalTitleKey]    = FFFunctionCallValues_FFArgument(value: stateArg('calTitle'));
+  args.arguments[_kCalDateKey]     = FFFunctionCallValues_FFArgument(
+      value: FFValue(variable: dateTimeVar));
+  args.arguments[_kCalLocationKey] = FFFunctionCallValues_FFArgument(value: stateArg('calLocation'));
+  args.arguments[_kCalNotesKey]    = FFFunctionCallValues_FFArgument(value: stateArg('calNotes'));
+
+  // Bestaande LaunchUrl-actie vervangen, niet aanvullen.
+  btn.triggerActions.clear();
+  Actions.addTriggerChain(
+    btn,
+    FFActionTriggerType.ON_TAP,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: ca.identifier.deepCopy(),
+          argumentValues: args,
+        ),
+      ),
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.snackBar('Toegevoegd aan je agenda.'),
+      ),
+    ),
+  );
+}
 
 // Endpoint-waardeobjecten voor de agenda. Ze wórden hier niet aangemaakt — dat
 // doet _addAgendaEndpoints via ruwe proto — maar ApiCall resolveert op naam +

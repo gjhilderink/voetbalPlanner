@@ -25,6 +25,36 @@ final class AgendaDetailPageParams {
 
 final class AgendaDetailPageState {
   const AgendaDetailPageState();
+  ffai.ProjectStateFieldHandle get calDate =>
+      const ffai.ProjectStateFieldHandle(
+        name: "calDate",
+        key: "bk8z6bp5",
+        typeName: "String",
+      );
+  ffai.ProjectStateFieldHandle get calLocation =>
+      const ffai.ProjectStateFieldHandle(
+        name: "calLocation",
+        key: "w9kk5818",
+        typeName: "String",
+      );
+  ffai.ProjectStateFieldHandle get calNotes =>
+      const ffai.ProjectStateFieldHandle(
+        name: "calNotes",
+        key: "i4fvgs1o",
+        typeName: "String",
+      );
+  ffai.ProjectStateFieldHandle get calTime =>
+      const ffai.ProjectStateFieldHandle(
+        name: "calTime",
+        key: "f9ro3r76",
+        typeName: "String",
+      );
+  ffai.ProjectStateFieldHandle get calTitle =>
+      const ffai.ProjectStateFieldHandle(
+        name: "calTitle",
+        key: "va6up6u5",
+        typeName: "String",
+      );
   ffai.ProjectStateFieldHandle get isLoading =>
       const ffai.ProjectStateFieldHandle(
         name: "isLoading",
