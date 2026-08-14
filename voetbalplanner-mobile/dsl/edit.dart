@@ -819,6 +819,7 @@ void buildEditFlow(App app) {
     ),
   ]);
   app.raw((project) => _wireAgendaCalendarButton(project));
+  app.raw((project) => _fixAgendaButtonIconColors(project));
   // (De dashboard-trainingen-sectie wordt verderop toegevoegd, ná _wireDashboardLoad
   // die de on-load-chain elke push opnieuw opbouwt — anders wordt GetTrainings gewist.)
 
@@ -20980,6 +20981,30 @@ void _addDashboardMatchesEndpoint(FFProject project) {
 // De actie neemt losse strings, terwijl de agendapagina alles in één struct
 // houdt. Vandaar vier aparte state-velden die bij het laden gevuld worden — de
 // wedstrijdpagina doet dat om dezelfde reden.
+// Icoonkleur op de gevulde agenda-knoppen. Zonder expliciete kleur valt het
+// icoon terug op de standaard en tekent het in primary — op een primary-vlak
+// dus onleesbaar. De outlined knoppen krijgen dit bewust niet: die hebben een
+// transparante vulling, daar zou primaryBackground juist wegvallen.
+void _fixAgendaButtonIconColors(FFProject project) {
+  final wc = findPage(project, name: 'AgendaDetailPage');
+  if (wc == null) return;
+
+  // Knopnaam → icoonnaam, zodat de icoonwaarde compleet herbouwd kan worden.
+  // FFIconValue heeft geen losse kleur-setter, dus vervangen is de weg.
+  const filledButtons = {'AgendaAanmeldButton': 'check'};
+
+  for (final entry in filledButtons.entries) {
+    final btn = findDescendants(wc.node, (n) => n.name == entry.key).firstOrNull;
+    if (btn == null || !btn.props.hasButton()) continue;
+
+    final probe = UI.button('x', name: 'probe',
+        iconName: entry.value, iconSize: 20, iconColor: UIColor.primaryBackground);
+    final b = btn.props.button.deepCopy();
+    b.iconValue = probe.props.button.iconValue.deepCopy();
+    btn.props.button = b;
+  }
+}
+
 void _wireAgendaCalendarButton(FFProject project) {
   final wc = findPage(project, name: 'AgendaDetailPage');
   if (wc == null) return;
