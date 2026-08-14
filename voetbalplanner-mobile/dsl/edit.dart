@@ -1271,6 +1271,9 @@ void buildEditFlow(App app) {
     // Custom action moet bestaan vóór _wireDashboardLoad die 'm vooraan de
     // on-load chain hangt.
     _ensureRefreshCurrentTeamAction(project);
+    // Endpoint met per_page=2 moet bestaan vóór de dashboard-wiring: apiCallNode
+    // zoekt het endpoint op en gooit als het er niet is.
+    _addDashboardMatchesEndpoint(project);
     _wireDashboardLoad(project);
     _fixDashboardListViewShrinkWrap(project);
     // Add "Rijschema" section: shows matches where the user is assigned to drive.
@@ -14941,7 +14944,7 @@ void _addDashboardTeamSwitcher(FFProject project) {
 
   final matchesNode = Actions.apiCallNode(
     project,
-    endpointName: 'GetUpcomingMatches',
+    endpointName: 'GetDashboardMatches',
     groupName: 'VoetbalPlannerAPI',
     dynamicVariables: {
       'token':  varFromAppState(authTokenId.deepCopy()),
@@ -15238,7 +15241,7 @@ void _wireDashboardLoad(FFProject project) {
   // Build GetUpcomingMatches node and chain dutiesNode after it.
   final matchesNode = Actions.apiCallNode(
     project,
-    endpointName: 'GetUpcomingMatches',
+    endpointName: 'GetDashboardMatches',
     groupName: 'VoetbalPlannerAPI',
     dynamicVariables: {
       'token': varFromAppState(authTokenId.deepCopy()),
@@ -20847,6 +20850,54 @@ void _addScoreEndpoints(FFProject project) {
       responseDataStructIsList: true,
     );
   }
+}
+
+// Apart endpoint voor het dashboard: alleen de eerstvolgende twee wedstrijden.
+//
+// GetUpcomingMatches (per_page=50) wordt gedeeld met de WedstrijdenPage, dus
+// daar kan de limiet niet omlaag — die pagina moet juist alles tonen. per_page
+// staat bovendien hardgecodeerd in de URL en is geen variabele, dus een aparte
+// call is de enige manier om beide te bedienen. Zelfde opzet als
+// GetAgendaUpcoming naast GetAgenda.
+void _addDashboardMatchesEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  if (findApiEndpoint(project, name: 'GetDashboardMatches', groupName: groupName) != null) {
+    return;
+  }
+
+  final group = findApiGroup(project, name: groupName);
+  if (group == null) return;
+
+  // Responsvorm overnemen van GetUpcomingMatches, zodat de FootMatch-mapping
+  // identiek is en de bestaande kaartbindingen blijven werken.
+  final upcoming = group.endpoints
+      .cast<FFApiEndpoint?>()
+      .firstWhere((ep) => ep?.identifier.name == 'GetUpcomingMatches', orElse: () => null);
+  if (upcoming == null) return;
+
+  group.endpoints.add(FFApiEndpoint(
+    identifier: FFIdentifier(
+      name: 'GetDashboardMatches',
+      key: generateRandomAlphaNumericString(),
+    ),
+    url: '/matches?upcoming=1&per_page=2&team_id=[teamId]',
+    callType: FFApiEndpoint_CallType.GET,
+    bodyType: FFApiEndpoint_BodyType.NONE,
+    body: '',
+    variables: [
+      FFApiValue(
+        identifier: FFIdentifier(name: 'token', key: generateRandomAlphaNumericString()),
+        type: FFBaseDataType.String,
+      ),
+      FFApiValue(
+        identifier: FFIdentifier(name: 'teamId', key: generateRandomAlphaNumericString()),
+        type: FFBaseDataType.String,
+      ),
+    ],
+    headers: ['Authorization: Bearer [token]'],
+    groupIdentifier: group.identifier.deepCopy(),
+    responseDataStructParam: upcoming.responseDataStructParam.deepCopy(),
+  ));
 }
 
 // ─── Verenigingsagenda: schermen ──────────────────────────────────────────────
