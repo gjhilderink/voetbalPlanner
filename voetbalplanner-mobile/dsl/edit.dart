@@ -1334,6 +1334,8 @@ void buildEditFlow(App app) {
     _fixDashboardAgendaCardLayout(project);
     // Categoriekleuren; draait ná het aanmaken van de agendaschermen.
     _colorAgendaByCategory(project);
+    // Kaartopmaak gelijk aan MatchCard (radius 8 + dunne rand).
+    _alignCardStyling(project);
     // TrainingDetailPage-inhoud + kaart aantikbaar maken.
     _wireTrainingDetailPage(project);
     _wireTrainingCardNavigation(project);
@@ -23573,6 +23575,57 @@ void _restyleMatchInfoRows(FFProject project) {
       findDescendants(wc.node, (n) => (n.name ?? '').startsWith('MatchInfoValue_')).firstOrNull;
   if (anyValue != null) {
     setListSpacing(anyValue, 0);
+  }
+}
+
+// Trekt de kaartopmaak op het dashboard en de agendalijst gelijk met MatchCard:
+// kleine afronding (8) en een dunne grijze rand, op secondaryBackground.
+//
+// MatchCard is de referentie omdat die het meest gebruikt wordt; de losse
+// dashboardkaarten waren met de hand opgebouwd en weken per sectie af.
+void _alignCardStyling(FFProject project) {
+  const cardRadius = 8.0;
+  const borderColor = UIColor.hex(0xFFE5E7EB, dark: 0xFF2A2F38);
+
+  // Pagina → kaartnamen die dezelfde opmaak moeten krijgen.
+  const targets = <String, List<String>>{
+    'DashboardPage': [
+      'DashboardMatchCard',
+      'DashboardDutyCard',
+      'DashboardDriveCard',
+      'DashboardTrainingCard',
+      'DashboardAgendaCard',
+      'GuestInvCard',
+    ],
+    'AgendaPage': ['AgendaListCard'],
+  };
+
+  // Opmaak uit een wegwerp-container, zodat kleur, rand en afronding niet als
+  // proto nagebouwd hoeven te worden.
+  final probe = UI.container(
+    name: 'cardProbe',
+    color: UIColor.secondaryBackground,
+    borderRadius: cardRadius,
+    borderColor: borderColor,
+    borderWidth: 1,
+  );
+  final probeDeco = probe.props.container.boxDecoration;
+
+  for (final page in targets.entries) {
+    final wc = findPage(project, name: page.key);
+    if (wc == null) continue;
+
+    for (final cardName in page.value) {
+      for (final card in findDescendants(wc.node, (n) => n.name == cardName)) {
+        if (!card.props.hasContainer()) continue;
+        final deco = card.props.container.boxDecoration.deepCopy();
+        deco.colorValue = probeDeco.colorValue;
+        deco.borderRadius = probeDeco.borderRadius;
+        deco.borderColorValue = probeDeco.borderColorValue;
+        deco.borderWidthValue = probeDeco.borderWidthValue;
+        card.props.container.boxDecoration = deco;
+      }
+    }
   }
 }
 
