@@ -23187,6 +23187,38 @@ void _restyleMatchInfoRows(FFProject project) {
 
   const rowSpacing = 10.0;
 
+  // Achtergrondkleur van een icoonrondje zetten via een wegwerp-container, zodat
+  // de proto-opbouw van een kleur hier niet nagebouwd hoeft te worden.
+  void setCircleColor(FFNode circle, UIColor color) {
+    final probe = UI.container(name: 'probe', color: color, borderRadius: 24);
+    final deco = circle.props.container.boxDecoration.deepCopy();
+    deco.colorValue = probe.props.container.boxDecoration.colorValue;
+    circle.props.container.boxDecoration = deco;
+  }
+
+  // Zet de tussenruimte van de rijenlijst. De kaarten hebben eigen padding en
+  // een achtergrond, dus zonder tussenruimte sluiten ze op elkaar aan.
+  void setListSpacing(FFNode anyValueNode, double spacing) {
+    var current = anyValueNode;
+    for (var i = 0; i < 8; i++) {
+      final p = findParentByKey(wc.node, current.key);
+      if (p == null) return;
+      final withValues = p.parent.children
+          .where((c) => findDescendants(c, (n) => (n.name ?? '').startsWith('MatchInfoValue_')).isNotEmpty)
+          .length;
+      if (withValues >= 2) {
+        final list = p.parent;
+        if (list.props.hasColumn()) {
+          final col = list.props.column.deepCopy();
+          col.listSpacing = FFListSpacing(spacingValue: FFDoubleValue(inputValue: spacing));
+          list.props.column = col;
+        }
+        return;
+      }
+      current = p.parent;
+    }
+  }
+
   // Lichtgrijze paginaachtergrond, zodat de witte kaarten eruit springen. In
   // donkere modus juist iets donkerder dan de kaarten. De kleur komt uit een
   // wegwerp-scaffold, zodat de proto-opbouw hier niet nagebouwd hoeft te worden.
@@ -23283,6 +23315,8 @@ void _restyleMatchInfoRows(FFProject project) {
           existingCircle.children
             ..clear()
             ..add(logo);
+          // Clublogo's hebben hun eigen vlak; het rode rondje eromheen botst.
+          setCircleColor(existingCircle, UIColor.transparent);
         }
       }
       if (entry.key == 'location' &&
@@ -23313,8 +23347,14 @@ void _restyleMatchInfoRows(FFProject project) {
     // Bij de tegenstander het clublogo in plaats van een icoon. Valt terug op
     // het icoon zolang er geen logo bekend is, zodat het rondje nooit leeg is.
     FFNode circleChild = UI.icon(entry.value, size: 22, color: UIColor.primary);
+    var circleBg = iconBg;
     if (entry.key == 'opponent') {
-      circleChild = opponentLogoNode() ?? circleChild;
+      final logo = opponentLogoNode();
+      if (logo != null) {
+        circleChild = logo;
+        // Clublogo's hebben hun eigen vlak; het rode rondje eromheen botst.
+        circleBg = UIColor.transparent;
+      }
     }
 
     final iconCircle = UI.container(
@@ -23322,7 +23362,7 @@ void _restyleMatchInfoRows(FFProject project) {
       width: 48,
       height: 48,
       borderRadius: 24,
-      color: iconBg,
+      color: circleBg,
       child: circleChild,
     );
 
@@ -23363,6 +23403,13 @@ void _restyleMatchInfoRows(FFProject project) {
     deco.colorValue = probe.props.container.boxDecoration.colorValue;
     deco.borderRadius = probe.props.container.boxDecoration.borderRadius;
     card.props.container.boxDecoration = deco;
+  }
+
+  // Kaarten sluiten op elkaar aan: geen tussenruimte in de rijenlijst.
+  final anyValue =
+      findDescendants(wc.node, (n) => (n.name ?? '').startsWith('MatchInfoValue_')).firstOrNull;
+  if (anyValue != null) {
+    setListSpacing(anyValue, 0);
   }
 }
 
