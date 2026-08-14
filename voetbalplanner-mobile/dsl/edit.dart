@@ -20981,27 +20981,40 @@ void _addDashboardMatchesEndpoint(FFProject project) {
 // De actie neemt losse strings, terwijl de agendapagina alles in één struct
 // houdt. Vandaar vier aparte state-velden die bij het laden gevuld worden — de
 // wedstrijdpagina doet dat om dezelfde reden.
-// Icoonkleur op de gevulde agenda-knoppen. Zonder expliciete kleur valt het
-// icoon terug op de standaard en tekent het in primary — op een primary-vlak
-// dus onleesbaar. De outlined knoppen krijgen dit bewust niet: die hebben een
-// transparante vulling, daar zou primaryBackground juist wegvallen.
+// Icoonkleur op de agenda-knoppen. Zonder expliciete kleur tekent het icoon in
+// primary, terwijl de branding-pass álle knoppen een primary vulling geeft —
+// ook de outlined varianten. Het icoon werd daardoor primary-op-primary en dus
+// onzichtbaar. Kijk hiervoor altijd naar de gegenereerde code: in de DSL lijken
+// deze knoppen transparant.
 void _fixAgendaButtonIconColors(FFProject project) {
-  final wc = findPage(project, name: 'AgendaDetailPage');
-  if (wc == null) return;
+  // Knopnaam → icoonnaam per pagina. FFIconValue heeft geen losse kleur-setter,
+  // dus de icoonwaarde wordt in zijn geheel vervangen.
+  const perPage = <String, Map<String, String>>{
+    'AgendaDetailPage': {
+      'AgendaAanmeldButton': 'check',
+      'AgendaAfmeldButton': 'close',
+      'AgendaExternalLinkButton': 'open_in_new',
+      'AgendaAddToCalendarButton': 'calendar_month',
+    },
+    'AgendaPage': {
+      'AgendaClearFilterButton': 'filter_alt_off',
+    },
+  };
 
-  // Knopnaam → icoonnaam, zodat de icoonwaarde compleet herbouwd kan worden.
-  // FFIconValue heeft geen losse kleur-setter, dus vervangen is de weg.
-  const filledButtons = {'AgendaAanmeldButton': 'check'};
+  for (final page in perPage.entries) {
+    final wc = findPage(project, name: page.key);
+    if (wc == null) continue;
 
-  for (final entry in filledButtons.entries) {
-    final btn = findDescendants(wc.node, (n) => n.name == entry.key).firstOrNull;
-    if (btn == null || !btn.props.hasButton()) continue;
+    for (final entry in page.value.entries) {
+      final btn = findDescendants(wc.node, (n) => n.name == entry.key).firstOrNull;
+      if (btn == null || !btn.props.hasButton()) continue;
 
-    final probe = UI.button('x', name: 'probe',
-        iconName: entry.value, iconSize: 20, iconColor: UIColor.primaryBackground);
-    final b = btn.props.button.deepCopy();
-    b.iconValue = probe.props.button.iconValue.deepCopy();
-    btn.props.button = b;
+      final probe = UI.button('x', name: 'probe',
+          iconName: entry.value, iconSize: 20, iconColor: UIColor.primaryBackground);
+      final b = btn.props.button.deepCopy();
+      b.iconValue = probe.props.button.iconValue.deepCopy();
+      btn.props.button = b;
+    }
   }
 }
 
