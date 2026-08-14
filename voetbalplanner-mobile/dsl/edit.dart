@@ -23132,7 +23132,26 @@ void _addDashboardAgendaViewAll(FFProject project) {
   final col =
       findDescendants(wc.node, (n) => n.name == 'DashboardAgendaCol').firstOrNull;
   if (col == null) return;
-  if (findDescendants(wc.node, (n) => n.name == 'DashboardAgendaViewAll').isNotEmpty) {
+
+  // Breedte en binnenruimte van de knop. Zonder dat schaalt hij strak om de
+  // tekst heen en raakt het label de rechterrand, zeker met het pijl-icoon erbij.
+  const viewAllWidth = 190.0;
+  final viewAllPadding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 16),
+    topValue: FFDoubleValue(inputValue: 8),
+    rightValue: FFDoubleValue(inputValue: 16),
+    bottomValue: FFDoubleValue(inputValue: 8),
+  );
+
+  final existing =
+      findDescendants(wc.node, (n) => n.name == 'DashboardAgendaViewAll').firstOrNull;
+  if (existing != null) {
+    // Alleen bijwerken; opnieuw opbouwen zou de bestaande tap-actie weggooien.
+    final probe = UI.button('x', name: 'probe', width: viewAllWidth);
+    final b = existing.props.button.deepCopy();
+    b.dimensions = probe.props.button.dimensions;
+    existing.props.button = b;
+    existing.props.padding = viewAllPadding;
     return;
   }
 
@@ -23143,6 +23162,8 @@ void _addDashboardAgendaViewAll(FFProject project) {
     iconName: 'arrow_forward',
     iconSize: 18,
     textColor: UIColor.primary,
+    width: viewAllWidth,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
   );
 
   Actions.addTriggerChain(
