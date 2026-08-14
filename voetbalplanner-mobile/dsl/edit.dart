@@ -21562,6 +21562,21 @@ void _addGuestInviteEndpoints(FFProject project) {
         headers: ['Authorization: Bearer [bearerToken]']);
   }
 
+  // Notitie bij een wedstrijd (coach/leider). Query-param, want FF interpoleert
+  // [var] alleen in de URL en niet in een JSON-body.
+  const noteUrl = '/matches/[matchId]/notitie?notes=[notes]';
+  if (has('SetMatchNote')) {
+    updateApiEndpoint(project, name: 'SetMatchNote', groupName: groupName,
+        url: noteUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'SetMatchNote',
+        url: noteUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str(), 'notes': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
   if (!has('GetMyGuestInvitations')) {
     addEndpointToGroup(project, groupName: groupName, name: 'GetMyGuestInvitations',
         url: '/guest-invitations', method: FFApiEndpoint_CallType.GET,
@@ -21918,6 +21933,7 @@ void _buildMatchActionsDialogBody(FFProject project) {
         menuBtn('Doelpunt toevoegen', 'goal'),
         menuBtn('Vlagger kiezen', 'flag'),
         menuBtn('Gastspeler uitnodigen', 'invite'),
+        menuBtn('Notitie toevoegen', 'note'),
       ]);
   setConditionalVisibility(menuView, variable: viewIs('menu'));
   root.children.add(menuView);
@@ -21980,6 +21996,48 @@ void _buildMatchActionsDialogBody(FFProject project) {
       ]);
   setConditionalVisibility(goalView, variable: viewIs('goal'));
   root.children.add(goalView);
+
+  // ── Notitie ──
+  // Coach of leider zet een opmerking bij de wedstrijd. Na opslaan sluit de
+  // sheet; de post-close-keten op de FAB haalt de wedstrijd opnieuw op, zodat
+  // de notitie meteen op het scherm staat.
+  if (findApiEndpoint(project, name: 'SetMatchNote', groupName: 'VoetbalPlannerAPI') != null) {
+    final noteField = UI.textField(
+      name: 'MaNoteField',
+      labelText: 'Notitie bij deze wedstrijd',
+      maxLines: 4,
+    );
+    final saveNoteBtn = UI.button('Notitie opslaan', name: 'MaSaveNoteBtn', width: double.infinity);
+    saveNoteBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchNote',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'matchId': appVar(matchIdId!),
+          'notes': varFromTextFieldValue(noteField.key),
+        },
+        outputVariableName: 'maSaveNote', nodeKey: saveNoteBtn.key,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.snackBar('Notitie opgeslagen.'),
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.set('dialogView', 'menu'),
+          ]),
+          Actions.navigateBack(),
+        ]),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('Opslaan mislukt — controleer je rechten.'),
+        ]))));
+
+    final noteView = UI.column(name: 'MaNoteView',
+        crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
+        children: [
+          UI.text('Zichtbaar voor iedereen bij deze wedstrijd. Laat leeg om te wissen.',
+              name: 'MaNoteLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
+          noteField, saveNoteBtn, backBtn(),
+        ]);
+    setConditionalVisibility(noteView, variable: viewIs('note'));
+    root.children.add(noteView);
+  }
 
   // ── Vlagger-picker (iedereen uit het team van de wedstrijd) ──
   if (hasFlag) {
@@ -22237,6 +22295,35 @@ void _addWedstrijdActionsFab(FFProject project) {
                   updates: [StateFieldUpdate.setFromVariable('matchGuests', ctx2.responseVar)]),
             ]));
         }
+        // Notitie meeverversen: die staat in matchNotes en verandert via de
+        // 'Notitie'-actie in de sheet. Zonder deze call zie je een net
+        // opgeslagen notitie pas na het opnieuw openen van de wedstrijd.
+        final notesRefresh = Actions.apiCallNode(project, endpointName: 'GetMatchDetail',
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: {
+            'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
+              ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+          },
+          outputVariableName: 'fabNotesRefresh', nodeKey: fab.key,
+          onSuccess: (ctx3) => Actions.chain([
+            Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+                updates: [StateFieldUpdate.setFromVariable(
+                  'matchNotes',
+                  _jsonBodyVar(ctx3, r'$.notes', fab.key),
+                )]),
+          ]));
+
+        if (setGoals.hasFollowUpAction()) {
+          // Achter de gastspeler-verversing aanhaken.
+          var tail = setGoals.followUpAction;
+          while (tail.hasFollowUpAction()) {
+            tail = tail.followUpAction;
+          }
+          tail.followUpAction = notesRefresh;
+        } else {
+          setGoals.followUpAction = notesRefresh;
+        }
+
         return setGoals;
       });
     openNode.followUpAction = goalsRefresh;

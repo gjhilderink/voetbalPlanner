@@ -149,6 +149,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/matches/{match}', [MatchController::class, 'show']);
         Route::patch('/matches/{match}', [MatchController::class, 'update']);
         // Af-/aanmelden wedstrijd (POST i.p.v. DELETE/PATCH; shared-host-veilig)
+        // Notitie bij een wedstrijd (coach/leider). POST i.p.v. PATCH, zie afmelden.
+        Route::post('/matches/{match}/notitie', [MatchController::class, 'setNote']);
         Route::post('/matches/{match}/afmelden', [MatchController::class, 'afmelden']);
         Route::post('/matches/{match}/aanmelden', [MatchController::class, 'aanmelden']);
 

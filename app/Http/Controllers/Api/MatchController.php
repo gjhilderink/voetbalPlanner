@@ -148,6 +148,16 @@ class MatchController extends Controller
 
     public function update(Request $request, FootballMatch $match): JsonResponse
     {
+        // Deze endpoint had geen enkele rechtencheck: elke ingelogde gebruiker
+        // kon aanwezigtijd, coach, fruitheld, rijders en opmerkingen van elke
+        // wedstrijd wijzigen. Zelfde check als setVlagger hieronder.
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je hebt geen rechten om deze wedstrijd te wijzigen.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'arrival_time' => 'nullable|date_format:H:i',
             'coach_id' => 'nullable|uuid|exists:members,id',
@@ -209,6 +219,36 @@ class MatchController extends Controller
             'success' => true,
             'data'    => ['vlaggerId' => $member->id, 'vlaggerName' => $member->name],
             'message' => $member->name . ' is als vlagger ingesteld.',
+        ]);
+    }
+
+    /**
+     * POST /v1/matches/{match}/notitie
+     *
+     * Coach of leider zet of wijzigt de opmerking bij een wedstrijd. Een lege
+     * waarde wist de notitie. POST en niet PATCH: shared hosting blokkeert PATCH
+     * regelmatig — zelfde afweging als bij af-/aanmelden.
+     */
+    public function setNote(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je hebt geen rechten om een notitie bij deze wedstrijd te zetten.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'notes' => 'nullable|string|max:2000',
+        ]);
+
+        $notes = trim((string) ($validated['notes'] ?? ''));
+        $match->update(['notes' => $notes !== '' ? $notes : null]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => ['notes' => $match->notes ?? ''],
+            'message' => $notes !== '' ? 'Notitie opgeslagen.' : 'Notitie verwijderd.',
         ]);
     }
 }
