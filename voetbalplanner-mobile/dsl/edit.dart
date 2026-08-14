@@ -24135,11 +24135,14 @@ void _wireTrainingDetailPage(FFProject project) {
         returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
       );
 
-  // Omlijnd en rood: afmelden is de ingrijpende actie, aanmelden de gewone.
+  // Omlijnd: afmelden is de ingrijpende actie, aanmelden de gewone. Icoon én
+  // tekst in primaryBackground, want de branding-pass geeft ook omlijnde
+  // knoppen een primary vulling — primary erop zou onzichtbaar zijn.
   final afmeldBtn = UI.button('Afmelden', name: 'TrainAfmeldButton',
       width: double.infinity, variant: UIButtonVariant.outlined,
-      iconName: 'logout', iconSize: 20, iconColor: UIColor.primary,
-      textColor: UIColor.primary, borderRadius: 10, padding: UIEdgeInsets.all(14));
+      iconName: 'logout', iconSize: 20, iconColor: UIColor.primaryBackground,
+      textColor: UIColor.primaryBackground, borderRadius: 10,
+      padding: UIEdgeInsets.all(14));
   final aanmeldBtn = UI.button('Aanmelden', name: 'TrainAanmeldButton',
       width: double.infinity, iconName: 'check', iconSize: 20,
       iconColor: UIColor.primaryBackground, textColor: UIColor.primaryBackground,
