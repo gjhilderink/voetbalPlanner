@@ -1294,6 +1294,8 @@ void buildEditFlow(App app) {
     _addDashboardAgendaSection(project);
     _addDashboardAgendaViewAll(project);
     _fixDashboardAgendaCardLayout(project);
+    // Categoriekleuren; draait ná het aanmaken van de agendaschermen.
+    _colorAgendaByCategory(project);
     // TrainingDetailPage-inhoud + kaart aantikbaar maken.
     _wireTrainingDetailPage(project);
     _wireTrainingCardNavigation(project);
@@ -23009,6 +23011,65 @@ void _addDashboardAgendaViewAll(FFProject project) {
   );
 
   col.children.add(button);
+}
+
+// Geeft de agenda-items de kleur van hun categorie.
+//
+// De backend levert categoryColor als hexstring ('#2563eb'). Een kleurproperty
+// kan daar niet direct aan binden, maar colorFromStringVar() wikkelt de string
+// in een FUNCTION_CALL-variabele — hetzelfde mechanisme dat de clubbranding al
+// gebruikt. Zo hoeft er geen custom function bij.
+//
+// Losse functie: zowel de dashboardsectie als de AgendaPage worden idempotent
+// gebouwd en niet herbouwd zodra ze bestaan.
+void _colorAgendaByCategory(FFProject project) {
+  // 1. Dashboard: icoon en categorielabel in de categoriekleur.
+  final dash = findPage(project, name: 'DashboardPage');
+  if (dash != null) {
+    final list =
+        findDescendants(dash.node, (n) => n.name == 'DashboardAgendaList').firstOrNull;
+    if (list != null) {
+      final colorVar = generatorVarField(list.key, 'categoryColor');
+
+      final icon = findDescendants(dash.node, (n) => n.name == 'DashAgendaRow')
+          .expand((row) => row.children)
+          .where((n) => n.type == FFWidgetType.Icon)
+          .firstOrNull;
+      icon?.props.icon.colorValue = colorFromStringVar(colorVar);
+
+      final label =
+          findDescendants(dash.node, (n) => n.name == 'DashAgendaCategory').firstOrNull;
+      label?.props.text.colorValue = colorFromStringVar(colorVar);
+    }
+  }
+
+  // 2. Agendapagina: datum en categorielabel op de kaart.
+  final agenda = findPage(project, name: 'AgendaPage');
+  if (agenda != null) {
+    final list = findDescendants(agenda.node, (n) => n.name == 'AgendaList').firstOrNull;
+    if (list != null) {
+      final colorVar = generatorVarField(list.key, 'categoryColor');
+      for (final name in ['AgendaCardDate', 'AgendaCardCategory']) {
+        final node = findDescendants(agenda.node, (n) => n.name == name).firstOrNull;
+        node?.props.text.colorValue = colorFromStringVar(colorVar);
+      }
+    }
+
+    // Filterchips krijgen de kleur van hun eigen categorie.
+    final chips =
+        findDescendants(agenda.node, (n) => n.name == 'AgendaCategoryChips').firstOrNull;
+    if (chips != null) {
+      final chipLabel =
+          findDescendants(agenda.node, (n) => n.name == 'AgendaCategoryChipLabel').firstOrNull;
+      chipLabel?.props.text.colorValue =
+          colorFromStringVar(generatorVarField(chips.key, 'color'));
+    }
+  }
+
+  // De detailpagina krijgt bewust geen kleurbinding: daar staat één item en de
+  // categorienaam staat er al in tekst. Een struct-veld van een page-state
+  // variabele aanspreken loopt bovendien via dataStructFieldIdentifiers, een
+  // route die in dit project nergens voorkomt — niet de moeite voor dit effect.
 }
 
 // Stuurt de afsluitknoppen van de onboarding naar het dashboard.
