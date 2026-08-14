@@ -5308,6 +5308,9 @@ void _addGoalsTabBadge(FFProject project) {
       style: UITextStyle.labelSmall, color: UIColor.secondaryBackground);
   countText.props.text.textValue = FFStringValue(
       variable: countExpr("(g?.length ?? 0).toString()", FFBaseDataType.String));
+  // 5px rondom het cijfer. Komt bovenop de padding van de badge-container
+  // hieronder (6 horizontaal, 1 verticaal).
+  countText.props.padding = FFPadding(allValue: FFDoubleValue(inputValue: 5));
   final badge = UI.container(name: 'GoalsTabBadge', color: UIColor.error, borderRadius: 20,
       padding: UIEdgeInsets.symmetric(horizontal: 6, vertical: 1), child: countText);
   setConditionalVisibility(badge, variable: countExpr("(g?.length ?? 0) > 0", FFBaseDataType.Boolean));
