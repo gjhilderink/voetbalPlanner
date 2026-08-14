@@ -23352,6 +23352,35 @@ void _restyleMatchInfoRows(FFProject project) {
 
   const rowSpacing = 10.0;
 
+  // Kaartopmaak en binnenruimte. Wordt zowel op nieuwe als op al herstylede
+  // rijen toegepast — anders landen latere wijzigingen nooit.
+  void styleCard(FFNode card, FFNode? row) {
+    final probe = UI.container(name: 'probe', color: cardBg, borderRadius: 8,
+        borderColor: const UIColor.hex(0xFFE5E7EB, dark: 0xFF2A2F38), borderWidth: 1);
+    final probeDeco = probe.props.container.boxDecoration;
+    final deco = card.props.container.boxDecoration.deepCopy();
+    deco.colorValue = probeDeco.colorValue;
+    deco.borderRadius = probeDeco.borderRadius;
+    deco.borderColorValue = probeDeco.borderColorValue;
+    deco.borderWidthValue = probeDeco.borderWidthValue;
+    card.props.container.boxDecoration = deco;
+
+    // Marge óm de kaart; de binnenruimte hoort op het kind, anders plakt het
+    // icoon tegen de kaartrand.
+    card.props.padding = FFPadding(
+      leftValue: FFDoubleValue(inputValue: 12),
+      topValue: FFDoubleValue(inputValue: 4),
+      rightValue: FFDoubleValue(inputValue: 12),
+      bottomValue: FFDoubleValue(inputValue: 4),
+    );
+    row?.props.padding = FFPadding(
+      leftValue: FFDoubleValue(inputValue: 12),
+      topValue: FFDoubleValue(inputValue: 12),
+      rightValue: FFDoubleValue(inputValue: 12),
+      bottomValue: FFDoubleValue(inputValue: 12),
+    );
+  }
+
   // Achtergrondkleur van een icoonrondje zetten via een wegwerp-container, zodat
   // de proto-opbouw van een kleur hier niet nagebouwd hoeft te worden.
   void setCircleColor(FFNode circle, UIColor color) {
@@ -23490,6 +23519,11 @@ void _restyleMatchInfoRows(FFProject project) {
         final nav = navigateIconNode();
         if (nav != null) existingRow.children.add(nav);
       }
+      // Opmaak ook hier toepassen: deze rijen bestonden al.
+      final existingCard = findParentByKey(wc.node, existingRow?.key ?? existingCircle.key);
+      if (existingCard != null) {
+        styleCard(existingCard.parent, existingRow);
+      }
       continue;
     }
 
@@ -23555,19 +23589,8 @@ void _restyleMatchInfoRows(FFProject project) {
     card.children
       ..clear()
       ..add(row);
-    card.props.padding = FFPadding(
-      leftValue: FFDoubleValue(inputValue: 14),
-      topValue: FFDoubleValue(inputValue: 12),
-      rightValue: FFDoubleValue(inputValue: 14),
-      bottomValue: FFDoubleValue(inputValue: 12),
-    );
-    // Kleur + afronding overnemen van een wegwerp-container: dan hoeft de
-    // proto-opbouw van een hexkleur hier niet nagebouwd te worden.
-    final probe = UI.container(name: 'probe', color: cardBg, borderRadius: 14);
-    final deco = card.props.container.boxDecoration.deepCopy();
-    deco.colorValue = probe.props.container.boxDecoration.colorValue;
-    deco.borderRadius = probe.props.container.boxDecoration.borderRadius;
-    card.props.container.boxDecoration = deco;
+
+    styleCard(card, row);
   }
 
   // Kaarten sluiten op elkaar aan: geen tussenruimte in de rijenlijst.
@@ -24381,11 +24404,16 @@ void _wireTrainingDetailPage(FFProject project) {
         children: [UI.icon(icon, size: 18, color: UIColor.secondaryText), text],
       );
 
+  // innerPadding en niet padding: dat laatste rendert als marge óm de kaart,
+  // waardoor de inhoud tegen de rand zou plakken. Radius 8 met dunne rand,
+  // gelijk aan MatchCard en de dashboardkaarten.
   FFNode card(String name, FFNode child) => UI.container(
         name: name,
         color: cardBg,
-        borderRadius: 14,
-        padding: UIEdgeInsets.all(16),
+        borderRadius: 8,
+        borderColor: const UIColor.hex(0xFFE5E7EB, dark: 0xFF2A2F38),
+        borderWidth: 1,
+        innerPadding: UIEdgeInsets.all(14),
         child: child,
       );
 
