@@ -21,6 +21,49 @@ class ReleaseNotesSeeder extends Seeder
         $features = [
             [
                 'type'        => 'feature',
+                'title'       => 'Notitie bij een wedstrijd',
+                'description' => 'Coaches en leiders kunnen vanuit het coach-menu een notitie bij een wedstrijd '
+                    . 'zetten of aanpassen — bijvoorbeeld over verzamelen, tenue of vervoer. De notitie staat '
+                    . 'meteen bij de wedstrijd en is zichtbaar voor iedereen die erbij hoort. Bestaat er al een '
+                    . 'notitie, dan staat die vast ingevuld zodat je hem kunt bijwerken in plaats van overtypen.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Activiteiten in je eigen agenda-app',
+                'description' => '"Toevoegen aan mijn agenda" zet een activiteit nu rechtstreeks in de agenda van '
+                    . 'je telefoon, net als bij een wedstrijd. Voorheen opende dit een pagina in de browser.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Overzichtelijker dashboard',
+                'description' => 'Je start na het inloggen voortaan op het dashboard. Daar staan nu de '
+                    . 'eerstvolgende twee wedstrijden in plaats van de hele lijst — de rest vind je op de '
+                    . 'wedstrijdenpagina. Ook zie je er de eerstvolgende verenigingsactiviteiten, met een knop '
+                    . 'naar de volledige agenda.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Nieuwe opmaak voor wedstrijd en training',
+                'description' => 'De wedstrijdinformatie en het af- en aanmelden voor trainingen zijn opnieuw '
+                    . 'vormgegeven: rustige kaarten met een duidelijk icoon per onderdeel, het clublogo bij de '
+                    . 'tegenstander en een knop om direct naar de locatie te navigeren.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Coaches zagen wedstrijden van andere teams',
+                'description' => 'Een coach die aan één elftal gekoppeld is, kreeg in sommige gevallen alle '
+                    . 'wedstrijden te zien in plaats van alleen die van het eigen team. Je ziet nu weer '
+                    . 'uitsluitend de wedstrijden, leden en teams van je eigen club en elftallen.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Trainingen en teamkeuze blijven staan',
+                'description' => 'Na het opstarten van de app kon het gebeuren dat je trainingen leeg bleven en '
+                    . 'de teamkeuze bovenaan het dashboard verdween, tot je opnieuw inlogde. De app onthoudt je '
+                    . 'teams nu, en valt bij het ophalen van trainingen terug op je eigen team.',
+            ],
+            [
+                'type'        => 'feature',
                 'title'       => 'Verenigingsagenda',
                 'description' => 'Alle verenigingsactiviteiten staan nu bij elkaar in de agenda: het toernooi, '
                     . 'de bazaar, clubavonden, vrijwilligersactiviteiten en de oliebollentraining. Je ziet per '
