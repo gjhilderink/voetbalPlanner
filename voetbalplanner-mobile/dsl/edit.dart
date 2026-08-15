@@ -288,6 +288,7 @@ void _buildEditFlowRemoveChatPage(App app) {
     _setupNavBar(project);
     _addMagicLinkInfrastructure(project);
     _makeLoginPageScrollable(project);
+    _ensureFinishAutofillAction(project);
     _fixLoginButtonBindings(project);
   });
   _addBiometricButton(app);
@@ -399,6 +400,7 @@ void buildEditFlow(App app) {
     _setupNavBar(project);
     _addMagicLinkInfrastructure(project);
     _makeLoginPageScrollable(project);
+    _ensureFinishAutofillAction(project);
     _fixLoginButtonBindings(project);
   });
 
@@ -1408,6 +1410,8 @@ void buildEditFlow(App app) {
   // anders hangt de controle vóór de call die het token wist.
   app.raw((project) => _addSessionExpiryGuard(project, 'ProfielPage'));
   app.raw((project) => _addSessionExpiryGuard(project, 'DashboardPage'));
+  // Inlogvelden herkenbaar maken voor de wachtwoordbeheerders van iOS/Android.
+  app.raw((project) => _addLoginAutofillHints(project));
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
@@ -4643,6 +4647,71 @@ void _wireProfielRefreshOnLoad(FFProject project, [String pageName = 'ProfielPag
   tap.rootAction = node;
 }
 
+// Meldt het systeem dat het inlogformulier is afgerond. Pas dán biedt iOS aan
+// het wachtwoord in de Sleutelhanger te bewaren; alleen autofill-hints zorgen
+// er wel voor dat bestaande wachtwoorden worden aangeboden, maar niet dat een
+// nieuw wachtwoord kan worden opgeslagen.
+void _ensureFinishAutofillAction(FFProject project) {
+  const code = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:flutter/services.dart';
+
+Future<void> finishAutofill() async {
+  // Sluit de autofill-context af. iOS toont hierna 'Wachtwoord bewaren?'.
+  // Faalt stil: het inloggen zelf mag hier nooit op stuklopen.
+  try {
+    TextInput.finishAutofillContext();
+  } catch (_) {}
+}
+''';
+
+  if (findCustomAction(project, name: 'FinishAutofill') == null) {
+    addCustomAction(
+      project,
+      name: 'FinishAutofill',
+      description: 'Sluit de autofill-context zodat iOS aanbiedt het wachtwoord te bewaren.',
+      arguments: const [],
+      code: code,
+    );
+  } else {
+    updateCustomAction(project, name: 'FinishAutofill', code: code);
+  }
+}
+
+// Zet autofill-hints op de inlogvelden, zodat iOS en Android het formulier als
+// inlog herkennen: opgeslagen wachtwoorden worden aangeboden en de Sleutelhanger
+// biedt aan een nieuw wachtwoord te bewaren. Zonder deze hints ziet het systeem
+// alleen twee gewone tekstvelden.
+void _addLoginAutofillHints(FFProject project) {
+  final wc = findPage(project, name: 'LoginPage');
+  if (wc == null) return;
+
+  // Op key en niet op naam: beide inlogvelden heten gewoon 'TextField'. Deze
+  // keys worden elders al gebruikt om de veldwaarden uit te lezen
+  // (_fixLoginButtonBindings), dus ze zijn stabiel.
+  const hints = <String, FFTextField_AutoFillHints>{
+    'TextField_73irroiw': FFTextField_AutoFillHints.EMAIL,     // beheerder e-mail
+    'TextField_v1ycg741': FFTextField_AutoFillHints.PASSWORD,  // beheerder wachtwoord
+    'TextField_hu632oq3': FFTextField_AutoFillHints.EMAIL,     // magic link e-mail
+  };
+
+  for (final entry in hints.entries) {
+    for (final node in findDescendants(wc.node, (n) => n.key == entry.key)) {
+      if (!node.props.hasTextField()) continue;
+      final tf = node.props.textField.deepCopy();
+      tf.autoFillHint = entry.value;
+      node.props.textField = tf;
+    }
+  }
+}
+
 // Stuurt naar het inlogscherm zodra de sessie verlopen is.
 //
 // RefreshCurrentTeam roept /auth/me aan en wist bij een 401/403 het token (zie
@@ -7166,9 +7235,27 @@ void _fixLoginButtonBindings(FFProject project) {
     action: Actions.navigate(project, pageName: 'DashboardPage', replaceRoute: true),
   );
 
+  // Vóór het navigeren de autofill-context afsluiten: iOS biedt dan aan het
+  // wachtwoord te bewaren. Na de navigatie is het formulier weg en komt die
+  // vraag niet meer.
+  final finishAutofillCa = findCustomAction(project, name: 'FinishAutofill');
+  final loginSuccessNode = finishAutofillCa == null
+      ? navigateNode
+      : (FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: FFAction(
+            key: generateRandomAlphaNumericString(),
+            customAction: FFCustomActionCall(
+              customActionIdentifier: finishAutofillCa.identifier.deepCopy(),
+              argumentValues: FFFunctionCallValues(),
+            ),
+          ),
+          followUpAction: navigateNode,
+        ));
+
   final conditionalNode = Actions.conditional(
     condition: loginSuccessVar,
-    trueActions: navigateNode,
+    trueActions: loginSuccessNode,
   );
 
   final customActionNode = FFActionNode(

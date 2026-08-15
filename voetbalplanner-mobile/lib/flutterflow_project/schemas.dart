@@ -1176,6 +1176,7 @@ abstract final class CustomCode {
     "DeleteChatGroup",
     "DeleteMyChatData",
     "FilterChatMembersByConv",
+    "FinishAutofill",
     "GetAppUsersAsMembers",
     "GetOrCreateDirectConversation",
     "GetOrCreateStaffGroupConversation",
