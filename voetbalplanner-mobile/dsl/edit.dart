@@ -22968,12 +22968,25 @@ void _addWedstrijdActionsFab(FFProject project) {
               ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
           },
           outputVariableName: 'fabNotesRefresh', nodeKey: fab.key,
+          // Alle velden bijwerken die vanuit het coach-menu te wijzigen zijn.
+          // Eerder zette deze call alleen matchNotes terug, waardoor een net
+          // gekozen vlagger of fruitheld pas zichtbaar werd na het opnieuw
+          // openen van de wedstrijd.
           onSuccess: (ctx3) => Actions.chain([
             Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
-                updates: [StateFieldUpdate.setFromVariable(
-                  'matchNotes',
-                  _jsonBodyVar(ctx3, r'$.notes', fab.key),
-                )]),
+                updates: [
+                  for (final veld in const <(String, String)>[
+                    ('matchNotes',         r'$.notes'),
+                    ('matchVlaggerName',   r'$.vlaggerName'),
+                    ('matchFruitHeroName', r'$.fruitHeroName'),
+                    ('matchCoachName',     r'$.coachName'),
+                    ('matchArrivalTime',   r'$.arrivalTime'),
+                    ('matchGuestNames',    r'$.guestNames'),
+                    ('matchGoalsSummary',  r'$.goals_summary'),
+                  ])
+                    StateFieldUpdate.setFromVariable(
+                      veld.$1, _jsonBodyVar(ctx3, veld.$2, fab.key)),
+                ]),
           ]));
 
         if (setGoals.hasFollowUpAction()) {
