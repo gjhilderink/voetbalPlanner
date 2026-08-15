@@ -28,6 +28,38 @@ Controleer daarna twee dingen die hierna vaak alsnog misgaan:
 
 ---
 
+## 0b. Vóór élke release: versie ophogen
+
+De meest voorkomende publicatiefout in dit project. Beide winkels weigeren een
+upload die een al gebruikt nummer hergebruikt:
+
+> Version code 5 has already been used.
+
+**Doe dit als eerste stap van elke release**, vóór de build — niet erna, want een
+geslaagde build met een verkeerd nummer moet je volledig overdoen.
+
+In FlutterFlow: **Settings → App Details → App Versioning**.
+
+| Veld | Waarvoor | Regel |
+|---|---|---|
+| Version Code / Build Number | Android (Play) | Altijd +1. Nooit hergebruiken, ook niet na een mislukte publicatie |
+| Version Name | iOS (App Store) | Ophogen zodra een versie is ingediend; een "trein" sluit na indiening en accepteert geen tweede build |
+
+Beide tegelijk ophogen is het veiligst. Hoog je alleen de code op, dan slaagt
+Android en faalt iOS op de gesloten trein; alleen de naam ophogen doet het
+omgekeerde.
+
+Bijhouden welke nummers op zijn:
+
+| Versie | Code | Uitkomst |
+|---|---|---|
+| 4.2.2 | 5 | Verbruikt — Android geweigerd (code al gebruikt), iOS-trein gesloten |
+
+Vul deze tabel aan bij elke release, dan hoef je het niet in de console op te
+zoeken.
+
+---
+
 ## 1. App-gegevens
 
 | Veld | Waarde |
