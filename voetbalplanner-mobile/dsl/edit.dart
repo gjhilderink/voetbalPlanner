@@ -1155,7 +1155,7 @@ void buildEditFlow(App app) {
     _addMatchAfmeldingenSection(project);
     _wireWedstrijdDetailPageLoad(project);
     _wireMatchAfmeldingenLoad(project);
-    _addMatchWhatsAppShareButton(project);
+    _addMatchShareButton(project);
     _bindWedstrijdDetailAppBarTitle(project);
     _bindWedstrijdDetailInfoTexts(project);
     _addWedstrijdGuestManagement(project);
@@ -4796,13 +4796,16 @@ void _addMatchAfmeldingenSection(FFProject project) {
   }
 }
 
-// Deelknop in de AppBar van de wedstrijddetail: opent WhatsApp met een
-// samenvatting van de wedstrijd, waarna je zelf een chat of groep kiest.
+// Deelknop in de AppBar van de wedstrijddetail: zet een samenvatting van de
+// wedstrijd in de deelsheet van het toestel, waarna je zelf de app en de
+// ontvanger kiest.
 //
-// Via de wa.me-deeplink en niet via een deelpakket: geen extra dependency, en
-// het komt precies uit bij WhatsApp zoals gevraagd. Lege velden vallen weg, zodat
-// er geen regels als 'Vlagger: ' in het bericht komen.
-void _addMatchWhatsAppShareButton(FFProject project) {
+// Ging eerder via de wa.me-deeplink. Dat is een webadres, dus WhatsApp leidde
+// door naar api.whatsapp.com: eerst een tussenpagina, daarna de vraag WhatsApp
+// of WhatsApp Business. De systeem-deelsheet slaat dat allebei over en werkt ook
+// als WhatsApp niet geïnstalleerd is. Lege velden vallen weg, zodat er geen
+// regels als 'Vlagger: ' in het bericht komen.
+void _addMatchShareButton(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdDetailPage');
   if (wc == null) return;
 
@@ -4822,11 +4825,18 @@ void _addMatchWhatsAppShareButton(FFProject project) {
     );
   }
 
-  final bestaand =
-      findDescendants(wc.node, (n) => n.name == 'MatchShareButton').firstOrNull;
-  if (bestaand != null) {
-    inActionsSlot(bestaand.key);
-    return;
+  // Elke push opnieuw opbouwen. Een guard die een bestaande knop liet staan zou
+  // de actie eronder bevriezen: de push slaagt, maar in de app verandert er
+  // niets — precies wat de overstap van wa.me naar de deelsheet zou blokkeren.
+  for (final oud in findDescendants(wc.node, (n) => n.name == 'MatchShareButton').toList()) {
+    final refs = (appBar.childPropertyMap['actions']?.keyRefs ??
+            <FFNodeKeyReference>[])
+        .where((r) => r.key != oud.key)
+        .toList();
+    appBar.childPropertyMap['actions'] = FFChildrenKeys(keyRefs: refs);
+    final p = findParentByKey(wc.node, oud.key);
+    p?.parent.children.removeWhere((c) => identical(c, oud));
+    appBar.children.removeWhere((c) => identical(c, oud));
   }
 
   final strType = FFDataTypeV2(scalarType: FFBaseDataType.String);
@@ -4859,8 +4869,10 @@ void _addMatchWhatsAppShareButton(FFProject project) {
   }
 
   // Eén expressie: de generator zet er 'return ' voor, dus geen losse statements.
+  // Platte tekst, geen URL-encoding: de deelsheet geeft de tekst ongewijzigd
+  // door, dus %20 en %0A zouden letterlijk in het bericht belanden.
   const expr = r"""
-'https://wa.me/?text=' + Uri.encodeComponent([
+[
   (o ?? '').isEmpty ? '' : '⚽ Wedstrijd tegen ' + (o ?? ''),
   (d ?? '').isEmpty ? '' : '📅 ' + (d ?? ''),
   (a ?? '').isEmpty ? '' : '⏰ Aanwezig: ' + (a ?? ''),
@@ -4869,17 +4881,22 @@ void _addMatchWhatsAppShareButton(FFProject project) {
   (v ?? '').isEmpty ? '' : '🚩 Vlagger: ' + (v ?? ''),
   (f ?? '').isEmpty ? '' : '🍎 Fruitheld: ' + (f ?? ''),
   (n ?? '').isEmpty ? '' : '📝 ' + (n ?? ''),
-].where((r) => r.isNotEmpty).join('\n'))
+].where((r) => r.isNotEmpty).join('\n')
 """;
 
-  final urlVar = codeExpressionVar(
+  final tekstVar = codeExpressionVar(
     expression: expr.trim(),
     arguments: args,
     returnType: FFParameter(dataType: strType.deepCopy()),
   );
 
   final btn = UI.iconButton('share', color: UIColor.primaryBackground, name: 'MatchShareButton');
-  Actions.onTap(btn, FFAction(launchUrl: FFLaunchUrlAction(variable: urlVar)));
+  // Het proto-veld heet shareLink, maar de waarde gaat ongewijzigd naar
+  // Share.share(...) — meerregelige tekst met emoji is dus prima.
+  Actions.onTap(btn, FFAction(
+    key: generateRandomAlphaNumericString(),
+    share: FFShareAction(shareLink: FFValue(variable: tekstVar)),
+  ));
 
   // Een AppBar rendert alleen wat in de 'actions'-slot staat; als los kind
   // toevoegen komt niet in beeld. Zelfde aanpak als de kalenderknop.
