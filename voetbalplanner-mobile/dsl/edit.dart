@@ -555,10 +555,12 @@ void buildEditFlow(App app) {
   // Huidige notitie, bij het openen van de dialoog gevuld vanuit de pagina-state
   // zodat het tekstveld voorgevuld is en je kunt bijwerken i.p.v. overtypen.
   try { app.state('dialogNote',                string); } catch (_) {}
-  // Geselecteerde (nog niet bevestigde) vlagger/gastspeler in de coach-dialoog:
-  // eerst kiezen, dan met een knop bevestigen.
+  // Geselecteerde (nog niet bevestigde) vlagger/fruitheld/gastspeler in de
+  // coach-dialoog: eerst kiezen, dan met een knop bevestigen.
   try { app.state('dialogFlaggerId',           string); } catch (_) {}
   try { app.state('dialogFlaggerName',         string); } catch (_) {}
+  try { app.state('dialogFruitId',             string); } catch (_) {}
+  try { app.state('dialogFruitName',           string); } catch (_) {}
   try { app.state('dialogGuestId',             string); } catch (_) {}
   try { app.state('dialogGuestName',           string); } catch (_) {}
 
@@ -22101,6 +22103,21 @@ void _addGuestInviteEndpoints(FFProject project) {
         headers: ['Authorization: Bearer [bearerToken]']);
   }
 
+  // POST /matches/[matchId]/fruithero?memberId=.. — coach kiest de fruitheld.
+  // Eigen endpoint en niet het PATCH-endpoint op de wedstrijd: shared hosting
+  // blokkeert PATCH regelmatig. Zelfde vorm als de vlagger hierboven.
+  const fruitUrl = '/matches/[matchId]/fruithero?memberId=[memberId]';
+  if (has('SetMatchFruitHero')) {
+    updateApiEndpoint(project, name: 'SetMatchFruitHero', groupName: groupName,
+        url: fruitUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'SetMatchFruitHero',
+        url: fruitUrl, method: FFApiEndpoint_CallType.POST, bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str(), 'memberId': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
   if (!has('GetGuestInviteTeams')) {
     addEndpointToGroup(project, groupName: groupName, name: 'GetGuestInviteTeams',
         url: '/guest-invite/teams', method: FFApiEndpoint_CallType.GET,
@@ -22470,6 +22487,8 @@ void _buildMatchActionsDialogBody(FFProject project) {
   final authId    = _findAppStateFieldId(project, 'authToken');
   final flagIdId   = _findAppStateFieldId(project, 'dialogFlaggerId');
   final flagNameId = _findAppStateFieldId(project, 'dialogFlaggerName');
+  final fruitIdId   = _findAppStateFieldId(project, 'dialogFruitId');
+  final fruitNameId = _findAppStateFieldId(project, 'dialogFruitName');
   final guestIdId   = _findAppStateFieldId(project, 'dialogGuestId');
   final guestNameId = _findAppStateFieldId(project, 'dialogGuestName');
   if ([viewId, matchIdId, scorerId, teamIdId, membersScoreId, teamsId, membersId, authId,
@@ -22479,6 +22498,10 @@ void _buildMatchActionsDialogBody(FFProject project) {
   final hasInvite = findApiEndpoint(project, name: 'InviteGuestToMatch', groupName: 'VoetbalPlannerAPI') != null;
   final hasMbrs   = findApiEndpoint(project, name: 'GetScorerMembers', groupName: 'VoetbalPlannerAPI') != null;
   final hasFlag   = findApiEndpoint(project, name: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI') != null;
+  // Fruitheld pas tonen als zowel het endpoint als de twee keuze-velden bestaan;
+  // die velden komen uit een eerdere app.state-declaratie in dezelfde run.
+  final hasFruit  = findApiEndpoint(project, name: 'SetMatchFruitHero', groupName: 'VoetbalPlannerAPI') != null &&
+      fruitIdId != null && fruitNameId != null;
   if (!hasAdd || !hasInvite || !hasMbrs) return;
 
   final k = wc.node.key;
@@ -22507,6 +22530,7 @@ void _buildMatchActionsDialogBody(FFProject project) {
       children: [
         menuBtn('Doelpunt toevoegen', 'goal'),
         menuBtn('Vlagger kiezen', 'flag'),
+        if (hasFruit) menuBtn('Fruitheld kiezen', 'fruit'),
         menuBtn('Gastspeler uitnodigen', 'invite'),
         menuBtn('Notitie toevoegen', 'note'),
       ]);
@@ -22688,6 +22712,75 @@ void _buildMatchActionsDialogBody(FFProject project) {
         ]);
     setConditionalVisibility(flagView, variable: viewIs('flag'));
     root.children.add(flagView);
+  }
+
+  // ── Fruitheld-picker (iedereen uit het team van de wedstrijd) ──
+  // Zelfde opzet als de vlagger hierboven: kiezen uit de teamlijst, bevestigen
+  // met een knop, en een aparte knop om de fruitheld te wissen.
+  if (hasFruit) {
+    final fruitList = UI.listView(name: 'MaFruitList', shrinkWrap: true, spacing: 2,
+        dynamicSource: DynamicSource(variable: appVar(membersScoreId!), itemName: 'um'));
+    final fruitName = UI.text('', name: 'MaFruitName', style: UITextStyle.bodyMedium);
+    fruitName.props.text.textValue = FFStringValue(variable: generatorVarField(fruitList.key, 'name'));
+    final fruitRow = UI.container(name: 'MaFruitRow', width: double.infinity,
+        padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: fruitName);
+    fruitRow.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: FFActionNode(key: generateRandomAlphaNumericString(),
+        action: Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('dialogFruitId', generatorVarField(fruitList.key, 'id')),
+          StateFieldUpdate.setFromVariable('dialogFruitName', generatorVarField(fruitList.key, 'name')),
+        ]))));
+    fruitList.children.add(fruitRow);
+    final fruitScroll = UI.container(name: 'MaFruitScroll', height: 180, clipContent: true, child: fruitList);
+
+    final fruitSelText = UI.text('', name: 'MaFruitSelected', style: UITextStyle.bodyMedium, color: UIColor.primary);
+    fruitSelText.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+        expression: "(n ?? '') == '' ? '' : 'Gekozen: ' + (n ?? '')",
+        arguments: [CodeExpressionArg(name: 'n', dataType: str(), value: FFValue(variable: appVar(fruitNameId!)))],
+        returnType: FFParameter(dataType: str())));
+    final addFruitBtn = UI.button('Fruitheld toevoegen', name: 'MaAddFruitBtn', width: double.infinity);
+    addFruitBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchFruitHero', groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {'matchId': appVar(matchIdId!), 'memberId': appVar(fruitIdId!)},
+        outputVariableName: 'maSetFruit', nodeKey: addFruitBtn.key,
+        onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Fruitheld opgeslagen.'),
+          followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
+            action: Actions.updateAppState(project, updates: [
+              StateFieldUpdate.set('dialogView', 'menu'),
+              StateFieldUpdate.set('dialogFruitId', ''),
+              StateFieldUpdate.set('dialogFruitName', ''),
+            ]))),
+        onFailure: (ctx) => Actions.chain([Actions.snackBar('Opslaan mislukt — controleer je rechten.')]))));
+    final fruitConfirm = UI.column(name: 'MaFruitConfirm', crossAxisAlignment: UICrossAxisAlignment.stretch,
+        spacing: 4, children: [fruitSelText, addFruitBtn]);
+    setConditionalVisibility(fruitConfirm, variable: conditionVar(
+        appVar(fruitIdId!), FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+
+    // "Geen fruitheld" — wist de fruitheld (lege memberId).
+    final clearFruitBtn = UI.button('Geen fruitheld', name: 'MaClearFruitBtn', width: double.infinity);
+    clearFruitBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchFruitHero', groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {'matchId': appVar(matchIdId!), 'memberId': varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)},
+        outputVariableName: 'maClearFruit', nodeKey: clearFruitBtn.key,
+        onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Fruitheld verwijderd.'),
+          followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
+            action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('dialogView', 'menu')]))),
+        onFailure: (ctx) => Actions.chain([Actions.snackBar('Mislukt — controleer je rechten.')]))));
+
+    final fruitView = UI.column(name: 'MaFruitView', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
+        children: [
+          UI.text('Kies de fruitheld (uit het team):', name: 'MaFruitLabel',
+              style: UITextStyle.labelMedium, color: UIColor.secondaryText),
+          fruitScroll, fruitConfirm, clearFruitBtn, backBtn(),
+        ]);
+    setConditionalVisibility(fruitView, variable: viewIs('fruit'));
+    root.children.add(fruitView);
   }
 
   // ── Gastspeler-picker ──
@@ -23872,50 +23965,56 @@ void _restyleMatchInfoRows(FFProject project) {
     return btn;
   }
 
-  // Prullenbak rechts in de vlagger-rij, op dezelfde plek als het navigatie-
-  // icoon bij de locatie. Stond eerder als losse regel in de beheer-sectie, met
-  // de naam er nog eens naast.
-  FFNode? deleteVlaggerIconNode() {
-    if (findApiEndpoint(project, name: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI') == null) {
+  // Prullenbak rechts in een rij, op dezelfde plek als het navigatie-icoon bij
+  // de locatie. Gebruikt voor de vlagger en de fruitheld: beide worden gewist
+  // door hun endpoint met een lege memberId aan te roepen.
+  FFNode? clearRoleIconNode({
+    required String naam,
+    required String endpoint,
+    required String stateField,
+    required String uitvoer,
+    required String melding,
+  }) {
+    if (findApiEndpoint(project, name: endpoint, groupName: 'VoetbalPlannerAPI') == null) {
       return null;
     }
-    final vlagVar = stateVarOf('matchVlaggerName');
+    final waardeVar = stateVarOf(stateField);
     final magVar = stateVarOf('matchMagOpstelling');
     final idParam = wc.params.values.cast<FFParameter?>().firstWhere(
         (p) => p?.hasIdentifier() == true && p?.identifier.name == 'matchId',
         orElse: () => null);
-    if (vlagVar == null || magVar == null || idParam == null) return null;
+    if (waardeVar == null || magVar == null || idParam == null) return null;
 
     final btn = UI.container(
-      name: 'MatchInfoDel_vlagger',
+      name: naam,
       padding: UIEdgeInsets.all(6),
       child: UI.icon('delete', size: 22, color: UIColor.error),
     );
     btn.triggerActions.add(FFTriggerActions(
       trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
       rootAction: Actions.apiCallNode(project,
-        endpointName: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI',
+        endpointName: endpoint, groupName: 'VoetbalPlannerAPI',
         dynamicVariables: {
           'matchId': varFromPageParam(idParam.identifier.deepCopy())
             ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
           'memberId': varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
         },
-        outputVariableName: 'infoDelFlag', nodeKey: btn.key,
+        outputVariableName: uitvoer, nodeKey: btn.key,
         onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
-          action: Actions.snackBar('Vlagger verwijderd.'),
+          action: Actions.snackBar(melding),
           followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
             action: Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
-                updates: [StateFieldUpdate.set('matchVlaggerName', '')]))),
+                updates: [StateFieldUpdate.set(stateField, '')]))),
         onFailure: (ctx) => Actions.chain([Actions.snackBar('Verwijderen mislukt.')]))));
 
-    // Alleen voor wie de opstelling mag beheren, en alleen als er een vlagger
+    // Alleen voor wie de opstelling mag beheren, en alleen als het veld gevuld
     // is — anders staat er een prullenbak bij een lege regel.
     setConditionalVisibility(btn, variable: codeExpressionVar(
       expression: "(v ?? '').isNotEmpty && (m ?? '') == 'true'",
       arguments: [
         CodeExpressionArg(name: 'v',
             dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-            value: FFValue(variable: vlagVar)),
+            value: FFValue(variable: waardeVar)),
         CodeExpressionArg(name: 'm',
             dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
             value: FFValue(variable: magVar)),
@@ -23926,6 +24025,18 @@ void _restyleMatchInfoRows(FFProject project) {
 
     return btn;
   }
+
+  FFNode? deleteVlaggerIconNode() => clearRoleIconNode(
+        naam: 'MatchInfoDel_vlagger', endpoint: 'SetMatchFlagger',
+        stateField: 'matchVlaggerName', uitvoer: 'infoDelFlag',
+        melding: 'Vlagger verwijderd.',
+      );
+
+  FFNode? deleteFruitIconNode() => clearRoleIconNode(
+        naam: 'MatchInfoDel_fruit', endpoint: 'SetMatchFruitHero',
+        stateField: 'matchFruitHeroName', uitvoer: 'infoDelFruit',
+        melding: 'Fruitheld verwijderd.',
+      );
 
   // Komma-tekst 'Jan, Piet' verbergen voor wie de opstelling mag beheren: die
   // ziet de lijst met verwijderknoppen eronder. Zonder dit staan beide er, en
@@ -24083,12 +24194,19 @@ void _restyleMatchInfoRows(FFProject project) {
           hideGuestTextForCoaches(valueNode);
         }
       }
-      if (entry.key == 'matchVlaggerName' && existingRow != null) {
-        // Elke push opnieuw opbouwen: de actie en de zichtbaarheidsvoorwaarde
-        // kunnen wijzigen, en een bestaande knop overslaan bevriest die.
-        existingRow.children.removeWhere((c) => c.name == 'MatchInfoDel_vlagger');
-        final del = deleteVlaggerIconNode();
-        if (del != null) existingRow.children.add(del);
+      // Elke push opnieuw opbouwen: de actie en de zichtbaarheidsvoorwaarde
+      // kunnen wijzigen, en een bestaande knop overslaan bevriest die.
+      if (existingRow != null) {
+        final wisKnop = switch (entry.key) {
+          'matchVlaggerName' => ('MatchInfoDel_vlagger', deleteVlaggerIconNode),
+          'fruitHeroName' => ('MatchInfoDel_fruit', deleteFruitIconNode),
+          _ => null,
+        };
+        if (wisKnop != null) {
+          existingRow.children.removeWhere((c) => c.name == wisKnop.$1);
+          final del = wisKnop.$2();
+          if (del != null) existingRow.children.add(del);
+        }
       }
       // Opmaak ook hier toepassen: deze rijen bestonden al.
       final existingCard = findParentByKey(wc.node, existingRow?.key ?? existingCircle.key);
@@ -24156,6 +24274,7 @@ void _restyleMatchInfoRows(FFProject project) {
     final trailing = switch (entry.key) {
       'location' => navigateIconNode(),
       'matchVlaggerName' => deleteVlaggerIconNode(),
+      'fruitHeroName' => deleteFruitIconNode(),
       _ => null,
     };
 

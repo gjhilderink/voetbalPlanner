@@ -158,6 +158,9 @@ Route::prefix('v1')->group(function () {
         // Vlagger (grensrechter) van een wedstrijd instellen (coach).
         Route::post('/matches/{match}/vlagger', [MatchController::class, 'setVlagger']);
 
+        // Fruitheld van een wedstrijd instellen (coach).
+        Route::post('/matches/{match}/fruithero', [MatchController::class, 'setFruitHero']);
+
         // Gastspeler uitnodigen voor een wedstrijd (coach) + de gast z'n uitnodigingen.
         Route::post('/matches/{match}/guest-invite', [GuestInvitationController::class, 'invite']);
         Route::post('/matches/{match}/guest-invite/remove', [GuestInvitationController::class, 'removeByMember']);

@@ -223,6 +223,50 @@ class MatchController extends Controller
     }
 
     /**
+     * POST /v1/matches/{match}/fruithero?memberId=..
+     *
+     * Coach kiest de fruitheld uit het team van de wedstrijd. Lege memberId
+     * verwijdert de fruitheld. Eigen endpoint en niet het update()-endpoint
+     * hierboven: dat is een PATCH, en shared hosting blokkeert PATCH regelmatig
+     * — zelfde afweging als bij de vlagger en de notitie.
+     */
+    public function setFruitHero(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je hebt geen rechten om de fruitheld te wijzigen.',
+            ], 403);
+        }
+
+        $memberId = trim((string) $request->input('memberId', ''));
+
+        if ($memberId === '') {
+            $match->update(['fruit_hero_id' => null]);
+            return response()->json(['success' => true, 'message' => 'Fruitheld verwijderd.']);
+        }
+
+        // Het lid moet in het team van de wedstrijd zitten.
+        $member = Member::where('id', $memberId)
+            ->whereHas('teams', fn ($q) => $q->where('teams.id', $match->team_id))
+            ->first();
+        if (! $member) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Speler niet gevonden in dit team.',
+            ], 422);
+        }
+
+        $match->update(['fruit_hero_id' => $member->id]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => ['fruitHeroId' => $member->id, 'fruitHeroName' => $member->name],
+            'message' => $member->name . ' is als fruitheld ingesteld.',
+        ]);
+    }
+
+    /**
      * GET /v1/matches/{match}/afmeldingen
      *
      * Platte lijst met wie zich heeft afgemeld en waarom. Apart endpoint en niet
