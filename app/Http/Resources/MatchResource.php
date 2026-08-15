@@ -30,7 +30,9 @@ class MatchResource extends JsonResource
             'opponentLogo'   => $this->opponent_logo ?? '',
             'location'       => $this->location ?? '',
             'matchDatetime'  => $this->match_datetime?->format('d-m-Y H:i') ?? '',
-            'arrivalTime'    => $this->arrival_time ?? '',
+            // arrival_time is een tijdkolom zonder cast, dus ruw '14:30:00'.
+            // Afkappen op H:i, anders staan de seconden in de app.
+            'arrivalTime'    => substr((string) ($this->arrival_time ?? ''), 0, 5),
             'isHome'         => (bool) $this->is_home,
             'status'         => self::$statusLabels[strtolower($rawStatus)] ?? $rawStatus,
             'scoreHome'      => $this->score_home ?? 0,

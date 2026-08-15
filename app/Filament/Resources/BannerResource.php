@@ -105,12 +105,14 @@ class BannerResource extends Resource
                 Forms\Components\DateTimePicker::make('starts_at')
                     ->label('Zichtbaar vanaf')
                     ->nullable()
+                    ->seconds(false)
                     ->displayFormat('d-m-Y H:i')
                     ->columnSpan(1),
 
                 Forms\Components\DateTimePicker::make('ends_at')
                     ->label('Zichtbaar tot')
                     ->nullable()
+                    ->seconds(false)
                     ->displayFormat('d-m-Y H:i')
                     ->columnSpan(1),
             ]),

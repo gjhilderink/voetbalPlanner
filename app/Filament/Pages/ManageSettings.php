@@ -355,7 +355,7 @@ class ManageSettings extends Page
                                 if (!$log) {
                                     return 'Nog niet gesynchroniseerd';
                                 }
-                                return $log->completed_at->format('d-m-Y H:i:s')
+                                return $log->completed_at->format('d-m-Y H:i')
                                     . ' (' . $log->records_synced . ' records)';
                             }),
                         Placeholder::make('mcp_status')

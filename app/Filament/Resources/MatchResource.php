@@ -49,6 +49,8 @@ class MatchResource extends Resource
                     ->maxLength(255),
                 Forms\Components\DateTimePicker::make('match_datetime')
                     ->label('Datum en tijd')
+                    ->seconds(false)
+                    ->displayFormat('d-m-Y H:i')
                     ->required(),
                 Forms\Components\TextInput::make('location')
                     ->label('Locatie')
@@ -69,7 +71,10 @@ class MatchResource extends Resource
             ])->columns(2),
             Section::make('Extra informatie')->schema([
                 Forms\Components\TimePicker::make('arrival_time')
-                    ->label('Aanwezig tijd'),
+                    ->label('Aanwezig tijd')
+                    ->seconds(false)
+                    ->format('H:i')
+                    ->displayFormat('H:i'),
                 Forms\Components\TextInput::make('dressing_room')
                     ->label('Kleedkamer'),
                 Forms\Components\Select::make('coaches')

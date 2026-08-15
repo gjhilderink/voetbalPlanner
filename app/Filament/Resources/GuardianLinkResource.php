@@ -77,15 +77,23 @@ class GuardianLinkResource extends Resource
                     ->disabled(),
                 \Filament\Forms\Components\DateTimePicker::make('created_at')
                     ->label('Aangevraagd op')
+                    ->seconds(false)
+                    ->displayFormat('d-m-Y H:i')
                     ->disabled(),
                 \Filament\Forms\Components\DateTimePicker::make('expires_at')
                     ->label('Vervalt op')
+                    ->seconds(false)
+                    ->displayFormat('d-m-Y H:i')
                     ->disabled(),
                 \Filament\Forms\Components\DateTimePicker::make('resolved_at')
                     ->label('Beantwoord op')
+                    ->seconds(false)
+                    ->displayFormat('d-m-Y H:i')
                     ->disabled(),
                 \Filament\Forms\Components\DateTimePicker::make('revoked_at')
                     ->label('Ingetrokken op')
+                    ->seconds(false)
+                    ->displayFormat('d-m-Y H:i')
                     ->disabled(),
                 \Filament\Forms\Components\TextInput::make('revokedBy.name')
                     ->label('Ingetrokken door')

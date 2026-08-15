@@ -71,12 +71,22 @@ class BarDuty extends Model
 
     public function startTime(): string
     {
-        return $this->shiftDef()['start'] ?? (string) ($this->start_time ?? '');
+        return $this->shiftDef()['start'] ?? self::asClockTime($this->start_time);
     }
 
     public function endTime(): string
     {
-        return $this->shiftDef()['end'] ?? (string) ($this->end_time ?? '');
+        return $this->shiftDef()['end'] ?? self::asClockTime($this->end_time);
+    }
+
+    /**
+     * De vaste dagdelen leveren al '10:30'; een handmatige dienst komt uit een
+     * tijdkolom zonder cast en dus als '10:30:00'. Afkappen, anders staan de
+     * seconden in het rooster en in de app.
+     */
+    private static function asClockTime(mixed $value): string
+    {
+        return substr((string) ($value ?? ''), 0, 5);
     }
 
     /** "10:30 - 13:30" of leeg als er geen tijden bekend zijn. */
