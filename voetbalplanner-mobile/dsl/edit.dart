@@ -4678,8 +4678,13 @@ void _addMatchAfmeldingenSection(FFProject project) {
     wc.classModel.stateFields.add(stateField);
   }
 
-  // Idempotent.
-  if (findDescendants(wc.node, (n) => n.name == 'MatchAfmeldSection').isNotEmpty) return;
+  // Elke push opnieuw opbouwen in plaats van overslaan als hij al bestaat.
+  // Met een guard bleef een half opgebouwde sectie voor altijd staan — de kop
+  // en de tussenruimte waren verdwenen en kwamen nooit meer terug.
+  for (final oud in findDescendants(wc.node, (n) => n.name == 'MatchAfmeldSection').toList()) {
+    final p = findParentByKey(wc.node, oud.key);
+    p?.parent.children.removeWhere((c) => identical(c, oud));
+  }
 
   final listVar = varFromPageState(stateField.parameter.identifier.deepCopy())
     ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
@@ -4707,6 +4712,55 @@ void _addMatchAfmeldingenSection(FFProject project) {
     ),
   ));
 
+  // Telvariabele voor kop en lege staat.
+  FFVariable telExpr(String expr, FFBaseDataType ret) => codeExpressionVar(
+        expression: expr,
+        arguments: [
+          CodeExpressionArg(
+            name: 'a',
+            dataType: stateField!.parameter.dataType.deepCopy(),
+            value: FFValue(variable: varFromPageState(stateField.parameter.identifier.deepCopy())
+              ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
+          ),
+        ],
+        returnType: FFParameter(dataType: FFDataTypeV2(scalarType: ret)),
+      );
+
+  // Let op: het eerste kind van deze rij/kolom valt in de generator weg — zowel
+  // een vaste tekst als een gebonden tekst. Daarom staat er een icoon vooraan,
+  // dat die plek opvangt; de kop erachter rendert dan wel.
+  // Kop uit drie losse onderdelen. Een tekst met stringsamenvoeging in de
+  // code-expressie wordt door de generator weggelaten; een kale .toString()
+  // rendert wel. Vandaar het aantal als eigen tekst naast een vast label.
+  final kopAantal = UI.text('', name: 'MatchAfmeldAantal',
+      style: UITextStyle.bodySmall, color: UIColor.secondaryText);
+  kopAantal.props.text.textValue = FFStringValue(variable: telExpr(
+    "(a?.length ?? 0).toString()", FFBaseDataType.String));
+  final kop = UI.row(
+    name: 'MatchAfmeldHeaderRow',
+    spacing: 8,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      UI.icon('event_busy', size: 20, color: UIColor.primary),
+      // BEKEND MANKEMENT: een los tekstlabel in deze rij wordt door de generator
+      // weggelaten — zowel een vaste tekst als een gebonden tekst, en op elke
+      // positie. De teller hieronder rendert wel, net als het icoon. Het woord
+      // 'Afmeldingen' ontbreekt daardoor nog in de kop; uitgezocht moet worden
+      // waarom deze specifieke rij dat kind laat vallen.
+      kopAantal,
+    ],
+  );
+
+  // Lege staat: anders lijkt een lege sectie op een fout.
+  final leeg = UI.text('Niemand heeft zich afgemeld.', name: 'MatchAfmeldLeeg',
+      style: UITextStyle.bodySmall, color: UIColor.secondaryText);
+  setConditionalVisibility(leeg,
+      variable: telExpr("(a?.length ?? 0) == 0", FFBaseDataType.Boolean));
+  setConditionalVisibility(lv,
+      variable: telExpr("(a?.length ?? 0) > 0", FFBaseDataType.Boolean));
+
+  // De sectie zelf is altijd zichtbaar; alleen de inhoud wisselt. Zo zie je ook
+  // bij nul afmeldingen dat het overzicht bestaat.
   final section = UI.container(
     name: 'MatchAfmeldSection',
     color: UIColor.secondaryBackground,
@@ -4719,28 +4773,9 @@ void _addMatchAfmeldingenSection(FFProject project) {
       name: 'MatchAfmeldCol',
       crossAxisAlignment: UICrossAxisAlignment.start,
       spacing: 8,
-      children: [
-        UI.text('Afmeldingen', name: 'MatchAfmeldHeader', style: UITextStyle.titleSmall),
-        lv,
-      ],
+      children: [kop, leeg, lv],
     ),
   );
-
-  // Alleen tonen als er daadwerkelijk iemand is afgemeld. Via een code-expressie,
-  // want een lijst-telling bestaat niet als variabele-operatie — zelfde aanpak
-  // als de doelpunten-badge.
-  setConditionalVisibility(section, variable: codeExpressionVar(
-    expression: "(a?.length ?? 0) > 0",
-    arguments: [
-      CodeExpressionArg(
-        name: 'a',
-        dataType: stateField.parameter.dataType.deepCopy(),
-        value: FFValue(variable: varFromPageState(stateField.parameter.identifier.deepCopy())
-          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
-      ),
-    ],
-    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
-  ));
 
   // Onderaan de info-lijst plaatsen, ná de laatste info-kaart.
   final anyValue =
