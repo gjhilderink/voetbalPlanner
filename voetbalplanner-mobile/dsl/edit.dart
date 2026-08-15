@@ -11589,7 +11589,6 @@ void _addWedstrijdGuestManagement(FFProject project) {
   if (authTokenId == null || matchIdParam == null || guestsId == null) return;
   if (findApiEndpoint(project, name: 'GetMatchGuestsList', groupName: 'VoetbalPlannerAPI') == null) return;
   final hasRemoveEp = findApiEndpoint(project, name: 'RemoveGuestFromMatch', groupName: 'VoetbalPlannerAPI') != null;
-  final hasFlagEp   = findApiEndpoint(project, name: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI') != null;
 
   FFDataTypeV2 strT() => FFDataTypeV2(scalarType: FFBaseDataType.String);
   FFDataTypeV2 boolT() => FFDataTypeV2(scalarType: FFBaseDataType.Boolean);
@@ -11641,40 +11640,10 @@ void _addWedstrijdGuestManagement(FFProject project) {
     UI.text('Beheer (coach)', name: 'MatchGuestMgmtHeader', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
   ];
 
-  // Vlagger verwijderen (zichtbaar zodra er een vlagger is). Zelfde vorm als de
-  // gastspelers: naam met een prullenbak-icoon erachter, geen brede knop.
-  if (hasFlagEp) {
-    final flagName = UI.text('', name: 'MatchDelFlagName', style: UITextStyle.bodyMedium);
-    final flagNameVar = stateVar('matchVlaggerName');
-    if (flagNameVar != null) {
-      flagName.props.text.textValue = FFStringValue(variable: flagNameVar.deepCopy());
-    }
-    UI.expanded(flagName);
-    final delFlagBtn = UI.container(name: 'MatchDelFlagBtn', padding: UIEdgeInsets.all(6),
-        child: UI.icon('delete', size: 20, color: UIColor.error));
-    delFlagBtn.triggerActions.add(FFTriggerActions(
-      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
-      rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI',
-        dynamicVariables: {'matchId': matchIdVar(), 'memberId': varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)},
-        outputVariableName: 'infoDelFlag', nodeKey: delFlagBtn.key,
-        onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
-          action: Actions.snackBar('Vlagger verwijderd.'),
-          followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
-            action: Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
-                updates: [StateFieldUpdate.set('matchVlaggerName', '')]))),
-        onFailure: (ctx) => Actions.chain([Actions.snackBar('Verwijderen mislukt.')]))));
-    final flagRow = UI.row(name: 'MatchDelFlagRow', spacing: 8,
-        crossAxisAlignment: UICrossAxisAlignment.center, children: [flagName, delFlagBtn]);
-    final vlagVar = stateVar('matchVlaggerName');
-    if (vlagVar != null) {
-      // Hele rij verbergen zolang er geen vlagger is — anders zie je een lege
-      // regel met alleen een prullenbak.
-      setConditionalVisibility(flagRow, variable: conditionVar(
-          vlagVar, FFCondition_Relation.NOT_EQUAL_TO,
-          varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
-    }
-    children.add(flagRow);
-  }
+  // Vlagger verwijderen stond hier als aparte regel met de naam erbij, waardoor
+  // die naam twee keer op het scherm stond. De prullenbak zit nu rechts in de
+  // vlagger-rij zelf, op dezelfde plek als het navigatie-icoon bij de locatie —
+  // zie _restyleMatchInfoRows.
 
   // Gastspelers-lijst met verwijderknoppen. Geen kopregel: het prullenbak-icoon
   // achter elke naam maakt al duidelijk wat de knop doet.
@@ -23939,6 +23908,61 @@ void _restyleMatchInfoRows(FFProject project) {
     return btn;
   }
 
+  // Prullenbak rechts in de vlagger-rij, op dezelfde plek als het navigatie-
+  // icoon bij de locatie. Stond eerder als losse regel in de beheer-sectie, met
+  // de naam er nog eens naast.
+  FFNode? deleteVlaggerIconNode() {
+    if (findApiEndpoint(project, name: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI') == null) {
+      return null;
+    }
+    final vlagVar = stateVarOf('matchVlaggerName');
+    final magVar = stateVarOf('matchMagOpstelling');
+    final idParam = wc.params.values.cast<FFParameter?>().firstWhere(
+        (p) => p?.hasIdentifier() == true && p?.identifier.name == 'matchId',
+        orElse: () => null);
+    if (vlagVar == null || magVar == null || idParam == null) return null;
+
+    final btn = UI.container(
+      name: 'MatchInfoDel_vlagger',
+      padding: UIEdgeInsets.all(6),
+      child: UI.icon('delete', size: 22, color: UIColor.error),
+    );
+    btn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project,
+        endpointName: 'SetMatchFlagger', groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'matchId': varFromPageParam(idParam.identifier.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+          'memberId': varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+        },
+        outputVariableName: 'infoDelFlag', nodeKey: btn.key,
+        onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Vlagger verwijderd.'),
+          followUpAction: FFActionNode(key: generateRandomAlphaNumericString(),
+            action: Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+                updates: [StateFieldUpdate.set('matchVlaggerName', '')]))),
+        onFailure: (ctx) => Actions.chain([Actions.snackBar('Verwijderen mislukt.')]))));
+
+    // Alleen voor wie de opstelling mag beheren, en alleen als er een vlagger
+    // is — anders staat er een prullenbak bij een lege regel.
+    setConditionalVisibility(btn, variable: codeExpressionVar(
+      expression: "(v ?? '').isNotEmpty && (m ?? '') == 'true'",
+      arguments: [
+        CodeExpressionArg(name: 'v',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: vlagVar)),
+        CodeExpressionArg(name: 'm',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: magVar)),
+      ],
+      returnType: FFParameter(
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+    ));
+
+    return btn;
+  }
+
   // Clublogo van de tegenstander; null als het state-veld ontbreekt. Alleen
   // zichtbaar zolang er een logo-URL is, zodat het rondje niet leeg oogt.
   FFNode? opponentLogoNode() {
@@ -23993,6 +24017,13 @@ void _restyleMatchInfoRows(FFProject project) {
           findDescendants(wc.node, (n) => n.name == 'MatchInfoNav_location').isEmpty) {
         final nav = navigateIconNode();
         if (nav != null) existingRow.children.add(nav);
+      }
+      if (entry.key == 'matchVlaggerName' && existingRow != null) {
+        // Elke push opnieuw opbouwen: de actie en de zichtbaarheidsvoorwaarde
+        // kunnen wijzigen, en een bestaande knop overslaan bevriest die.
+        existingRow.children.removeWhere((c) => c.name == 'MatchInfoDel_vlagger');
+        final del = deleteVlaggerIconNode();
+        if (del != null) existingRow.children.add(del);
       }
       // Opmaak ook hier toepassen: deze rijen bestonden al.
       final existingCard = findParentByKey(wc.node, existingRow?.key ?? existingCircle.key);
@@ -24051,7 +24082,11 @@ void _restyleMatchInfoRows(FFProject project) {
     );
     UI.expanded(textColumn);
 
-    final trailing = entry.key == 'location' ? navigateIconNode() : null;
+    final trailing = switch (entry.key) {
+      'location' => navigateIconNode(),
+      'matchVlaggerName' => deleteVlaggerIconNode(),
+      _ => null,
+    };
 
     final row = UI.row(
       name: 'MatchInfoCardRow_${entry.key}',
