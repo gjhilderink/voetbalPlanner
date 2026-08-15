@@ -1403,6 +1403,11 @@ void buildEditFlow(App app) {
   // Ook op het dashboard: pikt team-wijzigingen (bv. extra team als coach)
   // automatisch op zonder opnieuw inloggen, en zet de switcher-vlag goed.
   app.raw((project) => _wireProfielRefreshOnLoad(project, 'DashboardPage'));
+  // Sessiebewaking: RefreshCurrentTeam wist het token bij een 401/403, deze
+  // controle stuurt daarna naar het inlogscherm. Moet ná de refresh-wiring,
+  // anders hangt de controle vóór de call die het token wist.
+  app.raw((project) => _addSessionExpiryGuard(project, 'ProfielPage'));
+  app.raw((project) => _addSessionExpiryGuard(project, 'DashboardPage'));
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
@@ -4636,6 +4641,72 @@ void _wireProfielRefreshOnLoad(FFProject project, [String pageName = 'ProfielPag
   final node = refreshNode();
   node.followUpAction = oldRoot;
   tap.rootAction = node;
+}
+
+// Stuurt naar het inlogscherm zodra de sessie verlopen is.
+//
+// RefreshCurrentTeam roept /auth/me aan en wist bij een 401/403 het token (zie
+// _ensureRefreshCurrentTeamAction). Deze functie hangt daar direct achter een
+// controle: is het token leeg, dan uitloggen en naar LoginPage. Zonder dit bleef
+// de app hangen met lege schermen en 'kon niet ophalen'-meldingen.
+//
+// Bewust gekoppeld aan het lege token en niet aan een mislukte API-call: een
+// haperend netwerk mag geen mensen uitloggen.
+void _addSessionExpiryGuard(FFProject project, String pageName) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final loginPage = findPage(project, name: 'LoginPage');
+  if (authTokenId == null || loginPage == null) return;
+
+  // Idempotent: één guard per pagina.
+  bool hasGuard(FFActionNode n) {
+    if (n.hasAction() && n.action.hasNavigate() &&
+        n.action.navigate.hasPageNodeKeyRef() &&
+        n.action.navigate.pageNodeKeyRef.key == loginPage.node.key) {
+      return true;
+    }
+    if (n.hasFollowUpAction() && hasGuard(n.followUpAction)) return true;
+    // conditionActions zit op de node, niet op de action.
+    if (n.hasConditionActions()) {
+      for (final t in n.conditionActions.trueActions) {
+        if (t.hasTrueAction() && hasGuard(t.trueAction)) return true;
+      }
+    }
+    return false;
+  }
+
+  for (final trigger in wc.node.triggerActions) {
+    if (!trigger.hasRootAction()) continue;
+    if (hasGuard(trigger.rootAction)) continue;
+
+    // Achteraan de keten hangen: eerst de bestaande laadacties, dan de controle.
+    var tail = trigger.rootAction;
+    while (tail.hasFollowUpAction()) {
+      tail = tail.followUpAction;
+    }
+
+    final tokenLeeg = conditionVar(
+      varFromAppState(authTokenId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      FFCondition_Relation.EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable;
+
+    tail.followUpAction = Actions.conditional(
+      condition: tokenLeeg,
+      trueActions: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.snackBar('Je sessie is verlopen. Log opnieuw in.'),
+        followUpAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.navigate(project, pageName: 'LoginPage', replaceRoute: true),
+        ),
+      ),
+    );
+    break; // alleen de eerste (page load) keten
+  }
 }
 
 // Voegt "Bug melden" knop toe aan ProfielPage. Navigeert naar BugReportPage.
@@ -15195,6 +15266,18 @@ Future<String> refreshCurrentTeam() async {
         'Authorization': 'Bearer $token',
       },
     );
+    // 401/403 = de sessie is verlopen of ingetrokken. Token wissen zodat de
+    // pagina daarna naar het inlogscherm kan sturen; zonder dit bleef de app
+    // hangen met lege schermen en 'kon niet ophalen'-meldingen.
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      FFAppState().authToken = '';
+      FFAppState().currentTeamId = '';
+      FFAppState().currentTeamName = '';
+      FFAppState().availableTeams = [];
+      FFAppState().hasMultipleTeams = false;
+      return '';
+    }
+    // Andere fouten (netwerk, server) zijn géén reden om uit te loggen.
     if (response.statusCode != 200) return FFAppState().currentTeamId;
     final body = jsonDecode(response.body) as Map<String, dynamic>?;
     if (body == null || body['success'] != true) {
