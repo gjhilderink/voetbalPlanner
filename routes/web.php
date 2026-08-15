@@ -60,5 +60,23 @@ Route::get('/magic/{token}', function (string $token) {
     return view('magic-redirect', ['expired' => false, 'deepLink' => $deepLink]);
 })->where('token', '[a-zA-Z0-9]{64}');
 
+// Gedeelde wedstrijdlink: https → deep link naar de app.
+//
+// Waarom via een webpagina en niet de deeplink zelf in het bericht: WhatsApp
+// maakt alleen http(s)-adressen klikbaar, een voetbalplanner://-adres blijft
+// platte tekst. Deze pagina toont niets over de wedstrijd — alleen het id staat
+// in de URL — en stuurt meteen door naar de app.
+Route::get('/wedstrijd/{match}', function (string $match) {
+    $scheme = env('MAGIC_LINK_APP_SCHEME', 'voetbalplanner');
+    // Scheme én host moeten matchen met de intent-filter van de app, net als bij
+    // de magic link hierboven. Het pad komt overeen met routePath van
+    // WedstrijdDetailPage ('/wedstrijd'), die matchId als queryparameter leest.
+    $host = env('MAGIC_LINK_APP_HOST', 'voetbalplanner.nubix.nl');
+
+    return view('match-redirect', [
+        'deepLink' => "{$scheme}://{$host}/wedstrijd?matchId={$match}",
+    ]);
+})->where('match', '[0-9a-fA-F-]{36}');
+
 // Impersonation routes (guarded by the package middleware)
 Route::impersonate();

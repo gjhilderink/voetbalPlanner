@@ -4870,6 +4870,20 @@ void _addMatchShareButton(FFProject project) {
     args.add(CodeExpressionArg(name: naam, dataType: strType.deepCopy(), value: v));
   }
 
+  // Het id komt uit de pagina-parameter, niet uit de state: het bericht sluit af
+  // met een 'Bekijk in app'-link naar /wedstrijd/<id> op de site, die doorstuurt
+  // naar de app. Een voetbalplanner://-adres zou WhatsApp niet klikbaar maken.
+  final idParam = wc.params.values.cast<FFParameter?>().firstWhere(
+      (p) => p?.hasIdentifier() == true && p?.identifier.name == 'matchId',
+      orElse: () => null);
+  if (idParam == null) return;
+  args.add(CodeExpressionArg(
+    name: 'id',
+    dataType: strType.deepCopy(),
+    value: FFValue(variable: varFromPageParam(idParam.identifier.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
+  ));
+
   // Eén expressie: de generator zet er 'return ' voor, dus geen losse statements.
   // Platte tekst, geen URL-encoding: de deelsheet geeft de tekst ongewijzigd
   // door, dus %20 en %0A zouden letterlijk in het bericht belanden.
@@ -4883,6 +4897,7 @@ void _addMatchShareButton(FFProject project) {
   (v ?? '').isEmpty ? '' : '🚩 Vlagger: ' + (v ?? ''),
   (f ?? '').isEmpty ? '' : '🍎 Fruitheld: ' + (f ?? ''),
   (n ?? '').isEmpty ? '' : '📝 ' + (n ?? ''),
+  (id ?? '').isEmpty ? '' : '\n👉 Bekijk in app: https://voetbalplanner.nubix.nl/wedstrijd/' + (id ?? ''),
 ].where((r) => r.isNotEmpty).join('\n')
 """;
 
