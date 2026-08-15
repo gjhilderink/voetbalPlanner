@@ -11605,10 +11605,7 @@ void _addWedstrijdGuestManagement(FFProject project) {
   final guestsId = _findPageStateFieldId(project, 'WedstrijdDetailPage', 'matchGuests');
   if (authTokenId == null || matchIdParam == null || guestsId == null) return;
   if (findApiEndpoint(project, name: 'GetMatchGuestsList', groupName: 'VoetbalPlannerAPI') == null) return;
-  final hasRemoveEp = findApiEndpoint(project, name: 'RemoveGuestFromMatch', groupName: 'VoetbalPlannerAPI') != null;
 
-  FFDataTypeV2 strT() => FFDataTypeV2(scalarType: FFBaseDataType.String);
-  FFDataTypeV2 boolT() => FFDataTypeV2(scalarType: FFBaseDataType.Boolean);
   FFVariable? stateVar(String name) {
     final id = _findPageStateFieldId(project, 'WedstrijdDetailPage', name);
     if (id == null) return null;
@@ -11637,83 +11634,33 @@ void _addWedstrijdGuestManagement(FFProject project) {
       ])));
   }
 
-  FFActionNode refreshGuests(String outName, String nodeKey) => Actions.apiCallNode(project,
-      endpointName: 'GetMatchGuestsList', groupName: 'VoetbalPlannerAPI',
-      dynamicVariables: {'matchId': matchIdVar()},
-      outputVariableName: outName, nodeKey: nodeKey,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
-            updates: [StateFieldUpdate.setFromVariable('matchGuests', ctx.responseVar)]),
-      ]));
-
-  // 2. Beheer-sectie bouwen en na de info-rijen plaatsen.
+  // 2. Oude beheer-sectie opruimen; hij wordt niet meer opgebouwd.
   final coachRow = findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_coachName').firstOrNull;
   final listParent = coachRow != null ? findParentByKey(wc.node, coachRow.key) : null;
   final list = listParent?.parent;
   if (list == null) return;
   list.children.removeWhere((c) => c.name == 'MatchGuestMgmtSection');
 
-  final children = <FFNode>[
-    UI.text('Beheer (coach)', name: 'MatchGuestMgmtHeader', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
-  ];
+  // De beheer-sectie 'Beheer (coach)' is leeggelopen en wordt niet meer
+  // opgebouwd. Beide onderdelen zitten nu in de rij waar ze bij horen: de
+  // vlagger-prullenbak rechts in de vlagger-rij, de gastspelerslijst met
+  // verwijderknoppen in de gastspelersrij — zie _restyleMatchInfoRows. Een losse
+  // sectie onderaan herhaalde de namen die er al stonden.
+  //
+  // hasRemoveEp / refreshGuests blijven hier staan: de laadactie hierboven
+  // gebruikt ze, en het endpoint wordt vanuit de rij aangeroepen.
 
-  // Vlagger verwijderen stond hier als aparte regel met de naam erbij, waardoor
-  // die naam twee keer op het scherm stond. De prullenbak zit nu rechts in de
-  // vlagger-rij zelf, op dezelfde plek als het navigatie-icoon bij de locatie —
-  // zie _restyleMatchInfoRows.
-
-  // Gastspelers-lijst met verwijderknoppen. Geen kopregel: het prullenbak-icoon
-  // achter elke naam maakt al duidelijk wat de knop doet.
-  if (hasRemoveEp) {
-    final guestsVar = varFromPageState(guestsId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
-    final guestList = UI.listView(name: 'MatchGuestMgmtList', shrinkWrap: true, spacing: 2,
-        dynamicSource: DynamicSource(variable: guestsVar, itemName: 'mg'));
-    final gName = UI.text('', name: 'MatchGuestMgmtName', style: UITextStyle.bodyMedium);
-    gName.props.text.textValue = FFStringValue(variable: generatorVarField(guestList.key, 'name'));
-    UI.expanded(gName);
-    final delBtn = UI.container(name: 'MatchGuestMgmtDel', padding: UIEdgeInsets.all(6),
-        child: UI.icon('delete', size: 20, color: UIColor.error));
-    delBtn.triggerActions.add(FFTriggerActions(
-      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
-      rootAction: Actions.apiCallNode(project, endpointName: 'RemoveGuestFromMatch', groupName: 'VoetbalPlannerAPI',
-        dynamicVariables: {'matchId': matchIdVar(), 'memberId': generatorVarField(guestList.key, 'id')},
-        outputVariableName: 'infoDelGuest', nodeKey: delBtn.key,
-        onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
-          action: Actions.snackBar('Gastspeler verwijderd.'),
-          followUpAction: refreshGuests('infoDelGuestRefresh', delBtn.key)),
-        onFailure: (ctx) => Actions.chain([Actions.snackBar('Verwijderen mislukt.')]))));
-    final gRow = UI.row(name: 'MatchGuestMgmtRow', spacing: 8,
-        crossAxisAlignment: UICrossAxisAlignment.center, children: [gName, delBtn]);
-    guestList.children.add(gRow);
-    children.add(guestList);
-  }
-
-  final col = UI.column(name: 'MatchGuestMgmtCol', crossAxisAlignment: UICrossAxisAlignment.stretch,
-      spacing: 6, children: children);
-  final section = UI.container(name: 'MatchGuestMgmtSection',
-      padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 0), child: col);
-  final magVar = stateVar('matchMagOpstelling');
-  if (magVar != null) {
-    setConditionalVisibility(section, variable: codeExpressionVar(
-        expression: "(m ?? '') == 'true'",
-        arguments: [CodeExpressionArg(name: 'm', dataType: strT(), value: FFValue(variable: magVar))],
-        returnType: FFParameter(dataType: boolT())));
-  }
-  list.children.add(section);
-
-  // Read-only "Gastspelers"-tekstrij verbergen voor coaches (die zien de
-  // beheer-lijst); niet-coaches houden de tekstweergave.
+  // De gastspelersrij was voor coaches helemaal verborgen, omdat zij de
+  // beheer-lijst onderaan kregen. Die lijst zit nu ín de rij zelf
+  // (_restyleMatchInfoRows), dus de rij hoort voor iedereen zichtbaar te zijn
+  // zodra er gastspelers zijn — anders ziet een coach een toegevoegde speler
+  // nergens terug op het infoblad.
   final guestTextRow = findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchGuestNames').firstOrNull;
   final gnVar = stateVar('matchGuestNames');
-  final magVar2 = stateVar('matchMagOpstelling');
-  if (guestTextRow != null && gnVar != null && magVar2 != null) {
-    setConditionalVisibility(guestTextRow, variable: codeExpressionVar(
-        expression: "(g ?? '') != '' && (m ?? '') != 'true'",
-        arguments: [
-          CodeExpressionArg(name: 'g', dataType: strT(), value: FFValue(variable: gnVar)),
-          CodeExpressionArg(name: 'm', dataType: strT(), value: FFValue(variable: magVar2)),
-        ],
-        returnType: FFParameter(dataType: boolT())));
+  if (guestTextRow != null && gnVar != null) {
+    setConditionalVisibility(guestTextRow, variable: conditionVar(
+        gnVar, FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
   }
 }
 
@@ -23980,6 +23927,96 @@ void _restyleMatchInfoRows(FFProject project) {
     return btn;
   }
 
+  // Komma-tekst 'Jan, Piet' verbergen voor wie de opstelling mag beheren: die
+  // ziet de lijst met verwijderknoppen eronder. Zonder dit staan beide er, en
+  // dan zie je elke naam twee keer.
+  void hideGuestTextForCoaches(FFNode valueNode) {
+    final magVar = stateVarOf('matchMagOpstelling');
+    if (magVar == null) return;
+    setConditionalVisibility(valueNode, variable: codeExpressionVar(
+      expression: "(m ?? '') != 'true'",
+      arguments: [
+        CodeExpressionArg(name: 'm',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: magVar)),
+      ],
+      returnType: FFParameter(
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+    ));
+  }
+
+  // Gastspelers als lijst met per speler een prullenbak, voor wie de opstelling
+  // mag beheren. Stond als aparte beheer-lijst onder aan het tabblad, ver van de
+  // rij waar hij bij hoort; een coach zag de gastspelersrij zelf helemaal niet.
+  // Voedt zich uit matchGuests (id + naam), niet uit de komma-tekst, want voor
+  // verwijderen is het member-id nodig.
+  FFNode? guestListNode() {
+    const grp = 'VoetbalPlannerAPI';
+    if (findApiEndpoint(project, name: 'RemoveGuestFromMatch', groupName: grp) == null) return null;
+    if (findApiEndpoint(project, name: 'GetMatchGuestsList', groupName: grp) == null) return null;
+    final guestsVar = stateVarOf('matchGuests');
+    final magVar = stateVarOf('matchMagOpstelling');
+    final idParam = wc.params.values.cast<FFParameter?>().firstWhere(
+        (p) => p?.hasIdentifier() == true && p?.identifier.name == 'matchId',
+        orElse: () => null);
+    if (guestsVar == null || magVar == null || idParam == null) return null;
+
+    FFVariable matchId() => varFromPageParam(idParam.identifier.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+    final list = UI.listView(
+      name: 'MatchInfoGuestList',
+      shrinkWrap: true,
+      spacing: 2,
+      dynamicSource: DynamicSource(variable: guestsVar, itemName: 'ig'),
+    );
+
+    final naam = UI.text('', name: 'MatchInfoGuestName', style: UITextStyle.titleSmall);
+    naam.props.text.textValue = FFStringValue(variable: generatorVarField(list.key, 'name'));
+    UI.expanded(naam);
+
+    final del = UI.container(name: 'MatchInfoGuestDel', padding: UIEdgeInsets.all(4),
+        child: UI.icon('delete', size: 20, color: UIColor.error));
+    del.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project,
+        endpointName: 'RemoveGuestFromMatch', groupName: grp,
+        dynamicVariables: {
+          'matchId': matchId(),
+          'memberId': generatorVarField(list.key, 'id'),
+        },
+        outputVariableName: 'infoRowDelGuest', nodeKey: del.key,
+        onSuccess: (ctx) => FFActionNode(key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Gastspeler verwijderd.'),
+          // Lijst opnieuw ophalen; die voedt deze weergave rechtstreeks.
+          followUpAction: Actions.apiCallNode(project,
+            endpointName: 'GetMatchGuestsList', groupName: grp,
+            dynamicVariables: {'matchId': matchId()},
+            outputVariableName: 'infoRowGuestsRefresh', nodeKey: del.key,
+            onSuccess: (c2) => Actions.chain([
+              Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+                  updates: [StateFieldUpdate.setFromVariable('matchGuests', c2.responseVar)]),
+            ]))),
+        onFailure: (ctx) => Actions.chain([Actions.snackBar('Verwijderen mislukt.')]))));
+
+    list.children.add(UI.row(name: 'MatchInfoGuestRow', spacing: 8,
+        crossAxisAlignment: UICrossAxisAlignment.center, children: [naam, del]));
+
+    // Alleen voor wie de opstelling mag beheren; anderen houden de komma-tekst.
+    setConditionalVisibility(list, variable: codeExpressionVar(
+      expression: "(m ?? '') == 'true'",
+      arguments: [
+        CodeExpressionArg(name: 'm',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: magVar)),
+      ],
+      returnType: FFParameter(
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+    ));
+
+    return list;
+  }
+
   // Clublogo van de tegenstander; null als het state-veld ontbreekt. Alleen
   // zichtbaar zolang er een logo-URL is, zodat het rondje niet leeg oogt.
   FFNode? opponentLogoNode() {
@@ -24035,6 +24072,17 @@ void _restyleMatchInfoRows(FFProject project) {
         final nav = navigateIconNode();
         if (nav != null) existingRow.children.add(nav);
       }
+      if (entry.key == 'matchGuestNames') {
+        final textCol = findDescendants(wc.node,
+            (n) => n.name == 'MatchInfoText_matchGuestNames').firstOrNull;
+        if (textCol != null) {
+          // Elke push opnieuw opbouwen: de verwijderactie kan wijzigen.
+          textCol.children.removeWhere((c) => c.name == 'MatchInfoGuestList');
+          final gl = guestListNode();
+          if (gl != null) textCol.children.add(gl);
+          hideGuestTextForCoaches(valueNode);
+        }
+      }
       if (entry.key == 'matchVlaggerName' && existingRow != null) {
         // Elke push opnieuw opbouwen: de actie en de zichtbaarheidsvoorwaarde
         // kunnen wijzigen, en een bestaande knop overslaan bevriest die.
@@ -24088,6 +24136,11 @@ void _restyleMatchInfoRows(FFProject project) {
       child: circleChild,
     );
 
+    // Bij gastspelers komt onder de komma-tekst een lijst met verwijderknoppen;
+    // die twee sluiten elkaar uit via hun zichtbaarheid.
+    final guestList = entry.key == 'matchGuestNames' ? guestListNode() : null;
+    if (entry.key == 'matchGuestNames') hideGuestTextForCoaches(valueNode);
+
     final textColumn = UI.column(
       name: 'MatchInfoText_${entry.key}',
       crossAxisAlignment: UICrossAxisAlignment.start,
@@ -24095,6 +24148,7 @@ void _restyleMatchInfoRows(FFProject project) {
       children: [
         if (labelNode != null) labelNode,
         valueNode,
+        if (guestList != null) guestList,
       ],
     );
     UI.expanded(textColumn);
