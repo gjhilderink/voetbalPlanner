@@ -1151,7 +1151,10 @@ void buildEditFlow(App app) {
   });
   app.raw((project) {
     _debugStructsAndEndpoints(project);
+    // Vóór de page-load: die vult matchAfmeldingen alleen als het veld bestaat.
+    _addMatchAfmeldingenSection(project);
     _wireWedstrijdDetailPageLoad(project);
+    _wireMatchAfmeldingenLoad(project);
     _bindWedstrijdDetailAppBarTitle(project);
     _bindWedstrijdDetailInfoTexts(project);
     _addWedstrijdGuestManagement(project);
@@ -4645,6 +4648,177 @@ void _wireProfielRefreshOnLoad(FFProject project, [String pageName = 'ProfielPag
   final node = refreshNode();
   node.followUpAction = oldRoot;
   tap.rootAction = node;
+}
+
+// Toont de afmeldingen voor deze wedstrijd op het info-tabblad: wie er niet is
+// en waarom. De API levert ze al mee als $.afmeldingen (naam + reden); zonder
+// deze sectie zag je nergens terug dat iemand zich had afgemeld — ook je eigen
+// afmelding niet, waardoor het leek alsof er niets gebeurde.
+void _addMatchAfmeldingenSection(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+
+  final struct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'Afmelding', orElse: () => null);
+  if (struct == null) return;
+
+  // Page-state-veld met de lijst.
+  var stateField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'matchAfmeldingen', orElse: () => null);
+  if (stateField == null) {
+    final param = FFParameter(
+      identifier: FFIdentifier(name: 'matchAfmeldingen', key: generateRandomAlphaNumericString()),
+      dataType: dataStructType(struct.identifier.deepCopy()),
+    );
+    param.isList = true;
+    stateField = FFWidgetClassStateField(parameter: param);
+    wc.classModel.stateFields.add(stateField);
+  }
+
+  // Idempotent.
+  if (findDescendants(wc.node, (n) => n.name == 'MatchAfmeldSection').isNotEmpty) return;
+
+  final listVar = varFromPageState(stateField.parameter.identifier.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final lv = UI.listView(name: 'MatchAfmeldList', shrinkWrap: true, spacing: 2,
+      dynamicSource: DynamicSource(variable: listVar, itemName: 'ma'));
+
+  FFNode field(String name, String fieldName, UITextStyle style, {UIColor? color}) {
+    final t = UI.text('', name: name, style: style, color: color);
+    t.props.text.textValue = FFStringValue(variable: generatorVarField(lv.key, fieldName));
+    return t;
+  }
+
+  lv.children.add(UI.container(
+    name: 'MatchAfmeldItem',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 6, horizontal: 0),
+    child: UI.column(
+      name: 'MatchAfmeldItemCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 2,
+      children: [
+        field('MatchAfmeldNaam', 'naam', UITextStyle.bodyMedium),
+        field('MatchAfmeldReden', 'reden', UITextStyle.bodySmall, color: UIColor.secondaryText),
+      ],
+    ),
+  ));
+
+  final section = UI.container(
+    name: 'MatchAfmeldSection',
+    color: UIColor.secondaryBackground,
+    borderRadius: 8,
+    borderColor: const UIColor.hex(0xFFE5E7EB, dark: 0xFF2A2F38),
+    borderWidth: 1,
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    innerPadding: UIEdgeInsets.all(12),
+    child: UI.column(
+      name: 'MatchAfmeldCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 8,
+      children: [
+        UI.text('Afmeldingen', name: 'MatchAfmeldHeader', style: UITextStyle.titleSmall),
+        lv,
+      ],
+    ),
+  );
+
+  // Alleen tonen als er daadwerkelijk iemand is afgemeld. Via een code-expressie,
+  // want een lijst-telling bestaat niet als variabele-operatie — zelfde aanpak
+  // als de doelpunten-badge.
+  setConditionalVisibility(section, variable: codeExpressionVar(
+    expression: "(a?.length ?? 0) > 0",
+    arguments: [
+      CodeExpressionArg(
+        name: 'a',
+        dataType: stateField.parameter.dataType.deepCopy(),
+        value: FFValue(variable: varFromPageState(stateField.parameter.identifier.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
+      ),
+    ],
+    returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+  ));
+
+  // Onderaan de info-lijst plaatsen, ná de laatste info-kaart.
+  final anyValue =
+      findDescendants(wc.node, (n) => (n.name ?? '').startsWith('MatchInfoValue_')).firstOrNull;
+  if (anyValue == null) return;
+  var current = anyValue;
+  for (var i = 0; i < 8; i++) {
+    final p = findParentByKey(wc.node, current.key);
+    if (p == null) return;
+    final withValues = p.parent.children
+        .where((c) => findDescendants(c, (n) => (n.name ?? '').startsWith('MatchInfoValue_')).isNotEmpty)
+        .length;
+    if (withValues >= 2) {
+      p.parent.children.add(section);
+      return;
+    }
+    current = p.parent;
+  }
+}
+
+// Endpoint + laadactie voor de afmeldingen bij een wedstrijd. Aparte call omdat
+// FlutterFlow een structlijst alleen kan mappen uit een respons die zelf die
+// lijst is — zelfde constructie als GetMatchGoalsList.
+void _wireMatchAfmeldingenLoad(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+
+  if (findApiEndpoint(project, name: 'GetMatchAfmeldingen', groupName: groupName) == null) {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetMatchAfmeldingen',
+        url: '/matches/[matchId]/afmeldingen',
+        method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'Afmelding', responseDataStructIsList: true);
+  }
+
+  final stateField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'matchAfmeldingen', orElse: () => null);
+  if (stateField == null) return;
+
+  FFParameter? matchIdParam;
+  for (final p in wc.params.values) {
+    if (p.identifier.name == 'matchId') matchIdParam = p;
+  }
+  if (matchIdParam == null) return;
+
+  bool alHaalt(FFActionNode n) {
+    if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetMatchAfmeldingen') {
+      return true;
+    }
+    return n.hasFollowUpAction() && alHaalt(n.followUpAction);
+  }
+
+  for (final trigger in wc.node.triggerActions) {
+    if (!trigger.hasRootAction()) continue;
+    if (alHaalt(trigger.rootAction)) return;
+
+    var tail = trigger.rootAction;
+    while (tail.hasFollowUpAction()) {
+      tail = tail.followUpAction;
+    }
+    tail.followUpAction = Actions.apiCallNode(project,
+      endpointName: 'GetMatchAfmeldingen', groupName: groupName,
+      dynamicVariables: {
+        'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      },
+      outputVariableName: 'matchAfmeldLoad', nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
+            updates: [StateFieldUpdate.setFromVariable('matchAfmeldingen', ctx.responseVar)]),
+      ]));
+    return;
+  }
 }
 
 // Meldt het systeem dat het inlogformulier is afgerond. Pas dán biedt iOS aan
@@ -10743,6 +10917,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchGoalsSummary':  r'$.goals_summary',
           'matchTeamId':        r'$.teamId',
           'matchOpponentLogo':  r'$.opponentLogo',
+          // matchAfmeldingen is een structlijst en gaat hieronder apart.
         };
         final updates = <StateFieldUpdate>[
           StateFieldUpdate.set('isLoading', 'false'),
@@ -10752,6 +10927,10 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           final v = _jsonBodyVar(ctx, entry.value, wc.node.key);
           updates.add(StateFieldUpdate.setFromVariable(entry.key, v));
         }
+        // Afmeldingen komen NIET uit dit JSON-pad: een structlijst laat zich niet
+        // via jsonPath zetten (validator: "update value that is not properly
+        // set"). Die gaan via het aparte endpoint GetMatchAfmeldingen, dat de
+        // lijst als Afmelding-struct teruggeeft — zie _wireMatchAfmeldingenLoad.
         return Actions.chain([
           Actions.updatePageState(
             project,

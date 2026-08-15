@@ -223,6 +223,31 @@ class MatchController extends Controller
     }
 
     /**
+     * GET /v1/matches/{match}/afmeldingen
+     *
+     * Platte lijst met wie zich heeft afgemeld en waarom. Apart endpoint en niet
+     * het genestelde veld uit show(): de app kan een structlijst alleen mappen
+     * uit een respons die zelf die lijst ís — zelfde reden als bij de
+     * doelpuntenlijst.
+     */
+    public function afmeldingen(Request $request, FootballMatch $match): JsonResponse
+    {
+        $absences = Absence::query()
+            ->where('type', Absence::TYPE_MATCH)
+            ->where('match_id', $match->id)
+            ->with(['member:id,name', 'user:id,name'])
+            ->orderBy('created_at')
+            ->get();
+
+        return response()->json(
+            $absences->map(fn (Absence $a) => [
+                'naam'  => $a->member?->name ?? $a->user?->name ?? '',
+                'reden' => (string) ($a->reason ?? ''),
+            ])->values()
+        );
+    }
+
+    /**
      * POST /v1/matches/{match}/notitie
      *
      * Coach of leider zet of wijzigt de opmerking bij een wedstrijd. Een lege
