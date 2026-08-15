@@ -21,6 +21,64 @@ class ReleaseNotesSeeder extends Seeder
         $features = [
             [
                 'type'        => 'feature',
+                'title'       => 'Zie wie zich heeft afgemeld',
+                'description' => 'Op het informatieblad van een wedstrijd staat nu wie zich heeft afgemeld en '
+                    . 'om welke reden. Heeft niemand zich afgemeld, dan staat dat er ook — zo weet je zeker dat '
+                    . 'je niets mist. Voorheen was een afmelding nergens terug te zien, ook je eigen niet, '
+                    . 'waardoor het leek alsof er niets gebeurde.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Wedstrijd delen met je team',
+                'description' => 'Met de deelknop bovenaan een wedstrijd stuur je in één tik een nette '
+                    . 'samenvatting door: tegenstander, datum, aanwezigtijd, locatie, coach, vlagger, fruitheld '
+                    . 'en de notitie. Je kiest zelf waarheen — WhatsApp, Signal, mail of iets anders. Onderaan '
+                    . 'het bericht staat een link waarmee de ontvanger de wedstrijd direct in de app opent.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Fruitheld kiezen',
+                'description' => 'Coaches en leiders kunnen nu ook de fruitheld aanwijzen, via "Fruitheld '
+                    . 'kiezen" in het coach-menu. Verwijderen kan met het prullenbakje achter de naam op het '
+                    . 'informatieblad, net als bij de vlagger.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Vlagger en gastspelers beheren waar ze staan',
+                'description' => 'Het verwijderen van de vlagger en van gastspelers zat in een apart blok '
+                    . 'onderaan de wedstrijd, waar elke naam een tweede keer stond. Het prullenbakje staat nu '
+                    . 'gewoon achter de naam zelf. Gastspelers zijn daardoor ook voor de coach meteen zichtbaar '
+                    . 'op de plek waar je ze verwacht.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Wijzigingen van de coach meteen zichtbaar',
+                'description' => 'Koos je een vlagger, fruitheld of aanwezigtijd, dan bleef het scherm de oude '
+                    . 'gegevens tonen tot je de wedstrijd opnieuw opende. Het leek daardoor alsof de wijziging '
+                    . 'niet was opgeslagen, terwijl dat wel zo was. Alles wat je in het coach-menu aanpast staat '
+                    . 'nu direct op het scherm.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Tijden zonder seconden',
+                'description' => 'De aanwezigtijd bij een wedstrijd en de tijden van een bardienst werden soms '
+                    . 'getoond als 14:30:00. Overal staat nu gewoon 14:30.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Wachtwoord opslaan op de iPhone',
+                'description' => 'De iPhone herkent het inlogscherm nu, zodat je je inloggegevens kunt opslaan '
+                    . 'in je sleutelhanger en de volgende keer met Face ID of Touch ID kunt invullen.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Verlopen sessie loopt niet meer vast',
+                'description' => 'Was je te lang weg, dan kon de app blijven hangen of lege schermen tonen. '
+                    . 'Nu word je netjes uitgelogd en naar het inlogscherm gebracht, zodat je gewoon opnieuw '
+                    . 'kunt inloggen.',
+            ],
+            [
+                'type'        => 'feature',
                 'title'       => 'Notitie bij een wedstrijd',
                 'description' => 'Coaches en leiders kunnen vanuit het coach-menu een notitie bij een wedstrijd '
                     . 'zetten of aanpassen — bijvoorbeeld over verzamelen, tenue of vervoer. De notitie staat '

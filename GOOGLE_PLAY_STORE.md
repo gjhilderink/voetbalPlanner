@@ -302,14 +302,15 @@ De app houdt zijn eigen release notes bij in
 `database/seeders/ReleaseNotesSeeder.php`. Voor de Play Store een korte versie:
 
 ```
-• Verenigingsagenda: alle clubactiviteiten bij elkaar, met aanmelden en
-  toevoegen aan je eigen agenda
-• Coaches kunnen een notitie bij een wedstrijd zetten
-• Overzichtelijker dashboard: je start op het dashboard en ziet de
-  eerstvolgende twee wedstrijden
-• Nieuwe opmaak voor wedstrijd- en trainingsschermen
-• Opgelost: coaches zagen soms wedstrijden van andere teams
-• Opgelost: trainingen en teamkeuze bleven soms leeg tot opnieuw inloggen
+• Je ziet nu wie zich voor een wedstrijd heeft afgemeld, en waarom
+• Deel een wedstrijd in één tik: samenvatting naar WhatsApp of een andere
+  app, met een link om de wedstrijd direct te openen
+• Coaches kunnen de fruitheld kiezen; vlagger en gastspelers beheer je
+  voortaan gewoon bij de naam zelf
+• Opgelost: wijzigingen van de coach werden pas zichtbaar na het opnieuw
+  openen van de wedstrijd
+• Opgelost: de app liep niet meer vast bij een verlopen sessie
+• Je iPhone kan je inloggegevens nu opslaan
 ```
 
 ---
