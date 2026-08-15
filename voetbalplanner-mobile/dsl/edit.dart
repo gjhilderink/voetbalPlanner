@@ -4843,7 +4843,7 @@ void _addMatchWhatsAppShareButton(FFProject project) {
     returnType: FFParameter(dataType: strType.deepCopy()),
   );
 
-  final btn = UI.iconButton('share', color: UIColor.primaryText, name: 'MatchShareButton');
+  final btn = UI.iconButton('share', color: UIColor.primaryBackground, name: 'MatchShareButton');
   Actions.onTap(btn, FFAction(launchUrl: FFLaunchUrlAction(variable: urlVar)));
 
   // Een AppBar rendert alleen wat in de 'actions'-slot staat; als los kind
@@ -11907,6 +11907,21 @@ void _applyBrandingToAllAppBars(FFProject project) {
       final textProto = titleNode.props.text.deepCopy();
       textProto.colorValue = whiteColor.deepCopy();
       titleNode.props.text = textProto;
+    }
+
+    // Actie-iconen (delen, agenda, …) → ook wit. De achtergrond van de AppBar is
+    // de clubkleur, dus een icoon in de standaardkleur valt weg. Hier centraal,
+    // zodat een nieuwe knop in de AppBar niet opnieuw handmatig gezet hoeft.
+    final iconColor = FFColorValue(
+      inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY_BACKGROUND),
+    );
+    for (final icon in findDescendants(appBarNode, (n) => n.type == FFWidgetType.IconButton)) {
+      if (!icon.props.hasIconButton()) continue;
+      final ib = icon.props.iconButton.deepCopy();
+      if (ib.hasIconValue() && ib.iconValue.hasInputValue()) {
+        ib.iconValue.inputValue.colorValue = iconColor.deepCopy();
+        icon.props.iconButton = ib;
+      }
     }
   }
 }
