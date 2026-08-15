@@ -1155,6 +1155,7 @@ void buildEditFlow(App app) {
     _addMatchAfmeldingenSection(project);
     _wireWedstrijdDetailPageLoad(project);
     _wireMatchAfmeldingenLoad(project);
+    _addMatchWhatsAppShareButton(project);
     _bindWedstrijdDetailAppBarTitle(project);
     _bindWedstrijdDetailInfoTexts(project);
     _addWedstrijdGuestManagement(project);
@@ -4758,6 +4759,97 @@ void _addMatchAfmeldingenSection(FFProject project) {
     }
     current = p.parent;
   }
+}
+
+// Deelknop in de AppBar van de wedstrijddetail: opent WhatsApp met een
+// samenvatting van de wedstrijd, waarna je zelf een chat of groep kiest.
+//
+// Via de wa.me-deeplink en niet via een deelpakket: geen extra dependency, en
+// het komt precies uit bij WhatsApp zoals gevraagd. Lege velden vallen weg, zodat
+// er geen regels als 'Vlagger: ' in het bericht komen.
+void _addMatchWhatsAppShareButton(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+
+  final appBar = getPropertyChild(wc.node, 'appBar');
+  if (appBar == null) return;
+
+  // Registreert een knop in de 'actions'-slot. Ook voor een knop die er al staat:
+  // een eerdere versie zette hem als los kind, en dan rendert de AppBar hem niet.
+  void inActionsSlot(String key) {
+    final keys = (appBar.childPropertyMap['actions']?.keyRefs ?? [])
+        .map((r) => r.key)
+        .toList();
+    if (keys.contains(key)) return;
+    keys.add(key);
+    appBar.childPropertyMap['actions'] = FFChildrenKeys(
+      keyRefs: keys.map((k) => FFNodeKeyReference(key: k)).toList(),
+    );
+  }
+
+  final bestaand =
+      findDescendants(wc.node, (n) => n.name == 'MatchShareButton').firstOrNull;
+  if (bestaand != null) {
+    inActionsSlot(bestaand.key);
+    return;
+  }
+
+  final strType = FFDataTypeV2(scalarType: FFBaseDataType.String);
+  FFValue? state(String name) {
+    final f = wc.classModel.stateFields
+        .cast<FFWidgetClassStateField?>()
+        .firstWhere((x) => x?.parameter.identifier.name == name, orElse: () => null);
+    if (f == null) return null;
+    return FFValue(variable: varFromPageState(f.parameter.identifier.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key));
+  }
+
+  // Volgorde van de argumenten komt overeen met de parameters in de expressie.
+  const velden = [
+    ('o', 'matchOpponent'),
+    ('d', 'matchDatetime'),
+    ('l', 'matchLocation'),
+    ('a', 'matchArrivalTime'),
+    ('c', 'matchCoachName'),
+    ('v', 'matchVlaggerName'),
+    ('f', 'matchFruitHeroName'),
+    ('n', 'matchNotes'),
+  ];
+
+  final args = <CodeExpressionArg>[];
+  for (final (naam, veld) in velden) {
+    final v = state(veld);
+    if (v == null) return; // een ontbrekend veld zou de expressie ongeldig maken
+    args.add(CodeExpressionArg(name: naam, dataType: strType.deepCopy(), value: v));
+  }
+
+  // Eén expressie: de generator zet er 'return ' voor, dus geen losse statements.
+  const expr = r"""
+'https://wa.me/?text=' + Uri.encodeComponent([
+  (o ?? '').isEmpty ? '' : '⚽ Wedstrijd tegen ' + (o ?? ''),
+  (d ?? '').isEmpty ? '' : '📅 ' + (d ?? ''),
+  (a ?? '').isEmpty ? '' : '⏰ Aanwezig: ' + (a ?? ''),
+  (l ?? '').isEmpty ? '' : '📍 ' + (l ?? ''),
+  (c ?? '').isEmpty ? '' : '👤 Coach: ' + (c ?? ''),
+  (v ?? '').isEmpty ? '' : '🚩 Vlagger: ' + (v ?? ''),
+  (f ?? '').isEmpty ? '' : '🍎 Fruitheld: ' + (f ?? ''),
+  (n ?? '').isEmpty ? '' : '📝 ' + (n ?? ''),
+].where((r) => r.isNotEmpty).join('\n'))
+""";
+
+  final urlVar = codeExpressionVar(
+    expression: expr.trim(),
+    arguments: args,
+    returnType: FFParameter(dataType: strType.deepCopy()),
+  );
+
+  final btn = UI.iconButton('share', color: UIColor.primaryText, name: 'MatchShareButton');
+  Actions.onTap(btn, FFAction(launchUrl: FFLaunchUrlAction(variable: urlVar)));
+
+  // Een AppBar rendert alleen wat in de 'actions'-slot staat; als los kind
+  // toevoegen komt niet in beeld. Zelfde aanpak als de kalenderknop.
+  appBar.children.add(btn);
+  inActionsSlot(btn.key);
 }
 
 // Endpoint + laadactie voor de afmeldingen bij een wedstrijd. Aparte call omdat
