@@ -1418,6 +1418,25 @@ void buildEditFlow(App app) {
   app.raw((project) => _addSessionExpiryGuard(project, 'DashboardPage'));
   // Inlogvelden herkenbaar maken voor de wachtwoordbeheerders van iOS/Android.
   app.raw((project) => _addLoginAutofillHints(project));
+
+  // De verify-pagina mag geen inlog eisen, anders is de magic link onbruikbaar
+  // voor precies de mensen die hem nodig hebben.
+  //
+  // De routebewaking stuurt een niet-ingelogde bezoeker van /verify door naar
+  // /login. Maar de anonieme Firebase-login die die bewaking tevreden stelt,
+  // gebeurt pás ín de verify-actie op die pagina. Wie nog nooit is ingelogd komt
+  // er dus nooit: link openen, meteen naar het inlogscherm, en daar blijven
+  // staan. Op een toestel dat al eens ingelogd is geweest werkt het wél, want
+  // dan staat de Firebase-sessie er nog — vandaar dat dit bij testen niet opviel
+  // en alleen nieuwe leden treft.
+  // setPageRequiresAuth zelf zit niet in de geëxporteerde SDK-barrel; dit is
+  // exact wat die helper doet. (De waarschuwing om ensurePageRouteSettings met
+  // rust te laten gaat over routePath, dat normalisatie nodig heeft.)
+  app.raw((project) {
+    findPage(project, name: 'MagicLinkVerifyPage')
+        ?.ensurePageRouteSettings()
+        .onlyAuthenticated = false;
+  });
 }
 
 // ─── Match navigation ─────────────────────────────────────────────────────────
