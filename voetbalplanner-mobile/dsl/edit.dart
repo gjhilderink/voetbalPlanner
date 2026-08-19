@@ -18,9 +18,9 @@ import 'package:flutterflow_ai/src/helpers/data_type_helpers.dart'
 import 'package:flutterflow_ai/src/helpers/ensure_helpers.dart'
     show ensureDataStruct;
 import 'package:flutterflow_ai/src/helpers/function_call_helpers.dart'
-    show CodeExpressionArg, andConditionsVar, codeExpressionVar, colorFromStringVar, conditionVar, interpolateVar;
+    show CodeExpressionArg, andConditionsVar, orConditionsVar, codeExpressionVar, colorFromStringVar, conditionVar, interpolateVar;
 import 'package:flutterflow_ai/src/helpers/param_value.dart'
-    show StaticParamValue, VariableParamValue;
+    show ParamValue, StaticParamValue, VariableParamValue;
 import 'package:flutterflow_ai/src/helpers/state_update.dart'
     show StateFieldUpdate;
 import 'package:flutterflow_ai/src/helpers/tree_helpers.dart'
@@ -40,6 +40,7 @@ import 'package:flutterflow_ai/src/ui/actions.dart' show Actions;
 import 'package:flutterflow_ai/src/ui/ui.dart' show UI;
 import 'package:flutterflow_ai/src/ui/ui_types.dart'
     show UIBoxFit, UIColor, UITextStyle, UIMainAxisAlignment, UICrossAxisAlignment, UIEdgeInsets,
+         UIBorder, UIShadow, UIFontWeight, UITextAlign, UITextOverflow, UIAlignment, UIBorderRadius,
          UIProgressShape, UIKeyboardType, UIButtonVariant, DynamicSource;
 import 'package:voetbalplanner_mobile/flutterflow_project.dart' as ff;
 
@@ -1376,6 +1377,11 @@ void buildEditFlow(App app) {
   // Apply club primary color to all buttons: fill color + white text + generous padding.
   app.raw((project) => _applyBrandingToAllButtons(project));
 
+  // Nieuwe NavBar-pagina's (Trainingen + Meer) moeten bestaan vóór de drawer-
+  // en badge-wiring hieronder, anders krijgen ze die pas bij de volgende push.
+  _buildTrainingenPage(app);
+  _buildMeerPage(app);
+
   // Force NavBar items LAST — after all other raw mutations that touch the scaffold.
   app.raw((project) => _forceDashboardNavBarItem(project));
   app.raw((project) => _forceChatsNavBarItem(project));
@@ -1436,6 +1442,22 @@ void buildEditFlow(App app) {
     findPage(project, name: 'MagicLinkVerifyPage')
         ?.ensurePageRouteSettings()
         .onlyAuthenticated = false;
+  });
+
+  // ── Nieuw dashboard + zes-tabs navigatiebalk ───────────────────────────────
+  // Draait als LAATSTE: de dashboard-body wordt vers opgebouwd bovenop wat de
+  // oudere sectie-bouwers hierboven achterlaten. De on-load-keten (API-calls)
+  // hangt aan de Scaffold en blijft ongemoeid.
+  app.raw((project) {
+    _ensureRoleAppStateFields(project);
+    _ensureSyncUserRolesAction(project);
+    _wireSyncUserRolesOnLoad(project);
+    _wireTrainingenPage(project);
+    _wireMeerPage(project);
+    _setupNavBarV2(project);
+    _updateChatBadgeOverlayPosition(project);
+    _removeChatBadgeOverlayFromNonTabPages(project);
+    _rebuildDashboardBody(project);
   });
 }
 
@@ -2186,6 +2208,17 @@ void _setupBardienFilter(FFProject project) {
     if (!existingEp.variables.any((v) => v.identifier.name == 'teamId')) {
       existingEp.variables.add(FFApiValue(
         identifier: FFIdentifier(name: 'teamId', key: generateRandomAlphaNumericString()),
+        type: FFBaseDataType.String,
+      ));
+    }
+    // mine=1 → alleen de eigen bardiensten. Alleen het dashboard vult 'm;
+    // leeg laten betekent voor de backend "geen filter".
+    if (!existingEp.url.contains('mine=')) {
+      existingEp.url = '${existingEp.url}&mine=[mine]';
+    }
+    if (!existingEp.variables.any((v) => v.identifier.name == 'mine')) {
+      existingEp.variables.add(FFApiValue(
+        identifier: FFIdentifier(name: 'mine', key: generateRandomAlphaNumericString()),
         type: FFBaseDataType.String,
       ));
     }
@@ -7948,6 +7981,12 @@ void _addSwapStructFields(FFProject project) {
       ('fruitHeroId',  FFBaseDataType.String),
       ('driverNames',  FFBaseDataType.String),
       ('opponentLogo', FFBaseDataType.String),
+      // Nieuw dashboard: vlagdienst als eigen taak, plus kant-en-klare
+      // datum-/tijdlabels voor de "volgende wedstrijd"-kaart (de app kan
+      // 'd-m-Y H:i' niet zelf opsplitsen).
+      ('isVlagger',    FFBaseDataType.Boolean),
+      ('dateLabel',    FFBaseDataType.String),
+      ('timeLabel',    FFBaseDataType.String),
     ]),
     ('TeamOption',   [
       ('role', FFBaseDataType.String),
@@ -15383,13 +15422,7 @@ void _addDashboardTeamSwitcher(FFProject project) {
     removeByKey(wc.node, n.key);
   }
 
-  // Body-column = parent van DashboardMatchesContainer.
-  final matchesContainer =
-      findDescendants(wc.node, (n) => n.name == 'DashboardMatchesContainer').firstOrNull;
-  if (matchesContainer == null) return;
-  final bodyCol = findDescendants(wc.node, (_) => true)
-      .where((n) => n.children.any((c) => identical(c, matchesContainer)))
-      .firstOrNull;
+  final bodyCol = _dashboardBodyColumn(project);
   if (bodyCol == null) return;
 
   // Horizontale teamlijst.
@@ -15761,7 +15794,9 @@ void _wireDashboardLoad(FFProject project) {
     project,
     endpointName: 'GetBarDuties',
     groupName: 'VoetbalPlannerAPI',
-    variables: {'page': '1'},
+    // mine=1: het dashboard toont bardiensten als persoonlijke taak, dus alleen
+    // de diensten waarvoor de gebruiker zelf is ingedeeld.
+    variables: {'page': '1', 'mine': '1'},
     // Bardiensten zijn op persoon: GEEN teamId meegeven zodat alle teams van de
     // gebruiker getoond worden (niet beïnvloed door de dashboard team-switcher).
     dynamicVariables: {
@@ -19766,10 +19801,10 @@ void _wireChatBadgeOverlayOnAllMainPages(FFProject project) {
   const pages = [
     'DashboardPage',
     'WedstrijdenPage',
-    'BardienPage',
-    'RijschemaPage',
+    'TrainingenPage',
+    'AgendaPage',
     'ChatsPage',
-    'ProfielPage',
+    'MeerPage',
   ];
   for (final p in pages) {
     _addChatBadgeOverlayToPage(project, p);
@@ -20367,9 +20402,12 @@ void _wireAppDrawerOnAllMainPages(FFProject project) {
   const pages = [
     'DashboardPage',
     'WedstrijdenPage',
+    'TrainingenPage',
+    'AgendaPage',
     'BardienPage',
     'RijschemaPage',
     'ChatsPage',
+    'MeerPage',
     'ProfielPage',
   ];
   for (final p in pages) {
@@ -22420,10 +22458,7 @@ void _addDashboardGuestInvitations(FFProject project) {
   for (final n in findDescendants(wc.node, (x) => x.name == 'GuestInvitationsContainer').toList()) {
     removeByKey(wc.node, n.key);
   }
-  final anchor = findDescendants(wc.node, (n) => n.name == 'DashboardMatchesContainer').firstOrNull;
-  if (anchor == null) return;
-  final bodyCol = findDescendants(wc.node, (_) => true)
-      .where((n) => n.children.any((c) => identical(c, anchor))).firstOrNull;
+  final bodyCol = _dashboardBodyColumn(project);
   if (bodyCol == null) return;
 
   final invVar = varFromAppState(invId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
@@ -25478,4 +25513,1842 @@ void _wireWedstrijdAfmelden(FFProject project) {
     afmeldBtn,
     aanmeldBtn,
   ]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NIEUW DASHBOARD (ontwerp screenshots/Dashboard_new.png)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Het oude dashboard was een losse stapel secties (wedstrijden, bardiensten,
+// rijschema, trainingen, agenda) onder elkaar. Het nieuwe ontwerp bundelt
+// dezelfde informatie in een rode koptekst met begroeting + teamkeuze,
+// rol-tabs, één "volgende wedstrijd"-kaart, twee compacte kaarten (volgende
+// training / mijn taken), een staf-kaart en een agenda-blok.
+//
+// De secties uit het ontwerp waarvoor géén data bestaat (XP/level, competitie-
+// stand, seizoenstatistieken, teamsfeer) zijn bewust weggelaten: die zouden
+// verzonnen cijfers tonen.
+//
+// Alle bouwers hieronder draaien ALS LAATSTE in buildEditFlow: de body wordt
+// elke push vers opgebouwd bovenop wat de oudere sectie-bouwers achterlaten.
+// De on-load-keten (API-calls) blijft ongemoeid — die hangt aan de Scaffold.
+
+// ── Rol-state ────────────────────────────────────────────────────────────────
+// activeRole = de rol waarop het dashboard nu filtert.
+// myRoles    = alle rollen die deze gebruiker daadwerkelijk heeft (over al
+//              zijn teams heen). Bepaalt welke rol-tabs zichtbaar zijn.
+void _ensureRoleAppStateFields(FFProject project) {
+  bool has(String name) =>
+      project.appState.fields.any((f) => f.parameter.identifier.name == name);
+
+  if (!has('activeRole')) {
+    project.appState.fields.add(FFAppStateField(
+      parameter: FFParameter(
+        identifier: FFIdentifier(
+            name: 'activeRole', key: generateRandomAlphaNumericString()),
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ),
+    ));
+  }
+  if (!has('myRoles')) {
+    final param = FFParameter(
+      identifier: FFIdentifier(
+          name: 'myRoles', key: generateRandomAlphaNumericString()),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    );
+    param.isList = true;
+    project.appState.fields.add(FFAppStateField(parameter: param));
+  }
+}
+
+// Leidt de rollen af uit availableTeams (elk team draagt de functie van de
+// gebruiker binnen dat team: 'Speler', 'Coach / Trainer', 'Assistent-trainer',
+// 'Leider', of leeg = via een kind gekoppeld → 'Ouder').
+void _ensureSyncUserRolesAction(FFProject project) {
+  const code = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+/// Zet AppState.myRoles (alle functies van deze gebruiker) en AppState.
+/// activeRole (de functie binnen het nu gekozen team). De backend levert per
+/// team een Nederlands functielabel; hier wordt dat teruggebracht tot de korte
+/// tab-namen uit het dashboardontwerp.
+Future<String> syncUserRoles() async {
+  String shortLabel(String raw) {
+    final r = raw.trim().toLowerCase();
+    if (r.isEmpty) return 'Ouder';
+    if (r.startsWith('assistent')) return 'Trainer';
+    if (r.contains('coach')) return 'Coach';
+    if (r.contains('leider')) return 'Leider';
+    if (r.contains('speler')) return 'Speler';
+    return raw.trim();
+  }
+
+  final teams = FFAppState().availableTeams;
+  final roles = <String>[];
+  for (final t in teams) {
+    final label = shortLabel(t.role);
+    if (!roles.contains(label)) roles.add(label);
+  }
+  if (roles.isEmpty) roles.add('Speler');
+
+  // Vaste volgorde, zoals in het ontwerp.
+  const order = ['Speler', 'Coach', 'Trainer', 'Ouder', 'Leider'];
+  roles.sort((a, b) {
+    final ia = order.indexOf(a);
+    final ib = order.indexOf(b);
+    return (ia < 0 ? order.length : ia).compareTo(ib < 0 ? order.length : ib);
+  });
+
+  final currentId = FFAppState().currentTeamId;
+  var active = '';
+  for (final t in teams) {
+    if (t.id == currentId) {
+      active = shortLabel(t.role);
+      break;
+    }
+  }
+  // Bewaar de eerder gekozen rol als die nog geldig is; anders de rol van het
+  // huidige team, anders de eerste rol.
+  final previous = FFAppState().activeRole;
+  if (previous.isNotEmpty && roles.contains(previous)) {
+    active = previous;
+  } else if (active.isEmpty || !roles.contains(active)) {
+    active = roles.first;
+  }
+
+  FFAppState().update(() {
+    FFAppState().myRoles = roles;
+    FFAppState().activeRole = active;
+  });
+  return active;
+}
+''';
+
+  if (findCustomAction(project, name: 'SyncUserRoles') == null) {
+    addCustomAction(
+      project,
+      name: 'SyncUserRoles',
+      description:
+          'Leidt myRoles + activeRole af uit availableTeams. Draait bij Dashboard-load, direct na RefreshCurrentTeam.',
+      arguments: const [],
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ),
+      code: code,
+    );
+  } else {
+    updateCustomAction(project, name: 'SyncUserRoles', code: code);
+  }
+}
+
+// Hangt SyncUserRoles achteraan de dashboard on-load-keten. Moet ná alle
+// andere on-load-wiring draaien; availableTeams is dan door RefreshCurrentTeam
+// bijgewerkt.
+void _wireSyncUserRolesOnLoad(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  final action = findCustomAction(project, name: 'SyncUserRoles');
+  if (action == null) return;
+
+  bool alreadyWired(FFActionNode node) {
+    if (node.hasAction() &&
+        node.action.hasCustomAction() &&
+        node.action.customAction.hasCustomActionIdentifier() &&
+        node.action.customAction.customActionIdentifier.name == 'SyncUserRoles') {
+      return true;
+    }
+    if (node.hasFollowUpAction() && alreadyWired(node.followUpAction)) return true;
+    return false;
+  }
+
+  final already = wc.node.triggerActions
+      .any((t) => t.hasRootAction() && alreadyWired(t.rootAction));
+  if (already) return;
+
+  final syncNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      customAction: FFCustomActionCall(
+        customActionIdentifier: action.identifier.deepCopy(),
+      ),
+    ),
+  );
+
+  // Zo vroeg mogelijk in de keten: direct na RefreshCurrentTeam, dat
+  // availableTeams bijwerkt. Achteraan zou de gebruiker eerst een dashboard
+  // zonder rol-tabs zien terwijl zes API-calls afgehandeld worden.
+  final idx = wc.node.triggerActions.indexWhere((t) =>
+      t.hasTrigger() &&
+      t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE);
+  if (idx >= 0) {
+    final trigger = wc.node.triggerActions[idx];
+    final chain = trigger.rootAction.deepCopy();
+    if (chain.hasFollowUpAction()) {
+      syncNode.followUpAction = chain.followUpAction.deepCopy();
+    }
+    chain.followUpAction = syncNode;
+    wc.node.triggerActions[idx] = FFTriggerActions(
+      trigger: trigger.trigger.deepCopy(),
+      rootAction: chain,
+    );
+    return;
+  }
+  _appendToFirstPageLoadChain(wc.node, syncNode);
+}
+
+// ── Bouwstenen voor de nieuwe dashboardkaarten ───────────────────────────────
+
+/// Witte kaart met afgeronde hoeken, dunne rand en zachte schaduw — de basis
+/// van elk blok in het nieuwe ontwerp.
+FFNode _dashCard({
+  required String name,
+  required FFNode child,
+  Object? padding,
+  Object? margin,
+}) {
+  return UI.container(
+    name: name,
+    padding: padding ?? UIEdgeInsets.all(16),
+    margin: margin,
+    borderRadius: 16,
+    color: UIColor.secondaryBackground,
+    border: UIBorder.all(width: 1, color: UIColor.hex(0xFFE7E9EE)),
+    shadow: const UIShadow(
+      blurRadius: 10,
+      dy: 2,
+      color: UIColor.hex(0x14000000),
+    ),
+    child: child,
+  );
+}
+
+/// Kop van een kaart: titel links, optioneel een aanklikbare "meer"-link rechts.
+FFNode _dashCardHeader(
+  FFProject project, {
+  required String name,
+  required String title,
+  String? linkLabel,
+  String? linkPage,
+  Map<String, ParamValue>? linkParams,
+}) {
+  final children = <FFNode>[
+    UI.expanded(UI.text(title,
+        name: '${name}Title', style: UITextStyle.titleSmall)),
+  ];
+  if (linkLabel != null && linkPage != null &&
+      project.getWidgetClassByName(linkPage) != null) {
+    final link = UI.row(
+      name: '${name}Link',
+      mainAxisMin: true,
+      spacing: 2,
+      children: [
+        UI.text(linkLabel,
+            name: '${name}LinkText',
+            style: UITextStyle.labelMedium,
+            color: UIColor.primary),
+        UI.icon('chevron_right', size: 18, color: UIColor.primary),
+      ],
+    );
+    Actions.onTap(
+      link,
+      Actions.navigate(project, pageName: linkPage, params: linkParams ?? {}),
+    );
+    children.add(link);
+  }
+  return UI.row(
+    name: name,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: children,
+  );
+}
+
+/// Tekstnode gebonden aan een veld van het eerste item in een lijst-state.
+/// Gebruikt voor de "volgende wedstrijd"- en "volgende training"-kaarten, die
+/// één item tonen in plaats van een lijst.
+FFNode _firstItemText(
+  FFVariable listVar, {
+  required String name,
+  required String field,
+  UITextStyle style = UITextStyle.bodyMedium,
+  UIColor? color,
+  int? maxLines,
+  double? fontSize,
+  UIFontWeight? fontWeight,
+  UITextAlign? textAlign,
+}) {
+  final t = UI.text('',
+      name: name,
+      style: style,
+      color: color,
+      maxLines: maxLines,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      textAlign: textAlign,
+      textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
+  t.props.text.textValue = FFStringValue(
+    variable: listVar.deepCopy()
+      ..operations.add(FFVariableOperation(
+        listItemAtIndex:
+            FFListItemAtIndex(type: FFListItemAtIndex_IndexType.FIRST),
+      ))
+      ..operations.add(FFVariableOperation(
+        accessDataStructField: FFAccessDataStructField(
+          fieldIdentifier: FFIdentifier(name: field),
+        ),
+      )),
+  );
+  return t;
+}
+
+/// Variabele voor een veld van het eerste lijstitem (voor condities/params).
+FFVariable _firstItemVar(FFVariable listVar, String field) => listVar.deepCopy()
+  ..operations.add(FFVariableOperation(
+    listItemAtIndex: FFListItemAtIndex(type: FFListItemAtIndex_IndexType.FIRST),
+  ))
+  ..operations.add(FFVariableOperation(
+    accessDataStructField: FFAccessDataStructField(
+      fieldIdentifier: FFIdentifier(name: field),
+    ),
+  ));
+
+/// Vergelijkt een variabele met een letterlijke waarde. conditionVar() neemt
+/// alleen variabelen aan beide kanten; een literal moet als inputValue mee.
+FFVariable _equalsLiteral(
+  FFVariable left,
+  String literal, {
+  bool negate = false,
+}) =>
+    FFVariable(
+      source: FFVariableSource.FUNCTION_CALL,
+      functionCall: FFFunctionCall(
+        condition: FFCondition(
+          relation: negate
+              ? FFCondition_Relation.NOT_EQUAL_TO
+              : FFCondition_Relation.EQUAL_TO,
+        ),
+        values: [
+          FFValue(variable: left),
+          FFValue(inputValue: FFParameterValue(serializedValue: literal)),
+        ],
+      ),
+    );
+
+/// Conditie op de rol-tab die nu geselecteerd is.
+FFVariable _activeRoleIs(FFIdentifier activeRoleId, String scaffoldKey, String role) =>
+    _equalsLiteral(
+      varFromAppState(activeRoleId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+      role,
+    );
+
+/// "Lijst bevat minstens één item" / "lijst is leeg", op basis van de lengte —
+/// betrouwbaarder dan een veld van het eerste item afprobeeren.
+FFVariable _listNotEmptyVar(FFVariable listVar) => _equalsLiteral(
+      listVar.deepCopy()..operations.add(FFVariableOperation(listNumItems: FFListNumItems())),
+      '0',
+      negate: true,
+    );
+
+FFVariable _listEmptyVar(FFVariable listVar) => _equalsLiteral(
+      listVar.deepCopy()..operations.add(FFVariableOperation(listNumItems: FFListNumItems())),
+      '0',
+    );
+
+/// "Veld van het eerste item is gevuld."
+FFVariable _firstFieldFilledVar(FFVariable listVar, String field) => conditionVar(
+      _firstItemVar(listVar, field),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable;
+
+// ── Nieuwe dashboard-body ────────────────────────────────────────────────────
+void _rebuildDashboardBody(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+
+  final bodyRoot = getPropertyChild(wc.node, 'body');
+  if (bodyRoot == null) return;
+
+  // Na _wireChatBadgeOverlayOnAllMainPages is de body een Stack met de kolom
+  // als eerste kind en de badge-overlay erbovenop.
+  final bodyCol = bodyRoot.type == FFWidgetType.Column
+      ? bodyRoot
+      : bodyRoot.children
+          .cast<FFNode?>()
+          .firstWhere((n) => n?.type == FFWidgetType.Column, orElse: () => null);
+  if (bodyCol == null) return;
+
+  // Bestaande, elders opgebouwde onderdelen die we hergebruiken i.p.v.
+  // nabouwen: de teamswitcher (met zijn complete tap-keten) en het blok met
+  // gastuitnodigingen.
+  final switcher =
+      findDescendants(bodyCol, (n) => n.name == 'DashboardTeamSwitcher').firstOrNull;
+  final guestInv =
+      findDescendants(bodyCol, (n) => n.name == 'GuestInvitationsContainer').firstOrNull;
+
+  bodyCol.children.clear();
+  final colProps = bodyCol.props.column.deepCopy();
+  colProps.scrollable = true;
+  bodyCol.props.column = colProps;
+  bodyCol.props.padding = FFPadding(
+    bottomValue: FFDoubleValue(inputValue: 28),
+  );
+
+  final sections = <FFNode?>[
+    _dashHeader(project, wc, switcher),
+    _dashRoleTabs(project, wc),
+    _dashNextMatchCard(project, wc),
+    _dashQuickRow(project, wc),
+    _dashStaffCard(project, wc),
+    _dashActivitiesCard(project, wc),
+  ].whereType<FFNode>().toList();
+
+  bodyCol.children.addAll(sections);
+  if (guestInv != null) bodyCol.children.add(guestInv);
+}
+
+/// Rode kop: begroeting, profielfoto, meldingsbel en teamkeuze.
+FFNode _dashHeader(FFProject project, FFWidgetClass wc, FFNode? switcher) {
+  final scaffoldKey = wc.node.key;
+  FFVariable? app(String name) {
+    final id = _findAppStateFieldId(project, name);
+    if (id == null) return null;
+    return varFromAppState(id.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  final userNameVar = app('userName');
+  final photoVar = app('profilePhotoUrl');
+
+  // Profielfoto (of een neutraal icoon als er geen foto is).
+  final photo = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.CircleImage,
+    name: 'DashHeaderPhoto',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue: photoVar != null
+            ? FFStringValue(variable: photoVar.deepCopy())
+            : FFStringValue(inputValue: ''),
+        fit: FFBoxFit.FF_BOX_FIT_COVER,
+        cached: true,
+        dimensions: FFDimensions(
+          width: FFDim(pixelsValue: FFDoubleValue(inputValue: 54.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 54.0)),
+        ),
+      ),
+    ),
+  );
+  final fallbackAvatar =
+      UI.icon('account_circle', size: 54, color: UIColor.hex(0x66FFFFFF));
+  if (photoVar != null) {
+    setConditionalVisibility(
+      photo,
+      variable: conditionVar(photoVar.deepCopy(), FFCondition_Relation.NOT_EQUAL_TO,
+              varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING))
+          .variable,
+    );
+    setConditionalVisibility(
+      fallbackAvatar,
+      variable: conditionVar(photoVar.deepCopy(), FFCondition_Relation.EQUAL_TO,
+              varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING))
+          .variable,
+    );
+  }
+
+  final greeting = UI.text('Hoi!',
+      name: 'DashGreeting',
+      style: UITextStyle.titleLarge,
+      color: UIColor.white,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  if (userNameVar != null) {
+    greeting.props.text.textValue =
+        interpolateVar(['Hoi ', userNameVar.deepCopy(), '! 👋']);
+  }
+
+  final sub = UI.text('Klaar voor vandaag?',
+      name: 'DashGreetingSub',
+      style: UITextStyle.bodySmall,
+      color: UIColor.hex(0xCCFFFFFF));
+
+  // Meldingsbel → chats. Het rode telbolletje zit al als losse overlay op de
+  // NavBar; hier alleen het icoon zodat de bel niet dubbel telt.
+  final bell = UI.container(
+    name: 'DashHeaderBellWrap',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    color: UIColor.hex(0x22FFFFFF),
+    alignment: UIAlignment.center,
+    child: UI.icon('notifications_none', size: 24, color: UIColor.white),
+  );
+  if (project.getWidgetClassByName('ChatsPage') != null) {
+    Actions.onTap(bell, Actions.navigate(project, pageName: 'ChatsPage', params: {}));
+  }
+
+  final greetingRow = UI.row(
+    name: 'DashHeaderRow',
+    spacing: 12,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      photo,
+      fallbackAvatar,
+      UI.expanded(UI.column(
+        name: 'DashHeaderGreetingCol',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 2,
+        children: [greeting, sub],
+      )),
+      bell,
+    ],
+  );
+
+  final headerChildren = <FFNode>[greetingRow];
+  if (switcher != null) {
+    _restyleTeamSwitcherForHeader(switcher);
+    headerChildren.add(switcher);
+  }
+
+  final header = UI.container(
+    name: 'DashHeader',
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 12, bottom: 18),
+    borderRadius: UIBorderRadius.only(bottomLeft: 26, bottomRight: 26),
+    color: UIColor.primary,
+    child: UI.column(
+      name: 'DashHeaderCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 14,
+      children: headerChildren,
+    ),
+  );
+  // Achtergrond = clubkleur uit AppState, gelijk aan de AppBars.
+  final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
+  if (primaryColorId != null) {
+    _setContainerColor(
+      header,
+      colorFromStringVar(varFromAppState(primaryColorId.deepCopy())),
+    );
+  }
+  return header;
+}
+
+/// Chips van de teamswitcher leesbaar maken op de rode kop.
+void _restyleTeamSwitcherForHeader(FFNode switcher) {
+  for (final n in findDescendants(switcher, (x) => x.name == 'DashboardTeamSwitcherActiveChip')) {
+    _setContainerColor(n, FFColorValue(inputValue: FFColor(value: Int64(0x40000000))));
+  }
+  for (final n in findDescendants(switcher, (x) => x.name == 'DashboardTeamSwitcherChip')) {
+    _setContainerColor(n, FFColorValue(inputValue: FFColor(value: Int64(0x1FFFFFFF))));
+  }
+  for (final name in ['DashboardTeamSwitcherActiveName', 'DashboardTeamSwitcherName']) {
+    for (final n in findDescendants(switcher, (x) => x.name == name)) {
+      if (!n.props.hasText()) continue;
+      final t = n.props.text.deepCopy();
+      t.colorValue = FFColorValue(inputValue: FFColor(value: Int64(0xFFFFFFFF)));
+      n.props.text = t;
+    }
+  }
+  // De switcher zit nu ín de kop; de horizontale padding komt van de kop zelf.
+  switcher.props.padding = FFPadding();
+  for (final n in findDescendants(switcher, (x) => x.name == 'DashboardTeamSwitcherList')) {
+    n.props.padding = FFPadding();
+  }
+  switcher.props.container.dimensions.height =
+      FFDim(pixelsValue: FFDoubleValue(inputValue: 42.0));
+}
+
+/// Rol-tabs (Speler / Coach / Trainer / Ouder / Leider). Alleen de rollen die
+/// deze gebruiker daadwerkelijk heeft; tikken zet AppState.activeRole en
+/// daarmee welke kaarten hieronder zichtbaar zijn.
+FFNode? _dashRoleTabs(FFProject project, FFWidgetClass wc) {
+  final rolesId = _findAppStateFieldId(project, 'myRoles');
+  final activeId = _findAppStateFieldId(project, 'activeRole');
+  if (rolesId == null || activeId == null) return null;
+  final scaffoldKey = wc.node.key;
+
+  final rolesVar = varFromAppState(rolesId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final list = UI.listView(
+    name: 'DashRoleTabsList',
+    horizontal: true,
+    spacing: 8,
+    dynamicSource: DynamicSource(variable: rolesVar, itemName: 'role'),
+  );
+
+  FFVariable activeVar() => varFromAppState(activeId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  FFNode chip({required String name, required bool selected}) {
+    final label = UI.text('',
+        name: '${name}Label',
+        style: UITextStyle.labelMedium,
+        color: selected ? UIColor.white : UIColor.secondaryText);
+    label.props.text.textValue =
+        FFStringValue(variable: varFromGeneratorVariable(list.key));
+    final c = UI.container(
+      name: name,
+      padding: UIEdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      borderRadius: 22,
+      color: selected ? UIColor.primary : UIColor.hex(0xFFEFF1F5),
+      child: label,
+    );
+    setConditionalVisibility(
+      c,
+      variable: conditionVar(
+        varFromGeneratorVariable(list.key),
+        selected ? FFCondition_Relation.EQUAL_TO : FFCondition_Relation.NOT_EQUAL_TO,
+        activeVar(),
+      ).variable,
+    );
+    return c;
+  }
+
+  final item = UI.row(
+    name: 'DashRoleTabItem',
+    mainAxisMin: true,
+    children: [
+      chip(name: 'DashRoleTabActive', selected: true),
+      chip(name: 'DashRoleTab', selected: false),
+    ],
+  );
+  Actions.onTap(
+    item,
+    FFAction(
+      key: generateRandomAlphaNumericString(),
+      localStateUpdate: FFLocalStateUpdate(
+        updates: [
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: activeId.deepCopy(),
+            setValue: FFValue(variable: varFromGeneratorVariable(list.key)),
+          ),
+        ],
+        stateVariableType: FFStateVariableType.APP_STATE,
+      ),
+    ),
+  );
+  list.children.add(item);
+
+  return UI.container(
+    name: 'DashRoleTabs',
+    height: 62,
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+    child: list,
+  );
+}
+
+/// "Volgende wedstrijd" — de hero-kaart uit het ontwerp: eigen club links,
+/// datum/tijd in het midden, tegenstander rechts, locatie eronder.
+FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
+  final matchesId = _findPageStateFieldId(project, 'DashboardPage', 'matches');
+  if (matchesId == null) return null;
+  final scaffoldKey = wc.node.key;
+  final matchesVar = varFromPageState(matchesId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  FFNode clubSide() {
+    final logoId = _findAppStateFieldId(project, 'clubLogoUrl');
+    final teamId = _findAppStateFieldId(project, 'currentTeamName');
+    final logo = FFNode(
+      key: generateRandomAlphaNumericString(),
+      type: FFWidgetType.CircleImage,
+      name: 'DashNextMatchOwnLogo',
+      props: FFWidgetProperties(
+        image: FFImage(
+          type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+          pathValue: logoId != null
+              ? FFStringValue(
+                  variable: varFromAppState(logoId.deepCopy())
+                    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey))
+              : FFStringValue(inputValue: ''),
+          fit: FFBoxFit.FF_BOX_FIT_CONTAIN,
+          cached: true,
+          dimensions: FFDimensions(
+            width: FFDim(pixelsValue: FFDoubleValue(inputValue: 52.0)),
+            height: FFDim(pixelsValue: FFDoubleValue(inputValue: 52.0)),
+          ),
+        ),
+      ),
+    );
+    final teamName = UI.text('',
+        name: 'DashNextMatchOwnName',
+        style: UITextStyle.labelMedium,
+        textAlign: UITextAlign.center,
+        maxLines: 2,
+        textOverflow: UITextOverflow.ellipsis);
+    if (teamId != null) {
+      teamName.props.text.textValue = FFStringValue(
+          variable: varFromAppState(teamId.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey));
+    }
+    return UI.column(
+      name: 'DashNextMatchOwnCol',
+      spacing: 8,
+      mainAxisMin: true,
+      children: [logo, teamName],
+    );
+  }
+
+  FFNode opponentSide() {
+    final logo = FFNode(
+      key: generateRandomAlphaNumericString(),
+      type: FFWidgetType.CircleImage,
+      name: 'DashNextMatchOppLogo',
+      props: FFWidgetProperties(
+        image: FFImage(
+          type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+          pathValue:
+              FFStringValue(variable: _firstItemVar(matchesVar, 'opponentLogo')),
+          fit: FFBoxFit.FF_BOX_FIT_CONTAIN,
+          cached: true,
+          dimensions: FFDimensions(
+            width: FFDim(pixelsValue: FFDoubleValue(inputValue: 52.0)),
+            height: FFDim(pixelsValue: FFDoubleValue(inputValue: 52.0)),
+          ),
+        ),
+      ),
+    );
+    setConditionalVisibility(
+      logo,
+      variable: conditionVar(
+        _firstItemVar(matchesVar, 'opponentLogo'),
+        FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+      ).variable,
+    );
+    final fallback =
+        UI.icon('shield', size: 52, color: UIColor.hex(0xFFD5D9E0));
+    setConditionalVisibility(
+      fallback,
+      variable: conditionVar(
+        _firstItemVar(matchesVar, 'opponentLogo'),
+        FFCondition_Relation.EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+      ).variable,
+    );
+    final oppName = _firstItemText(matchesVar,
+        name: 'DashNextMatchOppName',
+        field: 'opponent',
+        style: UITextStyle.labelMedium,
+        textAlign: UITextAlign.center,
+        maxLines: 2);
+    return UI.column(
+      name: 'DashNextMatchOppCol',
+      spacing: 8,
+      mainAxisMin: true,
+      children: [logo, fallback, oppName],
+    );
+  }
+
+  // dateLabel/timeLabel komen van de vernieuwde backend. Zolang die nog niet
+  // gedeployd is zijn ze leeg; dan valt de kaart terug op de ruwe
+  // matchDatetime ("24-05-2026 10:00") zodat er nooit een leeg vak staat.
+  final hasLabels = _firstFieldFilledVar(matchesVar, 'timeLabel');
+  final noLabels = conditionVar(
+    _firstItemVar(matchesVar, 'timeLabel'),
+    FFCondition_Relation.EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+  ).variable;
+
+  final dateText = _firstItemText(matchesVar,
+      name: 'DashNextMatchDate',
+      field: 'dateLabel',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center,
+      maxLines: 1);
+  setConditionalVisibility(dateText, variable: hasLabels);
+
+  final timeText = _firstItemText(matchesVar,
+      name: 'DashNextMatchTime',
+      field: 'timeLabel',
+      style: UITextStyle.titleLarge,
+      fontSize: 30,
+      fontWeight: UIFontWeight.w700,
+      textAlign: UITextAlign.center,
+      maxLines: 1);
+  setConditionalVisibility(timeText, variable: hasLabels);
+
+  final fallbackWhen = _firstItemText(matchesVar,
+      name: 'DashNextMatchWhenFallback',
+      field: 'matchDatetime',
+      style: UITextStyle.titleMedium,
+      textAlign: UITextAlign.center,
+      maxLines: 2);
+  setConditionalVisibility(fallbackWhen, variable: noLabels);
+
+  final middle = UI.column(
+    name: 'DashNextMatchMiddle',
+    spacing: 4,
+    mainAxisMin: true,
+    children: [
+      dateText,
+      timeText,
+      fallbackWhen,
+      UI.container(
+        name: 'DashNextMatchVsPill',
+        padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        borderRadius: 8,
+        color: UIColor.hex(0xFFEFF1F5),
+        child: UI.text('VS',
+            name: 'DashNextMatchVs',
+            style: UITextStyle.labelSmall,
+            color: UIColor.secondaryText),
+      ),
+    ],
+  );
+
+  final locationRow = UI.row(
+    name: 'DashNextMatchLocationRow',
+    spacing: 4,
+    mainAxisAlignment: UIMainAxisAlignment.center,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      UI.icon('place', size: 15, color: UIColor.secondaryText),
+      _firstItemText(matchesVar,
+          name: 'DashNextMatchLocation',
+          field: 'location',
+          style: UITextStyle.bodySmall,
+          color: UIColor.secondaryText,
+          maxLines: 1),
+    ],
+  );
+  setConditionalVisibility(
+    locationRow,
+    variable: _firstFieldFilledVar(matchesVar, 'location'),
+  );
+
+  final content = UI.column(
+    name: 'DashNextMatchContent',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 14,
+    children: [
+      _dashCardHeader(
+        project,
+        name: 'DashNextMatchHeader',
+        title: 'Volgende wedstrijd',
+        linkLabel: 'Bekijk wedstrijd',
+        linkPage: 'WedstrijdDetailPage',
+        linkParams: {
+          'matchId': VariableParamValue(_firstItemVar(matchesVar, 'id')),
+        },
+      ),
+      UI.row(
+        name: 'DashNextMatchRow',
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: [
+          UI.expanded(clubSide()),
+          middle,
+          UI.expanded(opponentSide()),
+        ],
+      ),
+      locationRow,
+    ],
+  );
+
+  final empty = UI.column(
+    name: 'DashNextMatchEmptyCol',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 10,
+    children: [
+      UI.text('Volgende wedstrijd',
+          name: 'DashNextMatchEmptyTitle', style: UITextStyle.titleSmall),
+      UI.text('Geen wedstrijd gepland voor dit team.',
+          name: 'DashNextMatchEmpty',
+          style: UITextStyle.bodySmall,
+          color: UIColor.secondaryText),
+    ],
+  );
+
+  setConditionalVisibility(content, variable: _listNotEmptyVar(matchesVar));
+  setConditionalVisibility(empty, variable: _listEmptyVar(matchesVar));
+
+  final card = _dashCard(
+    name: 'DashNextMatchCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+    child: UI.column(
+      name: 'DashNextMatchCardCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      children: [content, empty],
+    ),
+  );
+  return card;
+}
+
+/// Rij met de twee compacte kaarten uit het ontwerp: "Volgende training" en
+/// "Mijn taken".
+FFNode _dashQuickRow(FFProject project, FFWidgetClass wc) {
+  final row = UI.row(
+    name: 'DashQuickRow',
+    spacing: 12,
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    children: [
+      UI.expanded(_dashTrainingCard(project, wc)),
+      UI.expanded(_dashTasksCard(project, wc)),
+    ],
+  );
+  return UI.container(
+    name: 'DashQuickRowWrap',
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: row,
+  );
+}
+
+/// "Volgende training": dag, datum + tijd, locatie en het aantal aan-/afmeldingen.
+FFNode _dashTrainingCard(FFProject project, FFWidgetClass wc) {
+  final trainingsId = _findAppStateFieldId(project, 'trainings');
+  final scaffoldKey = wc.node.key;
+
+  final children = <FFNode>[
+    UI.row(
+      name: 'DashTrainingCardHead',
+      spacing: 8,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('sports', size: 20, color: UIColor.primary),
+        UI.expanded(UI.text('Volgende training',
+            name: 'DashTrainingCardTitle',
+            style: UITextStyle.titleSmall,
+            maxLines: 2,
+            textOverflow: UITextOverflow.ellipsis)),
+      ],
+    ),
+  ];
+
+  if (trainingsId != null) {
+    final trainingsVar = varFromAppState(trainingsId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+    final body = UI.column(
+      name: 'DashTrainingCardBody',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 4,
+      children: [
+        _firstItemText(trainingsVar,
+            name: 'DashTrainingDay',
+            field: 'day_label',
+            style: UITextStyle.bodyMedium,
+            fontWeight: UIFontWeight.w600,
+            maxLines: 1),
+        UI.row(
+          name: 'DashTrainingWhen',
+          spacing: 6,
+          children: [
+            _firstItemText(trainingsVar,
+                name: 'DashTrainingDate',
+                field: 'date',
+                style: UITextStyle.bodySmall,
+                color: UIColor.secondaryText,
+                maxLines: 1),
+            _firstItemText(trainingsVar,
+                name: 'DashTrainingTime',
+                field: 'start_time',
+                style: UITextStyle.bodySmall,
+                color: UIColor.secondaryText,
+                maxLines: 1),
+          ],
+        ),
+        UI.row(
+          name: 'DashTrainingLocRow',
+          spacing: 4,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('place', size: 14, color: UIColor.secondaryText),
+            UI.expanded(_firstItemText(trainingsVar,
+                name: 'DashTrainingLoc',
+                field: 'location',
+                style: UITextStyle.bodySmall,
+                color: UIColor.secondaryText,
+                maxLines: 1)),
+          ],
+        ),
+        UI.row(
+          name: 'DashTrainingCounts',
+          spacing: 12,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.row(
+              name: 'DashTrainingAanmeldRow',
+              spacing: 4,
+              mainAxisMin: true,
+              children: [
+                UI.icon('check_circle', size: 16, color: UIColor.success),
+                _firstItemText(trainingsVar,
+                    name: 'DashTrainingAanmeld',
+                    field: 'aangemeld',
+                    style: UITextStyle.labelMedium,
+                    maxLines: 1),
+              ],
+            ),
+            UI.row(
+              name: 'DashTrainingAfmeldRow',
+              spacing: 4,
+              mainAxisMin: true,
+              children: [
+                UI.icon('cancel', size: 16, color: UIColor.error),
+                _firstItemText(trainingsVar,
+                    name: 'DashTrainingAfmeld',
+                    field: 'afgemeld',
+                    style: UITextStyle.labelMedium,
+                    maxLines: 1),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+    setConditionalVisibility(
+      body,
+      variable: _listNotEmptyVar(trainingsVar),
+    );
+
+    final empty = UI.text('Geen training gepland.',
+        name: 'DashTrainingEmpty',
+        style: UITextStyle.bodySmall,
+        color: UIColor.secondaryText);
+    setConditionalVisibility(
+      empty,
+      variable: _listEmptyVar(trainingsVar),
+    );
+
+    children.add(body);
+    children.add(empty);
+
+    // Hele kaart aantikbaar → detail van die eerste training.
+    if (project.getWidgetClassByName('TrainingDetailPage') != null) {
+      final card = _dashCard(
+        name: 'DashTrainingCard',
+        padding: UIEdgeInsets.all(14),
+        child: UI.column(
+          name: 'DashTrainingCardCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 10,
+          children: children,
+        ),
+      );
+      Actions.onTap(
+        card,
+        Actions.navigate(project, pageName: 'TrainingDetailPage', params: {
+          'scheduleId':
+              VariableParamValue(_firstItemVar(trainingsVar, 'schedule_id')),
+          'date': VariableParamValue(_firstItemVar(trainingsVar, 'date')),
+          'dayLabel': VariableParamValue(_firstItemVar(trainingsVar, 'day_label')),
+          'startTime':
+              VariableParamValue(_firstItemVar(trainingsVar, 'start_time')),
+          'location': VariableParamValue(_firstItemVar(trainingsVar, 'location')),
+          'kleedkamer':
+              VariableParamValue(_firstItemVar(trainingsVar, 'dressing_room')),
+          'mijnStatus':
+              VariableParamValue(_firstItemVar(trainingsVar, 'mijn_status')),
+          'afmeldingen':
+              VariableParamValue(_firstItemVar(trainingsVar, 'afmeldingen')),
+        }),
+      );
+      return card;
+    }
+  }
+
+  return _dashCard(
+    name: 'DashTrainingCard',
+    padding: UIEdgeInsets.all(14),
+    child: UI.column(
+      name: 'DashTrainingCardCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 10,
+      children: children,
+    ),
+  );
+}
+
+/// "Mijn taken": rijden, vlaggen, fruit en bardienst — precies de klusjes die
+/// de app al bijhoudt. Elke regel is alleen zichtbaar als de gebruiker die
+/// taak daadwerkelijk heeft.
+FFNode _dashTasksCard(FFProject project, FFWidgetClass wc) {
+  final scaffoldKey = wc.node.key;
+
+  FFNode taskRow({
+    required String name,
+    required String label,
+    required String icon,
+    required UIColor iconColor,
+    FFVariable? whenVar,
+    FFVariable? subtitleVar,
+  }) {
+    final texts = <FFNode>[
+      UI.text(label,
+          name: '${name}Label',
+          style: UITextStyle.labelMedium,
+          maxLines: 1,
+          textOverflow: UITextOverflow.ellipsis),
+    ];
+    if (subtitleVar != null) {
+      final sub = UI.text('',
+          name: '${name}Sub',
+          style: UITextStyle.bodySmall,
+          color: UIColor.secondaryText,
+          maxLines: 1,
+          textOverflow: UITextOverflow.ellipsis);
+      sub.props.text.textValue = FFStringValue(variable: subtitleVar);
+      texts.add(sub);
+    }
+    final row = UI.row(
+      name: name,
+      spacing: 8,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon(icon, size: 20, color: iconColor),
+        UI.expanded(UI.column(
+          name: '${name}Col',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          children: texts,
+        )),
+      ],
+    );
+    if (whenVar != null) setConditionalVisibility(row, variable: whenVar);
+    return row;
+  }
+
+  final rows = <FFNode>[];
+  final conditions = <FFVariable>[];
+
+  final driveId = _findPageStateFieldId(project, 'DashboardPage', 'driveMatches');
+  if (driveId != null) {
+    final driveVar = varFromPageState(driveId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+    final when = _listNotEmptyVar(driveVar);
+    conditions.add(_listNotEmptyVar(driveVar));
+    rows.add(taskRow(
+      name: 'DashTaskDrive',
+      label: 'Rijden',
+      icon: 'directions_car',
+      iconColor: UIColor.primary,
+      whenVar: when,
+      subtitleVar: _firstItemVar(driveVar, 'matchDatetime'),
+    ));
+  }
+
+  final matchesId = _findPageStateFieldId(project, 'DashboardPage', 'matches');
+  if (matchesId != null) {
+    final matchesVar = varFromPageState(matchesId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+    // isVlagger / isFruitHero staan op de eerstvolgende wedstrijd van dit team.
+    FFVariable flagVar(String field) => conditionVar(
+          _firstItemVar(matchesVar, field),
+          FFCondition_Relation.EQUAL_TO,
+          varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+        ).variable;
+
+    conditions.add(flagVar('isVlagger'));
+    rows.add(taskRow(
+      name: 'DashTaskFlag',
+      label: 'Vlaggen',
+      icon: 'flag',
+      iconColor: UIColor.warning,
+      whenVar: flagVar('isVlagger'),
+      subtitleVar: _firstItemVar(matchesVar, 'matchDatetime'),
+    ));
+
+    conditions.add(flagVar('isFruitHero'));
+    rows.add(taskRow(
+      name: 'DashTaskFruit',
+      label: 'Fruit verzorgen',
+      icon: 'local_florist',
+      iconColor: UIColor.success,
+      whenVar: flagVar('isFruitHero'),
+      subtitleVar: _firstItemVar(matchesVar, 'matchDatetime'),
+    ));
+  }
+
+  final dutiesId = _findPageStateFieldId(project, 'DashboardPage', 'duties');
+  if (dutiesId != null) {
+    final dutiesVar = varFromPageState(dutiesId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+    final when = conditionVar(
+      _firstItemVar(dutiesVar, 'isAssignedToMe'),
+      FFCondition_Relation.EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+    ).variable;
+    conditions.add(conditionVar(
+      _firstItemVar(dutiesVar, 'isAssignedToMe'),
+      FFCondition_Relation.EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+    ).variable);
+    rows.add(taskRow(
+      name: 'DashTaskBar',
+      label: 'Bardienst',
+      icon: 'local_bar',
+      iconColor: UIColor.hex(0xFF8B5CF6),
+      whenVar: when,
+      subtitleVar: _firstItemVar(dutiesVar, 'date'),
+    ));
+  }
+
+  // Lege staat: geen enkele taak toegewezen.
+  if (conditions.isNotEmpty) {
+    final noneVar = andConditionsVar(
+      conditions.map((c) => c.deepCopy()..operations.add(
+            FFVariableOperation(negate: FFNegateBoolean()),
+          )).toList(),
+    ).variable;
+    final empty = UI.text('Geen taken voor je ingepland.',
+        name: 'DashTasksEmpty',
+        style: UITextStyle.bodySmall,
+        color: UIColor.secondaryText);
+    setConditionalVisibility(empty, variable: noneVar);
+    rows.add(empty);
+  }
+
+  final children = <FFNode>[
+    UI.row(
+      name: 'DashTasksHead',
+      spacing: 8,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('checklist', size: 20, color: UIColor.primary),
+        UI.expanded(UI.text('Mijn taken',
+            name: 'DashTasksTitle',
+            style: UITextStyle.titleSmall,
+            maxLines: 2,
+            textOverflow: UITextOverflow.ellipsis)),
+      ],
+    ),
+    ...rows,
+  ];
+
+  return _dashCard(
+    name: 'DashTasksCard',
+    padding: UIEdgeInsets.all(14),
+    child: UI.column(
+      name: 'DashTasksCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 10,
+      children: children,
+    ),
+  );
+}
+
+/// Stafkaart — alleen zichtbaar voor coach, trainer of leider. Snelkoppelingen
+/// naar de teamleden, de opstelling van de volgende wedstrijd en het rijschema.
+FFNode? _dashStaffCard(FFProject project, FFWidgetClass wc) {
+  final activeId = _findAppStateFieldId(project, 'activeRole');
+  if (activeId == null) return null;
+  final scaffoldKey = wc.node.key;
+
+  // Staf = de rol-tab staat op Coach, Trainer of Leider.
+  final isStaffVar = orConditionsVar([
+    for (final role in const ['Coach', 'Trainer', 'Leider'])
+      _activeRoleIs(activeId, scaffoldKey, role),
+  ]).variable;
+
+  FFNode tile(String name, String label, String icon, String page) {
+    final t = UI.row(
+      name: name,
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.container(
+          name: '${name}IconWrap',
+          width: 38,
+          height: 38,
+          borderRadius: 12,
+          color: UIColor.hex(0xFFEFF1F5),
+          alignment: UIAlignment.center,
+          child: UI.icon(icon, size: 20, color: UIColor.primary),
+        ),
+        UI.expanded(UI.text(label,
+            name: '${name}Label',
+            style: UITextStyle.bodyMedium,
+            maxLines: 1,
+            textOverflow: UITextOverflow.ellipsis)),
+        UI.icon('chevron_right', size: 20, color: UIColor.secondaryText),
+      ],
+    );
+    if (project.getWidgetClassByName(page) != null) {
+      Actions.onTap(t, Actions.navigate(project, pageName: page, params: {}));
+    }
+    return t;
+  }
+
+  final tiles = <FFNode>[
+    UI.text('Voor de staf',
+        name: 'DashStaffTitle', style: UITextStyle.titleSmall),
+    tile('DashStaffTeam', 'Teamleden', 'groups', 'TeamMembersPage'),
+    tile('DashStaffDrive', 'Rijschema', 'directions_car', 'RijschemaPage'),
+    tile('DashStaffBar', 'Bardiensten', 'local_bar', 'BardienPage'),
+  ];
+
+  final card = _dashCard(
+    name: 'DashStaffCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.column(
+      name: 'DashStaffCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 12,
+      children: tiles,
+    ),
+  );
+  setConditionalVisibility(card, variable: isStaffVar);
+  return card;
+}
+
+/// "Komende activiteiten": de verenigingsagenda, met datumblokje, categorie en
+/// het aantal aanmeldingen.
+FFNode? _dashActivitiesCard(FFProject project, FFWidgetClass wc) {
+  final agendaId = _findAppStateFieldId(project, 'agendaItems');
+  if (agendaId == null) return null;
+  final scaffoldKey = wc.node.key;
+  final agendaVar = varFromAppState(agendaId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final list = UI.listView(
+    name: 'DashActivitiesList',
+    shrinkWrap: true,
+    spacing: 10,
+    dynamicSource: DynamicSource(variable: agendaVar, itemName: 'activity'),
+  );
+
+  FFNode bound(String name, String field, UITextStyle style,
+      {UIColor? color, int? maxLines}) {
+    final t = UI.text('',
+        name: name,
+        style: style,
+        color: color,
+        maxLines: maxLines,
+        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, field));
+    return t;
+  }
+
+  final dateBlock = UI.container(
+    name: 'DashActivityDateBlock',
+    width: 60,
+    padding: UIEdgeInsets.symmetric(vertical: 8, horizontal: 4),
+    borderRadius: 12,
+    color: UIColor.hex(0xFFF1F5F9),
+    alignment: UIAlignment.center,
+    child: bound('DashActivityDate', 'dateLabel', UITextStyle.labelSmall,
+        maxLines: 2),
+  );
+
+  final card = UI.container(
+    name: 'DashActivityCard',
+    padding: UIEdgeInsets.symmetric(vertical: 4),
+    child: UI.row(
+      name: 'DashActivityRow',
+      spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        dateBlock,
+        UI.expanded(UI.column(
+          name: 'DashActivityInfo',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 3,
+          children: [
+            bound('DashActivityTitle', 'title', UITextStyle.bodyMedium,
+                maxLines: 2),
+            UI.row(
+              name: 'DashActivityMeta',
+              spacing: 6,
+              crossAxisAlignment: UICrossAxisAlignment.center,
+              children: [
+                bound('DashActivityTime', 'timeLabel', UITextStyle.bodySmall,
+                    color: UIColor.secondaryText, maxLines: 1),
+                UI.expanded(bound('DashActivityLocation', 'location',
+                    UITextStyle.bodySmall,
+                    color: UIColor.secondaryText, maxLines: 1)),
+              ],
+            ),
+          ],
+        )),
+        UI.icon('chevron_right', size: 20, color: UIColor.secondaryText),
+      ],
+    ),
+  );
+  if (project.getWidgetClassByName('AgendaDetailPage') != null) {
+    Actions.onTap(
+      card,
+      Actions.navigate(project, pageName: 'AgendaDetailPage', params: {
+        'agendaItemId': VariableParamValue(generatorVarField(list.key, 'id')),
+      }),
+    );
+  }
+  list.children.add(card);
+
+  final empty = UI.text('Nog niets in de agenda.',
+      name: 'DashActivitiesEmpty',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText);
+  setConditionalVisibility(empty, variable: _listEmptyVar(agendaVar));
+
+  final cardNode = _dashCard(
+    name: 'DashActivitiesCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.column(
+      name: 'DashActivitiesCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 12,
+      children: [
+        _dashCardHeader(
+          project,
+          name: 'DashActivitiesHeader',
+          title: 'Komende activiteiten',
+          linkLabel: 'Bekijk agenda',
+          linkPage: 'AgendaPage',
+        ),
+        list,
+        empty,
+      ],
+    ),
+  );
+  return cardNode;
+}
+
+// ── Nieuwe NavBar-pagina's: Trainingen en Meer ───────────────────────────────
+//
+// Het ontwerp heeft zes tabs: Dashboard, Wedstrijden, Trainingen, Agenda,
+// Berichten, Meer. Trainingen had nog geen eigen overzicht (alleen een blok op
+// het dashboard) en Meer bundelt de tabs die uit de balk verdwijnen:
+// rijschema, bardiensten, profiel en de rest van het menu.
+
+void _buildTrainingenPage(App app) {
+  app.ensurePage(
+    'TrainingenPage',
+    description: 'Overzicht van alle geplande trainingen van het huidige team.',
+    route: 'trainingen',
+    body: Column(
+      children: [
+        Container(name: 'TrainingenListContainer'),
+      ],
+    ),
+  );
+}
+
+void _buildMeerPage(App app) {
+  app.ensurePage(
+    'MeerPage',
+    description:
+        'Verzamelpagina met alles wat niet in de navigatiebalk past: rijschema, bardiensten, teamleden, nieuws, handleiding, profiel.',
+    route: 'meer',
+    body: Column(
+      children: [
+        Container(name: 'MeerTilesContainer'),
+      ],
+    ),
+  );
+}
+
+/// Vult TrainingenPage: laadt de trainingen bij het openen en toont ze als
+/// kaarten die doorlinken naar TrainingDetailPage.
+void _wireTrainingenPage(FFProject project) {
+  final wc = findPage(project, name: 'TrainingenPage');
+  if (wc == null) return;
+
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  final trainingsId = _findAppStateFieldId(project, 'trainings');
+  final hasEndpoint = findApiEndpoint(
+          project, name: 'GetTrainingsList', groupName: 'VoetbalPlannerAPI') !=
+      null;
+
+  // On-load: trainingen ophalen. Elke push opnieuw opgebouwd zodat de keten
+  // niet dubbel komt te staan.
+  if (authTokenId != null && currentTeamIdId != null && trainingsId != null && hasEndpoint) {
+    wc.node.triggerActions.removeWhere((t) =>
+        t.hasTrigger() &&
+        t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE);
+    Actions.addTriggerChain(
+      wc.node,
+      FFActionTriggerType.ON_INIT_STATE,
+      Actions.apiCallNode(
+        project,
+        endpointName: 'GetTrainingsList',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+        },
+        outputVariableName: 'trainingenLoad',
+        nodeKey: wc.node.key,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('trainings', ctx.responseVar),
+          ]),
+        ]),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('Kon trainingen niet laden.'),
+        ]),
+      ),
+    );
+  }
+
+  // AppBar.
+  if (getPropertyChild(wc.node, 'appBar') == null) {
+    final titleNode = UI.text('Trainingen',
+        name: 'TrainingenAppBarTitle', style: UITextStyle.titleLarge);
+    final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: false);
+    wc.node.children.add(appBarNode);
+    wc.node.childPropertyMap['appBar'] =
+        FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: appBarNode.key)]);
+  }
+
+  final container =
+      findDescendants(wc.node, (n) => n.name == 'TrainingenListContainer').firstOrNull;
+  if (container == null || trainingsId == null) return;
+  container.children.clear();
+
+  final bodyCol = getPropertyChild(wc.node, 'body');
+  if (bodyCol != null && bodyCol.type == FFWidgetType.Column) {
+    final c = bodyCol.props.column.deepCopy();
+    c.scrollable = true;
+    bodyCol.props.column = c;
+  }
+
+  final trainingsVar = varFromAppState(trainingsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final list = UI.listView(
+    name: 'TrainingenList',
+    shrinkWrap: true,
+    spacing: 10,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    dynamicSource: DynamicSource(variable: trainingsVar, itemName: 'training'),
+  );
+
+  FFNode bound(String name, String field, UITextStyle style,
+      {UIColor? color, int? maxLines, UIFontWeight? weight}) {
+    final t = UI.text('',
+        name: name,
+        style: style,
+        color: color,
+        fontWeight: weight,
+        maxLines: maxLines,
+        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, field));
+    return t;
+  }
+
+  final card = _dashCard(
+    name: 'TrainingenCard',
+    child: UI.row(
+      name: 'TrainingenCardRow',
+      spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.container(
+          name: 'TrainingenCardIconWrap',
+          width: 44,
+          height: 44,
+          borderRadius: 14,
+          color: UIColor.hex(0xFFEFF1F5),
+          alignment: UIAlignment.center,
+          child: UI.icon('sports', size: 22, color: UIColor.primary),
+        ),
+        UI.expanded(UI.column(
+          name: 'TrainingenCardInfo',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 3,
+          children: [
+            bound('TrainingenCardDay', 'day_label', UITextStyle.bodyMedium,
+                weight: UIFontWeight.w600, maxLines: 1),
+            UI.row(
+              name: 'TrainingenCardWhen',
+              spacing: 6,
+              children: [
+                bound('TrainingenCardDate', 'date', UITextStyle.bodySmall,
+                    color: UIColor.secondaryText, maxLines: 1),
+                bound('TrainingenCardTime', 'start_time', UITextStyle.bodySmall,
+                    color: UIColor.secondaryText, maxLines: 1),
+              ],
+            ),
+            UI.row(
+              name: 'TrainingenCardLocRow',
+              spacing: 4,
+              crossAxisAlignment: UICrossAxisAlignment.center,
+              children: [
+                UI.icon('place', size: 14, color: UIColor.secondaryText),
+                UI.expanded(bound('TrainingenCardLoc', 'location',
+                    UITextStyle.bodySmall,
+                    color: UIColor.secondaryText, maxLines: 1)),
+              ],
+            ),
+          ],
+        )),
+        UI.column(
+          name: 'TrainingenCardCounts',
+          mainAxisMin: true,
+          spacing: 4,
+          children: [
+            UI.row(
+              name: 'TrainingenCardAanmeldRow',
+              spacing: 4,
+              mainAxisMin: true,
+              children: [
+                UI.icon('check_circle', size: 15, color: UIColor.success),
+                bound('TrainingenCardAanmeld', 'aangemeld',
+                    UITextStyle.labelMedium, maxLines: 1),
+              ],
+            ),
+            UI.row(
+              name: 'TrainingenCardAfmeldRow',
+              spacing: 4,
+              mainAxisMin: true,
+              children: [
+                UI.icon('cancel', size: 15, color: UIColor.error),
+                bound('TrainingenCardAfmeld', 'afgemeld',
+                    UITextStyle.labelMedium, maxLines: 1),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  if (project.getWidgetClassByName('TrainingDetailPage') != null) {
+    Actions.onTap(
+      card,
+      Actions.navigate(project, pageName: 'TrainingDetailPage', params: {
+        'scheduleId': VariableParamValue(generatorVarField(list.key, 'schedule_id')),
+        'date': VariableParamValue(generatorVarField(list.key, 'date')),
+        'dayLabel': VariableParamValue(generatorVarField(list.key, 'day_label')),
+        'startTime': VariableParamValue(generatorVarField(list.key, 'start_time')),
+        'location': VariableParamValue(generatorVarField(list.key, 'location')),
+        'kleedkamer': VariableParamValue(generatorVarField(list.key, 'dressing_room')),
+        'mijnStatus': VariableParamValue(generatorVarField(list.key, 'mijn_status')),
+        'afmeldingen': VariableParamValue(generatorVarField(list.key, 'afmeldingen')),
+      }),
+    );
+  }
+  list.children.add(card);
+
+  final empty = UI.text('Er staan nog geen trainingen gepland.',
+      name: 'TrainingenEmpty',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText);
+  empty.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 24),
+  );
+  setConditionalVisibility(empty, variable: _listEmptyVar(trainingsVar));
+
+  container.children.add(UI.column(
+    name: 'TrainingenListCol',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    children: [list, empty],
+  ));
+}
+
+/// Vult MeerPage met tegels naar alles wat uit de navigatiebalk verdwijnt.
+void _wireMeerPage(FFProject project) {
+  final wc = findPage(project, name: 'MeerPage');
+  if (wc == null) return;
+
+  if (getPropertyChild(wc.node, 'appBar') == null) {
+    final titleNode =
+        UI.text('Meer', name: 'MeerAppBarTitle', style: UITextStyle.titleLarge);
+    final appBarNode = UI.appBar(titleWidget: titleNode, showBackButton: false);
+    wc.node.children.add(appBarNode);
+    wc.node.childPropertyMap['appBar'] =
+        FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: appBarNode.key)]);
+  }
+
+  final bodyCol = getPropertyChild(wc.node, 'body');
+  if (bodyCol != null && bodyCol.type == FFWidgetType.Column) {
+    final c = bodyCol.props.column.deepCopy();
+    c.scrollable = true;
+    bodyCol.props.column = c;
+  }
+
+  final container =
+      findDescendants(wc.node, (n) => n.name == 'MeerTilesContainer').firstOrNull;
+  if (container == null) return;
+  container.children.clear();
+
+  // Levert null als de doelpagina (nog) niet bestaat — dan hoort de tegel er
+  // ook niet te staan.
+  FFNode? tile(String key, String label, String icon, String page,
+      {String? subtitle}) {
+    if (project.getWidgetClassByName(page) == null) return null;
+    final texts = <FFNode>[
+      UI.text(label, name: '${key}Label', style: UITextStyle.bodyMedium, maxLines: 1,
+          textOverflow: UITextOverflow.ellipsis),
+    ];
+    if (subtitle != null) {
+      texts.add(UI.text(subtitle,
+          name: '${key}Sub',
+          style: UITextStyle.bodySmall,
+          color: UIColor.secondaryText,
+          maxLines: 1,
+          textOverflow: UITextOverflow.ellipsis));
+    }
+    final row = UI.row(
+      name: key,
+      spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.container(
+          name: '${key}IconWrap',
+          width: 42,
+          height: 42,
+          borderRadius: 14,
+          color: UIColor.hex(0xFFEFF1F5),
+          alignment: UIAlignment.center,
+          child: UI.icon(icon, size: 21, color: UIColor.primary),
+        ),
+        UI.expanded(UI.column(
+          name: '${key}Col',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          children: texts,
+        )),
+        UI.icon('chevron_right', size: 20, color: UIColor.secondaryText),
+      ],
+    );
+    Actions.onTap(row, Actions.navigate(project, pageName: page, params: {}));
+    return _dashCard(
+      name: '${key}Card',
+      padding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: row,
+    );
+  }
+
+  final tiles = <FFNode?>[
+    tile('MeerTileRijschema', 'Rijschema', 'directions_car', 'RijschemaPage',
+        subtitle: 'Wie rijdt er naar de uitwedstrijden'),
+    tile('MeerTileBardienst', 'Bardiensten', 'local_bar', 'BardienPage',
+        subtitle: 'Jouw diensten en die van het team'),
+    tile('MeerTileTeam', 'Teamleden', 'groups', 'TeamMembersPage'),
+    tile('MeerTileWissels', 'Wisselverzoeken', 'swap_horiz', 'WisselVerzoekenPage'),
+    tile('MeerTileNieuws', 'Nieuws', 'newspaper', 'NewsPage'),
+    tile('MeerTileDocs', 'Handleiding', 'menu_book', 'DocumentatiePage'),
+    tile('MeerTileProfiel', 'Profiel', 'person', 'ProfielPage'),
+    tile('MeerTileBug', 'Probleem melden', 'bug_report', 'BugReportPage'),
+  ].whereType<FFNode>().toList();
+
+  container.children.add(UI.column(
+    name: 'MeerTilesCol',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 10,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    children: tiles,
+  ));
+}
+
+/// Navigatiebalk zoals in het ontwerp: zes tabs met tekstlabels.
+/// Rijschema, Bardienst en Profiel verhuizen naar MeerPage.
+void _setupNavBarV2(FFProject project) {
+  setNavBarEnabled(project, enabled: true);
+  final navBar = project.ensureNavBar()
+    ..showSelectedLabels = true
+    ..showUnselectedLabels = true;
+
+  // Tabs die niet meer in de balk horen eruit halen (idempotent).
+  for (final page in ['RijschemaPage', 'BardienPage', 'ProfielPage']) {
+    try {
+      removeNavBarPage(project, pageName: page);
+    } catch (_) {
+      // Stond er al niet in.
+    }
+  }
+
+  // De zes tabs uit het ontwerp, in volgorde.
+  const tabs = <(String, String, String)>[
+    ('DashboardPage', 'home', 'Dashboard'),
+    ('WedstrijdenPage', 'sports_soccer', 'Wedstrijden'),
+    ('TrainingenPage', 'sports', 'Trainingen'),
+    ('AgendaPage', 'event', 'Agenda'),
+    ('ChatsPage', 'chat_bubble', 'Berichten'),
+    ('MeerPage', 'more_horiz', 'Meer'),
+  ];
+
+  for (final (pageName, icon, _) in tabs) {
+    if (findPage(project, name: pageName) == null) continue;
+    addNavBarPage(project, pageName: pageName, iconName: icon);
+  }
+
+  // Volgorde forceren: addNavBarPage voegt alleen achteraan toe.
+  var index = 0;
+  for (final (pageName, _, _) in tabs) {
+    if (findPage(project, name: pageName) == null) continue;
+    if (!listNavBarPages(project).contains(pageName)) continue;
+    reorderNavBarPage(project, pageName: pageName, newIndex: index);
+    index++;
+  }
+
+  // Icoon + label per tab hard zetten. addNavBarPage slaat een bestaande tab
+  // over zonder icoon/label bij te werken, dus dit gebeurt hier expliciet.
+  for (final (pageName, icon, label) in tabs) {
+    final page = findPage(project, name: pageName);
+    if (page == null) continue;
+    final scaff = page.node.props.scaffold.deepCopy();
+    final item = scaff.ensureNavBarItem();
+    item.show = true;
+    item.navIcon = FFIcon(
+      iconDataValue: FFIconDataValue(
+        inputValue: FFIconData(name: icon, family: 'MaterialIcons'),
+      ),
+    );
+    item.label = UI.text(label).props.text.deepCopy();
+    page.node.props.scaffold = scaff;
+  }
+  // navBar zelf niet verder aanpassen; type/kleuren blijven zoals ingesteld.
+  navBar.show = true;
+}
+
+/// Het rode telbolletje boven het Berichten-icoon: zes tabs, Berichten op
+/// index 4, en met zichtbare labels moet het bolletje hoger staan zodat het
+/// niet over het label valt.
+void _updateChatBadgeOverlayPosition(FFProject project) {
+  final widget = findCustomWidget(project, name: 'ChatBadgeOverlay');
+  if (widget == null) return;
+  final code = widget.code
+      .replaceAll(
+        '// 6 NavBar tabs: Dashboard, Wedstrijden, Rijschema, Bardienst, Chats, Profiel.',
+        '// 6 NavBar tabs: Dashboard, Wedstrijden, Trainingen, Agenda, Berichten, Meer.',
+      )
+      .replaceAll('bottom: 4,', 'bottom: 26,');
+  if (code == widget.code) return;
+  updateCustomWidget(project, name: 'ChatBadgeOverlay', code: code);
+}
+
+/// De kolom in de dashboard-body waar de secties in staan. Na het wrappen voor
+/// de chat-badge is de body een Stack; de kolom is dan het eerste kind.
+/// Losse helper omdat de oudere sectie-bouwers deze kolom via
+/// DashboardMatchesContainer zochten — die container bestaat sinds het nieuwe
+/// dashboard niet meer.
+FFNode? _dashboardBodyColumn(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return null;
+  final bodyRoot = getPropertyChild(wc.node, 'body');
+  if (bodyRoot == null) return null;
+  if (bodyRoot.type == FFWidgetType.Column) return bodyRoot;
+  return bodyRoot.children
+      .cast<FFNode?>()
+      .firstWhere((n) => n?.type == FFWidgetType.Column, orElse: () => null);
+}
+
+/// Haalt het unread-bolletje weg van pagina's die geen NavBar-tab meer zijn.
+/// Zonder navigatiebalk heeft een badge boven het Berichten-icoon geen anker
+/// en zweeft hij los onderin het scherm.
+void _removeChatBadgeOverlayFromNonTabPages(FFProject project) {
+  const pages = ['BardienPage', 'RijschemaPage', 'ProfielPage'];
+  for (final p in pages) {
+    final wc = findPage(project, name: p);
+    if (wc == null) continue;
+    for (final n in findDescendants(wc.node, (x) => x.name == 'ChatBadgeOverlay').toList()) {
+      removeByKey(wc.node, n.key);
+    }
+  }
 }

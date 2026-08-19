@@ -22,6 +22,7 @@ import 'pages/guardian_request_page.dart' show guardianRequestPageHandle;
 import 'pages/guardian_self_register_page.dart' show guardianSelfRegisterPageHandle;
 import 'pages/login_page.dart' show loginPageHandle;
 import 'pages/magic_link_verify_page.dart' show magicLinkVerifyPageHandle;
+import 'pages/meer_page.dart' show meerPageHandle;
 import 'pages/news_page.dart' show newsPageHandle;
 import 'pages/onboarding_page.dart' show onboardingPageHandle;
 import 'pages/profiel_page.dart' show profielPageHandle;
@@ -30,6 +31,7 @@ import 'pages/rijschema_page.dart' show rijschemaPageHandle;
 import 'pages/team_chat_page.dart' show teamChatPageHandle;
 import 'pages/team_members_page.dart' show teamMembersPageHandle;
 import 'pages/training_detail_page.dart' show trainingDetailPageHandle;
+import 'pages/trainingen_page.dart' show trainingenPageHandle;
 import 'pages/wedstrijd_detail_page.dart' show wedstrijdDetailPageHandle;
 import 'pages/wedstrijden_page.dart' show wedstrijdenPageHandle;
 import 'pages/wissel_aanvraag_page.dart' show wisselAanvraagPageHandle;
@@ -55,6 +57,7 @@ abstract final class Pages {
   static final guardianSelfRegisterPage = guardianSelfRegisterPageHandle;
   static final loginPage = loginPageHandle;
   static final magicLinkVerifyPage = magicLinkVerifyPageHandle;
+  static final meerPage = meerPageHandle;
   static final newsPage = newsPageHandle;
   static final onboardingPage = onboardingPageHandle;
   static final profielPage = profielPageHandle;
@@ -63,6 +66,7 @@ abstract final class Pages {
   static final teamChatPage = teamChatPageHandle;
   static final teamMembersPage = teamMembersPageHandle;
   static final trainingDetailPage = trainingDetailPageHandle;
+  static final trainingenPage = trainingenPageHandle;
   static final wedstrijdDetailPage = wedstrijdDetailPageHandle;
   static final wedstrijdenPage = wedstrijdenPageHandle;
   static final wisselAanvraagPage = wisselAanvraagPageHandle;
@@ -87,6 +91,7 @@ abstract final class Pages {
     guardianSelfRegisterPage,
     loginPage,
     magicLinkVerifyPage,
+    meerPage,
     newsPage,
     onboardingPage,
     profielPage,
@@ -95,6 +100,7 @@ abstract final class Pages {
     teamChatPage,
     teamMembersPage,
     trainingDetailPage,
+    trainingenPage,
     wedstrijdDetailPage,
     wedstrijdenPage,
     wisselAanvraagPage,

@@ -11,6 +11,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const activeRole = ffai.ProjectAppStateFieldHandle(
+    name: "activeRole",
+    key: "k8hk6syw",
+    typeName: "String",
+    persisted: false,
+  );
   static const agendaItems = ffai.ProjectAppStateFieldHandle(
     name: "agendaItems",
     key: "tvf9t4sx",
@@ -209,6 +215,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<GoalItem>>",
     persisted: false,
   );
+  static const myRoles = ffai.ProjectAppStateFieldHandle(
+    name: "myRoles",
+    key: "n8eyx7ji",
+    typeName: "List<String>",
+    persisted: false,
+  );
   static const onboardingSeen = ffai.ProjectAppStateFieldHandle(
     name: "onboardingSeen",
     key: "i35maa6o",
@@ -367,6 +379,7 @@ abstract final class AppState {
   );
   static const all = <ffai.ProjectAppStateFieldHandle>[
     accentColor,
+    activeRole,
     agendaItems,
     authToken,
     availableTeams,
@@ -400,6 +413,7 @@ abstract final class AppState {
     loginPassword,
     matchActionMode,
     matchGoals,
+    myRoles,
     onboardingSeen,
     onboardingSlides,
     pendingAfmeldReason,

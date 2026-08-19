@@ -129,6 +129,7 @@ abstract final class Structs {
     <String, ffai.DslType>{
       "arrivalTime": ffai.string,
       "coachName": ffai.string,
+      "dateLabel": ffai.string,
       "driverNames": ffai.string,
       "fruitHeroId": ffai.string,
       "fruitHeroName": ffai.string,
@@ -136,6 +137,7 @@ abstract final class Structs {
       "isDriver": ffai.bool_,
       "isFruitHero": ffai.bool_,
       "isHome": ffai.bool_,
+      "isVlagger": ffai.bool_,
       "location": ffai.string,
       "matchDatetime": ffai.string,
       "notes": ffai.string,
@@ -145,6 +147,7 @@ abstract final class Structs {
       "scoreHome": ffai.int_,
       "status": ffai.string,
       "teamName": ffai.string,
+      "timeLabel": ffai.string,
     },
     description: ffai.generatedProjectStructDescription,
   );
@@ -1193,6 +1196,7 @@ abstract final class CustomCode {
     "SubmitBugReport",
     "SubscribeToChatTopics",
     "SubscribeToTeamTopic",
+    "SyncUserRoles",
     "UnsubscribeFromTeamTopic",
     "UploadProfilePhoto",
     "VerifyMagicLink",

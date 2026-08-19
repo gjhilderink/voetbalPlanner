@@ -19,6 +19,13 @@ class MatchResource extends JsonResource
         'live'       => 'Live',
     ];
 
+    private const WEEKDAYS = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+
+    private const MONTHS = [
+        1 => 'januari', 'februari', 'maart', 'april', 'mei', 'juni',
+        'juli', 'augustus', 'september', 'oktober', 'november', 'december',
+    ];
+
     public function toArray(Request $request): array
     {
         $rawStatus  = $this->status ?? '';
@@ -30,6 +37,12 @@ class MatchResource extends JsonResource
             'opponentLogo'   => $this->opponent_logo ?? '',
             'location'       => $this->location ?? '',
             'matchDatetime'  => $this->match_datetime?->format('d-m-Y H:i') ?? '',
+            // Kant-en-klare labels voor het dashboard ("zaterdag 24 mei" /
+            // "10:00"); de app kan een datumstring niet zelf opsplitsen.
+            'dateLabel'      => $this->match_datetime
+                ? self::dateLabel($this->match_datetime)
+                : '',
+            'timeLabel'      => $this->match_datetime?->format('H:i') ?? '',
             // arrival_time is een tijdkolom zonder cast, dus ruw '14:30:00'.
             // Afkappen op H:i, anders staan de seconden in de app.
             'arrivalTime'    => substr((string) ($this->arrival_time ?? ''), 0, 5),
@@ -54,6 +67,9 @@ class MatchResource extends JsonResource
             'isFruitHero'    => $myMemberId
                 ? $this->fruit_hero_id === $myMemberId
                 : false,
+            'isVlagger'      => $myMemberId
+                ? $this->vlagger_id === $myMemberId
+                : false,
             'isDriver'       => $myMemberId
                 ? (bool) $this->whenLoaded(
                     'drivers',
@@ -67,5 +83,15 @@ class MatchResource extends JsonResource
                 '',
             ),
         ];
+    }
+
+    /** "zaterdag 24 mei" — of met jaartal als de wedstrijd niet dit jaar is. */
+    private static function dateLabel(\Carbon\Carbon $date): string
+    {
+        $label = self::WEEKDAYS[(int) $date->format('w')]
+            . ' ' . $date->format('j')
+            . ' ' . self::MONTHS[(int) $date->format('n')];
+
+        return $date->year === now()->year ? $label : $label . ' ' . $date->year;
     }
 }

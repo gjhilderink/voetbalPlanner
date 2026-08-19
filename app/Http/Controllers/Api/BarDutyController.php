@@ -32,6 +32,21 @@ class BarDutyController extends Controller
                 }
             )
             ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
+            // mine=1: alleen de bardiensten waarvoor deze gebruiker zelf is
+            // ingedeeld. Het dashboard toont die als persoonlijke taak; zonder
+            // deze filter zou de eerste dienst uit de teamlijst getoond worden.
+            ->when(
+                $request->boolean('mine'),
+                function ($q) use ($user) {
+                    $memberId = $user->member?->id;
+                    $q->where(function ($sub) use ($user, $memberId) {
+                        $sub->whereHas('users', fn($u) => $u->where('users.id', $user->id));
+                        if ($memberId) {
+                            $sub->orWhereHas('members', fn($m) => $m->where('members.id', $memberId));
+                        }
+                    });
+                }
+            )
             ->when($request->status, fn($q, $s) => $q->where('status', $s))
             // Standaard alleen toekomstige bardiensten (vandaag telt mee); verleden
             // verbergen. Te overrulen met een expliciete date_from of include_past=1.
