@@ -1457,6 +1457,7 @@ void buildEditFlow(App app) {
     _setupNavBarV2(project);
     _updateChatBadgeOverlayPosition(project);
     _removeChatBadgeOverlayFromNonTabPages(project);
+    _restyleDashboardAppBar(project);
     _rebuildDashboardBody(project);
   });
 }
@@ -15906,17 +15907,12 @@ void _fixDashboardListViewShrinkWrap(FFProject project) {
   }
 }
 
-// Adds a "Rijschema" section to the DashboardPage body:
-//   - driveMatches state field (List<FootMatch>)
-//   - Section header "Rijschema" + DashboardDriveContainer with DashboardDriveList
-//   - Card shows opponent + matchDatetime (same style as DashboardMatchCard)
-// Idempotent: skips if DashboardDriveContainer already present.
+// Zorgt voor het driveMatches state field (List<FootMatch>) op DashboardPage
+// en ruimt de oude "Rijschema"-sectie op. De sectie zelf is vervallen met het
+// nieuwe dashboard; het state field blijft nodig voor "Mijn taken".
 void _addDashboardDriveSection(FFProject project) {
   final wc = findPage(project, name: 'DashboardPage');
   if (wc == null) return;
-
-  // Skip if section already built.
-  if (findDescendants(wc.node, (n) => n.name == 'DashboardDriveContainer').isNotEmpty) return;
 
   // Ensure driveMatches state field exists.
   // Use isList=true on the parameter (not listType wrapping) — correct serialization
@@ -15942,64 +15938,15 @@ void _addDashboardDriveSection(FFProject project) {
   final driveMatchesId = _findPageStateFieldId(project, 'DashboardPage', 'driveMatches');
   if (driveMatchesId == null) return;
 
-  final bodyCol = getPropertyChild(wc.node, 'body');
-  if (bodyCol == null) return;
-
-  // Section label.
-  final labelContainer = UI.container(
-    name: 'DashboardDriveLabelContainer',
-    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
-    child: UI.text('Rijschema', name: 'DashboardDriveLabel', style: UITextStyle.titleSmall),
-  );
-
-  // Content container.
-  final driveMatchesVar = varFromPageState(driveMatchesId.deepCopy());
-  driveMatchesVar.nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
-
-  final listView = UI.listView(
-    name: 'DashboardDriveList',
-    spacing: 8,
-    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
-    dynamicSource: DynamicSource(variable: driveMatchesVar, itemName: 'driveMatch'),
-  );
-
-  // shrinkWrap — same fix as DashboardMatchesList/DashboardDutiesList.
-  final lvCopy = listView.props.listView.deepCopy();
-  lvCopy.shrinkWrapValue = FFBooleanValue(inputValue: true);
-  listView.props.listView = lvCopy;
-
-  final opponentText = UI.text('', name: 'DashboardDriveOpponent', style: UITextStyle.bodyMedium);
-  opponentText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'opponent'));
-
-  final dateText = UI.text('', name: 'DashboardDriveDate', style: UITextStyle.bodySmall);
-  dateText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'matchDatetime'));
-
-  final card = UI.container(
-    name: 'DashboardDriveCard',
-    padding: UIEdgeInsets.all(12),
-    borderRadius: 8,
-    color: UIColor.secondaryBackground,
-    child: UI.row(
-      name: 'DashboardDriveRow',
-      spacing: 12,
-      children: [
-        UI.icon('directions_car', size: 24, color: UIColor.primary),
-        UI.column(
-          name: 'DashboardDriveInfo',
-          crossAxisAlignment: UICrossAxisAlignment.start,
-          spacing: 4,
-          children: [opponentText, dateText],
-        ),
-      ],
-    ),
-  );
-
-  listView.children.add(card);
-
-  final driveContainer = UI.container(name: 'DashboardDriveContainer', child: listView);
-
-  bodyCol.children.add(labelContainer);
-  bodyCol.children.add(driveContainer);
+  // Vanaf het nieuwe dashboard bouwt deze functie alleen nog het state-veld
+  // driveMatches; de rijschema-kaart zelf is vervallen. "Rijden" staat nu als
+  // regel in "Mijn taken" en de stafkaart linkt door naar de rijschemapagina,
+  // dus een eigen sectie zou dubbelop zijn.
+  //
+  // De oude code hieronder plakte de sectie bovendien op getPropertyChild(
+  // 'body'), en dat is sinds de chat-badge-wrapper een Stack in plaats van een
+  // Column: de kaart kwam daardoor als overlay bovenin het scherm te hangen.
+  _removeLegacyDashboardDriveSection(project);
 }
 
 // Adds ON_TAP navigation to the three dashboard cards (matches, duties, drive)
@@ -25980,21 +25927,8 @@ FFNode _dashHeader(FFProject project, FFWidgetClass wc, FFNode? switcher) {
       style: UITextStyle.bodySmall,
       color: UIColor.hex(0xCCFFFFFF));
 
-  // Meldingsbel → chats. Het rode telbolletje zit al als losse overlay op de
-  // NavBar; hier alleen het icoon zodat de bel niet dubbel telt.
-  final bell = UI.container(
-    name: 'DashHeaderBellWrap',
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    color: UIColor.hex(0x22FFFFFF),
-    alignment: UIAlignment.center,
-    child: UI.icon('notifications_none', size: 24, color: UIColor.white),
-  );
-  if (project.getWidgetClassByName('ChatsPage') != null) {
-    Actions.onTap(bell, Actions.navigate(project, pageName: 'ChatsPage', params: {}));
-  }
-
+  // De meldingsbel zit in de AppBar (zie _restyleDashboardAppBar): de AppBar en
+  // deze kop vormen samen één rood blok, precies zoals in het ontwerp.
   final greetingRow = UI.row(
     name: 'DashHeaderRow',
     spacing: 12,
@@ -26008,19 +25942,16 @@ FFNode _dashHeader(FFProject project, FFWidgetClass wc, FFNode? switcher) {
         spacing: 2,
         children: [greeting, sub],
       )),
-      bell,
     ],
   );
 
   final headerChildren = <FFNode>[greetingRow];
-  if (switcher != null) {
-    _restyleTeamSwitcherForHeader(switcher);
-    headerChildren.add(switcher);
-  }
+  final picker = _dashTeamPicker(project, wc, switcher);
+  if (picker != null) headerChildren.add(picker);
 
   final header = UI.container(
     name: 'DashHeader',
-    padding: UIEdgeInsets.only(left: 16, right: 16, top: 12, bottom: 18),
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 4, bottom: 18),
     borderRadius: UIBorderRadius.only(bottomLeft: 26, bottomRight: 26),
     color: UIColor.primary,
     child: UI.column(
@@ -26059,11 +25990,33 @@ void _restyleTeamSwitcherForHeader(FFNode switcher) {
   }
   // De switcher zit nu ín de kop; de horizontale padding komt van de kop zelf.
   switcher.props.padding = FFPadding();
+  // Als uitklaplijst onder de pil: verticaal in plaats van een rij chips, en
+  // zonder vaste hoogte zodat de lijst meegroeit met het aantal teams.
   for (final n in findDescendants(switcher, (x) => x.name == 'DashboardTeamSwitcherList')) {
     n.props.padding = FFPadding();
+    final lv = n.props.listView.deepCopy();
+    lv.axis = FFAxis.FF_AXIS_VERTICAL;
+    lv.shrinkWrapValue = FFBooleanValue(inputValue: true);
+    n.props.listView = lv;
   }
-  switcher.props.container.dimensions.height =
-      FFDim(pixelsValue: FFDoubleValue(inputValue: 42.0));
+  switcher.props.container.clearDimensions();
+  // Items over de volle breedte, zodat de lijst als menu leest en niet als
+  // een rij losse chips.
+  for (final name in ['DashboardTeamSwitcherItem']) {
+    for (final n in findDescendants(switcher, (x) => x.name == name)) {
+      if (!n.props.hasRow()) continue;
+      final r = n.props.row.deepCopy();
+      r.minSizeValue = FFBooleanValue(inputValue: false);
+      n.props.row = r;
+    }
+  }
+  for (final name in ['DashboardTeamSwitcherActiveChip', 'DashboardTeamSwitcherChip']) {
+    for (final n in findDescendants(switcher, (x) => x.name == name)) {
+      n.props.container.dimensions = FFDimensions(
+        width: FFDim(percentOfContainingWidgetValue: FFDoubleValue(inputValue: 100.0)),
+      );
+    }
+  }
 }
 
 /// Rol-tabs (Speler / Coach / Trainer / Ouder / Leider). Alleen de rollen die
@@ -27351,4 +27304,290 @@ void _removeChatBadgeOverlayFromNonTabPages(FFProject project) {
       removeByKey(wc.node, n.key);
     }
   }
+}
+
+/// Ruimt de oude rijschema-sectie van het dashboard op. Die hing als los
+/// element in de body-Stack (naast de kolom en de chat-badge) en bleef daardoor
+/// bovenin het scherm staan over de rest van het dashboard heen.
+void _removeLegacyDashboardDriveSection(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  for (final name in const [
+    'DashboardDriveLabelContainer',
+    'DashboardDriveContainer',
+  ]) {
+    for (final n in findDescendants(wc.node, (x) => x.name == name).toList()) {
+      removeByKey(wc.node, n.key);
+    }
+  }
+}
+
+/// Teamkiezer als uitklapper: een pil met het huidige team en een pijltje;
+/// tikken klapt de teamlijst eronder open. De lijst zelf is de bestaande
+/// DashboardTeamSwitcher — daar hangt de complete wisselketen aan (team zetten,
+/// wedstrijden en trainingen herladen), dus die bouwen we niet na.
+///
+/// Bewust géén bottom sheet: het wisselen schrijft naar de page-state `matches`
+/// van DashboardPage, en die is vanuit een los component niet bereikbaar.
+FFNode? _dashTeamPicker(FFProject project, FFWidgetClass wc, FFNode? switcher) {
+  final teamNameId = _findAppStateFieldId(project, 'currentTeamName');
+  final multiId = _findAppStateFieldId(project, 'hasMultipleTeams');
+  if (teamNameId == null) return switcher;
+  final scaffoldKey = wc.node.key;
+
+  final openId = _ensurePageStateFlag(project, wc, 'teamPickerOpen');
+
+  final label = UI.text('',
+      name: 'DashTeamPickerLabel',
+      style: UITextStyle.labelLarge,
+      color: UIColor.white,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  label.props.text.textValue = FFStringValue(
+      variable: varFromAppState(teamNameId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey));
+
+  // Pijltje alleen bij meerdere teams — met één team valt er niets te kiezen.
+  final caret = UI.icon('keyboard_arrow_down', size: 22, color: UIColor.white);
+  if (multiId != null) {
+    setConditionalVisibility(
+      caret,
+      variable: varFromAppState(multiId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+    );
+  }
+
+  final pill = UI.container(
+    name: 'DashTeamPicker',
+    padding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    borderRadius: 22,
+    color: UIColor.hex(0x33000000),
+    child: UI.row(
+      name: 'DashTeamPickerRow',
+      mainAxisMin: true,
+      spacing: 8,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('groups', size: 20, color: UIColor.white),
+        UI.expanded(label),
+        caret,
+      ],
+    ),
+  );
+  if (openId != null) {
+    Actions.onTap(
+      pill,
+      Actions.updatePageState(
+        project,
+        widgetClassName: 'DashboardPage',
+        updates: [StateFieldUpdate.toggle('teamPickerOpen')],
+      ),
+    );
+  }
+
+  final children = <FFNode>[pill];
+  if (switcher != null) {
+    _restyleTeamSwitcherForHeader(switcher);
+    // Uitgeklapte lijst: alleen zichtbaar zolang de pil open staat.
+    if (openId != null) {
+      setConditionalVisibility(
+        switcher,
+        variable: varFromPageState(openId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+      );
+    }
+    // Na het kiezen van een team de lijst weer dichtklappen.
+    _closeTeamPickerAfterSwitch(project, switcher, openId);
+    children.add(switcher);
+  }
+
+  return UI.column(
+    name: 'DashTeamPickerCol',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 8,
+    children: children,
+  );
+}
+
+/// Zorgt voor een boolean page-state veld en geeft de identifier terug.
+FFIdentifier? _ensurePageStateFlag(
+    FFProject project, FFWidgetClass wc, String fieldName) {
+  final existing = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == fieldName,
+          orElse: () => null);
+  if (existing != null) {
+    if (existing.serializedDefaultValue.isEmpty) {
+      existing.serializedDefaultValue.add('false');
+    }
+    return existing.parameter.identifier;
+  }
+
+  final id =
+      FFIdentifier(name: fieldName, key: generateRandomAlphaNumericString());
+  wc.classModel.stateFields.add(FFWidgetClassStateField(
+    parameter: FFParameter(
+      identifier: id,
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+    ),
+    // Zonder expliciete default is het veld null en valt FlutterFlow in de
+    // gegenereerde code terug op `?? true` — de uitklapper zou dan open
+    // beginnen en de eerste tik zou hem juist sluiten.
+    serializedDefaultValue: const ['false'],
+  ));
+  return id;
+}
+
+/// Hangt "picker dichtklappen" achteraan de bestaande wisselketen van elk
+/// team-item, zodat de lijst zich na een keuze vanzelf sluit.
+void _closeTeamPickerAfterSwitch(
+    FFProject project, FFNode switcher, FFIdentifier? openId) {
+  if (openId == null) return;
+  final item =
+      findDescendants(switcher, (n) => n.name == 'DashboardTeamSwitcherItem')
+          .firstOrNull;
+  if (item == null) return;
+
+  final closeNode = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      localStateUpdate: FFLocalStateUpdate(
+        updates: [
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: openId.deepCopy(),
+            setValue: FFValue(
+              inputValue: FFParameterValue(serializedValue: 'false'),
+            ),
+          ),
+        ],
+        stateVariableType: FFStateVariableType.WIDGET_CLASS_STATE,
+      ),
+    ),
+  );
+
+  for (final trigger in item.triggerActions) {
+    if (!trigger.hasTrigger() ||
+        trigger.trigger.triggerType != FFActionTriggerType.ON_TAP) {
+      continue;
+    }
+    var tail = trigger.rootAction;
+    while (tail.hasFollowUpAction()) {
+      tail = tail.followUpAction;
+    }
+    tail.followUpAction = closeNode;
+    return;
+  }
+}
+
+/// AppBar en rode kop tot één blok maken, zoals in het ontwerp: hamburger
+/// links, clublogo + clubnaam gecentreerd, meldingsbel rechts. De losse
+/// "Dashboard"-titel en het aparte logo-icoon rechtsboven vervallen.
+void _restyleDashboardAppBar(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  final appBar = getPropertyChild(wc.node, 'appBar');
+  if (appBar == null) return;
+  final scaffoldKey = wc.node.key;
+
+  FFVariable? appVar(String name) {
+    final id = _findAppStateFieldId(project, name);
+    if (id == null) return null;
+    return varFromAppState(id.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  final clubNameVar = appVar('clubName');
+  final clubLogoVar = appVar('clubLogoUrl');
+
+  // Titel: logo + clubnaam.
+  final logo = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.Image,
+    name: 'DashAppBarClubLogo',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue: clubLogoVar != null
+            ? FFStringValue(variable: clubLogoVar.deepCopy())
+            : FFStringValue(inputValue: ''),
+        fit: FFBoxFit.FF_BOX_FIT_CONTAIN,
+        cached: true,
+        dimensions: FFDimensions(
+          width: FFDim(pixelsValue: FFDoubleValue(inputValue: 30.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 30.0)),
+        ),
+      ),
+    ),
+  );
+  if (clubLogoVar != null) {
+    setConditionalVisibility(
+      logo,
+      variable: conditionVar(
+        clubLogoVar.deepCopy(),
+        FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+      ).variable,
+    );
+  }
+
+  final clubText = UI.text('',
+      name: 'DashAppBarClubName',
+      style: UITextStyle.titleMedium,
+      color: UIColor.white,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  if (clubNameVar != null) {
+    clubText.props.text.textValue =
+        FFStringValue(variable: clubNameVar.deepCopy());
+  }
+
+  final title = UI.row(
+    name: 'DashAppBarTitleRow',
+    mainAxisMin: true,
+    spacing: 8,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [logo, clubText],
+  );
+
+  // Meldingsbel rechtsboven.
+  final bell = UI.iconButton(
+    'notifications_none',
+    name: 'DashAppBarBell',
+    size: 24,
+    color: UIColor.white,
+  );
+  if (project.getWidgetClassByName('ChatsPage') != null) {
+    Actions.onTap(
+        bell, Actions.navigate(project, pageName: 'ChatsPage', params: {}));
+  }
+
+  // Oude titel en het losse clublogo-icoon weghalen; die worden hierboven
+  // vervangen. _addClubLogoToAppBars zet ClubLogoAppBarWrap op elke AppBar —
+  // op het dashboard is dat dubbelop met het logo in de titel.
+  for (final name in const [
+    'DashboardAppBarTitle',
+    'ClubLogoAppBarWrap',
+    'DashAppBarTitleRow',
+    'DashAppBarBell',
+  ]) {
+    for (final n in findDescendants(appBar, (x) => x.name == name).toList()) {
+      removeByKey(appBar, n.key);
+    }
+  }
+  appBar.childPropertyMap.remove('title');
+  appBar.childPropertyMap.remove('actions');
+
+  appBar.children.add(title);
+  appBar.childPropertyMap['title'] =
+      FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: title.key)]);
+  appBar.children.add(bell);
+  appBar.childPropertyMap['actions'] =
+      FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: bell.key)]);
+
+  // Geen schaduw of scheidingslijn: AppBar en kop moeten één vlak zijn.
+  final proto = appBar.props.appBar.deepCopy();
+  proto.elevationValue = FFDoubleValue(inputValue: 0);
+  proto.centerTitleValue = FFBooleanValue(inputValue: true);
+  appBar.props.appBar = proto;
 }
