@@ -1322,6 +1322,11 @@ void buildEditFlow(App app) {
     // Endpoint met per_page=2 moet bestaan vóór de dashboard-wiring: apiCallNode
     // zoekt het endpoint op en gooit als het er niet is.
     _addDashboardMatchesEndpoint(project);
+    // Struct + AppState-velden voor "Komende activiteiten" moeten bestaan vóór
+    // _wireDashboardLoad: die schrijft de wedstrijden ook naar teamMatches.
+    _ensureActivityItemStruct(project);
+    _ensureActivityAppStateFields(project);
+    _ensureBuildDashboardActivitiesAction(project);
     _wireDashboardLoad(project);
     _fixDashboardListViewShrinkWrap(project);
     // Add "Rijschema" section: shows matches where the user is assigned to drive.
@@ -1458,6 +1463,7 @@ void buildEditFlow(App app) {
     _updateChatBadgeOverlayPosition(project);
     _removeChatBadgeOverlayFromNonTabPages(project);
     _restyleDashboardAppBar(project);
+    _wireDashboardActivities(project);
     _rebuildDashboardBody(project);
   });
 }
@@ -15522,6 +15528,12 @@ void _addDashboardTeamSwitcher(FFProject project) {
         Actions.updatePageState(project, widgetClassName: 'DashboardPage', updates: [
           StateFieldUpdate.setFromVariable('matches', ctx.responseVar),
         ]),
+      // Zie _wireDashboardLoad: de samengevoegde activiteitenlijst leest de
+      // wedstrijden uit AppState.
+      if (_findAppStateFieldId(project, 'teamMatches') != null)
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('teamMatches', ctx.responseVar),
+        ]),
     ]),
   );
   setStateNode.followUpAction = matchesNode;
@@ -15834,6 +15846,12 @@ void _wireDashboardLoad(FFProject project) {
         widgetClassName: 'DashboardPage',
         updates: [StateFieldUpdate.setFromVariable('matches', ctx.responseVar)],
       ),
+      // Ook naar AppState: BuildDashboardActivities voegt de drie bronnen
+      // samen en kan niet bij de page-state van deze pagina.
+      if (_findAppStateFieldId(project, 'teamMatches') != null)
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('teamMatches', ctx.responseVar),
+        ]),
     ]),
     onFailure: (ctx) => Actions.chain([
       Actions.snackBar('Kon wedstrijden niet laden.'),
@@ -26777,100 +26795,160 @@ FFNode? _dashStaffCard(FFProject project, FFWidgetClass wc) {
 /// "Komende activiteiten": de verenigingsagenda, met datumblokje, categorie en
 /// het aantal aanmeldingen.
 FFNode? _dashActivitiesCard(FFProject project, FFWidgetClass wc) {
-  final agendaId = _findAppStateFieldId(project, 'agendaItems');
-  if (agendaId == null) return null;
+  final activitiesId = _findAppStateFieldId(project, 'dashActivities');
+  if (activitiesId == null) return null;
   final scaffoldKey = wc.node.key;
-  final agendaVar = varFromAppState(agendaId.deepCopy())
+  final activitiesVar = varFromAppState(activitiesId.deepCopy())
     ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
 
   final list = UI.listView(
     name: 'DashActivitiesList',
     shrinkWrap: true,
-    spacing: 10,
-    dynamicSource: DynamicSource(variable: agendaVar, itemName: 'activity'),
+    spacing: 6,
+    dynamicSource: DynamicSource(variable: activitiesVar, itemName: 'activity'),
   );
 
   FFNode bound(String name, String field, UITextStyle style,
-      {UIColor? color, int? maxLines}) {
+      {UIColor? color, int? maxLines, UIFontWeight? weight}) {
     final t = UI.text('',
         name: name,
         style: style,
         color: color,
+        fontWeight: weight,
         maxLines: maxLines,
+        textAlign: UITextAlign.center,
         textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
     t.props.text.textValue =
         FFStringValue(variable: generatorVarField(list.key, field));
     return t;
   }
 
+  // Datumblokje links: ZA / 24 / MEI.
   final dateBlock = UI.container(
     name: 'DashActivityDateBlock',
-    width: 60,
+    width: 54,
     innerPadding: UIEdgeInsets.symmetric(vertical: 8, horizontal: 4),
     borderRadius: 12,
     color: UIColor.hex(0xFFF1F5F9),
+    child: UI.column(
+      name: 'DashActivityDateCol',
+      mainAxisMin: true,
+      spacing: 1,
+      children: [
+        bound('DashActivityDay', 'dayName', UITextStyle.labelSmall,
+            color: UIColor.secondaryText, maxLines: 1),
+        bound('DashActivityDayNr', 'dayNumber', UITextStyle.titleMedium,
+            weight: UIFontWeight.w700, maxLines: 1),
+        bound('DashActivityMonth', 'monthName', UITextStyle.labelSmall,
+            color: UIColor.secondaryText, maxLines: 1),
+      ],
+    ),
+  );
+
+  // Icoon per soort activiteit. De DSL kan een icoon niet aan een variabele
+  // binden, dus drie iconen met een zichtbaarheidsconditie op 'kind'.
+  FFNode kindIcon(String kind, String icon, UIColor color) {
+    final n = UI.icon(icon, size: 24, color: color);
+    setConditionalVisibility(
+      n,
+      variable:
+          _equalsLiteral(generatorVarField(list.key, 'kind'), kind),
+    );
+    return n;
+  }
+
+  final iconWrap = UI.container(
+    name: 'DashActivityIconWrap',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignment: UIAlignment.center,
-    child: bound('DashActivityDate', 'dateLabel', UITextStyle.labelSmall,
-        maxLines: 2),
+    child: UI.row(
+      name: 'DashActivityIconRow',
+      mainAxisMin: true,
+      mainAxisAlignment: UIMainAxisAlignment.center,
+      children: [
+        kindIcon('match', 'sports_soccer', UIColor.primary),
+        kindIcon('training', 'sports', UIColor.hex(0xFFF97316)),
+        kindIcon('agenda', 'event', UIColor.hex(0xFF10B981)),
+      ],
+    ),
+  );
+
+  final titleText = UI.text('',
+      name: 'DashActivityTitle',
+      style: UITextStyle.bodyMedium,
+      fontWeight: UIFontWeight.w600,
+      maxLines: 2,
+      textOverflow: UITextOverflow.ellipsis);
+  titleText.props.text.textValue =
+      FFStringValue(variable: generatorVarField(list.key, 'title'));
+
+  final subtitleText = UI.text('',
+      name: 'DashActivitySubtitle',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  subtitleText.props.text.textValue =
+      FFStringValue(variable: generatorVarField(list.key, 'subtitle'));
+
+  // Telling rechts (aanmeldingen) of Thuis/Uit bij een wedstrijd.
+  final trailingText = UI.text('',
+      name: 'DashActivityTrailing',
+      style: UITextStyle.labelSmall,
+      color: UIColor.secondaryText,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  trailingText.props.text.textValue =
+      FFStringValue(variable: generatorVarField(list.key, 'trailing'));
+  setConditionalVisibility(
+    trailingText,
+    variable: conditionVar(
+      generatorVarField(list.key, 'trailing'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable,
   );
 
   final card = UI.container(
     name: 'DashActivityCard',
-    padding: UIEdgeInsets.symmetric(vertical: 4),
+    innerPadding: UIEdgeInsets.symmetric(vertical: 6),
     child: UI.row(
       name: 'DashActivityRow',
       spacing: 12,
       crossAxisAlignment: UICrossAxisAlignment.center,
       children: [
         dateBlock,
+        iconWrap,
         UI.expanded(UI.column(
           name: 'DashActivityInfo',
           crossAxisAlignment: UICrossAxisAlignment.start,
           spacing: 3,
-          children: [
-            bound('DashActivityTitle', 'title', UITextStyle.bodyMedium,
-                maxLines: 2),
-            UI.row(
-              name: 'DashActivityMeta',
-              spacing: 6,
-              crossAxisAlignment: UICrossAxisAlignment.center,
-              children: [
-                bound('DashActivityTime', 'timeLabel', UITextStyle.bodySmall,
-                    color: UIColor.secondaryText, maxLines: 1),
-                UI.expanded(bound('DashActivityLocation', 'location',
-                    UITextStyle.bodySmall,
-                    color: UIColor.secondaryText, maxLines: 1)),
-              ],
-            ),
-          ],
+          children: [titleText, subtitleText],
         )),
+        trailingText,
         UI.icon('chevron_right', size: 20, color: UIColor.secondaryText),
       ],
     ),
   );
-  if (project.getWidgetClassByName('AgendaDetailPage') != null) {
-    Actions.onTap(
-      card,
-      Actions.navigate(project, pageName: 'AgendaDetailPage', params: {
-        'agendaItemId': VariableParamValue(generatorVarField(list.key, 'id')),
-      }),
-    );
-  }
+
+  _wireActivityCardNavigation(project, list, card);
   list.children.add(card);
 
-  final empty = UI.text('Nog niets in de agenda.',
+  final empty = UI.text('Er staat niets op de planning.',
       name: 'DashActivitiesEmpty',
       style: UITextStyle.bodySmall,
       color: UIColor.secondaryText);
-  setConditionalVisibility(empty, variable: _listEmptyVar(agendaVar));
+  setConditionalVisibility(empty, variable: _listEmptyVar(activitiesVar));
 
-  final cardNode = _dashCard(
+  return _dashCard(
     name: 'DashActivitiesCard',
     margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
     child: UI.column(
       name: 'DashActivitiesCol',
       crossAxisAlignment: UICrossAxisAlignment.stretch,
-      spacing: 12,
+      spacing: 10,
       children: [
         _dashCardHeader(
           project,
@@ -26884,7 +26962,71 @@ FFNode? _dashActivitiesCard(FFProject project, FFWidgetClass wc) {
       ],
     ),
   );
-  return cardNode;
+}
+
+/// Tik op een activiteit → de detailpagina die bij het soort hoort.
+void _wireActivityCardNavigation(
+    FFProject project, FFNode list, FFNode card) {
+  FFVariable field(String name) => generatorVarField(list.key, name);
+
+  FFActionNode? agendaNode;
+  if (project.getWidgetClassByName('AgendaDetailPage') != null) {
+    agendaNode = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(project, pageName: 'AgendaDetailPage', params: {
+        'agendaItemId': VariableParamValue(field('id')),
+      }),
+    );
+  }
+
+  FFActionNode? trainingNode;
+  if (project.getWidgetClassByName('TrainingDetailPage') != null) {
+    trainingNode = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(project, pageName: 'TrainingDetailPage', params: {
+        'scheduleId': VariableParamValue(field('scheduleId')),
+        'date': VariableParamValue(field('date')),
+        'dayLabel': VariableParamValue(field('dayLabel')),
+        'startTime': VariableParamValue(field('startTime')),
+        'location': VariableParamValue(field('location')),
+        'kleedkamer': VariableParamValue(field('kleedkamer')),
+        'mijnStatus': VariableParamValue(field('mijnStatus')),
+        'afmeldingen': VariableParamValue(field('afmeldingen')),
+      }),
+    );
+  }
+
+  FFActionNode? matchNode;
+  if (project.getWidgetClassByName('WedstrijdDetailPage') != null) {
+    matchNode = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(project, pageName: 'WedstrijdDetailPage', params: {
+        'matchId': VariableParamValue(field('id')),
+      }),
+    );
+  }
+
+  // match → training → agenda, elk met een conditie op 'kind'.
+  FFActionNode? chain = agendaNode;
+  if (trainingNode != null) {
+    chain = Actions.conditional(
+      condition: _equalsLiteral(field('kind'), 'training'),
+      trueActions: trainingNode,
+      falseActions: chain,
+    );
+  }
+  if (matchNode != null) {
+    chain = Actions.conditional(
+      condition: _equalsLiteral(field('kind'), 'match'),
+      trueActions: matchNode,
+      falseActions: chain,
+    );
+  }
+  if (chain == null) return;
+
+  card.triggerActions.removeWhere((t) =>
+      t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP);
+  Actions.addTriggerChain(card, FFActionTriggerType.ON_TAP, chain);
 }
 
 // ── Nieuwe NavBar-pagina's: Trainingen en Meer ───────────────────────────────
@@ -27495,7 +27637,15 @@ void _closeTeamPickerAfterSwitch(
     while (tail.hasFollowUpAction()) {
       tail = tail.followUpAction;
     }
-    tail.followUpAction = closeNode;
+    // Na de teamwissel zijn wedstrijden en trainingen opnieuw geladen; de
+    // samengevoegde activiteitenlijst moet daar in mee.
+    if (findCustomAction(project, name: 'BuildDashboardActivities') != null) {
+      final rebuild = _buildActivitiesNode(project);
+      rebuild.followUpAction = closeNode;
+      tail.followUpAction = rebuild;
+    } else {
+      tail.followUpAction = closeNode;
+    }
     return;
   }
 }
@@ -27611,3 +27761,344 @@ void _restyleDashboardAppBar(FFProject project) {
   proto.centerTitleValue = FFBooleanValue(inputValue: true);
   appBar.props.appBar = proto;
 }
+
+// ── Komende activiteiten: wedstrijden + trainingen + verenigingsagenda ───────
+//
+// Het ontwerp toont één doorlopende lijst met alles wat er aankomt. De drie
+// bronnen komen uit verschillende endpoints met verschillende datumformaten,
+// dus ze worden client-side samengevoegd tot AppState.dashActivities: één
+// gesorteerde lijst van ActivityItem. Dat samenvoegen kan de DSL niet, vandaar
+// een custom action.
+
+/// Struct voor één regel in "Komende activiteiten". Draagt zowel de weergave
+/// (datumblokje, titel, ondertitel, telling) als de gegevens die de detailpagina
+/// nodig heeft.
+void _ensureActivityItemStruct(FFProject project) {
+  final afmelding = findDataStruct(project, name: 'Afmelding');
+  final existing = findDataStruct(project, name: 'ActivityItem');
+
+  const scalarFields = <String>[
+    'id',        // id van de wedstrijd / agenda-item
+    'kind',      // 'match' | 'training' | 'agenda'
+    'title',
+    'subtitle',  // "10:00 · Sportpark De Greune"
+    'dayName',   // "ZA"
+    'dayNumber', // "24"
+    'monthName', // "MEI"
+    'timeLabel',
+    'location',
+    'iconName',
+    'trailing',  // telling rechts (aanmeldingen) of "Thuis"/"Uit"
+    'sortKey',   // yyyy-MM-ddTHH:mm, alleen om te sorteren
+    // Navigatie naar TrainingDetailPage.
+    'scheduleId',
+    'date',
+    'dayLabel',
+    'startTime',
+    'kleedkamer',
+    'mijnStatus',
+  ];
+
+  if (existing == null) {
+    addDataStruct(
+      project,
+      name: 'ActivityItem',
+      description:
+          'Eén regel in "Komende activiteiten" op het dashboard: wedstrijd, training of agenda-item.',
+      fields: [
+        for (final f in scalarFields)
+          structField(f, stringType, description: 'Activiteit: $f'),
+        if (afmelding != null)
+          structField(
+            'afmeldingen',
+            dataStructType(afmelding.identifier.deepCopy()),
+            description: 'Afmeldingen, alleen gevuld bij een training.',
+            isList: true,
+          ),
+      ],
+    );
+    return;
+  }
+
+  // Bestaat al: alleen ontbrekende velden bijzetten.
+  for (final f in scalarFields) {
+    if (existing.fields.any((x) => x.identifier.name == f)) continue;
+    existing.fields.add(FFParameter(
+      identifier: FFIdentifier(name: f, key: generateRandomAlphaNumericString()),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ));
+  }
+  if (afmelding != null &&
+      !existing.fields.any((x) => x.identifier.name == 'afmeldingen')) {
+    final p = FFParameter(
+      identifier:
+          FFIdentifier(name: 'afmeldingen', key: generateRandomAlphaNumericString()),
+      dataType: dataStructType(afmelding.identifier.deepCopy()),
+    );
+    p.isList = true;
+    existing.fields.add(p);
+  }
+}
+
+/// AppState-velden voor de samengevoegde lijst en voor de wedstrijden.
+/// De wedstrijden staan in de page-state van het dashboard; een custom action
+/// kan daar niet bij, dus ze worden ook naar AppState geschreven.
+void _ensureActivityAppStateFields(FFProject project) {
+  void ensureList(String fieldName, String structName) {
+    if (project.appState.fields
+        .any((f) => f.parameter.identifier.name == fieldName)) return;
+    final struct = findDataStruct(project, name: structName);
+    if (struct == null) return;
+    final param = FFParameter(
+      identifier:
+          FFIdentifier(name: fieldName, key: generateRandomAlphaNumericString()),
+      dataType: dataStructType(struct.identifier.deepCopy()),
+    );
+    param.isList = true;
+    project.appState.fields.add(FFAppStateField(parameter: param));
+  }
+
+  ensureList('teamMatches', 'FootMatch');
+  ensureList('dashActivities', 'ActivityItem');
+}
+
+const String _kBuildDashboardActivitiesCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+/// Voegt wedstrijden, trainingen en verenigingsagenda samen tot één
+/// gesorteerde lijst voor het dashboardblok "Komende activiteiten".
+/// Alleen wat nog komt, oplopend op datum en tijd.
+Future<String> buildDashboardActivities() async {
+  const dagen = ['ZO', 'MA', 'DI', 'WO', 'DO', 'VR', 'ZA'];
+  const maanden = [
+    'JAN', 'FEB', 'MRT', 'APR', 'MEI', 'JUN',
+    'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEC',
+  ];
+
+  /// Accepteert 'd-m-Y', 'Y-m-d' en beide met ' H:i' erachter.
+  DateTime? parse(String date, String time) {
+    final d = date.trim();
+    if (d.isEmpty) return null;
+    var datePart = d;
+    var timePart = time.trim();
+    if (d.contains(' ')) {
+      final split = d.split(' ');
+      datePart = split.first;
+      if (timePart.isEmpty && split.length > 1) timePart = split[1];
+    }
+    final parts = datePart.split(RegExp(r'[-/]'));
+    if (parts.length != 3) return null;
+    int y, m, day;
+    if (parts[0].length == 4) {
+      y = int.tryParse(parts[0]) ?? 0;
+      m = int.tryParse(parts[1]) ?? 0;
+      day = int.tryParse(parts[2]) ?? 0;
+    } else {
+      day = int.tryParse(parts[0]) ?? 0;
+      m = int.tryParse(parts[1]) ?? 0;
+      y = int.tryParse(parts[2]) ?? 0;
+    }
+    if (y == 0 || m == 0 || day == 0) return null;
+    var hour = 0;
+    var minute = 0;
+    if (timePart.isNotEmpty) {
+      final t = timePart.split(':');
+      hour = int.tryParse(t.first) ?? 0;
+      if (t.length > 1) minute = int.tryParse(t[1]) ?? 0;
+    }
+    return DateTime(y, m, day, hour, minute);
+  }
+
+  String two(int v) => v < 10 ? '0$v' : '$v';
+  String sortKey(DateTime d) =>
+      '${d.year}-${two(d.month)}-${two(d.day)}T${two(d.hour)}:${two(d.minute)}';
+
+  String joinDot(String a, String b) {
+    if (a.isEmpty) return b;
+    if (b.isEmpty) return a;
+    return '$a · $b';
+  }
+
+  final now = DateTime.now();
+  // Wat vandaag al geweest is telt niet meer mee; de dag zelf wel.
+  final vanaf = DateTime(now.year, now.month, now.day);
+
+  final items = <ActivityItemStruct>[];
+  final seen = <String>{};
+
+  void add(ActivityItemStruct item, DateTime when) {
+    if (when.isBefore(vanaf)) return;
+    final dedupeKey = '${item.kind}:${item.id}:${item.sortKey}';
+    if (!seen.add(dedupeKey)) return;
+    items.add(item);
+  }
+
+  // 1. Wedstrijden van het huidige team.
+  for (final m in FFAppState().teamMatches) {
+    final when = parse(m.matchDatetime, m.timeLabel);
+    if (when == null) continue;
+    final tijd = m.timeLabel.isNotEmpty
+        ? m.timeLabel
+        : '${two(when.hour)}:${two(when.minute)}';
+    add(
+      ActivityItemStruct(
+        id: m.id,
+        kind: 'match',
+        title: m.teamName.isNotEmpty
+            ? '${m.teamName} - ${m.opponent}'
+            : m.opponent,
+        subtitle: joinDot(tijd, m.location),
+        dayName: dagen[when.weekday % 7],
+        dayNumber: '${when.day}',
+        monthName: maanden[when.month - 1],
+        timeLabel: tijd,
+        location: m.location,
+        iconName: 'sports_soccer',
+        trailing: m.isHome ? 'Thuis' : 'Uit',
+        sortKey: sortKey(when),
+      ),
+      when,
+    );
+  }
+
+  // 2. Trainingen van het huidige team.
+  for (final t in FFAppState().trainings) {
+    final when = parse(t.date, t.startTime);
+    if (when == null) continue;
+    add(
+      ActivityItemStruct(
+        id: t.scheduleId,
+        kind: 'training',
+        title: 'Training',
+        subtitle: joinDot(t.startTime, t.location),
+        dayName: dagen[when.weekday % 7],
+        dayNumber: '${when.day}',
+        monthName: maanden[when.month - 1],
+        timeLabel: t.startTime,
+        location: t.location,
+        iconName: 'sports',
+        trailing: t.aangemeld.isNotEmpty ? '${t.aangemeld} aangemeld' : '',
+        sortKey: sortKey(when),
+        scheduleId: t.scheduleId,
+        date: t.date,
+        dayLabel: t.dayLabel,
+        startTime: t.startTime,
+        kleedkamer: t.dressingRoom,
+        mijnStatus: t.mijnStatus,
+        afmeldingen: t.afmeldingen.toList(),
+      ),
+      when,
+    );
+  }
+
+  // 3. Verenigingsagenda — de backend levert hier al alleen wat deze
+  // gebruiker mag zien; voorbije items vallen alsnog af in add().
+  for (final a in FFAppState().agendaItems) {
+    if (a.isPast == 'true') continue;
+    final when = parse(a.startDate, a.startTime);
+    if (when == null) continue;
+    add(
+      ActivityItemStruct(
+        id: a.id,
+        kind: 'agenda',
+        title: a.title,
+        subtitle: joinDot(
+          a.timeLabel.isNotEmpty ? a.timeLabel : a.startTime,
+          a.location,
+        ),
+        dayName: dagen[when.weekday % 7],
+        dayNumber: '${when.day}',
+        monthName: maanden[when.month - 1],
+        timeLabel: a.timeLabel.isNotEmpty ? a.timeLabel : a.startTime,
+        location: a.location,
+        iconName: 'event',
+        trailing: (a.goingCount.isNotEmpty && a.goingCount != '0')
+            ? '${a.goingCount} gaan'
+            : '',
+        sortKey: sortKey(when),
+      ),
+      when,
+    );
+  }
+
+  items.sort((a, b) => a.sortKey.compareTo(b.sortKey));
+
+  FFAppState().update(() {
+    FFAppState().dashActivities = items.take(6).toList();
+  });
+  return '${items.length}';
+}
+''';
+
+void _ensureBuildDashboardActivitiesAction(FFProject project) {
+  if (findCustomAction(project, name: 'BuildDashboardActivities') == null) {
+    addCustomAction(
+      project,
+      name: 'BuildDashboardActivities',
+      description:
+          'Voegt wedstrijden, trainingen en verenigingsagenda samen tot AppState.dashActivities voor het dashboardblok "Komende activiteiten".',
+      arguments: const [],
+      includeContext: false,
+      returnParameter: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ),
+      code: _kBuildDashboardActivitiesCode,
+    );
+  } else {
+    updateCustomAction(
+      project,
+      name: 'BuildDashboardActivities',
+      code: _kBuildDashboardActivitiesCode,
+      arguments: const [],
+      includeContext: false,
+    );
+  }
+}
+
+/// Losse actie-node die de samengevoegde lijst opnieuw opbouwt.
+FFActionNode _buildActivitiesNode(FFProject project) {
+  final action = findCustomAction(project, name: 'BuildDashboardActivities');
+  return FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      customAction: FFCustomActionCall(
+        customActionIdentifier: action!.identifier.deepCopy(),
+      ),
+    ),
+  );
+}
+
+/// Hangt het samenvoegen achteraan de dashboard-laadketen, en zorgt dat de
+/// wedstrijden ook in AppState landen zodat de custom action erbij kan.
+void _wireDashboardActivities(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  if (findCustomAction(project, name: 'BuildDashboardActivities') == null) return;
+
+  // Samenvoegen als laatste stap van de laadketen. De wedstrijden landen al in
+  // AppState.teamMatches vanuit _wireDashboardLoad en de teamswitcher, dus op
+  // dit punt zijn alle drie de bronnen gevuld.
+  bool alreadyWired(FFActionNode node) {
+    if (node.hasAction() &&
+        node.action.hasCustomAction() &&
+        node.action.customAction.hasCustomActionIdentifier() &&
+        node.action.customAction.customActionIdentifier.name ==
+            'BuildDashboardActivities') {
+      return true;
+    }
+    return node.hasFollowUpAction() && alreadyWired(node.followUpAction);
+  }
+
+  if (!wc.node.triggerActions
+      .any((t) => t.hasRootAction() && alreadyWired(t.rootAction))) {
+    _appendToFirstPageLoadChain(wc.node, _buildActivitiesNode(project));
+  }
+}
+

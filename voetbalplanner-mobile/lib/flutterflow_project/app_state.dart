@@ -71,6 +71,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const dashActivities = ffai.ProjectAppStateFieldHandle(
+    name: "dashActivities",
+    key: "11ykrd5t",
+    typeName: "List<DataStruct<ActivityItem>>",
+    persisted: false,
+  );
   static const dialogFlaggerId = ffai.ProjectAppStateFieldHandle(
     name: "dialogFlaggerId",
     key: "i94o89ne",
@@ -347,6 +353,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<SwapMember>>",
     persisted: false,
   );
+  static const teamMatches = ffai.ProjectAppStateFieldHandle(
+    name: "teamMatches",
+    key: "7eqrb7xe",
+    typeName: "List<DataStruct<FootMatch>>",
+    persisted: false,
+  );
   static const trainings = ffai.ProjectAppStateFieldHandle(
     name: "trainings",
     key: "ff2yon21",
@@ -389,6 +401,7 @@ abstract final class AppState {
     currentConversationId,
     currentTeamId,
     currentTeamName,
+    dashActivities,
     dialogFlaggerId,
     dialogFlaggerName,
     dialogFruitId,
@@ -435,6 +448,7 @@ abstract final class AppState {
     secondaryColor,
     sharedBarDuties,
     sharedTeamMembers,
+    teamMatches,
     trainings,
     unreadChatCount,
     userEmail,

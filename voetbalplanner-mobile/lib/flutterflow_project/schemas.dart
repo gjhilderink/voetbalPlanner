@@ -11,6 +11,31 @@ abstract final class Enums {
 }
 
 abstract final class Structs {
+  static final ffai.StructHandle activityItem = ffai.StructHandle(
+    "ActivityItem",
+    <String, ffai.DslType>{
+      "afmeldingen": ffai.listOf(Structs.afmelding),
+      "date": ffai.string,
+      "dayLabel": ffai.string,
+      "dayName": ffai.string,
+      "dayNumber": ffai.string,
+      "iconName": ffai.string,
+      "id": ffai.string,
+      "kind": ffai.string,
+      "kleedkamer": ffai.string,
+      "location": ffai.string,
+      "mijnStatus": ffai.string,
+      "monthName": ffai.string,
+      "scheduleId": ffai.string,
+      "sortKey": ffai.string,
+      "startTime": ffai.string,
+      "subtitle": ffai.string,
+      "timeLabel": ffai.string,
+      "title": ffai.string,
+      "trailing": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle afmelding = ffai.StructHandle(
     "Afmelding",
     <String, ffai.DslType>{
@@ -368,6 +393,7 @@ abstract final class Structs {
     description: ffai.generatedProjectStructDescription,
   );
   static final all = <ffai.StructHandle>[
+    activityItem,
     afmelding,
     agendaCategory,
     agendaItem,
@@ -1172,6 +1198,7 @@ abstract final class CustomCode {
     "AfmeldenMatch",
     "AfmeldenTraining",
     "AuthenticateBiometric",
+    "BuildDashboardActivities",
     "BumpConversationUnread",
     "ClearBugScreenshots",
     "ComputeDirectConvId",
