@@ -25660,9 +25660,12 @@ FFNode _dashCard({
   Object? padding,
   Object? margin,
 }) {
+  // innerPadding, niet padding: FlutterFlow rendert container-padding als een
+  // Padding-wrapper ÓM de container heen. Met `padding` zou de kaart 16px
+  // loze ruimte rondom krijgen en zou de inhoud tegen de rand aan plakken.
   return UI.container(
     name: name,
-    padding: padding ?? UIEdgeInsets.all(16),
+    innerPadding: padding ?? UIEdgeInsets.all(16),
     margin: margin,
     borderRadius: 16,
     color: UIColor.secondaryBackground,
@@ -25949,9 +25952,13 @@ FFNode _dashHeader(FFProject project, FFWidgetClass wc, FFNode? switcher) {
   final picker = _dashTeamPicker(project, wc, switcher);
   if (picker != null) headerChildren.add(picker);
 
+  // innerPadding: de rode kop moet van rand tot rand lopen en strak onder de
+  // AppBar aansluiten. Met `padding` zet FlutterFlow de ruimte buiten de
+  // container, waardoor er een marge rondom het rode vlak ontstaat.
   final header = UI.container(
     name: 'DashHeader',
-    padding: UIEdgeInsets.only(left: 16, right: 16, top: 4, bottom: 18),
+    width: double.infinity,
+    innerPadding: UIEdgeInsets.only(left: 16, right: 16, top: 4, bottom: 18),
     borderRadius: UIBorderRadius.only(bottomLeft: 26, bottomRight: 26),
     color: UIColor.primary,
     child: UI.column(
@@ -26015,6 +26022,19 @@ void _restyleTeamSwitcherForHeader(FFNode switcher) {
       n.props.container.dimensions = FFDimensions(
         width: FFDim(percentOfContainingWidgetValue: FFDoubleValue(inputValue: 100.0)),
       );
+      // De chips kregen hun ruimte via container-padding, en die zet
+      // FlutterFlow bùiten de pil: gaten tussen de regels en tekst tegen de
+      // rand. De ruimte hoort op het tekstkind (= binnen de pil).
+      n.props.clearPadding();
+      for (final child in n.children) {
+        if (!child.props.hasText()) continue;
+        child.props.padding = FFPadding(
+          leftValue: FFDoubleValue(inputValue: 16),
+          rightValue: FFDoubleValue(inputValue: 16),
+          topValue: FFDoubleValue(inputValue: 11),
+          bottomValue: FFDoubleValue(inputValue: 11),
+        );
+      }
     }
   }
 }
@@ -26050,7 +26070,7 @@ FFNode? _dashRoleTabs(FFProject project, FFWidgetClass wc) {
         FFStringValue(variable: varFromGeneratorVariable(list.key));
     final c = UI.container(
       name: name,
-      padding: UIEdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      innerPadding: UIEdgeInsets.symmetric(horizontal: 18, vertical: 10),
       borderRadius: 22,
       color: selected ? UIColor.primary : UIColor.hex(0xFFEFF1F5),
       child: label,
@@ -26249,7 +26269,7 @@ FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
       fallbackWhen,
       UI.container(
         name: 'DashNextMatchVsPill',
-        padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
         borderRadius: 8,
         color: UIColor.hex(0xFFEFF1F5),
         child: UI.text('VS',
@@ -26786,7 +26806,7 @@ FFNode? _dashActivitiesCard(FFProject project, FFWidgetClass wc) {
   final dateBlock = UI.container(
     name: 'DashActivityDateBlock',
     width: 60,
-    padding: UIEdgeInsets.symmetric(vertical: 8, horizontal: 4),
+    innerPadding: UIEdgeInsets.symmetric(vertical: 8, horizontal: 4),
     borderRadius: 12,
     color: UIColor.hex(0xFFF1F5F9),
     alignment: UIAlignment.center,
@@ -27359,7 +27379,7 @@ FFNode? _dashTeamPicker(FFProject project, FFWidgetClass wc, FFNode? switcher) {
 
   final pill = UI.container(
     name: 'DashTeamPicker',
-    padding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 10),
     borderRadius: 22,
     color: UIColor.hex(0x33000000),
     child: UI.row(
