@@ -65,7 +65,7 @@ abstract final class DashboardPageWidgets {
             slots: <String, List<ffai.ProjectWidgetHandle>>{
               "actions": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "IconButton_pxqdww4f",
+                  key: "IconButton_6axn80au",
                   type: "IconButton",
                   path: "DashboardPage.appBar[0].actions[0]",
                   name: "DashAppBarBell",
@@ -76,19 +76,19 @@ abstract final class DashboardPageWidgets {
               ],
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Row_81ga0avq",
+                  key: "Row_e3j29ih8",
                   type: "Row",
                   path: "DashboardPage.appBar[0].title[0]",
                   name: "DashAppBarTitleRow",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "60x0cmv2",
+                      key: "s82auvho",
                       type: "Image",
                       path: "DashboardPage.appBar[0].title[0].children[0]",
                       name: "DashAppBarClubLogo",
                     ),
                     ffai.ProjectWidgetHandle(
-                      key: "Text_6qcnab1t",
+                      key: "Text_ysnkw0el",
                       type: "Text",
                       path: "DashboardPage.appBar[0].title[0].children[1]",
                       name: "DashAppBarClubName",
@@ -113,49 +113,49 @@ abstract final class DashboardPageWidgets {
                 name: "Column",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_cr18vmjt",
+                    key: "Container_p5zlozzc",
                     type: "Container",
                     path: "DashboardPage.body[0].children[0].children[0]",
                     name: "DashHeader",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_2pfftuxc",
+                        key: "Column_pxu8rl45",
                         type: "Column",
                         path: "DashboardPage.body[0].children[0].children[0].children[0]",
                         name: "DashHeaderCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_hf9mzi72",
+                            key: "Row_7pzb8it6",
                             type: "Row",
                             path: "DashboardPage.body[0].children[0].children[0].children[0].children[0]",
                             name: "DashHeaderRow",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "yxttczk8",
+                                key: "npjyiloh",
                                 type: "CircleImage",
                                 path: "DashboardPage.body[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "DashHeaderPhoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_s03th6z5",
+                                key: "Icon_hpxkg9xw",
                                 type: "Icon",
                                 path: "DashboardPage.body[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "Icon",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Column_fe7yx9ui",
+                                key: "Column_otipifuz",
                                 type: "Column",
                                 path: "DashboardPage.body[0].children[0].children[0].children[0].children[0].children[2]",
                                 name: "DashHeaderGreetingCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_3skvyl8n",
+                                    key: "Text_huf5dufk",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[0].children[0].children[0].children[2].children[0]",
                                     name: "DashGreeting",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_fr4xf3ti",
+                                    key: "Text_yifouccq",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[0].children[0].children[0].children[2].children[1]",
                                     name: "DashGreetingSub",
@@ -166,13 +166,13 @@ abstract final class DashboardPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Column_al9473k9",
+                            key: "Column_17n9dfy0",
                             type: "Column",
                             path: "DashboardPage.body[0].children[0].children[0].children[0].children[1]",
                             name: "DashTeamPickerCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_clbjz8iq",
+                                key: "Container_cb5cjfxw",
                                 type: "Container",
                                 path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[0]",
                                 name: "DashTeamPicker",
@@ -181,25 +181,25 @@ abstract final class DashboardPageWidgets {
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_w56g2yxg",
+                                    key: "Row_ev4cgnua",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[0].children[0]",
                                     name: "DashTeamPickerRow",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_lbb4r8cu",
+                                        key: "Icon_rh1jxzw3",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[0].children[0].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_88u1bsg6",
+                                        key: "Text_9x7vfu3i",
                                         type: "Text",
                                         path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[0].children[0].children[1]",
                                         name: "DashTeamPickerLabel",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_j01cl7u8",
+                                        key: "Icon_5mf85fsn",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[0].children[0].children[2]",
                                         name: "Icon",
@@ -209,19 +209,19 @@ abstract final class DashboardPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Container_3gi10tbv",
+                                key: "Container_eo5zr85i",
                                 type: "Container",
                                 path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[1]",
                                 name: "DashboardTeamSwitcher",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "ListView_vomvmsds",
+                                    key: "ListView_m7fpo7r1",
                                     type: "ListView",
                                     path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[1].children[0]",
                                     name: "DashboardTeamSwitcherList",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_tn9oamby",
+                                        key: "Row_7f1y6fyq",
                                         type: "Row",
                                         path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[1].children[0].children[0]",
                                         name: "DashboardTeamSwitcherItem",
@@ -230,13 +230,13 @@ abstract final class DashboardPageWidgets {
                                         ],
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_e2rftufk",
+                                            key: "Container_0a9kswvb",
                                             type: "Container",
                                             path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[1].children[0].children[0].children[0]",
                                             name: "DashboardTeamSwitcherActiveChip",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_tr4u1ww6",
+                                                key: "Text_cpfiwpsk",
                                                 type: "Text",
                                                 path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[1].children[0].children[0].children[0].children[0]",
                                                 name: "DashboardTeamSwitcherActiveName",
@@ -244,13 +244,13 @@ abstract final class DashboardPageWidgets {
                                             ],
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_rx18g01x",
+                                            key: "Container_cvwfm3ln",
                                             type: "Container",
                                             path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[1].children[0].children[0].children[1]",
                                             name: "DashboardTeamSwitcherChip",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_pypikwor",
+                                                key: "Text_7gcepqf1",
                                                 type: "Text",
                                                 path: "DashboardPage.body[0].children[0].children[0].children[0].children[1].children[1].children[0].children[0].children[1].children[0]",
                                                 name: "DashboardTeamSwitcherName",
@@ -270,19 +270,19 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_f14ncz7z",
+                    key: "Container_jk12739a",
                     type: "Container",
                     path: "DashboardPage.body[0].children[0].children[1]",
                     name: "DashRoleTabs",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "ListView_z13g6h9p",
+                        key: "ListView_m2e7chrk",
                         type: "ListView",
                         path: "DashboardPage.body[0].children[0].children[1].children[0]",
                         name: "DashRoleTabsList",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_hrcx7nw8",
+                            key: "Row_luis9jz1",
                             type: "Row",
                             path: "DashboardPage.body[0].children[0].children[1].children[0].children[0]",
                             name: "DashRoleTabItem",
@@ -291,13 +291,13 @@ abstract final class DashboardPageWidgets {
                             ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_g6xogb6y",
+                                key: "Container_gcrworwn",
                                 type: "Container",
                                 path: "DashboardPage.body[0].children[0].children[1].children[0].children[0].children[0]",
                                 name: "DashRoleTabActive",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_yat6f17e",
+                                    key: "Text_yyoj2cle",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0]",
                                     name: "DashRoleTabActiveLabel",
@@ -305,13 +305,13 @@ abstract final class DashboardPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Container_t6ppxhc6",
+                                key: "Container_h8yqgh6p",
                                 type: "Container",
                                 path: "DashboardPage.body[0].children[0].children[1].children[0].children[0].children[1]",
                                 name: "DashRoleTab",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_7jkpp6bo",
+                                    key: "Text_zqbenrtu",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[1].children[0].children[0].children[1].children[0]",
                                     name: "DashRoleTabLabel",
@@ -325,44 +325,44 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_uycg77d1",
+                    key: "Container_mkkgpprb",
                     type: "Container",
                     path: "DashboardPage.body[0].children[0].children[2]",
                     name: "DashNextMatchCard Margin",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_20m9arjb",
+                        key: "Container_a7bmrmej",
                         type: "Container",
                         path: "DashboardPage.body[0].children[0].children[2].children[0]",
                         name: "DashNextMatchCard",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_8si50ik1",
+                            key: "Column_6hw7svtv",
                             type: "Column",
                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0]",
                             name: "DashNextMatchCardCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_x8y1tmo1",
+                                key: "Column_6i88vevg",
                                 type: "Column",
                                 path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0]",
                                 name: "DashNextMatchContent",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_12uklhih",
+                                    key: "Row_8d6z4sb9",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[0]",
                                     name: "DashNextMatchHeader",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_b2lp04lk",
+                                        key: "Text_5d0ap56j",
                                         type: "Text",
                                         path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[0].children[0]",
                                         name: "DashNextMatchHeaderTitle",
                                         text: "Volgende wedstrijd",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_c8ux4f4g",
+                                        key: "Row_pb0evcnh",
                                         type: "Row",
                                         path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[0].children[1]",
                                         name: "DashNextMatchHeaderLink",
@@ -371,14 +371,14 @@ abstract final class DashboardPageWidgets {
                                         ],
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_mzy5s83s",
+                                            key: "Text_20pgv7a8",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[0].children[1].children[0]",
                                             name: "DashNextMatchHeaderLinkText",
                                             text: "Bekijk wedstrijd",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_kl20wr97",
+                                            key: "Icon_agc1dbr1",
                                             type: "Icon",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[0].children[1].children[1]",
                                             name: "Icon",
@@ -388,25 +388,25 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_1d542l68",
+                                    key: "Row_yrgkpbbb",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1]",
                                     name: "DashNextMatchRow",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Column_8nj5fm3i",
+                                        key: "Column_846cysc8",
                                         type: "Column",
                                         path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[0]",
                                         name: "DashNextMatchOwnCol",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "6jpqe3b7",
+                                            key: "uzjfx68w",
                                             type: "CircleImage",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[0].children[0]",
                                             name: "DashNextMatchOwnLogo",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_7pheowsp",
+                                            key: "Text_oa2u5n4p",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[0].children[1]",
                                             name: "DashNextMatchOwnName",
@@ -414,37 +414,37 @@ abstract final class DashboardPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Column_uv75l4p0",
+                                        key: "Column_cozf4ggb",
                                         type: "Column",
                                         path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[1]",
                                         name: "DashNextMatchMiddle",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_dbhgiznm",
+                                            key: "Text_6bprvrqy",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[1].children[0]",
                                             name: "DashNextMatchDate",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_almyhqio",
+                                            key: "Text_40b70lp6",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[1].children[1]",
                                             name: "DashNextMatchTime",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_0j9v2fz4",
+                                            key: "Text_o8rm7f81",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[1].children[2]",
                                             name: "DashNextMatchWhenFallback",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_hkwub0tq",
+                                            key: "Container_93m72yri",
                                             type: "Container",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[1].children[3]",
                                             name: "DashNextMatchVsPill",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_ecawrjuf",
+                                                key: "Text_ebc5dzvl",
                                                 type: "Text",
                                                 path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[1].children[3].children[0]",
                                                 name: "DashNextMatchVs",
@@ -455,25 +455,25 @@ abstract final class DashboardPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Column_4ajqehv1",
+                                        key: "Column_pbc3e099",
                                         type: "Column",
                                         path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[2]",
                                         name: "DashNextMatchOppCol",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "0xj36lpi",
+                                            key: "p8lyl3zo",
                                             type: "CircleImage",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[2].children[0]",
                                             name: "DashNextMatchOppLogo",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_br3xztfm",
+                                            key: "Icon_ndijpe3f",
                                             type: "Icon",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[2].children[1]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_43rbx1nu",
+                                            key: "Text_1ss1xbjl",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1].children[2].children[2]",
                                             name: "DashNextMatchOppName",
@@ -483,19 +483,19 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_gcb56cw2",
+                                    key: "Row_jkiby0wr",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[2]",
                                     name: "DashNextMatchLocationRow",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_9r4lk27y",
+                                        key: "Icon_4iijxagj",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[2].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_33asfw6e",
+                                        key: "Text_7y1b3l0s",
                                         type: "Text",
                                         path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[0].children[2].children[1]",
                                         name: "DashNextMatchLocation",
@@ -505,20 +505,20 @@ abstract final class DashboardPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Column_2rbxxvp6",
+                                key: "Column_afd5io21",
                                 type: "Column",
                                 path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[1]",
                                 name: "DashNextMatchEmptyCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_1103p39u",
+                                    key: "Text_0ct2dp7k",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[1].children[0]",
                                     name: "DashNextMatchEmptyTitle",
                                     text: "Volgende wedstrijd",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_d9r9hfj3",
+                                    key: "Text_ot20ezc5",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[2].children[0].children[0].children[1].children[1]",
                                     name: "DashNextMatchEmpty",
@@ -533,19 +533,19 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_6l3rzjnd",
+                    key: "Container_3m1r2s2u",
                     type: "Container",
                     path: "DashboardPage.body[0].children[0].children[3]",
                     name: "DashQuickRowWrap",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Row_ztvt4l8a",
+                        key: "Row_q008nn64",
                         type: "Row",
                         path: "DashboardPage.body[0].children[0].children[3].children[0]",
                         name: "DashQuickRow",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_om1m3ck9",
+                            key: "Container_c3fi0pb8",
                             type: "Container",
                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[0]",
                             name: "DashTrainingCard",
@@ -554,25 +554,25 @@ abstract final class DashboardPageWidgets {
                             ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_d1p7f7f6",
+                                key: "Column_lktjyky0",
                                 type: "Column",
                                 path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0]",
                                 name: "DashTrainingCardCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_dzkvqi1c",
+                                    key: "Row_kgpa7z0i",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[0]",
                                     name: "DashTrainingCardHead",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_gx1swa5g",
+                                        key: "Icon_yuo6xa90",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[0].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_80jysow8",
+                                        key: "Text_0fqn8lwo",
                                         type: "Text",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[0].children[1]",
                                         name: "DashTrainingCardTitle",
@@ -581,31 +581,31 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_7g3vnlm1",
+                                    key: "Column_j0n9th11",
                                     type: "Column",
                                     path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1]",
                                     name: "DashTrainingCardBody",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_mz9pjhar",
+                                        key: "Text_u4obbmtl",
                                         type: "Text",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[0]",
                                         name: "DashTrainingDay",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_8z7cehyx",
+                                        key: "Row_wvf9jhpv",
                                         type: "Row",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[1]",
                                         name: "DashTrainingWhen",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_wy4mfdv8",
+                                            key: "Text_vc7844zm",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[1].children[0]",
                                             name: "DashTrainingDate",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_4hdfdugs",
+                                            key: "Text_tw6ohoxf",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[1].children[1]",
                                             name: "DashTrainingTime",
@@ -613,19 +613,19 @@ abstract final class DashboardPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_bt3d04ez",
+                                        key: "Row_3eqonnjj",
                                         type: "Row",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[2]",
                                         name: "DashTrainingLocRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_z0a4z8kb",
+                                            key: "Icon_fcbvi4h9",
                                             type: "Icon",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[2].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_9gy8ga79",
+                                            key: "Text_wjxp9dqp",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[2].children[1]",
                                             name: "DashTrainingLoc",
@@ -633,25 +633,25 @@ abstract final class DashboardPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_fe54k38w",
+                                        key: "Row_2i5ctmhg",
                                         type: "Row",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[3]",
                                         name: "DashTrainingCounts",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Row_29rtmpwl",
+                                            key: "Row_wm3nmisc",
                                             type: "Row",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[3].children[0]",
                                             name: "DashTrainingAanmeldRow",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Icon_zilcnzan",
+                                                key: "Icon_ixdg9lge",
                                                 type: "Icon",
                                                 path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[3].children[0].children[0]",
                                                 name: "Icon",
                                               ),
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_hcibicwo",
+                                                key: "Text_558f30iv",
                                                 type: "Text",
                                                 path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[3].children[0].children[1]",
                                                 name: "DashTrainingAanmeld",
@@ -659,19 +659,19 @@ abstract final class DashboardPageWidgets {
                                             ],
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Row_cnge0xxr",
+                                            key: "Row_gfxknuah",
                                             type: "Row",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[3].children[1]",
                                             name: "DashTrainingAfmeldRow",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Icon_rbyjg02f",
+                                                key: "Icon_aodwj9s3",
                                                 type: "Icon",
                                                 path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[3].children[1].children[0]",
                                                 name: "Icon",
                                               ),
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_zb331au7",
+                                                key: "Text_ig6grz1u",
                                                 type: "Text",
                                                 path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[1].children[3].children[1].children[1]",
                                                 name: "DashTrainingAfmeld",
@@ -683,7 +683,7 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_3cf0n4ch",
+                                    key: "Text_xzsf9ng3",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[3].children[0].children[0].children[0].children[2]",
                                     name: "DashTrainingEmpty",
@@ -694,31 +694,31 @@ abstract final class DashboardPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_rzvg150p",
+                            key: "Container_0wa62p9k",
                             type: "Container",
                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[1]",
                             name: "DashTasksCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_qhabky35",
+                                key: "Column_tjz3til8",
                                 type: "Column",
                                 path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0]",
                                 name: "DashTasksCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_vprk3t8r",
+                                    key: "Row_kzww92sm",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[0]",
                                     name: "DashTasksHead",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_ubpk49h3",
+                                        key: "Icon_e0soug63",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[0].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_fm3s8eam",
+                                        key: "Text_84xmdg1p",
                                         type: "Text",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[0].children[1]",
                                         name: "DashTasksTitle",
@@ -727,32 +727,32 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_rdbsrybq",
+                                    key: "Row_nj809ree",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[1]",
                                     name: "DashTaskDrive",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_5jjvnhk0",
+                                        key: "Icon_jpfquiz9",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[1].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Column_c56ghyrm",
+                                        key: "Column_mtizumqo",
                                         type: "Column",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[1].children[1]",
                                         name: "DashTaskDriveCol",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_xuxgkoun",
+                                            key: "Text_sj7i4i3l",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[1].children[1].children[0]",
                                             name: "DashTaskDriveLabel",
                                             text: "Rijden",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_1nb6hgjy",
+                                            key: "Text_5xpwrdzk",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[1].children[1].children[1]",
                                             name: "DashTaskDriveSub",
@@ -762,32 +762,32 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_mgdq9azm",
+                                    key: "Row_a1247iho",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[2]",
                                     name: "DashTaskFlag",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_tgp2fr74",
+                                        key: "Icon_cn6hpfpn",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[2].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Column_g4hiauot",
+                                        key: "Column_ki8r6z6y",
                                         type: "Column",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[2].children[1]",
                                         name: "DashTaskFlagCol",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_nciys8ah",
+                                            key: "Text_z3vtl8d3",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[2].children[1].children[0]",
                                             name: "DashTaskFlagLabel",
                                             text: "Vlaggen",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_uh1ep5wr",
+                                            key: "Text_wwjpozxw",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[2].children[1].children[1]",
                                             name: "DashTaskFlagSub",
@@ -797,32 +797,32 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_stn8d4oc",
+                                    key: "Row_pv6c7rk7",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[3]",
                                     name: "DashTaskFruit",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_25zi3yw8",
+                                        key: "Icon_q6k0avs7",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[3].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Column_w8iqnjy5",
+                                        key: "Column_20bruaxu",
                                         type: "Column",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[3].children[1]",
                                         name: "DashTaskFruitCol",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_jzjd8go0",
+                                            key: "Text_kn0ekt1y",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[3].children[1].children[0]",
                                             name: "DashTaskFruitLabel",
                                             text: "Fruit verzorgen",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_qtu7iyj1",
+                                            key: "Text_7s23cv2x",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[3].children[1].children[1]",
                                             name: "DashTaskFruitSub",
@@ -832,32 +832,32 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_0o4vwczl",
+                                    key: "Row_p49tzs4f",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[4]",
                                     name: "DashTaskBar",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_sib6r313",
+                                        key: "Icon_6946hneb",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[4].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Column_ldc8pu35",
+                                        key: "Column_0ylyvtow",
                                         type: "Column",
                                         path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[4].children[1]",
                                         name: "DashTaskBarCol",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_6ti0rnde",
+                                            key: "Text_hmw52c2f",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[4].children[1].children[0]",
                                             name: "DashTaskBarLabel",
                                             text: "Bardienst",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_w0hnz9x8",
+                                            key: "Text_ec1jmyq7",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[4].children[1].children[1]",
                                             name: "DashTaskBarSub",
@@ -867,7 +867,7 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_ds5i2b77",
+                                    key: "Text_j8hxczu0",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[3].children[0].children[1].children[0].children[5]",
                                     name: "DashTasksEmpty",
@@ -882,32 +882,32 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_5adzi6st",
+                    key: "Container_6pw6f8jh",
                     type: "Container",
                     path: "DashboardPage.body[0].children[0].children[4]",
                     name: "DashStaffCard Margin",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_ytulirqm",
+                        key: "Container_lw57lgvw",
                         type: "Container",
                         path: "DashboardPage.body[0].children[0].children[4].children[0]",
                         name: "DashStaffCard",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_kievi34k",
+                            key: "Column_kgtt2u2q",
                             type: "Column",
                             path: "DashboardPage.body[0].children[0].children[4].children[0].children[0]",
                             name: "DashStaffCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_9wbyj91l",
+                                key: "Text_q8m756w8",
                                 type: "Text",
                                 path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[0]",
                                 name: "DashStaffTitle",
                                 text: "Voor de staf",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_ut7ryje0",
+                                key: "Row_esy2xvev",
                                 type: "Row",
                                 path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[1]",
                                 name: "DashStaffTeam",
@@ -916,13 +916,13 @@ abstract final class DashboardPageWidgets {
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_w5kt5bkv",
+                                    key: "Container_40bl1kl3",
                                     type: "Container",
                                     path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[1].children[0]",
                                     name: "DashStaffTeamIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_ycju1e65",
+                                        key: "Icon_0tjp0jy3",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[1].children[0].children[0]",
                                         name: "Icon",
@@ -930,14 +930,14 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_ivjfzyp3",
+                                    key: "Text_ns5o7vr9",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[1].children[1]",
                                     name: "DashStaffTeamLabel",
                                     text: "Teamleden",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_gbni0uqv",
+                                    key: "Icon_ag64fzpu",
                                     type: "Icon",
                                     path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[1].children[2]",
                                     name: "Icon",
@@ -945,7 +945,7 @@ abstract final class DashboardPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_nmwomp4i",
+                                key: "Row_qybvhhwa",
                                 type: "Row",
                                 path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[2]",
                                 name: "DashStaffDrive",
@@ -954,13 +954,13 @@ abstract final class DashboardPageWidgets {
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_jvhmqvsz",
+                                    key: "Container_jwuzzd2r",
                                     type: "Container",
                                     path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[2].children[0]",
                                     name: "DashStaffDriveIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_6yxftgch",
+                                        key: "Icon_b7kk34hf",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[2].children[0].children[0]",
                                         name: "Icon",
@@ -968,14 +968,14 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_uh0hozpq",
+                                    key: "Text_yjtrozk3",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[2].children[1]",
                                     name: "DashStaffDriveLabel",
                                     text: "Rijschema",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_qbbu3svw",
+                                    key: "Icon_dbbnfqtz",
                                     type: "Icon",
                                     path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[2].children[2]",
                                     name: "Icon",
@@ -983,7 +983,7 @@ abstract final class DashboardPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_rnxwpo5z",
+                                key: "Row_1n6qvisy",
                                 type: "Row",
                                 path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[3]",
                                 name: "DashStaffBar",
@@ -992,13 +992,13 @@ abstract final class DashboardPageWidgets {
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_khei83fj",
+                                    key: "Container_dgqauiaf",
                                     type: "Container",
                                     path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[3].children[0]",
                                     name: "DashStaffBarIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_yg5tmh6i",
+                                        key: "Icon_u8fjby9c",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[3].children[0].children[0]",
                                         name: "Icon",
@@ -1006,14 +1006,14 @@ abstract final class DashboardPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_watiqx2i",
+                                    key: "Text_79ck6jty",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[3].children[1]",
                                     name: "DashStaffBarLabel",
                                     text: "Bardiensten",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_xjfd62bw",
+                                    key: "Icon_lbgs2qqv",
                                     type: "Icon",
                                     path: "DashboardPage.body[0].children[0].children[4].children[0].children[0].children[3].children[2]",
                                     name: "Icon",
@@ -1027,38 +1027,38 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_032tifrt",
+                    key: "Container_rahmbm6b",
                     type: "Container",
                     path: "DashboardPage.body[0].children[0].children[5]",
                     name: "DashActivitiesCard Margin",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_2xv3onhr",
+                        key: "Container_25b2uhkp",
                         type: "Container",
                         path: "DashboardPage.body[0].children[0].children[5].children[0]",
                         name: "DashActivitiesCard",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_hx5eo1ts",
+                            key: "Column_wnn3d7go",
                             type: "Column",
                             path: "DashboardPage.body[0].children[0].children[5].children[0].children[0]",
                             name: "DashActivitiesCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_7ywh9na9",
+                                key: "Row_ytiw640v",
                                 type: "Row",
                                 path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[0]",
                                 name: "DashActivitiesHeader",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_v44ull9q",
+                                    key: "Text_anix0k10",
                                     type: "Text",
                                     path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[0].children[0]",
                                     name: "DashActivitiesHeaderTitle",
                                     text: "Komende activiteiten",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_z54vcrla",
+                                    key: "Row_kekk7h74",
                                     type: "Row",
                                     path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[0].children[1]",
                                     name: "DashActivitiesHeaderLink",
@@ -1067,14 +1067,14 @@ abstract final class DashboardPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_8lyx62ic",
+                                        key: "Text_o1n0m21s",
                                         type: "Text",
                                         path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[0].children[1].children[0]",
                                         name: "DashActivitiesHeaderLinkText",
                                         text: "Bekijk agenda",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_1byo1vle",
+                                        key: "Icon_89d2w56v",
                                         type: "Icon",
                                         path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[0].children[1].children[1]",
                                         name: "Icon",
@@ -1084,13 +1084,13 @@ abstract final class DashboardPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "ListView_n12ymb0f",
+                                key: "ListView_1jb8kih1",
                                 type: "ListView",
                                 path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1]",
                                 name: "DashActivitiesList",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_3jr8ap8c",
+                                    key: "Container_2s8y5div",
                                     type: "Container",
                                     path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0]",
                                     name: "DashActivityCard",
@@ -1099,37 +1099,37 @@ abstract final class DashboardPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_f0m7n7os",
+                                        key: "Row_0caq594x",
                                         type: "Row",
                                         path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0]",
                                         name: "DashActivityRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_enk05r77",
+                                            key: "Container_caedegek",
                                             type: "Container",
                                             path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[0]",
                                             name: "DashActivityDateBlock",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Column_f949emzt",
+                                                key: "Column_lii0l9al",
                                                 type: "Column",
                                                 path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[0].children[0]",
                                                 name: "DashActivityDateCol",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_lte6cvcl",
+                                                    key: "Text_vy4530mi",
                                                     type: "Text",
                                                     path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0]",
                                                     name: "DashActivityDay",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_8zk3ujrg",
+                                                    key: "Text_2u4t0gcg",
                                                     type: "Text",
                                                     path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[0].children[0].children[1]",
                                                     name: "DashActivityDayNr",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_h35q0c26",
+                                                    key: "Text_iq66k0c5",
                                                     type: "Text",
                                                     path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[0].children[0].children[2]",
                                                     name: "DashActivityMonth",
@@ -1139,31 +1139,31 @@ abstract final class DashboardPageWidgets {
                                             ],
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_gvavr8y8",
+                                            key: "Container_1e6c8lft",
                                             type: "Container",
                                             path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[1]",
                                             name: "DashActivityIconWrap",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Row_zrwll9ph",
+                                                key: "Row_sgp6mopl",
                                                 type: "Row",
                                                 path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[1].children[0]",
                                                 name: "DashActivityIconRow",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_2niegwje",
+                                                    key: "Icon_dh3jqs88",
                                                     type: "Icon",
                                                     path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[1].children[0].children[0]",
                                                     name: "Icon",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_gnjnddyq",
+                                                    key: "Icon_ef3r939e",
                                                     type: "Icon",
                                                     path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[1].children[0].children[1]",
                                                     name: "Icon",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_wpe0vdhv",
+                                                    key: "Icon_5zjob1yw",
                                                     type: "Icon",
                                                     path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[1].children[0].children[2]",
                                                     name: "Icon",
@@ -1173,19 +1173,19 @@ abstract final class DashboardPageWidgets {
                                             ],
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Column_qth51iic",
+                                            key: "Column_m83vl0jf",
                                             type: "Column",
                                             path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[2]",
                                             name: "DashActivityInfo",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_tz2o8qn3",
+                                                key: "Text_6qmvpgw2",
                                                 type: "Text",
                                                 path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[2].children[0]",
                                                 name: "DashActivityTitle",
                                               ),
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_tlxxrjvy",
+                                                key: "Text_53i0bl4l",
                                                 type: "Text",
                                                 path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[2].children[1]",
                                                 name: "DashActivitySubtitle",
@@ -1193,13 +1193,13 @@ abstract final class DashboardPageWidgets {
                                             ],
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_khi9hp7r",
+                                            key: "Text_biv0t501",
                                             type: "Text",
                                             path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[3]",
                                             name: "DashActivityTrailing",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_rup8hxxa",
+                                            key: "Icon_f1fcrblz",
                                             type: "Icon",
                                             path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[1].children[0].children[0].children[4]",
                                             name: "Icon",
@@ -1211,7 +1211,7 @@ abstract final class DashboardPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_rrzqiceg",
+                                key: "Text_i3fsmqcu",
                                 type: "Text",
                                 path: "DashboardPage.body[0].children[0].children[5].children[0].children[0].children[2]",
                                 name: "DashActivitiesEmpty",
@@ -1224,84 +1224,558 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Column_1u8e0doe",
-                    type: "Column",
+                    key: "Container_n7po6r4b",
+                    type: "Container",
                     path: "DashboardPage.body[0].children[0].children[6]",
+                    name: "DashStatsRowWrap",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Row_19ec2qdk",
+                        type: "Row",
+                        path: "DashboardPage.body[0].children[0].children[6].children[0]",
+                        name: "DashStatsRow",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_imqq8aho",
+                            type: "Container",
+                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[0]",
+                            name: "DashTeamStatsCard",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Column_lr5yqaiz",
+                                type: "Column",
+                                path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0]",
+                                name: "DashTeamStatsCol",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_ie0rrv2z",
+                                    type: "Row",
+                                    path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[0]",
+                                    name: "DashTeamStatsHead",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_t53b2cix",
+                                        type: "Icon",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[0].children[0]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_84zv0u8m",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[0].children[1]",
+                                        name: "DashTeamStatsTitle",
+                                        text: "Team statistieken",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_3dtuy29o",
+                                    type: "Text",
+                                    path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[1]",
+                                    name: "DashTeamStatsPoints",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_cpe8h7x7",
+                                    type: "Text",
+                                    path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[2]",
+                                    name: "DashTeamStatsPointsLabel",
+                                    text: "Punten",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_l2yo61ai",
+                                    type: "Row",
+                                    path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[3]",
+                                    name: "DashTeamStatsRow",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Column_1up2vsir",
+                                        type: "Column",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[3].children[0]",
+                                        name: "DashTeamStatPlayed",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_gydrr9q4",
+                                            type: "Text",
+                                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[3].children[0].children[0]",
+                                            name: "DashTeamStatPlayedValue",
+                                          ),
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_ntkge9yb",
+                                            type: "Text",
+                                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[3].children[0].children[1]",
+                                            name: "DashTeamStatPlayedLabel",
+                                            text: "Gespeeld",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Column_uxw83tun",
+                                        type: "Column",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[3].children[1]",
+                                        name: "DashTeamStatRecord",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_e8sclbv8",
+                                            type: "Text",
+                                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[3].children[1].children[0]",
+                                            name: "DashTeamStatRecordValue",
+                                          ),
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_5kbjglow",
+                                            type: "Text",
+                                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[3].children[1].children[1]",
+                                            name: "DashTeamStatRecordLabel",
+                                            text: "W-G-V",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Column_hefhitr7",
+                                        type: "Column",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[3].children[2]",
+                                        name: "DashTeamStatDiff",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_jxpqnbnc",
+                                            type: "Text",
+                                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[3].children[2].children[0]",
+                                            name: "DashTeamStatDiffValue",
+                                          ),
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_klv68wly",
+                                            type: "Text",
+                                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[0].children[0].children[3].children[2].children[1]",
+                                            name: "DashTeamStatDiffLabel",
+                                            text: "Doelsaldo",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_e0ned3i3",
+                            type: "Container",
+                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[1]",
+                            name: "DashTeamMoodCard",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Column_asnimxvq",
+                                type: "Column",
+                                path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0]",
+                                name: "DashTeamMoodCol",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_ap6n7lwj",
+                                    type: "Row",
+                                    path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[0]",
+                                    name: "DashTeamMoodHead",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_meq42hns",
+                                        type: "Icon",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[0].children[0]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_x60zm1t3",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[0].children[1]",
+                                        name: "DashTeamMoodTitle",
+                                        text: "Team sfeer",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_zbyhhrpd",
+                                    type: "Text",
+                                    path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[1]",
+                                    name: "DashMoodLabel",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_qr2tvbh2",
+                                    type: "Row",
+                                    path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[2]",
+                                    name: "DashMoodFaceRow",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_b4frirqj",
+                                        type: "Icon",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[2].children[0]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_cujxxb09",
+                                        type: "Icon",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[2].children[1]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_nu7z2j0p",
+                                        type: "Icon",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[2].children[2]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_5vtyjf20",
+                                        type: "Icon",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[2].children[3]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_65ib6f8l",
+                                        type: "Icon",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[2].children[4]",
+                                        name: "Icon",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_pypbgghe",
+                                    type: "Text",
+                                    path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[3]",
+                                    name: "DashMoodCount",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_1gng3e07",
+                                    type: "Row",
+                                    path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[4]",
+                                    name: "DashMoodVoteRow",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_ou3ifdgn",
+                                        type: "Container",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[4].children[0]",
+                                        name: "DashMoodVote1",
+                                        triggers: const <String>[
+                                          "ON_TAP",
+                                        ],
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Icon_xdvdycks",
+                                            type: "Icon",
+                                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[4].children[0].children[0]",
+                                            name: "Icon",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_keh8dgd8",
+                                        type: "Container",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[4].children[1]",
+                                        name: "DashMoodVote2",
+                                        triggers: const <String>[
+                                          "ON_TAP",
+                                        ],
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Icon_t6m0i6oi",
+                                            type: "Icon",
+                                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[4].children[1].children[0]",
+                                            name: "Icon",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_o6if0etg",
+                                        type: "Container",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[4].children[2]",
+                                        name: "DashMoodVote3",
+                                        triggers: const <String>[
+                                          "ON_TAP",
+                                        ],
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Icon_q1ff6rc8",
+                                            type: "Icon",
+                                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[4].children[2].children[0]",
+                                            name: "Icon",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_7zb66nxs",
+                                        type: "Container",
+                                        path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[4].children[3]",
+                                        name: "DashMoodVote4",
+                                        triggers: const <String>[
+                                          "ON_TAP",
+                                        ],
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Icon_jea11acp",
+                                            type: "Icon",
+                                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[1].children[0].children[4].children[3].children[0]",
+                                            name: "Icon",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "Container_st7w0qz4",
+                    type: "Container",
+                    path: "DashboardPage.body[0].children[0].children[7]",
+                    name: "DashSeasonStatsCard Margin",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Container_jamyui37",
+                        type: "Container",
+                        path: "DashboardPage.body[0].children[0].children[7].children[0]",
+                        name: "DashSeasonStatsCard",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Column_yattmtuf",
+                            type: "Column",
+                            path: "DashboardPage.body[0].children[0].children[7].children[0].children[0]",
+                            name: "DashSeasonStatsCol",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_ti9p7ml3",
+                                type: "Row",
+                                path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[0]",
+                                name: "DashSeasonStatsHead",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_78hq0fbg",
+                                    type: "Text",
+                                    path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[0].children[0]",
+                                    name: "DashSeasonStatsTitle",
+                                    text: "Statistieken",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Container_oo7n14pw",
+                                    type: "Container",
+                                    path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[0].children[1]",
+                                    name: "DashSeasonChip",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_mq5kltnu",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[0].children[1].children[0]",
+                                        name: "DashSeasonLabel",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_asjmxctd",
+                                type: "Row",
+                                path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[1]",
+                                name: "DashSeasonStatsRowA",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_qkmanbsr",
+                                    type: "Column",
+                                    path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[1].children[0]",
+                                    name: "DashStatAttendance",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_4d5auxnu",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[1].children[0].children[0]",
+                                        name: "DashStatAttendanceValue",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_y41z5ayq",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[1].children[0].children[1]",
+                                        name: "DashStatAttendanceLabel",
+                                        text: "Aanwezigheid",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_rz2bw51y",
+                                    type: "Column",
+                                    path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[1].children[1]",
+                                    name: "DashStatMatches",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_2rx1lgiz",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[1].children[1].children[0]",
+                                        name: "DashStatMatchesValue",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_m4glfete",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[1].children[1].children[1]",
+                                        name: "DashStatMatchesLabel",
+                                        text: "Wedstrijden",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_rrh6yh9p",
+                                    type: "Column",
+                                    path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[1].children[2]",
+                                    name: "DashStatTrainings",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_20opj30r",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[1].children[2].children[0]",
+                                        name: "DashStatTrainingsValue",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_7xaawyye",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[1].children[2].children[1]",
+                                        name: "DashStatTrainingsLabel",
+                                        text: "Trainingen",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_lsv1bx69",
+                                type: "Row",
+                                path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[2]",
+                                name: "DashSeasonStatsRowB",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_rur1p63u",
+                                    type: "Column",
+                                    path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[2].children[0]",
+                                    name: "DashStatGoals",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_ittrofxc",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[2].children[0].children[0]",
+                                        name: "DashStatGoalsValue",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_wucqrq1e",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[2].children[0].children[1]",
+                                        name: "DashStatGoalsLabel",
+                                        text: "Doelpunten",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_heqmbsan",
+                                    type: "Column",
+                                    path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[2].children[1]",
+                                    name: "DashStatAssists",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_srbfhf3c",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[2].children[1].children[0]",
+                                        name: "DashStatAssistsValue",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_oyscd9x6",
+                                        type: "Text",
+                                        path: "DashboardPage.body[0].children[0].children[7].children[0].children[0].children[2].children[1].children[1]",
+                                        name: "DashStatAssistsLabel",
+                                        text: "Assists",
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "Column_6hafblaz",
+                    type: "Column",
+                    path: "DashboardPage.body[0].children[0].children[8]",
                     name: "GuestInvitationsContainer",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_z3n1kh28",
+                        key: "Container_2wd97x1g",
                         type: "Container",
-                        path: "DashboardPage.body[0].children[0].children[6].children[0]",
+                        path: "DashboardPage.body[0].children[0].children[8].children[0]",
                         name: "GuestInvHeaderWrap",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_o1u96cdg",
+                            key: "Text_hvb7u8ck",
                             type: "Text",
-                            path: "DashboardPage.body[0].children[0].children[6].children[0].children[0]",
+                            path: "DashboardPage.body[0].children[0].children[8].children[0].children[0]",
                             name: "GuestInvHeader",
                             text: "Mijn uitnodigingen",
                           ),
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "ListView_qgtll398",
+                        key: "ListView_ydkekrof",
                         type: "ListView",
-                        path: "DashboardPage.body[0].children[0].children[6].children[1]",
+                        path: "DashboardPage.body[0].children[0].children[8].children[1]",
                         name: "GuestInvitationsList",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_n298ej4h",
+                            key: "Container_iegfphqv",
                             type: "Container",
-                            path: "DashboardPage.body[0].children[0].children[6].children[1].children[0]",
+                            path: "DashboardPage.body[0].children[0].children[8].children[1].children[0]",
                             name: "GuestInvCard",
                             triggers: const <String>[
                               "ON_TAP",
                             ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_1vxa9okj",
+                                key: "Column_nx7g5tum",
                                 type: "Column",
-                                path: "DashboardPage.body[0].children[0].children[6].children[1].children[0].children[0]",
+                                path: "DashboardPage.body[0].children[0].children[8].children[1].children[0].children[0]",
                                 name: "GuestInvInfo",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_d0tg30ah",
+                                    key: "Text_vxef6eju",
                                     type: "Text",
-                                    path: "DashboardPage.body[0].children[0].children[6].children[1].children[0].children[0].children[0]",
+                                    path: "DashboardPage.body[0].children[0].children[8].children[1].children[0].children[0].children[0]",
                                     name: "GuestInvTag",
                                     text: "Uitgenodigd als gastspeler",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_v4nf8yc6",
+                                    key: "Text_7gkbvens",
                                     type: "Text",
-                                    path: "DashboardPage.body[0].children[0].children[6].children[1].children[0].children[0].children[1]",
+                                    path: "DashboardPage.body[0].children[0].children[8].children[1].children[0].children[0].children[1]",
                                     name: "GuestInvOpponent",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_qg2v256o",
+                                    key: "Row_jhjfff01",
                                     type: "Row",
-                                    path: "DashboardPage.body[0].children[0].children[6].children[1].children[0].children[0].children[2]",
+                                    path: "DashboardPage.body[0].children[0].children[8].children[1].children[0].children[0].children[2]",
                                     name: "GuestInvMetaRow",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_wogg835i",
+                                        key: "Container_pmx9sbm4",
                                         type: "Container",
-                                        path: "DashboardPage.body[0].children[0].children[6].children[1].children[0].children[0].children[2].children[0]",
+                                        path: "DashboardPage.body[0].children[0].children[8].children[1].children[0].children[0].children[2].children[0]",
                                         name: "GuestInvHomeAwayBadge",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_g9mks2s9",
+                                            key: "Text_f24iwvbm",
                                             type: "Text",
-                                            path: "DashboardPage.body[0].children[0].children[6].children[1].children[0].children[0].children[2].children[0].children[0]",
+                                            path: "DashboardPage.body[0].children[0].children[8].children[1].children[0].children[0].children[2].children[0].children[0]",
                                             name: "GuestInvHomeAway",
                                           ),
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_5xt2i4gu",
+                                        key: "Text_vl2jxeeh",
                                         type: "Text",
-                                        path: "DashboardPage.body[0].children[0].children[6].children[1].children[0].children[0].children[2].children[1]",
+                                        path: "DashboardPage.body[0].children[0].children[8].children[1].children[0].children[0].children[2].children[1]",
                                         name: "GuestInvDate",
                                       ),
                                     ],
@@ -1327,43 +1801,43 @@ abstract final class DashboardPageWidgets {
         ],
         "drawer": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "Drawer_x9mirecp",
+            key: "Drawer_wnakwsw3",
             type: "Drawer",
             path: "DashboardPage.drawer[0]",
             name: "AppDrawer",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_35zjlybp",
+                key: "Column_lcilof2d",
                 type: "Column",
                 path: "DashboardPage.drawer[0].children[0]",
                 name: "DrawerMenuColumn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_as9nvf13",
+                    key: "Container_xjcffk0u",
                     type: "Container",
                     path: "DashboardPage.drawer[0].children[0].children[0]",
                     name: "DrawerHeader",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_9wpbe9cl",
+                        key: "Column_ss53zkgu",
                         type: "Column",
                         path: "DashboardPage.drawer[0].children[0].children[0].children[0]",
                         name: "DrawerHeaderColumn",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_9vg50ayx",
+                            key: "Container_9cm7fu92",
                             type: "Container",
                             path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[0]",
                             name: "DrawerHeaderAvatar",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "0vs44or8",
+                                key: "qhluenzd",
                                 type: "CircleImage",
                                 path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "DrawerHeaderPhoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_5yjo89op",
+                                key: "Icon_nv7x389l",
                                 type: "Icon",
                                 path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "Icon",
@@ -1371,13 +1845,13 @@ abstract final class DashboardPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_u20m89k8",
+                            key: "Text_nmhjnru9",
                             type: "Text",
                             path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[1]",
                             name: "DrawerHeaderName",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_okdhgqgi",
+                            key: "Text_kpauc4t3",
                             type: "Text",
                             path: "DashboardPage.drawer[0].children[0].children[0].children[0].children[2]",
                             name: "DrawerHeaderEmail",
@@ -1387,7 +1861,7 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_5mezl60m",
+                    key: "ListTile_8ervasta",
                     type: "ListTile",
                     path: "DashboardPage.drawer[0].children[0].children[1]",
                     name: "DrawerTileHome",
@@ -1396,7 +1870,7 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_ctyfa0s4",
+                    key: "ListTile_o83u5pzr",
                     type: "ListTile",
                     path: "DashboardPage.drawer[0].children[0].children[2]",
                     name: "DrawerTileNews",
@@ -1405,7 +1879,7 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_xrc9pb4x",
+                    key: "ListTile_exwk1w0r",
                     type: "ListTile",
                     path: "DashboardPage.drawer[0].children[0].children[3]",
                     name: "DrawerTileDocs",
@@ -1414,7 +1888,7 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_2wkp25qs",
+                    key: "ListTile_7ueqvuyd",
                     type: "ListTile",
                     path: "DashboardPage.drawer[0].children[0].children[4]",
                     name: "DrawerTileProfiel",
@@ -1423,7 +1897,7 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_mt6m7yhf",
+                    key: "ListTile_g47olxsj",
                     type: "ListTile",
                     path: "DashboardPage.drawer[0].children[0].children[5]",
                     name: "DrawerTileBug",
@@ -1432,25 +1906,25 @@ abstract final class DashboardPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_w25z2t0i",
+                    key: "Container_wcq3zc8w",
                     type: "Container",
                     path: "DashboardPage.drawer[0].children[0].children[6]",
                     name: "DrawerFooterSpacer",
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_k40b6hh7",
+                    key: "Container_48777vjm",
                     type: "Container",
                     path: "DashboardPage.drawer[0].children[0].children[7]",
                     name: "DrawerFooterLogoWrap",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Row_uk1zajph",
+                        key: "Row_xiplnd5e",
                         type: "Row",
                         path: "DashboardPage.drawer[0].children[0].children[7].children[0]",
                         name: "DrawerFooterLogoRow",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "9mlr8nzn",
+                            key: "be1zhsa9",
                             type: "Image",
                             path: "DashboardPage.drawer[0].children[0].children[7].children[0].children[0]",
                             name: "DrawerFooterLogo",

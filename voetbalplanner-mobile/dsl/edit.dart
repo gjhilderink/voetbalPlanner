@@ -1327,6 +1327,12 @@ void buildEditFlow(App app) {
     _ensureActivityItemStruct(project);
     _ensureActivityAppStateFields(project);
     _ensureBuildDashboardActivitiesAction(project);
+    // Seizoenscijfers + teamsfeer: structs, AppState en endpoints moeten er ook
+    // zijn vóór de laadketen wordt opgebouwd.
+    _ensureTeamStatsStruct(project);
+    _ensureTeamMoodStruct(project);
+    _ensureStatsAppStateFields(project);
+    _addStatsEndpoints(project);
     _wireDashboardLoad(project);
     _fixDashboardListViewShrinkWrap(project);
     // Add "Rijschema" section: shows matches where the user is assigned to drive.
@@ -1464,6 +1470,7 @@ void buildEditFlow(App app) {
     _removeChatBadgeOverlayFromNonTabPages(project);
     _restyleDashboardAppBar(project);
     _wireDashboardActivities(project);
+    _wireStatsOnDashboardLoad(project);
     _rebuildDashboardBody(project);
   });
 }
@@ -25876,6 +25883,8 @@ void _rebuildDashboardBody(FFProject project) {
     _dashQuickRow(project, wc),
     _dashStaffCard(project, wc),
     _dashActivitiesCard(project, wc),
+    _dashStatsRow(project, wc),
+    _dashSeasonStatsCard(project, wc),
   ].whereType<FFNode>().toList();
 
   bodyCol.children.addAll(sections);
@@ -28102,3 +28111,571 @@ void _wireDashboardActivities(FFProject project) {
   }
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEIZOENSCIJFERS + TEAMSFEER (dashboardontwerp, onderste blokken)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Twee cijfers uit het ontwerp bestaan niet en zitten hier bewust niet in:
+//  - competitiepositie: daarvoor is de volledige standenlijst nodig, de app kent
+//    alleen de eigen wedstrijden. Het grote getal op de teamkaart is daarom het
+//    puntentotaal.
+//  - fair play: er worden nergens kaarten geregistreerd.
+
+/// Struct met de seizoenscijfers van het team én van de gebruiker zelf.
+void _ensureTeamStatsStruct(FFProject project) {
+  const fields = <String>[
+    'seasonLabel',
+    'played', 'won', 'drawn', 'lost', 'record',
+    'points', 'goalsFor', 'goalsAgainst', 'goalDifference',
+    'myMatches', 'myTrainings', 'myAttendance', 'myGoals', 'myAssists',
+  ];
+  _ensureFlatStringStruct(
+    project,
+    name: 'TeamStats',
+    description:
+        'Seizoenscijfers van het team en van de ingelogde gebruiker, voor de dashboardblokken "Team statistieken" en "Statistieken".',
+    fields: fields,
+  );
+}
+
+/// Struct met de teamsfeer van deze week.
+void _ensureTeamMoodStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'TeamMood',
+    description:
+        'Teamsfeer van deze week: gemiddelde score, aantal reacties en de eigen stem.',
+    fields: const [
+      'week', 'count', 'average', 'score', 'label', 'myScore', 'hasVoted',
+    ],
+  );
+}
+
+/// Maakt of vult een struct met louter String-velden aan. Idempotent.
+void _ensureFlatStringStruct(
+  FFProject project, {
+  required String name,
+  required String description,
+  required List<String> fields,
+}) {
+  final existing = findDataStruct(project, name: name);
+  if (existing == null) {
+    addDataStruct(
+      project,
+      name: name,
+      description: description,
+      fields: [
+        for (final f in fields)
+          structField(f, stringType, description: '$name: $f'),
+      ],
+    );
+    return;
+  }
+  for (final f in fields) {
+    if (existing.fields.any((x) => x.identifier.name == f)) continue;
+    existing.fields.add(FFParameter(
+      identifier: FFIdentifier(name: f, key: generateRandomAlphaNumericString()),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ));
+  }
+}
+
+/// AppState-velden voor beide blokken. Enkelvoudige structs, geen lijsten.
+void _ensureStatsAppStateFields(FFProject project) {
+  void ensureStruct(String fieldName, String structName) {
+    if (project.appState.fields
+        .any((f) => f.parameter.identifier.name == fieldName)) return;
+    final struct = findDataStruct(project, name: structName);
+    if (struct == null) return;
+    project.appState.fields.add(FFAppStateField(
+      parameter: FFParameter(
+        identifier:
+            FFIdentifier(name: fieldName, key: generateRandomAlphaNumericString()),
+        dataType: dataStructType(struct.identifier.deepCopy()),
+      ),
+    ));
+  }
+
+  ensureStruct('teamStats', 'TeamStats');
+  ensureStruct('teamMood', 'TeamMood');
+}
+
+/// Endpoints voor de cijfers en de sfeer.
+void _addStatsEndpoints(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  if (findApiGroup(project, name: groupName) == null) return;
+
+  void ensure({
+    required String name,
+    required String url,
+    required String structName,
+    FFApiEndpoint_CallType method = FFApiEndpoint_CallType.GET,
+    List<String> variables = const ['token', 'teamId'],
+  }) {
+    if (findApiEndpoint(project, name: name, groupName: groupName) == null) {
+      addEndpointToGroup(
+        project,
+        groupName: groupName,
+        name: name,
+        url: url,
+        method: method,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {
+          for (final v in variables)
+            v: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        },
+        headers: ['Authorization: Bearer [token]'],
+        responseDataStructName: structName,
+        responseDataStructIsList: false,
+      );
+      return;
+    }
+    updateApiEndpoint(
+      project,
+      name: name,
+      groupName: groupName,
+      responseDataStructName: structName,
+      responseDataStructIsList: false,
+    );
+  }
+
+  ensure(
+    name: 'GetTeamStats',
+    url: '/teams/[teamId]/stats',
+    structName: 'TeamStats',
+  );
+  ensure(
+    name: 'GetTeamMood',
+    url: '/teams/[teamId]/mood',
+    structName: 'TeamMood',
+  );
+  // De score gaat als query-param mee: FlutterFlow interpoleert [var] alleen in
+  // de URL, niet in de body. Laravel's validate() leest query-params ook.
+  ensure(
+    name: 'SetTeamMood',
+    url: '/teams/[teamId]/mood?score=[score]',
+    structName: 'TeamMood',
+    method: FFApiEndpoint_CallType.POST,
+    variables: const ['token', 'teamId', 'score'],
+  );
+}
+
+/// Hangt het ophalen van de cijfers en de sfeer achteraan de dashboard-laadketen.
+void _wireStatsOnDashboardLoad(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final teamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  if (authTokenId == null || teamIdId == null) return;
+
+  bool hasCall(FFActionNode node, String endpoint) {
+    if (node.hasAction() &&
+        node.action.hasDatabase() &&
+        node.action.database.hasApiCall() &&
+        node.action.database.apiCall.hasEndpointIdentifier() &&
+        node.action.database.apiCall.endpointIdentifier.name == endpoint) {
+      return true;
+    }
+    return node.hasFollowUpAction() && hasCall(node.followUpAction, endpoint);
+  }
+
+  void wire(String endpoint, String stateField, String output) {
+    if (findApiEndpoint(project, name: endpoint, groupName: 'VoetbalPlannerAPI') ==
+        null) return;
+    if (_findAppStateFieldId(project, stateField) == null) return;
+    if (wc.node.triggerActions
+        .any((t) => t.hasRootAction() && hasCall(t.rootAction, endpoint))) {
+      return;
+    }
+    _appendToFirstPageLoadChain(
+      wc.node,
+      Actions.apiCallNode(
+        project,
+        endpointName: endpoint,
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'teamId': varFromAppState(teamIdId.deepCopy()),
+        },
+        outputVariableName: output,
+        nodeKey: wc.node.key,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable(stateField, ctx.responseVar),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  wire('GetTeamStats', 'teamStats', 'statsLoad');
+  wire('GetTeamMood', 'teamMood', 'moodLoad');
+}
+
+/// Kleine tegel met een label en een groot getal — de bouwsteen van de
+/// statistiekenblokken.
+FFNode _statTile({
+  required String name,
+  required String label,
+  required FFVariable valueVar,
+  String? suffix,
+  UIColor? valueColor,
+  String? iconName,
+}) {
+  final value = UI.text('',
+      name: '${name}Value',
+      style: UITextStyle.titleLarge,
+      fontWeight: UIFontWeight.w700,
+      color: valueColor,
+      textAlign: UITextAlign.center,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  value.props.text.textValue = suffix == null
+      ? FFStringValue(variable: valueVar)
+      : interpolateVar([valueVar, suffix]);
+
+  final children = <FFNode>[
+    if (iconName != null) UI.icon(iconName, size: 18, color: UIColor.secondaryText),
+    value,
+    UI.text(label,
+        name: '${name}Label',
+        style: UITextStyle.labelSmall,
+        color: UIColor.secondaryText,
+        textAlign: UITextAlign.center,
+        maxLines: 2,
+        textOverflow: UITextOverflow.ellipsis),
+  ];
+
+  return UI.column(
+    name: name,
+    mainAxisMin: true,
+    spacing: 2,
+    children: children,
+  );
+}
+
+/// "Team statistieken": punten groot, daaronder gespeeld, doelsaldo en de
+/// winst-gelijk-verlies-reeks.
+FFNode? _dashTeamStatsCard(FFProject project, FFWidgetClass wc) {
+  final statsId = _findAppStateFieldId(project, 'teamStats');
+  if (statsId == null) return null;
+  final scaffoldKey = wc.node.key;
+
+  FFVariable stat(String field) => varFromAppState(statsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)
+    ..operations.add(FFVariableOperation(
+      accessDataStructField:
+          FFAccessDataStructField(fieldIdentifier: FFIdentifier(name: field)),
+    ));
+
+  final points = UI.text('',
+      name: 'DashTeamStatsPoints',
+      style: UITextStyle.displaySmall,
+      fontSize: 34,
+      fontWeight: UIFontWeight.w700,
+      color: UIColor.primary,
+      textAlign: UITextAlign.center,
+      maxLines: 1);
+  points.props.text.textValue = FFStringValue(variable: stat('points'));
+
+  return _dashCard(
+    name: 'DashTeamStatsCard',
+    padding: UIEdgeInsets.all(14),
+    child: UI.column(
+      name: 'DashTeamStatsCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        UI.row(
+          name: 'DashTeamStatsHead',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('leaderboard', size: 20, color: UIColor.primary),
+            UI.expanded(UI.text('Team statistieken',
+                name: 'DashTeamStatsTitle',
+                style: UITextStyle.titleSmall,
+                maxLines: 2,
+                textOverflow: UITextOverflow.ellipsis)),
+          ],
+        ),
+        points,
+        UI.text('Punten',
+            name: 'DashTeamStatsPointsLabel',
+            style: UITextStyle.labelSmall,
+            color: UIColor.secondaryText,
+            textAlign: UITextAlign.center),
+        UI.row(
+          name: 'DashTeamStatsRow',
+          mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          children: [
+            _statTile(
+                name: 'DashTeamStatPlayed',
+                label: 'Gespeeld',
+                valueVar: stat('played')),
+            _statTile(
+                name: 'DashTeamStatRecord',
+                label: 'W-G-V',
+                valueVar: stat('record')),
+            _statTile(
+                name: 'DashTeamStatDiff',
+                label: 'Doelsaldo',
+                valueVar: stat('goalDifference')),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+/// "Team sfeer": gemiddelde als smiley, plus vier knoppen om zelf te stemmen.
+FFNode? _dashTeamMoodCard(FFProject project, FFWidgetClass wc) {
+  final moodId = _findAppStateFieldId(project, 'teamMood');
+  if (moodId == null) return null;
+  final scaffoldKey = wc.node.key;
+
+  FFVariable mood(String field) => varFromAppState(moodId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)
+    ..operations.add(FFVariableOperation(
+      accessDataStructField:
+          FFAccessDataStructField(fieldIdentifier: FFIdentifier(name: field)),
+    ));
+
+  // Grote smiley: vier varianten, elk zichtbaar bij de bijbehorende score.
+  FFNode faceFor(String score, String icon, UIColor color) {
+    final n = UI.icon(icon, size: 62, color: color);
+    setConditionalVisibility(n, variable: _equalsLiteral(mood('score'), score));
+    return n;
+  }
+
+  final noVotes = UI.icon('sentiment_neutral', size: 62, color: UIColor.hex(0xFFD5D9E0));
+  setConditionalVisibility(noVotes, variable: _equalsLiteral(mood('score'), '0'));
+
+  final face = UI.row(
+    name: 'DashMoodFaceRow',
+    mainAxisAlignment: UIMainAxisAlignment.center,
+    mainAxisMin: true,
+    children: [
+      noVotes,
+      faceFor('1', 'sentiment_very_dissatisfied', UIColor.hex(0xFFEF4444)),
+      faceFor('2', 'sentiment_dissatisfied', UIColor.hex(0xFFF59E0B)),
+      faceFor('3', 'sentiment_satisfied', UIColor.hex(0xFF84CC16)),
+      faceFor('4', 'sentiment_very_satisfied', UIColor.hex(0xFF16A34A)),
+    ],
+  );
+
+  final label = UI.text('',
+      name: 'DashMoodLabel',
+      style: UITextStyle.titleSmall,
+      color: UIColor.success,
+      textAlign: UITextAlign.center,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  label.props.text.textValue = FFStringValue(variable: mood('label'));
+
+  final count = UI.text('',
+      name: 'DashMoodCount',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center,
+      maxLines: 2);
+  count.props.text.textValue =
+      interpolateVar(['Gebaseerd op ', mood('count'), ' reacties']);
+
+  // Stemknoppen. Elke knop stuurt zijn score en zet het antwoord terug in
+  // AppState, zodat de smiley meteen meebeweegt.
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final teamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  final canVote = authTokenId != null &&
+      teamIdId != null &&
+      findApiEndpoint(project, name: 'SetTeamMood', groupName: 'VoetbalPlannerAPI') !=
+          null;
+
+  FFNode voteButton(String score, String icon, UIColor color) {
+    final btn = UI.container(
+      name: 'DashMoodVote$score',
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      color: UIColor.hex(0xFFF1F5F9),
+      alignment: UIAlignment.center,
+      child: UI.icon(icon, size: 24, color: color),
+    );
+    if (canVote) {
+      Actions.onTapChain(
+        btn,
+        Actions.apiCallNode(
+          project,
+          endpointName: 'SetTeamMood',
+          groupName: 'VoetbalPlannerAPI',
+          variables: {'score': score},
+          dynamicVariables: {
+            'token': varFromAppState(authTokenId.deepCopy()),
+            'teamId': varFromAppState(teamIdId.deepCopy()),
+          },
+          outputVariableName: 'moodVote$score',
+          nodeKey: btn.key,
+          onSuccess: (ctx) => Actions.chain([
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable('teamMood', ctx.responseVar),
+            ]),
+          ]),
+          onFailure: (ctx) => Actions.chain([
+            Actions.snackBar('Kon je reactie niet opslaan.'),
+          ]),
+        ),
+      );
+    }
+    return btn;
+  }
+
+  return _dashCard(
+    name: 'DashTeamMoodCard',
+    padding: UIEdgeInsets.all(14),
+    child: UI.column(
+      name: 'DashTeamMoodCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        UI.row(
+          name: 'DashTeamMoodHead',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('mood', size: 20, color: UIColor.primary),
+            UI.expanded(UI.text('Team sfeer',
+                name: 'DashTeamMoodTitle',
+                style: UITextStyle.titleSmall,
+                maxLines: 2,
+                textOverflow: UITextOverflow.ellipsis)),
+          ],
+        ),
+        label,
+        face,
+        count,
+        UI.row(
+          name: 'DashMoodVoteRow',
+          mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            voteButton('1', 'sentiment_very_dissatisfied', UIColor.hex(0xFFEF4444)),
+            voteButton('2', 'sentiment_dissatisfied', UIColor.hex(0xFFF59E0B)),
+            voteButton('3', 'sentiment_satisfied', UIColor.hex(0xFF84CC16)),
+            voteButton('4', 'sentiment_very_satisfied', UIColor.hex(0xFF16A34A)),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+/// Rij met de teamkaart en de sfeerkaart naast elkaar.
+FFNode? _dashStatsRow(FFProject project, FFWidgetClass wc) {
+  final stats = _dashTeamStatsCard(project, wc);
+  final mood = _dashTeamMoodCard(project, wc);
+  final cards = <FFNode>[
+    if (stats != null) UI.expanded(stats),
+    if (mood != null) UI.expanded(mood),
+  ];
+  if (cards.isEmpty) return null;
+
+  return UI.container(
+    name: 'DashStatsRowWrap',
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.row(
+      name: 'DashStatsRow',
+      spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      children: cards,
+    ),
+  );
+}
+
+/// "Statistieken": de persoonlijke seizoenscijfers, over de volle breedte.
+FFNode? _dashSeasonStatsCard(FFProject project, FFWidgetClass wc) {
+  final statsId = _findAppStateFieldId(project, 'teamStats');
+  if (statsId == null) return null;
+  final scaffoldKey = wc.node.key;
+
+  FFVariable stat(String field) => varFromAppState(statsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)
+    ..operations.add(FFVariableOperation(
+      accessDataStructField:
+          FFAccessDataStructField(fieldIdentifier: FFIdentifier(name: field)),
+    ));
+
+  final seasonChip = UI.container(
+    name: 'DashSeasonChip',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    borderRadius: 10,
+    color: UIColor.hex(0xFFEFF1F5),
+    child: () {
+      final t = UI.text('',
+          name: 'DashSeasonLabel',
+          style: UITextStyle.labelSmall,
+          color: UIColor.secondaryText,
+          maxLines: 1);
+      t.props.text.textValue = interpolateVar(['Seizoen ', stat('seasonLabel')]);
+      return t;
+    }(),
+  );
+
+  return _dashCard(
+    name: 'DashSeasonStatsCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.column(
+      name: 'DashSeasonStatsCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 14,
+      children: [
+        UI.row(
+          name: 'DashSeasonStatsHead',
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.expanded(UI.text('Statistieken',
+                name: 'DashSeasonStatsTitle', style: UITextStyle.titleSmall)),
+            seasonChip,
+          ],
+        ),
+        UI.row(
+          name: 'DashSeasonStatsRowA',
+          mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          children: [
+            _statTile(
+                name: 'DashStatAttendance',
+                label: 'Aanwezigheid',
+                valueVar: stat('myAttendance'),
+                suffix: '%',
+                valueColor: UIColor.success),
+            _statTile(
+                name: 'DashStatMatches',
+                label: 'Wedstrijden',
+                valueVar: stat('myMatches')),
+            _statTile(
+                name: 'DashStatTrainings',
+                label: 'Trainingen',
+                valueVar: stat('myTrainings')),
+          ],
+        ),
+        UI.row(
+          name: 'DashSeasonStatsRowB',
+          mainAxisAlignment: UIMainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          children: [
+            _statTile(
+                name: 'DashStatGoals',
+                label: 'Doelpunten',
+                valueVar: stat('myGoals')),
+            _statTile(
+                name: 'DashStatAssists',
+                label: 'Assists',
+                valueVar: stat('myAssists')),
+          ],
+        ),
+      ],
+    ),
+  );
+}

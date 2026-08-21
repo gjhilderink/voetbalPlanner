@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\StaffGroupController;
 use App\Http\Controllers\Api\SwapRequestController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\TeamMoodController;
+use App\Http\Controllers\Api\TeamStatsController;
 use Illuminate\Support\Facades\Route;
 
 // Globale catch-all voor OPTIONS preflight — moet ALS EERSTE staan zodat
@@ -139,6 +141,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/teams', [TeamController::class, 'index']);
         Route::get('/teams/{team}', [TeamController::class, 'show']);
         Route::get('/teams/{team}/members', [TeamController::class, 'members']);
+        // Seizoenscijfers (team + jezelf) en teamsfeer voor het dashboard.
+        Route::get('/teams/{team}/stats', [TeamStatsController::class, 'show']);
+        Route::get('/teams/{team}/mood', [TeamMoodController::class, 'show']);
+        Route::post('/teams/{team}/mood', [TeamMoodController::class, 'store']);
 
         // Members
         Route::get('/members', [MemberController::class, 'index']);

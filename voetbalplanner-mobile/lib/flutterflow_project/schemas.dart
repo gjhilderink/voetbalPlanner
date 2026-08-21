@@ -354,12 +354,46 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle teamMood = ffai.StructHandle(
+    "TeamMood",
+    <String, ffai.DslType>{
+      "average": ffai.string,
+      "count": ffai.string,
+      "hasVoted": ffai.string,
+      "label": ffai.string,
+      "myScore": ffai.string,
+      "score": ffai.string,
+      "week": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle teamOption = ffai.StructHandle(
     "TeamOption",
     <String, ffai.DslType>{
       "id": ffai.string,
       "name": ffai.string,
       "role": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
+  static final ffai.StructHandle teamStats = ffai.StructHandle(
+    "TeamStats",
+    <String, ffai.DslType>{
+      "drawn": ffai.string,
+      "goalDifference": ffai.string,
+      "goalsAgainst": ffai.string,
+      "goalsFor": ffai.string,
+      "lost": ffai.string,
+      "myAssists": ffai.string,
+      "myAttendance": ffai.string,
+      "myGoals": ffai.string,
+      "myMatches": ffai.string,
+      "myTrainings": ffai.string,
+      "played": ffai.string,
+      "points": ffai.string,
+      "record": ffai.string,
+      "seasonLabel": ffai.string,
+      "won": ffai.string,
     },
     description: ffai.generatedProjectStructDescription,
   );
@@ -418,7 +452,9 @@ abstract final class Structs {
     staffGroupItem,
     swapMember,
     swapRequest,
+    teamMood,
     teamOption,
+    teamStats,
     trainingItem,
     userRef,
   ];

@@ -359,6 +359,18 @@ abstract final class AppState {
     typeName: "List<DataStruct<FootMatch>>",
     persisted: false,
   );
+  static const teamMood = ffai.ProjectAppStateFieldHandle(
+    name: "teamMood",
+    key: "thusn4jr",
+    typeName: "DataStruct<TeamMood>",
+    persisted: false,
+  );
+  static const teamStats = ffai.ProjectAppStateFieldHandle(
+    name: "teamStats",
+    key: "cz6ucvyf",
+    typeName: "DataStruct<TeamStats>",
+    persisted: false,
+  );
   static const trainings = ffai.ProjectAppStateFieldHandle(
     name: "trainings",
     key: "ff2yon21",
@@ -449,6 +461,8 @@ abstract final class AppState {
     sharedBarDuties,
     sharedTeamMembers,
     teamMatches,
+    teamMood,
+    teamStats,
     trainings,
     unreadChatCount,
     userEmail,
