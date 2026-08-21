@@ -1472,6 +1472,13 @@ void buildEditFlow(App app) {
     _wireDashboardActivities(project);
     _wireStatsOnDashboardLoad(project);
     _rebuildDashboardBody(project);
+    // Trainingsopkomst: wie is er wel en wie niet. Ná _wireTrainingDetailPage,
+    // die de pagina-inhoud opbouwt waar deze sectie onderaan bij komt.
+    _ensureTrainingParticipantStruct(project);
+    _ensureTrainingParticipantsAppState(project);
+    _addTrainingParticipantsEndpoint(project);
+    _wireTrainingParticipantsLoad(project);
+    _buildTrainingAttendanceSection(project);
   });
 }
 
@@ -28824,4 +28831,281 @@ FFNode? _dashInvitationsCard(FFProject project, FFWidgetClass wc) {
   // Geen uitnodigingen? Dan ook geen lege kaart.
   setConditionalVisibility(card, variable: _listNotEmptyVar(invVar));
   return card;
+}
+
+// ── Trainingsopkomst: wie is er wel en wie niet ──────────────────────────────
+//
+// De trainingskaart toonde alleen aantallen en een lijstje afmeldingen. Voor de
+// trainer is juist de omgekeerde vraag belangrijk: wie kan ik verwachten. De
+// detailpagina haalt daarom de volledige teamlijst op, elk lid met status
+// aangemeld of afgemeld, en zet die in twee secties onder elkaar.
+
+void _ensureTrainingParticipantStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'TrainingParticipant',
+    description:
+        'Eén teamlid bij een training: naam, status (aangemeld/afgemeld) en de opgegeven reden.',
+    fields: const ['naam', 'status', 'reden', 'aantalAangemeld', 'aantalAfgemeld'],
+  );
+}
+
+void _ensureTrainingParticipantsAppState(FFProject project) {
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'trainingParticipants')) return;
+  final struct = findDataStruct(project, name: 'TrainingParticipant');
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(
+        name: 'trainingParticipants', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+void _addTrainingParticipantsEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  const endpointName = 'GetTrainingParticipants';
+  if (findApiGroup(project, name: groupName) == null) return;
+
+  if (findApiEndpoint(project, name: endpointName, groupName: groupName) == null) {
+    addEndpointToGroup(
+      project,
+      groupName: groupName,
+      name: endpointName,
+      url: '/trainings/[scheduleId]/[date]/deelnemers',
+      method: FFApiEndpoint_CallType.GET,
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      variables: {
+        'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'scheduleId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'date': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      headers: ['Authorization: Bearer [token]'],
+      responseDataStructName: 'TrainingParticipant',
+      responseDataStructIsList: true,
+    );
+    return;
+  }
+  updateApiEndpoint(
+    project,
+    name: endpointName,
+    groupName: groupName,
+    responseDataStructName: 'TrainingParticipant',
+    responseDataStructIsList: true,
+  );
+}
+
+/// Haalt de deelnemers op zodra de trainingdetailpagina opent.
+void _wireTrainingParticipantsLoad(FFProject project) {
+  final wc = findPage(project, name: 'TrainingDetailPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (authTokenId == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetTrainingParticipants', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+  if (_findAppStateFieldId(project, 'trainingParticipants') == null) return;
+
+  FFIdentifier? paramId(String name) => wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == name, orElse: () => null)
+      ?.identifier;
+
+  final scheduleP = paramId('scheduleId');
+  final dateP = paramId('date');
+  if (scheduleP == null || dateP == null) return;
+
+  FFVariable pageParam(FFIdentifier id) => varFromPageParam(id.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  bool hasLoad(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasDatabase() &&
+        n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name ==
+            'GetTrainingParticipants') {
+      return true;
+    }
+    return n.hasFollowUpAction() && hasLoad(n.followUpAction);
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && hasLoad(t.rootAction))) {
+    return;
+  }
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetTrainingParticipants',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'scheduleId': pageParam(scheduleP),
+        'date': pageParam(dateP),
+      },
+      outputVariableName: 'participantsLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('trainingParticipants', ctx.responseVar),
+        ]),
+      ]),
+    ),
+  );
+}
+
+/// Twee lijsten op de trainingdetailpagina: wie er is en wie niet.
+/// Vervangt het oude losse afmeldingenlijstje.
+void _buildTrainingAttendanceSection(FFProject project) {
+  final wc = findPage(project, name: 'TrainingDetailPage');
+  if (wc == null) return;
+  final partId = _findAppStateFieldId(project, 'trainingParticipants');
+  if (partId == null) return;
+
+  // Vers opbouwen elke push.
+  for (final name in const [
+    'TrainAttendanceCard',
+    'TrainAfmHeader',
+    'TrainAfmeldList',
+  ]) {
+    for (final n in findDescendants(wc.node, (x) => x.name == name).toList()) {
+      removeByKey(wc.node, n.key);
+    }
+  }
+
+  final column =
+      findDescendants(wc.node, (n) => n.name == 'TrainingDetailColumn').firstOrNull;
+  if (column == null) return;
+
+  final partVar = varFromAppState(partId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  /// Eén sectie: kop met telling, daaronder de leden met die status.
+  FFNode section({
+    required String key,
+    required String title,
+    required String status,
+    required String iconName,
+    required UIColor color,
+    required String countField,
+    bool withReason = false,
+  }) {
+    final list = UI.listView(
+      name: '${key}List',
+      shrinkWrap: true,
+      spacing: 2,
+      dynamicSource: DynamicSource(variable: partVar, itemName: key),
+    );
+
+    final naam = UI.text('',
+        name: '${key}Naam',
+        style: UITextStyle.bodyMedium,
+        maxLines: 1,
+        textOverflow: UITextOverflow.ellipsis);
+    naam.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, 'naam'));
+
+    final rowChildren = <FFNode>[
+      UI.icon(iconName, size: 18, color: color),
+      UI.expanded(naam),
+    ];
+    if (withReason) {
+      final reden = UI.text('',
+          name: '${key}Reden',
+          style: UITextStyle.bodySmall,
+          color: UIColor.secondaryText,
+          maxLines: 1,
+          textOverflow: UITextOverflow.ellipsis);
+      reden.props.text.textValue =
+          FFStringValue(variable: generatorVarField(list.key, 'reden'));
+      rowChildren.add(reden);
+    }
+
+    final item = UI.container(
+      name: '${key}Item',
+      innerPadding: UIEdgeInsets.symmetric(vertical: 5),
+      child: UI.row(
+        name: '${key}Row',
+        spacing: 8,
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: rowChildren,
+      ),
+    );
+    // Eén lijst over álle deelnemers; per regel bepaalt de status of hij in
+    // deze sectie hoort. Zo is er maar één bron en blijven de tellingen kloppen.
+    setConditionalVisibility(
+      item,
+      variable: _equalsLiteral(generatorVarField(list.key, 'status'), status),
+    );
+    list.children.add(item);
+
+    // "Aanwezig (11)". De telling staat op elke regel mee; de app kan een
+    // gefilterde lijst niet zelf tellen, dus we lezen die van het eerste item.
+    final heading = UI.text(title,
+        name: '${key}Title', style: UITextStyle.titleSmall);
+    heading.props.text.textValue = interpolateVar([
+      '$title (',
+      _firstItemVar(partVar, countField),
+      ')',
+    ]);
+
+    return UI.column(
+      name: key,
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 6,
+      children: [
+        UI.row(
+          name: '${key}Head',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon(iconName, size: 20, color: color),
+            UI.expanded(heading),
+          ],
+        ),
+        list,
+      ],
+    );
+  }
+
+  final card = _dashCard(
+    name: 'TrainAttendanceCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12, bottom: 4),
+    child: UI.column(
+      name: 'TrainAttendanceCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 16,
+      children: [
+        section(
+          key: 'TrainAanwezig',
+          title: 'Aanwezig',
+          status: 'aangemeld',
+          iconName: 'check_circle',
+          color: UIColor.success,
+          countField: 'aantalAangemeld',
+        ),
+        section(
+          key: 'TrainAfwezig',
+          title: 'Afgemeld',
+          status: 'afgemeld',
+          iconName: 'cancel',
+          color: UIColor.error,
+          countField: 'aantalAfgemeld',
+          withReason: true,
+        ),
+      ],
+    ),
+  );
+
+  // Zolang de lijst leeg is (nog aan het laden, of een team zonder leden) de
+  // kaart verbergen. De tellingen komen van het eerste item; zonder items zou
+  // er "Aanwezig (null)" staan.
+  setConditionalVisibility(card, variable: _listNotEmptyVar(partVar));
+
+  column.children.add(card);
 }

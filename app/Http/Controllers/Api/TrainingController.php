@@ -113,6 +113,77 @@ class TrainingController extends Controller
     }
 
     /**
+     * GET /v1/trainings/{schedule}/{date}/deelnemers
+     *
+     * Alle teamleden voor één training, elk met status 'aangemeld' of
+     * 'afgemeld'. Eén platte lijst en geen twee aparte lijsten: de app rendert
+     * er twee secties uit met een filter op status, en dat scheelt een
+     * geneste struct.
+     *
+     * Bedoeld voor de trainer, die in één oogopslag wil zien wie er komt.
+     */
+    public function deelnemers(Request $request, TrainingSchedule $schedule, string $date): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user?->accessibleTeams()->contains('id', $schedule->team_id)) {
+            return response()->json(['message' => 'Geen toegang tot dit team.'], 403);
+        }
+
+        $day = Carbon::parse($date)->toDateString();
+
+        $absences = Absence::query()
+            ->where('type', Absence::TYPE_TRAINING)
+            ->where('training_schedule_id', $schedule->id)
+            ->whereDate('training_date', $day)
+            ->with(['member:id,name', 'user:id,name'])
+            ->get();
+
+        // Afmeldingen op lidnummer, zodat ze te koppelen zijn aan de teamleden.
+        $reasonByMember = $absences
+            ->filter(fn ($a) => $a->member_id !== null)
+            ->mapWithKeys(fn ($a) => [$a->member_id => (string) $a->reason]);
+
+        $rows = [];
+        foreach ($schedule->team?->members()->orderBy('name')->get() ?? collect() as $member) {
+            $isAfgemeld = $reasonByMember->has($member->id);
+            $rows[] = [
+                'naam'   => $member->name,
+                'status' => $isAfgemeld ? 'afgemeld' : 'aangemeld',
+                'reden'  => $isAfgemeld ? $reasonByMember->get($member->id) : '',
+            ];
+        }
+
+        // Afmeldingen van losse accounts (geen lid) staan niet in de teamlijst,
+        // maar horen er wel bij te staan — anders mist de trainer ze.
+        foreach ($absences->filter(fn ($a) => $a->member_id === null) as $absence) {
+            $naam = $absence->user?->name;
+            if (! $naam) {
+                continue;
+            }
+            $rows[] = [
+                'naam'   => $naam,
+                'status' => 'afgemeld',
+                'reden'  => (string) $absence->reason,
+            ];
+        }
+
+        // Aangemeld eerst, daarbinnen op naam — dezelfde volgorde als de app toont.
+        usort($rows, fn ($a, $b) => [$a['status'], $a['naam']] <=> [$b['status'], $b['naam']]);
+
+        // De tellingen staan op elke regel. Dat is dubbelop, maar de app kan een
+        // gefilterde lijst niet tellen; zo kan de kop "Aanwezig (11)" tonen
+        // zonder een tweede endpoint.
+        $aangemeld = count(array_filter($rows, fn ($r) => $r['status'] === 'aangemeld'));
+        $afgemeld  = count($rows) - $aangemeld;
+        $rows = array_map(fn ($r) => $r + [
+            'aantalAangemeld' => (string) $aangemeld,
+            'aantalAfgemeld'  => (string) $afgemeld,
+        ], $rows);
+
+        return response()->json($rows);
+    }
+
+    /**
      * POST /v1/trainings/{schedule}/{date}/afmelden   body: { reason }
      */
     public function afmelden(Request $request, TrainingSchedule $schedule, string $date): JsonResponse

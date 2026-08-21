@@ -153,6 +153,7 @@ Route::prefix('v1')->group(function () {
 
         // Trainingen (herhaal-schema's per team → berekende occurrences)
         Route::get('/trainings', [TrainingController::class, 'index']);
+        Route::get('/trainings/{schedule}/{date}/deelnemers', [TrainingController::class, 'deelnemers']);
         Route::post('/trainings/{schedule}/{date}/afmelden', [TrainingController::class, 'afmelden']);
         Route::post('/trainings/{schedule}/{date}/aanmelden', [TrainingController::class, 'aanmelden']);
 

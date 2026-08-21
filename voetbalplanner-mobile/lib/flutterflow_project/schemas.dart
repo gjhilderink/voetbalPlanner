@@ -415,6 +415,17 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle trainingParticipant = ffai.StructHandle(
+    "TrainingParticipant",
+    <String, ffai.DslType>{
+      "aantalAangemeld": ffai.string,
+      "aantalAfgemeld": ffai.string,
+      "naam": ffai.string,
+      "reden": ffai.string,
+      "status": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle userRef = ffai.StructHandle(
     "UserRef",
     <String, ffai.DslType>{
@@ -456,6 +467,7 @@ abstract final class Structs {
     teamOption,
     teamStats,
     trainingItem,
+    trainingParticipant,
     userRef,
   ];
 }
