@@ -22444,7 +22444,7 @@ void _addDashboardGuestInvitations(FFProject project) {
   final hasEp = findApiEndpoint(project, name: 'GetMyGuestInvitations', groupName: 'VoetbalPlannerAPI') != null;
   if (authTokenId == null || invId == null || !hasEp) return;
 
-  // 1. onLoad: GetMyGuestInvitations -> AppState.guestInvitations (idempotent).
+  // onLoad: GetMyGuestInvitations -> AppState.guestInvitations (idempotent).
   bool hasLoad(FFActionNode n) {
     if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
         n.action.database.apiCall.hasEndpointIdentifier() &&
@@ -22462,67 +22462,12 @@ void _addDashboardGuestInvitations(FFProject project) {
     ));
   }
 
-  // 2. Rebuild de sectie fris.
+  // De sectie zelf wordt opgebouwd door _dashInvitationsCard, in dezelfde
+  // kaartopmaak als de rest van het dashboard. De oude, afwijkend opgemaakte
+  // nodes hier weghalen zodat ze niet blijven staan.
   for (final n in findDescendants(wc.node, (x) => x.name == 'GuestInvitationsContainer').toList()) {
     removeByKey(wc.node, n.key);
   }
-  final bodyCol = _dashboardBodyColumn(project);
-  if (bodyCol == null) return;
-
-  final invVar = varFromAppState(invId.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
-  final listView = UI.listView(name: 'GuestInvitationsList', shrinkWrap: true, spacing: 8,
-      padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      dynamicSource: DynamicSource(variable: invVar, itemName: 'inv'));
-
-  final tag = UI.text('Uitgenodigd als gastspeler', name: 'GuestInvTag', style: UITextStyle.labelSmall, color: UIColor.primary);
-  final opponentText = UI.text('', name: 'GuestInvOpponent', style: UITextStyle.bodyMedium);
-  opponentText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'opponent'));
-
-  final homeAwayVar = codeExpressionVar(
-      expression: "(h ?? '') == 'true' ? 'Thuis' : 'Uit'",
-      arguments: [CodeExpressionArg(name: 'h', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-          value: FFValue(variable: generatorVarField(listView.key, 'isHome')))],
-      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)));
-  final homeAwayText = UI.text('', name: 'GuestInvHomeAway', style: UITextStyle.labelSmall, color: UIColor.secondaryBackground);
-  homeAwayText.props.text.textValue = FFStringValue(variable: homeAwayVar);
-  final homeAwayBadge = UI.container(name: 'GuestInvHomeAwayBadge',
-      padding: UIEdgeInsets.all(5), borderRadius: 8,
-      color: UIColor.primary, child: homeAwayText);
-  final dateText = UI.text('', name: 'GuestInvDate', style: UITextStyle.bodySmall, color: UIColor.secondaryText);
-  dateText.props.text.textValue = FFStringValue(variable: generatorVarField(listView.key, 'matchDatetime'));
-  final metaRow = UI.row(name: 'GuestInvMetaRow', spacing: 8, crossAxisAlignment: UICrossAxisAlignment.center,
-      children: [homeAwayBadge, dateText]);
-
-  final infoCol = UI.column(name: 'GuestInvInfo', crossAxisAlignment: UICrossAxisAlignment.start, spacing: 4,
-      children: [tag, opponentText, metaRow]);
-  final card = UI.container(name: 'GuestInvCard', width: double.infinity, padding: UIEdgeInsets.all(12),
-      borderRadius: 8, color: UIColor.secondaryBackground, child: infoCol);
-  card.triggerActions.add(FFTriggerActions(
-    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
-    rootAction: FFActionNode(key: generateRandomAlphaNumericString(),
-      action: Actions.navigate(project, pageName: 'WedstrijdDetailPage',
-        params: {'matchId': VariableParamValue(generatorVarField(listView.key, 'matchId'))}))));
-  listView.children.add(card);
-
-  final container = UI.column(name: 'GuestInvitationsContainer', crossAxisAlignment: UICrossAxisAlignment.start,
-      spacing: 6, children: [
-        // 5px links van de titel.
-        UI.container(name: 'GuestInvHeaderWrap', padding: UIEdgeInsets.only(left: 5),
-            child: UI.text('Mijn uitnodigingen', name: 'GuestInvHeader', style: UITextStyle.titleMedium)),
-        listView,
-      ]);
-  // Alleen tonen als er ten minste één uitnodiging is (eerste item heeft opponent).
-  setConditionalVisibility(container, variable: conditionVar(
-      varFromAppState(invId.deepCopy())
-        ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)
-        ..operations.add(FFVariableOperation(listItemAtIndex: FFListItemAtIndex(type: FFListItemAtIndex_IndexType.FIRST)))
-        ..operations.add(FFVariableOperation(accessDataStructField: FFAccessDataStructField(
-            fieldIdentifier: _findStructFieldId(project, 'GuestInvitation', 'opponent')?.deepCopy() ?? FFIdentifier(name: 'opponent')))),
-      FFCondition_Relation.NOT_EQUAL_TO,
-      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
-
-  // Onderaan de dashboard-kolom plaatsen.
-  bodyCol.children.add(container);
 }
 
 // App-state lijstvelden voor de coach-dialoog (club-teams + spelers van het
@@ -25896,13 +25841,10 @@ void _rebuildDashboardBody(FFProject project) {
           .firstWhere((n) => n?.type == FFWidgetType.Column, orElse: () => null);
   if (bodyCol == null) return;
 
-  // Bestaande, elders opgebouwde onderdelen die we hergebruiken i.p.v.
-  // nabouwen: de teamswitcher (met zijn complete tap-keten) en het blok met
-  // gastuitnodigingen.
+  // De teamswitcher bouwen we niet na maar nemen we over: daar hangt de
+  // complete wisselketen aan (team zetten, wedstrijden en trainingen herladen).
   final switcher =
       findDescendants(bodyCol, (n) => n.name == 'DashboardTeamSwitcher').firstOrNull;
-  final guestInv =
-      findDescendants(bodyCol, (n) => n.name == 'GuestInvitationsContainer').firstOrNull;
 
   bodyCol.children.clear();
   final colProps = bodyCol.props.column.deepCopy();
@@ -25916,6 +25858,7 @@ void _rebuildDashboardBody(FFProject project) {
     _dashHeader(project, wc, switcher),
     _dashRoleTabs(project, wc),
     _dashNextMatchCard(project, wc),
+    _dashInvitationsCard(project, wc),
     _dashQuickRow(project, wc),
     _dashStaffCard(project, wc),
     _dashActivitiesCard(project, wc),
@@ -25924,7 +25867,6 @@ void _rebuildDashboardBody(FFProject project) {
   ].whereType<FFNode>().toList();
 
   bodyCol.children.addAll(sections);
-  if (guestInv != null) bodyCol.children.add(guestInv);
 }
 
 /// Rode kop: begroeting, profielfoto, meldingsbel en teamkeuze.
@@ -28714,4 +28656,172 @@ FFNode? _dashSeasonStatsCard(FFProject project, FFWidgetClass wc) {
       ],
     ),
   );
+}
+
+/// "Mijn uitnodigingen": wedstrijden waarvoor je als gastspeler gevraagd bent.
+/// Zelfde kaartopmaak als de andere dashboardblokken. De hele kaart is alleen
+/// zichtbaar als er ook echt een uitnodiging is.
+FFNode? _dashInvitationsCard(FFProject project, FFWidgetClass wc) {
+  final invId = _findAppStateFieldId(project, 'guestInvitations');
+  if (invId == null) return null;
+  final scaffoldKey = wc.node.key;
+  final invVar = varFromAppState(invId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final list = UI.listView(
+    name: 'GuestInvitationsList',
+    shrinkWrap: true,
+    spacing: 6,
+    dynamicSource: DynamicSource(variable: invVar, itemName: 'inv'),
+  );
+
+  FFNode bound(String name, String field, UITextStyle style,
+      {UIColor? color, int? maxLines, UIFontWeight? weight}) {
+    final t = UI.text('',
+        name: name,
+        style: style,
+        color: color,
+        fontWeight: weight,
+        maxLines: maxLines,
+        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, field));
+    return t;
+  }
+
+  // Tegenstanderlogo, met de bal als terugval wanneer er geen logo bekend is.
+  final logo = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.CircleImage,
+    name: 'GuestInvLogo',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue:
+            FFStringValue(variable: generatorVarField(list.key, 'opponentLogo')),
+        fit: FFBoxFit.FF_BOX_FIT_COVER,
+        cached: true,
+        dimensions: FFDimensions(
+          width: FFDim(pixelsValue: FFDoubleValue(inputValue: 40.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 40.0)),
+        ),
+      ),
+    ),
+  );
+  setConditionalVisibility(
+    logo,
+    variable: conditionVar(
+      generatorVarField(list.key, 'opponentLogo'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable,
+  );
+  final fallback = UI.container(
+    name: 'GuestInvIconWrap',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    color: UIColor.hex(0xFFEFF1F5),
+    alignment: UIAlignment.center,
+    child: UI.icon('sports_soccer', size: 20, color: UIColor.primary),
+  );
+  setConditionalVisibility(
+    fallback,
+    variable: conditionVar(
+      generatorVarField(list.key, 'opponentLogo'),
+      FFCondition_Relation.EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable,
+  );
+
+  // isHome komt als 'true'/'false' binnen; de struct typeert het als String.
+  final homeAway = UI.text('',
+      name: 'GuestInvHomeAway',
+      style: UITextStyle.labelSmall,
+      color: UIColor.secondaryText,
+      maxLines: 1);
+  homeAway.props.text.textValue = FFStringValue(
+    variable: codeExpressionVar(
+      expression: "(h ?? '') == 'true' ? 'Thuis' : 'Uit'",
+      arguments: [
+        CodeExpressionArg(
+          name: 'h',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: generatorVarField(list.key, 'isHome')),
+        ),
+      ],
+      returnType:
+          FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    ),
+  );
+
+  final row = UI.container(
+    name: 'GuestInvCard',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 6),
+    child: UI.row(
+      name: 'GuestInvRow',
+      spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        logo,
+        fallback,
+        UI.expanded(UI.column(
+          name: 'GuestInvInfo',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 3,
+          children: [
+            bound('GuestInvOpponent', 'opponent', UITextStyle.bodyMedium,
+                weight: UIFontWeight.w600, maxLines: 1),
+            UI.row(
+              name: 'GuestInvMetaRow',
+              spacing: 6,
+              crossAxisAlignment: UICrossAxisAlignment.center,
+              children: [
+                homeAway,
+                UI.expanded(bound('GuestInvDate', 'matchDatetime',
+                    UITextStyle.bodySmall,
+                    color: UIColor.secondaryText, maxLines: 1)),
+              ],
+            ),
+          ],
+        )),
+        UI.icon('chevron_right', size: 20, color: UIColor.secondaryText),
+      ],
+    ),
+  );
+  if (project.getWidgetClassByName('WedstrijdDetailPage') != null) {
+    Actions.onTap(
+      row,
+      Actions.navigate(project, pageName: 'WedstrijdDetailPage', params: {
+        'matchId': VariableParamValue(generatorVarField(list.key, 'matchId')),
+      }),
+    );
+  }
+  list.children.add(row);
+
+  final card = _dashCard(
+    name: 'GuestInvitationsContainer',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.column(
+      name: 'GuestInvCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: [
+        UI.row(
+          name: 'GuestInvHeaderRow',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('mail_outline', size: 20, color: UIColor.primary),
+            UI.expanded(UI.text('Mijn uitnodigingen',
+                name: 'GuestInvHeader', style: UITextStyle.titleSmall)),
+          ],
+        ),
+        list,
+      ],
+    ),
+  );
+  // Geen uitnodigingen? Dan ook geen lege kaart.
+  setConditionalVisibility(card, variable: _listNotEmptyVar(invVar));
+  return card;
 }
