@@ -20245,7 +20245,11 @@ FFNode _buildAppDrawerNode(FFProject project) {
   );
 
   // ── Menu tiles ─────────────────────────────────────────────────────────────
-  FFNode tile(String name, String label, String icon, String pageName) {
+  // replace: alleen voor "Home". De andere tegels moeten de pagina erbovenop
+  // zetten, anders is er niets om naar terug te keren — die pagina's hebben
+  // sinds de nieuwe navigatiebalk geen drawer meer om mee te ontsnappen.
+  FFNode tile(String name, String label, String icon, String pageName,
+      {bool replace = false}) {
     final t = UI.listTile(
       name: name,
       title: label,
@@ -20254,13 +20258,13 @@ FFNode _buildAppDrawerNode(FFProject project) {
     if (project.getWidgetClassByName(pageName) != null) {
       Actions.onTap(
         t,
-        Actions.navigate(project, pageName: pageName, replaceRoute: true),
+        Actions.navigate(project, pageName: pageName, replaceRoute: replace),
       );
     }
     return t;
   }
 
-  final homeTile = tile('DrawerTileHome', 'Home', 'home', 'DashboardPage');
+  final homeTile = tile('DrawerTileHome', 'Home', 'home', 'DashboardPage', replace: true);
   final newsTile = tile('DrawerTileNews', 'Nieuws', 'newspaper', 'NewsPage');
   final docsTile = tile('DrawerTileDocs', 'Handleiding', 'menu_book', 'DocumentatiePage');
   final profileTile = tile('DrawerTileProfiel', 'Profiel', 'person', 'ProfielPage');
@@ -20370,20 +20374,52 @@ void _addAppDrawerToPage(FFProject project, String pageName) {
   );
 }
 
+/// Drawer alleen op de zes NavBar-tabs.
+///
+/// Flutter geeft de drawer voorrang in de leading-plek van de AppBar: staat er
+/// een drawer op een pagina waar je naartoe genavigeerd bent, dan zie je het
+/// hamburgermenu in plaats van de terugpijl. Op een tab geeft dat niets — daar
+/// val je nooit "terug" — maar Rijschema, Bardienst en Profiel zijn sinds de
+/// nieuwe navigatiebalk subpagina's onder Meer. Met een drawer erop hadden ze
+/// geen terugpijl én geen navigatiebalk, en zat je vast.
 void _wireAppDrawerOnAllMainPages(FFProject project) {
-  const pages = [
+  const tabs = [
     'DashboardPage',
     'WedstrijdenPage',
     'TrainingenPage',
     'AgendaPage',
-    'BardienPage',
-    'RijschemaPage',
     'ChatsPage',
     'MeerPage',
-    'ProfielPage',
   ];
-  for (final p in pages) {
+  for (final p in tabs) {
     _addAppDrawerToPage(project, p);
+  }
+  for (final p in const ['BardienPage', 'RijschemaPage', 'ProfielPage']) {
+    _removeAppDrawerFromPage(project, p);
+  }
+}
+
+/// Haalt de drawer van een pagina af, zodat de AppBar weer een terugpijl toont.
+void _removeAppDrawerFromPage(FFProject project, String pageName) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+
+  final refs = wc.node.childPropertyMap['drawer'];
+  if (refs != null) {
+    final keys = refs.keyRefs.map((r) => r.key).toList();
+    wc.node.childPropertyMap.remove('drawer');
+    for (final key in keys) {
+      removeByKey(wc.node, key);
+    }
+  }
+
+  // De terugpijl komt van automaticallyImplyLeading; die stond al aan voor de
+  // hamburger en moet aan blijven.
+  final appBar = getPropertyChild(wc.node, 'appBar');
+  if (appBar != null && appBar.props.hasAppBar()) {
+    final copy = appBar.props.appBar.deepCopy();
+    copy.defaultBackButtonValue = FFBooleanValue(inputValue: true);
+    appBar.props.appBar = copy;
   }
 }
 
