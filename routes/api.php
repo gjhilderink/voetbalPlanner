@@ -62,8 +62,9 @@ Route::prefix('v1')->group(function () {
             'bug_reports_table_exists' => \Schema::hasTable('bug_reports'),
             'storage_link_exists'      => is_link(public_path('storage')),
             'routes_count'             => $routes->count(),
-            'app_env'                  => config('app.env'),
-            'app_debug'                => config('app.debug'),
+            // app_env en app_debug stonden hier ook in. Dat vertelt een
+            // buitenstaander of stacktraces aanstaan; niet iets om ongevraagd
+            // prijs te geven. De waarden staan in de .env op de server.
         ]);
     });
 
@@ -73,37 +74,12 @@ Route::prefix('v1')->group(function () {
     Route::options('/{any?}', fn() => response('', 204))->where('any', '.*');
     Route::get('/sync/health', [SyncController::class, 'healthCheck']);
 
-    // Debug (remove after troubleshooting)
-    Route::post('/debug/post-echo', fn(\Illuminate\Http\Request $r) => response()->json([
-        'body_all'      => $r->all(),
-        'body_raw'      => $r->getContent(),
-        'content_type'  => $r->header('Content-Type'),
-        'auth_header'   => $r->header('Authorization'),
-    ]));
-    Route::get('/debug/echo', fn(\Illuminate\Http\Request $r) => response()->json([
-        'auth_header'   => $r->header('Authorization'),
-        'bearer_token'  => $r->bearerToken(),
-        'query_token'   => $r->query('token'),
-        'all_headers'   => collect($r->headers->all())->map(fn($v) => implode(', ', $v)),
-        'all_query'     => $r->query(),
-    ]));
-    Route::get('/debug/token', fn(\Illuminate\Http\Request $r) => response()->json((function () use ($r) {
-        $raw = $r->bearerToken();
-        if (!$raw) return ['error' => 'no bearer token'];
-        [$id, $hash] = array_pad(explode('|', $raw, 2), 2, null);
-        $pat = \Laravel\Sanctum\PersonalAccessToken::find($id);
-        if (!$pat) return ['error' => 'token not found in db', 'id' => $id];
-        $user = \App\Models\User::withTrashed()->find($pat->tokenable_id);
-        return [
-            'token_id'       => $pat->id,
-            'tokenable_type' => $pat->tokenable_type,
-            'tokenable_id'   => $pat->tokenable_id,
-            'hash_match'     => hash_equals($pat->token, hash('sha256', $hash ?? '')),
-            'user_found'     => !!$user,
-            'user_deleted'   => $user?->deleted_at ? true : false,
-            'user_active'    => $user?->is_active,
-        ];
-    })()));
+    // De tijdelijke /debug/echo, /debug/post-echo en /debug/token routes zijn
+    // verwijderd. Ze stonden zonder auth open, en /debug/token gaf bij een
+    // wíllekeurige tokenwaarde alsnog het bijbehorende user-id terug plus of dat
+    // account actief of verwijderd was. Token-ids zijn oplopende getallen, dus
+    // daarmee waren alle gebruikers-UUID's af te lopen zonder in te loggen.
+    // Debug een tokenprobleem voortaan via de logs of tinker op de server.
 
     Route::middleware('auth:sanctum')->group(function () {
         // Auth

@@ -4,6 +4,21 @@ set -e
 
 echo "=== VoetbalPlanner Deploy ==="
 
+# Met APP_DEBUG=true krijgt iedere bezoeker die een fout uitlokt de volledige
+# stacktrace te zien, inclusief omgevingsvariabelen. Stop de deploy liever dan
+# dat dit ongemerkt blijft staan. Alleen overrulen als je weet waarom:
+#   ALLOW_DEBUG=1 ./deploy.sh
+if [ -f .env ]; then
+  if grep -qE '^APP_DEBUG=(true|1)' .env && [ "${ALLOW_DEBUG:-}" != "1" ]; then
+    echo "STOP: APP_DEBUG staat op true in .env." >&2
+    echo "      Zet APP_DEBUG=false en APP_ENV=production, of draai met ALLOW_DEBUG=1." >&2
+    exit 1
+  fi
+  if ! grep -qE '^APP_ENV=production' .env; then
+    echo "LET OP: APP_ENV staat niet op production in .env." >&2
+  fi
+fi
+
 echo "1. Installing dependencies..."
 composer install --no-dev --optimize-autoloader
 
