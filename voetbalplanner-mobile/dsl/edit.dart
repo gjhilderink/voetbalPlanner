@@ -1333,6 +1333,12 @@ void buildEditFlow(App app) {
     _ensureTeamMoodStruct(project);
     _ensureStatsAppStateFields(project);
     _addStatsEndpoints(project);
+    // Live verslag: structs, AppState en endpoints vóór de laadketen, want die
+    // haalt de lopende wedstrijden op.
+    _ensureLiveStructs(project);
+    _ensureLiveAppStateFields(project);
+    _addLiveEndpoints(project);
+    _ensureLiveCustomActions(project);
     _wireDashboardLoad(project);
     _fixDashboardListViewShrinkWrap(project);
     // Add "Rijschema" section: shows matches where the user is assigned to drive.
@@ -1392,6 +1398,9 @@ void buildEditFlow(App app) {
   // en badge-wiring hieronder, anders krijgen ze die pas bij de volgende push.
   _buildTrainingenPage(app);
   _buildMeerPage(app);
+  // Live wedstrijdverslag. De pagina hier aanmaken zodat de knoppen die ernaar
+  // verwijzen hem verderop kunnen vinden.
+  _buildLiveMatchPage(app);
 
   // Force NavBar items LAST — after all other raw mutations that touch the scaffold.
   app.raw((project) => _forceDashboardNavBarItem(project));
@@ -1471,6 +1480,9 @@ void buildEditFlow(App app) {
     _restyleDashboardAppBar(project);
     _wireDashboardActivities(project);
     _wireStatsOnDashboardLoad(project);
+    _wireDashboardLiveMatches(project);
+    _wireLiveMatchPage(project);
+    _addLiveMatchButton(project);
     _rebuildDashboardBody(project);
     // Trainingsopkomst: wie is er wel en wie niet. Ná _wireTrainingDetailPage,
     // die de pagina-inhoud opbouwt waar deze sectie onderaan bij komt.
@@ -25864,6 +25876,8 @@ void _rebuildDashboardBody(FFProject project) {
   final sections = <FFNode?>[
     _dashHeader(project, wc, switcher),
     _dashRoleTabs(project, wc),
+    // Loopt er nu een wedstrijd, dan hoort die bovenaan.
+    _dashLiveCard(project, wc),
     _dashNextMatchCard(project, wc),
     _dashInvitationsCard(project, wc),
     _dashQuickRow(project, wc),
@@ -29108,4 +29122,1516 @@ void _buildTrainingAttendanceSection(FFProject project) {
   setConditionalVisibility(card, variable: _listNotEmptyVar(partVar));
 
   column.children.add(card);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LIVE WEDSTRIJDVERSLAG
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// De coach start een wedstrijd en tikt doelpunten, wissels en kaarten aan;
+// teamleden volgen mee op LiveMatchPage. Wie de app niet heeft kijkt mee op de
+// publieke webpagina via een link die de coach deelt.
+//
+// Verversen gaat met pollen (custom action WatchLiveMatch, elke 10 s) en niet
+// met een Firestore-stream: Laravel is de enige bron van waarheid, en de
+// publieke webpagina leest dezelfde toestand op.
+
+/// Toestand van het live verslag. Alle velden String, zoals de backend ze stuurt.
+void _ensureLiveStructs(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'LiveMatchState',
+    description:
+        'Toestand van een live wedstrijdverslag: stand, speelklok, periode en de deellink.',
+    fields: const [
+      'matchId', 'teamId', 'teamName', 'opponent', 'opponentLogo', 'isHome',
+      'scoreOwn', 'scoreOpponent', 'period', 'periodLabel', 'minute',
+      'isLive', 'hasEnded', 'canManage', 'shareUrl',
+    ],
+  );
+  _ensureFlatStringStruct(
+    project,
+    name: 'LiveEvent',
+    description:
+        'Eén regel in het live verslag: minuut, omschrijving, soort en icoon.',
+    fields: const ['id', 'minute', 'label', 'type', 'side', 'icon'],
+  );
+}
+
+/// AppState voor het live verslag.
+///
+/// liveMatchId staat bewust in AppState en niet in page-state: de custom action
+/// die pollt kan alleen bij AppState.
+void _ensureLiveAppStateFields(FFProject project) {
+  bool has(String name) =>
+      project.appState.fields.any((f) => f.parameter.identifier.name == name);
+
+  void ensureStruct(String fieldName, String structName, {bool isList = false}) {
+    if (has(fieldName)) return;
+    final struct = findDataStruct(project, name: structName);
+    if (struct == null) return;
+    final param = FFParameter(
+      identifier:
+          FFIdentifier(name: fieldName, key: generateRandomAlphaNumericString()),
+      dataType: dataStructType(struct.identifier.deepCopy()),
+    );
+    param.isList = isList;
+    project.appState.fields.add(FFAppStateField(parameter: param));
+  }
+
+  void ensureString(String fieldName) {
+    if (has(fieldName)) return;
+    project.appState.fields.add(FFAppStateField(
+      parameter: FFParameter(
+        identifier:
+            FFIdentifier(name: fieldName, key: generateRandomAlphaNumericString()),
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ),
+    ));
+  }
+
+  ensureStruct('liveState', 'LiveMatchState');
+  ensureStruct('liveEvents', 'LiveEvent', isList: true);
+  ensureStruct('liveMatches', 'LiveMatchState', isList: true);
+  ensureString('liveMatchId');
+}
+
+/// Endpoints voor het live verslag. Alle parameters als query-param: FlutterFlow
+/// interpoleert [var] alleen in de URL, niet in de body.
+void _addLiveEndpoints(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  if (findApiGroup(project, name: groupName) == null) return;
+
+  void ensure({
+    required String name,
+    required String url,
+    required List<String> variables,
+    FFApiEndpoint_CallType method = FFApiEndpoint_CallType.GET,
+    String structName = 'LiveMatchState',
+    bool isList = false,
+  }) {
+    final existing = findApiEndpoint(project, name: name, groupName: groupName);
+    if (existing == null) {
+      addEndpointToGroup(
+        project,
+        groupName: groupName,
+        name: name,
+        url: url,
+        method: method,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {
+          for (final v in variables)
+            v: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        },
+        headers: ['Authorization: Bearer [token]'],
+        responseDataStructName: structName,
+        responseDataStructIsList: isList,
+      );
+      return;
+    }
+    // Bestaat al: URL en variabelen bijwerken zodat een gewijzigde vorm meekomt.
+    existing.url = url;
+    for (final v in variables) {
+      if (existing.variables.any((x) => x.hasIdentifier() && x.identifier.name == v)) {
+        continue;
+      }
+      existing.variables.add(FFApiValue(
+        identifier: FFIdentifier(name: v, key: generateRandomAlphaNumericString()),
+        type: FFBaseDataType.String,
+      ));
+    }
+    updateApiEndpoint(
+      project,
+      name: name,
+      groupName: groupName,
+      responseDataStructName: structName,
+      responseDataStructIsList: isList,
+    );
+  }
+
+  ensure(
+    name: 'GetLiveMatch',
+    url: '/matches/[matchId]/live',
+    variables: const ['token', 'matchId'],
+  );
+  ensure(
+    name: 'GetMyLiveMatches',
+    url: '/live',
+    variables: const ['token'],
+    isList: true,
+  );
+  ensure(
+    name: 'StartLiveMatch',
+    url: '/matches/[matchId]/live/start',
+    variables: const ['token', 'matchId'],
+    method: FFApiEndpoint_CallType.POST,
+  );
+  ensure(
+    name: 'StopLiveMatch',
+    url: '/matches/[matchId]/live/stop',
+    variables: const ['token', 'matchId'],
+    method: FFApiEndpoint_CallType.POST,
+  );
+  ensure(
+    name: 'UndoLiveEvent',
+    url: '/matches/[matchId]/live/undo',
+    variables: const ['token', 'matchId'],
+    method: FFApiEndpoint_CallType.POST,
+  );
+  ensure(
+    name: 'AddLiveEvent',
+    url: '/matches/[matchId]/live/event'
+        '?type=[type]&side=[side]&member_id=[memberId]'
+        '&related_member_id=[relatedMemberId]&card_type=[cardType]',
+    variables: const [
+      'token', 'matchId', 'type', 'side', 'memberId', 'relatedMemberId', 'cardType',
+    ],
+    method: FFApiEndpoint_CallType.POST,
+  );
+}
+
+// Eén custom action en niet drie (starten / stoppen / verversen): FlutterFlow
+// exporteert per actiebestand alleen de functie zelf (`export '...' show
+// watchLiveMatch;`), dus een gedeelde timer-klasse is vanuit een ander
+// actiebestand onbereikbaar. Daarom stuurt het argument het gedrag:
+//   lege matchId  → stoppen
+//   gevulde matchId → (opnieuw) starten, met meteen een eerste ophaalronde,
+//                     wat tegelijk dienstdoet als "ververs nu".
+const String _kWatchLiveMatchCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/backend/schema/structs/index.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+/// Houdt het live verslag bij zolang de livepagina open staat.
+///
+/// Pollen en geen stream: Laravel is de bron van waarheid en de publieke
+/// webpagina leest exact dezelfde toestand op. Elke tien seconden is voor een
+/// wedstrijdverslag ruim voldoende en kost 6 van de 60 toegestane verzoeken
+/// per minuut.
+class _LiveMatchWatcher {
+  static Timer? _timer;
+  static String _matchId = '';
+  static bool _busy = false;
+
+  static Future<void> fetch() async {
+    // Overslaan als de vorige ronde nog loopt: bij een trage verbinding zouden
+    // de verzoeken zich anders opstapelen tegen de limiet aan.
+    if (_busy || _matchId.isEmpty) return;
+    _busy = true;
+    final matchId = _matchId;
+    try {
+      final token = FFAppState().authToken;
+      if (token.isEmpty) return;
+
+      final response = await http.get(
+        Uri.parse(
+            'https://voetbalplanner.nubix.nl/api/v1/matches/$matchId/live'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode != 200) return;
+
+      final body = jsonDecode(response.body);
+      if (body is! Map) return;
+
+      // Ondertussen van wedstrijd gewisseld of gestopt: antwoord laten vallen.
+      if (_matchId != matchId) return;
+
+      final map = Map<String, dynamic>.from(body);
+      final rawEvents = (map.remove('events') as List?) ?? const [];
+
+      final state = LiveMatchStateStruct.maybeFromMap(map);
+      final events = rawEvents
+          .whereType<Map>()
+          .map((e) => LiveEventStruct.maybeFromMap(Map<String, dynamic>.from(e)))
+          .whereType<LiveEventStruct>()
+          .toList();
+
+      FFAppState().update(() {
+        if (state != null) FFAppState().liveState = state;
+        FFAppState().liveEvents = events;
+      });
+    } catch (_) {
+      // Netwerkhik: bij de volgende ronde opnieuw.
+    } finally {
+      _busy = false;
+    }
+  }
+
+  static void start(String matchId) {
+    stop();
+    _matchId = matchId;
+    fetch();
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) => fetch());
+  }
+
+  static void stop() {
+    _timer?.cancel();
+    _timer = null;
+    _matchId = '';
+    _busy = false;
+  }
+}
+
+// Nullable parameter: FlutterFlow geeft pagina-parameters als String? door,
+// ook als er een standaardwaarde op staat.
+Future<String> watchLiveMatch(String? matchId) async {
+  final id = (matchId ?? '').trim();
+  if (id.isEmpty) {
+    _LiveMatchWatcher.stop();
+    return '';
+  }
+  _LiveMatchWatcher.start(id);
+  return id;
+}
+''';
+
+void _ensureLiveCustomActions(FFProject project) {
+  final args = [
+    FFParameter(
+      identifier:
+          FFIdentifier(name: 'matchId', key: generateRandomAlphaNumericString()),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ),
+  ];
+
+  if (findCustomAction(project, name: 'WatchLiveMatch') == null) {
+    addCustomAction(
+      project,
+      name: 'WatchLiveMatch',
+      description:
+          'Pollt het live verslag elke 10 seconden naar AppState. Lege matchId stopt het pollen; opnieuw aanroepen met dezelfde id ververst meteen.',
+      arguments: args,
+      includeContext: false,
+      returnParameter:
+          FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+      code: _kWatchLiveMatchCode,
+    );
+  } else {
+    updateCustomAction(
+      project,
+      name: 'WatchLiveMatch',
+      code: _kWatchLiveMatchCode,
+      arguments: args,
+      includeContext: false,
+    );
+  }
+
+  try {
+    addPubDependency(project, name: 'http', version: '^1.2.0');
+  } catch (_) {
+    // Staat er al.
+  }
+}
+
+/// Actie-node die WatchLiveMatch aanroept met een variabele als argument.
+/// Gebruikt om te starten (matchId), te verversen (zelfde matchId) en te
+/// stoppen (lege waarde).
+FFActionNode _watchLiveNode(FFProject project, FFValue argument) {
+  final action = findCustomAction(project, name: 'WatchLiveMatch')!;
+  final args = FFFunctionCallValues();
+  for (final arg in action.arguments) {
+    if (arg.identifier.name == 'matchId') {
+      args.arguments[arg.identifier.key] =
+          FFFunctionCallValues_FFArgument(value: argument);
+    }
+  }
+
+  return FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      customAction: FFCustomActionCall(
+        customActionIdentifier: action.identifier.deepCopy(),
+        argumentValues: args,
+      ),
+    ),
+  );
+}
+
+// ── LiveMatchPage ────────────────────────────────────────────────────────────
+//
+// Eén pagina voor volgers én coach. De coachbalk verschijnt op canManage, dat
+// de server meestuurt — betrouwbaarder dan de rol-tab, want die is een
+// weergavekeuze van de gebruiker zelf.
+
+void _buildLiveMatchPage(App app) {
+  app.ensurePage(
+    'LiveMatchPage',
+    description:
+        'Live wedstrijdverslag: stand, speelklok en tijdlijn. De coach legt hier doelpunten, wissels en kaarten vast.',
+    route: 'live',
+    params: {
+      'matchId': string.withDefault(''),
+      // Meegegeven door de aanroeper: bij het openen is de toestand nog niet
+      // opgehaald, dus het team-id voor de spelerkiezer kan daar niet uit komen.
+      'teamId': string.withDefault(''),
+    },
+    state: {
+      // Welk keuzepaneel openstaat: '', 'scorer', 'assist', 'subOut', 'subIn',
+      // 'cardKind', 'cardPlayer'.
+      'panel': string.withDefault(''),
+      // Onthouden tussen twee stappen: de maker, of de speler die eruit gaat.
+      'pickedId': string.withDefault(''),
+      'pickedName': string.withDefault(''),
+      'cardKind': string.withDefault('yellow'),
+    },
+    body: Column(
+      children: [
+        Container(name: 'LiveBodyContainer'),
+      ],
+    ),
+  );
+}
+
+void _wireLiveMatchPage(FFProject project) {
+  final wc = findPage(project, name: 'LiveMatchPage');
+  if (wc == null) return;
+
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final liveStateId = _findAppStateFieldId(project, 'liveState');
+  final liveEventsId = _findAppStateFieldId(project, 'liveEvents');
+  final liveMatchIdId = _findAppStateFieldId(project, 'liveMatchId');
+  final membersId = _findAppStateFieldId(project, 'scoreTeamMembers');
+  if (authTokenId == null ||
+      liveStateId == null ||
+      liveEventsId == null ||
+      liveMatchIdId == null) {
+    return;
+  }
+
+  final scaffoldKey = wc.node.key;
+
+  FFIdentifier? paramId(String name) => wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == name, orElse: () => null)
+      ?.identifier;
+  final matchIdParam = paramId('matchId');
+  if (matchIdParam == null) return;
+
+  FFVariable pageParam(FFIdentifier id) => varFromPageParam(id.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  FFVariable appVar(FFIdentifier id) => varFromAppState(id.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  FFVariable stateField(String field) => appVar(liveStateId)
+    ..operations.add(FFVariableOperation(
+      accessDataStructField:
+          FFAccessDataStructField(fieldIdentifier: FFIdentifier(name: field)),
+    ));
+  FFIdentifier? pageStateId(String name) =>
+      _findPageStateFieldId(project, 'LiveMatchPage', name);
+  FFVariable pageState(String name) =>
+      varFromPageState(pageStateId(name)!.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  // ── AppBar ────────────────────────────────────────────────────────────────
+  if (getPropertyChild(wc.node, 'appBar') == null) {
+    final title =
+        UI.text('Live', name: 'LiveAppBarTitle', style: UITextStyle.titleLarge);
+    final appBar = UI.appBar(titleWidget: title, showBackButton: true);
+    wc.node.children.add(appBar);
+    wc.node.childPropertyMap['appBar'] =
+        FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: appBar.key)]);
+  }
+
+  // ── On-load: matchId onthouden, spelers laden, pollen starten ─────────────
+  wc.node.triggerActions.removeWhere((t) =>
+      t.hasTrigger() &&
+      t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE);
+
+  final rememberId = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      localStateUpdate: FFLocalStateUpdate(
+        updates: [
+          FFLocalStateFieldUpdate(
+            fieldIdentifier: liveMatchIdId.deepCopy(),
+            setValue: FFValue(variable: pageParam(matchIdParam)),
+          ),
+        ],
+        stateVariableType: FFStateVariableType.APP_STATE,
+      ),
+    ),
+  );
+  rememberId.followUpAction =
+      _watchLiveNode(project, FFValue(variable: pageParam(matchIdParam)));
+
+  // Spelerlijst voor de keuzepanelen. Hetzelfde endpoint dat de bestaande
+  // doelpuntkeuze voedt, dus er komt geen tweede lijst in de app bij.
+  final teamIdParam = paramId('teamId');
+  if (teamIdParam != null &&
+      membersId != null &&
+      findApiEndpoint(project,
+              name: 'GetScorerMembers', groupName: 'VoetbalPlannerAPI') !=
+          null) {
+    var tail = rememberId;
+    while (tail.hasFollowUpAction()) {
+      tail = tail.followUpAction;
+    }
+    tail.followUpAction = Actions.apiCallNode(
+      project,
+      endpointName: 'GetScorerMembers',
+      groupName: 'VoetbalPlannerAPI',
+      // Geen token-variabele: dit endpoint gebruikt de bearerToken van de groep.
+      dynamicVariables: {
+        'teamId': pageParam(teamIdParam),
+      },
+      outputVariableName: 'liveMembers',
+      nodeKey: scaffoldKey,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('scoreTeamMembers', ctx.responseVar),
+        ]),
+      ]),
+    );
+  }
+
+  Actions.addTriggerChain(
+      wc.node, FFActionTriggerType.ON_INIT_STATE, rememberId);
+
+  // Pollen stoppen bij het verlaten van de pagina; anders blijft de timer op de
+  // achtergrond doortikken tegen de verzoeklimiet aan.
+  wc.node.triggerActions.removeWhere((t) =>
+      t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_DISPOSE);
+  Actions.addTriggerChain(
+    wc.node,
+    FFActionTriggerType.ON_DISPOSE,
+    _watchLiveNode(
+        project, FFValue(inputValue: FFParameterValue(serializedValue: ''))),
+  );
+
+  // ── Body opnieuw opbouwen ─────────────────────────────────────────────────
+  final container =
+      findDescendants(wc.node, (n) => n.name == 'LiveBodyContainer').firstOrNull;
+  if (container == null) return;
+  container.children.clear();
+
+  final bodyCol = getPropertyChild(wc.node, 'body');
+  if (bodyCol != null && bodyCol.type == FFWidgetType.Column) {
+    final c = bodyCol.props.column.deepCopy();
+    c.scrollable = true;
+    bodyCol.props.column = c;
+  }
+
+  // ── Scorebord ─────────────────────────────────────────────────────────────
+  FFNode boundText(String name, String field, UITextStyle style,
+      {UIColor? color,
+      int? maxLines,
+      UIFontWeight? weight,
+      double? fontSize,
+      UITextAlign? align}) {
+    final t = UI.text('',
+        name: name,
+        style: style,
+        color: color,
+        fontWeight: weight,
+        fontSize: fontSize,
+        textAlign: align,
+        maxLines: maxLines,
+        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
+    t.props.text.textValue = FFStringValue(variable: stateField(field));
+    return t;
+  }
+
+  final liveDot = UI.container(
+    name: 'LiveDot',
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    color: UIColor.hex(0xFFEF4444),
+  );
+  setConditionalVisibility(
+      liveDot, variable: _equalsLiteral(stateField('isLive'), 'true'));
+
+  final clockRow = UI.container(
+    name: 'LiveClockWrap',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 5),
+    borderRadius: 20,
+    color: UIColor.hex(0x33000000),
+    child: UI.row(
+      name: 'LiveClockRow',
+      mainAxisMin: true,
+      spacing: 7,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        liveDot,
+        boundText('LivePeriod', 'periodLabel', UITextStyle.labelSmall,
+            color: UIColor.white, maxLines: 1),
+        (() {
+          final t = UI.text('',
+              name: 'LiveMinute',
+              style: UITextStyle.labelSmall,
+              color: UIColor.white,
+              maxLines: 1);
+          t.props.text.textValue =
+              interpolateVar([stateField('minute'), "'"]);
+          return t;
+        })(),
+      ],
+    ),
+  );
+
+  final ownLogoId = _findAppStateFieldId(project, 'clubLogoUrl');
+  FFNode sideLogo(String name, FFVariable pathVar) => FFNode(
+        key: generateRandomAlphaNumericString(),
+        type: FFWidgetType.CircleImage,
+        name: name,
+        props: FFWidgetProperties(
+          image: FFImage(
+            type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+            pathValue: FFStringValue(variable: pathVar),
+            fit: FFBoxFit.FF_BOX_FIT_CONTAIN,
+            cached: true,
+            dimensions: FFDimensions(
+              width: FFDim(pixelsValue: FFDoubleValue(inputValue: 46.0)),
+              height: FFDim(pixelsValue: FFDoubleValue(inputValue: 46.0)),
+            ),
+          ),
+        ),
+      );
+
+  final scoreText = UI.text('',
+      name: 'LiveScore',
+      style: UITextStyle.displaySmall,
+      fontSize: 40,
+      fontWeight: UIFontWeight.w700,
+      color: UIColor.white,
+      textAlign: UITextAlign.center,
+      maxLines: 1);
+  scoreText.props.text.textValue = interpolateVar([
+    stateField('scoreOwn'),
+    ' - ',
+    stateField('scoreOpponent'),
+  ]);
+
+  final board = UI.container(
+    name: 'LiveBoard',
+    width: double.infinity,
+    innerPadding: UIEdgeInsets.only(left: 16, right: 16, top: 8, bottom: 18),
+    borderRadius: UIBorderRadius.only(bottomLeft: 26, bottomRight: 26),
+    color: UIColor.primary,
+    child: UI.column(
+      name: 'LiveBoardCol',
+      spacing: 12,
+      children: [
+        clockRow,
+        UI.row(
+          name: 'LiveBoardRow',
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.expanded(UI.column(
+              name: 'LiveOwnCol',
+              spacing: 8,
+              mainAxisMin: true,
+              children: [
+                if (ownLogoId != null) sideLogo('LiveOwnLogo', appVar(ownLogoId)),
+                boundText('LiveOwnName', 'teamName', UITextStyle.labelMedium,
+                    color: UIColor.white, maxLines: 2, align: UITextAlign.center),
+              ],
+            )),
+            scoreText,
+            UI.expanded(UI.column(
+              name: 'LiveOppCol',
+              spacing: 8,
+              mainAxisMin: true,
+              children: [
+                sideLogo('LiveOppLogo', stateField('opponentLogo')),
+                boundText('LiveOppName', 'opponent', UITextStyle.labelMedium,
+                    color: UIColor.white, maxLines: 2, align: UITextAlign.center),
+              ],
+            )),
+          ],
+        ),
+      ],
+    ),
+  );
+  final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
+  if (primaryColorId != null) {
+    _setContainerColor(
+      board,
+      colorFromStringVar(varFromAppState(primaryColorId.deepCopy())),
+    );
+  }
+
+  container.children.add(board);
+
+  // ── Coachbalk ─────────────────────────────────────────────────────────────
+  final canManage = _equalsLiteral(stateField('canManage'), 'true');
+  final isLive = _equalsLiteral(stateField('isLive'), 'true');
+
+  /// Zet het keuzepaneel op een waarde (of sluit het met '').
+  FFAction setPanel(String value) => Actions.updatePageState(
+        project,
+        widgetClassName: 'LiveMatchPage',
+        updates: [StateFieldUpdate.set('panel', value)],
+      );
+
+  /// Legt een gebeurtenis vast en ververst daarna meteen de toestand, zodat het
+  /// scherm van de coach niet tot de volgende pollronde achterloopt.
+  // Het vervolg (verversen + paneel sluiten) hoort in het slaagpad. Het achteraf
+  // aan de keten hangen levert een actie met een half ingevulde voorwaarde op,
+  // en die weigert FlutterFlow.
+  FFActionNode eventNode({
+    required String nodeKey,
+    required String output,
+    required Map<String, String> statics,
+    Map<String, FFVariable> dynamics = const {},
+  }) {
+    return Actions.apiCallNode(
+      project,
+      endpointName: 'AddLiveEvent',
+      groupName: 'VoetbalPlannerAPI',
+      variables: statics,
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromAppState(liveMatchIdId.deepCopy()),
+        ...dynamics,
+      },
+      outputVariableName: output,
+      nodeKey: nodeKey,
+      onSuccess: (ctx) {
+        final refresh = _watchLiveNode(project,
+            FFValue(variable: varFromAppState(liveMatchIdId.deepCopy())));
+        refresh.followUpAction = FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: setPanel(''),
+        );
+        return refresh;
+      },
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Kon dit niet vastleggen.'),
+      ]),
+    );
+  }
+
+  FFNode coachButton(String label, String iconName, UIColor color) {
+    final btn = UI.container(
+      name: 'LiveBtn${label.replaceAll(' ', '')}',
+      innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      borderRadius: 14,
+      color: UIColor.hex(0xFFEFF1F5),
+      child: UI.row(
+        name: 'LiveBtn${label.replaceAll(' ', '')}Row',
+        mainAxisMin: true,
+        spacing: 6,
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: [
+          UI.icon(iconName, size: 18, color: color),
+          UI.text(label,
+              name: 'LiveBtn${label.replaceAll(' ', '')}Label',
+              style: UITextStyle.labelMedium,
+              maxLines: 1),
+        ],
+      ),
+    );
+    return btn;
+  }
+
+  // Doelpunt tegenstander: één tik, geen spelerkeuze nodig.
+  final oppGoalBtn = coachButton('Tegendoelpunt', 'sports_soccer', UIColor.secondaryText);
+  Actions.onTapChain(
+    oppGoalBtn,
+    eventNode(
+      nodeKey: oppGoalBtn.key,
+      output: 'liveOppGoal',
+      statics: {'type': 'goal', 'side': 'opponent', 'memberId': '', 'relatedMemberId': '', 'cardType': ''},
+    ),
+  );
+
+  FFNode panelButton(String label, String iconName, UIColor color, String panel) {
+    final btn = coachButton(label, iconName, color);
+    Actions.onTap(btn, setPanel(panel));
+    return btn;
+  }
+
+  /// Periodeknop (rust, tweede helft) — legt alleen een gebeurtenis vast.
+  FFNode periodButton(String label, String iconName, String type, String output) {
+    final btn = coachButton(label, iconName, UIColor.secondaryText);
+    Actions.onTapChain(
+      btn,
+      eventNode(
+        nodeKey: btn.key,
+        output: output,
+        statics: {'type': type, 'side': '', 'memberId': '', 'relatedMemberId': '', 'cardType': ''},
+      ),
+    );
+    return btn;
+  }
+
+  final halftimeBtn = periodButton('Rust', 'pause', 'halftime', 'liveHalftime');
+  setConditionalVisibility(
+      halftimeBtn, variable: _equalsLiteral(stateField('period'), 'first_half'));
+  final secondHalfBtn =
+      periodButton('2e helft', 'play_arrow', 'second_half', 'liveSecondHalf');
+  setConditionalVisibility(
+      secondHalfBtn, variable: _equalsLiteral(stateField('period'), 'halftime'));
+
+  // Einde en ongedaan maken gaan naar eigen endpoints.
+  final stopBtn = coachButton('Einde', 'flag', UIColor.error);
+  final stopNode = Actions.apiCallNode(
+    project,
+    endpointName: 'StopLiveMatch',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'token': varFromAppState(authTokenId.deepCopy()),
+      'matchId': varFromAppState(liveMatchIdId.deepCopy()),
+    },
+    outputVariableName: 'liveStop',
+    nodeKey: stopBtn.key,
+    onSuccess: (ctx) {
+      final refresh = _watchLiveNode(project,
+          FFValue(variable: varFromAppState(liveMatchIdId.deepCopy())));
+      refresh.followUpAction = FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.snackBar('Het verslag is afgesloten.'),
+      );
+      return refresh;
+    },
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Kon het verslag niet afsluiten.'),
+    ]),
+  );
+  Actions.onTapChain(stopBtn, stopNode);
+
+  final undoBtn = coachButton('Ongedaan', 'undo', UIColor.secondaryText);
+  final undoNode = Actions.apiCallNode(
+    project,
+    endpointName: 'UndoLiveEvent',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'token': varFromAppState(authTokenId.deepCopy()),
+      'matchId': varFromAppState(liveMatchIdId.deepCopy()),
+    },
+    outputVariableName: 'liveUndo',
+    nodeKey: undoBtn.key,
+    onSuccess: (ctx) => _watchLiveNode(project,
+        FFValue(variable: varFromAppState(liveMatchIdId.deepCopy()))),
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Kon dit niet terugdraaien.'),
+    ]),
+  );
+  Actions.onTapChain(undoBtn, undoNode);
+
+  final coachBar = UI.container(
+    name: 'LiveCoachBar',
+    innerPadding: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+    child: UI.column(
+      name: 'LiveCoachCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        UI.text('Vastleggen',
+            name: 'LiveCoachTitle', style: UITextStyle.titleSmall),
+        UI.row(
+          name: 'LiveCoachRowA',
+          spacing: 8,
+          children: [
+            panelButton('Doelpunt', 'sports_soccer', UIColor.success, 'scorer'),
+            oppGoalBtn,
+          ],
+        ),
+        UI.row(
+          name: 'LiveCoachRowB',
+          spacing: 8,
+          children: [
+            panelButton('Wissel', 'swap_horiz', UIColor.primary, 'subOut'),
+            panelButton('Kaart', 'style', UIColor.warning, 'cardKind'),
+          ],
+        ),
+        UI.row(
+          name: 'LiveCoachRowC',
+          spacing: 8,
+          children: [halftimeBtn, secondHalfBtn, stopBtn, undoBtn],
+        ),
+      ],
+    ),
+  );
+  setConditionalVisibility(
+    coachBar,
+    variable: andConditionsVar([canManage, isLive]).variable,
+  );
+  container.children.add(coachBar);
+
+  // ── Keuzepanelen ──────────────────────────────────────────────────────────
+  if (membersId != null) {
+    container.children.add(_livePickerPanels(
+      project,
+      wc,
+      membersId: membersId,
+      pageState: pageState,
+      stateField: stateField,
+      eventNode: eventNode,
+      setPanel: setPanel,
+    ));
+  }
+
+  // ── Tijdlijn ──────────────────────────────────────────────────────────────
+  final eventsVar = appVar(liveEventsId);
+  final list = UI.listView(
+    name: 'LiveEventsList',
+    shrinkWrap: true,
+    spacing: 2,
+    dynamicSource: DynamicSource(variable: eventsVar, itemName: 'ev'),
+  );
+
+  FFNode evText(String name, String field, UITextStyle style,
+      {UIColor? color, int? maxLines, UIFontWeight? weight}) {
+    final t = UI.text('',
+        name: name,
+        style: style,
+        color: color,
+        fontWeight: weight,
+        maxLines: maxLines,
+        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, field));
+    return t;
+  }
+
+  list.children.add(UI.container(
+    name: 'LiveEventItem',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 8),
+    child: UI.row(
+      name: 'LiveEventRow',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.container(
+          name: 'LiveEventMinuteWrap',
+          width: 42,
+          child: evText('LiveEventMinute', 'minute', UITextStyle.labelMedium,
+              color: UIColor.primary, weight: UIFontWeight.w700, maxLines: 1),
+        ),
+        UI.expanded(
+            evText('LiveEventLabel', 'label', UITextStyle.bodyMedium, maxLines: 2)),
+      ],
+    ),
+  ));
+
+  final empty = UI.text('Nog niets gebeurd.',
+      name: 'LiveEventsEmpty',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText);
+  setConditionalVisibility(empty, variable: _listEmptyVar(eventsVar));
+
+  container.children.add(_dashCard(
+    name: 'LiveTimelineCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 14, bottom: 20),
+    child: UI.column(
+      name: 'LiveTimelineCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        UI.row(
+          name: 'LiveTimelineHead',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('timeline', size: 20, color: UIColor.primary),
+            UI.expanded(UI.text('Verslag',
+                name: 'LiveTimelineTitle', style: UITextStyle.titleSmall)),
+          ],
+        ),
+        list,
+        empty,
+      ],
+    ),
+  ));
+}
+
+/// De keuzepanelen van de coach: maker, assist, wissel en kaart.
+///
+/// Eén paneel tegelijk zichtbaar, gestuurd door de page-state 'panel'. Elk
+/// paneel toont dezelfde spelerlijst (AppState.scoreTeamMembers, het lijstje
+/// dat ook de bestaande doelpuntkeuze voedt); wat een tik doet verschilt per
+/// paneel.
+FFNode _livePickerPanels(
+  FFProject project,
+  FFWidgetClass wc, {
+  required FFIdentifier membersId,
+  required FFVariable Function(String) pageState,
+  required FFVariable Function(String) stateField,
+  required FFActionNode Function({
+    required String nodeKey,
+    required String output,
+    required Map<String, String> statics,
+    Map<String, FFVariable> dynamics,
+  }) eventNode,
+  required FFAction Function(String) setPanel,
+}) {
+  final scaffoldKey = wc.node.key;
+  final membersVar = varFromAppState(membersId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  FFIdentifier pageStateId(String name) =>
+      _findPageStateFieldId(project, 'LiveMatchPage', name)!;
+
+  /// Onthoudt de gekozen speler voor de tweede stap (assist, of speler-in).
+  FFAction rememberPicked(FFNode list) => FFAction(
+        key: generateRandomAlphaNumericString(),
+        localStateUpdate: FFLocalStateUpdate(
+          updates: [
+            FFLocalStateFieldUpdate(
+              fieldIdentifier: pageStateId('pickedId').deepCopy(),
+              setValue: FFValue(variable: generatorVarField(list.key, 'id')),
+            ),
+            FFLocalStateFieldUpdate(
+              fieldIdentifier: pageStateId('pickedName').deepCopy(),
+              setValue: FFValue(variable: generatorVarField(list.key, 'name')),
+            ),
+          ],
+          stateVariableType: FFStateVariableType.WIDGET_CLASS_STATE,
+        ),
+      );
+
+  /// Eén paneel: kop met uitleg, daaronder de spelerlijst.
+  FFNode panel({
+    required String key,
+    required String title,
+    required String panelValue,
+    required FFActionNode Function(FFNode list, FFNode item) onPick,
+    FFNode? extraTop,
+    FFNode? extraBottom,
+  }) {
+    final list = UI.listView(
+      name: '${key}List',
+      shrinkWrap: true,
+      spacing: 2,
+      dynamicSource: DynamicSource(variable: membersVar, itemName: key),
+    );
+
+    final naam = UI.text('',
+        name: '${key}Naam',
+        style: UITextStyle.bodyMedium,
+        maxLines: 1,
+        textOverflow: UITextOverflow.ellipsis);
+    naam.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, 'name'));
+
+    final item = UI.container(
+      name: '${key}Item',
+      innerPadding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      child: UI.row(
+        name: '${key}Row',
+        spacing: 10,
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: [
+          UI.icon('person', size: 18, color: UIColor.secondaryText),
+          UI.expanded(naam),
+        ],
+      ),
+    );
+    Actions.addTriggerChain(item, FFActionTriggerType.ON_TAP, onPick(list, item));
+    list.children.add(item);
+
+    final annuleer = UI.text('Annuleren',
+        name: '${key}Cancel',
+        style: UITextStyle.labelMedium,
+        color: UIColor.error);
+    Actions.onTap(annuleer, setPanel(''));
+
+    final children = <FFNode>[
+      UI.row(
+        name: '${key}Head',
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: [
+          UI.expanded(UI.text(title,
+              name: '${key}Title', style: UITextStyle.titleSmall)),
+          annuleer,
+        ],
+      ),
+      if (extraTop != null) extraTop,
+      list,
+      if (extraBottom != null) extraBottom,
+    ];
+
+    final card = _dashCard(
+      name: '${key}Panel',
+      margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+      child: UI.column(
+        name: '${key}Col',
+        crossAxisAlignment: UICrossAxisAlignment.stretch,
+        spacing: 8,
+        children: children,
+      ),
+    );
+    setConditionalVisibility(
+        card, variable: _equalsLiteral(pageState('panel'), panelValue));
+    return card;
+  }
+
+  // 1. Doelpunt — stap 1: wie maakte hem.
+  final scorerPanel = panel(
+    key: 'LiveScorer',
+    title: 'Wie scoorde?',
+    panelValue: 'scorer',
+    onPick: (list, item) => FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: rememberPicked(list),
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: setPanel('assist'),
+      ),
+    ),
+  );
+
+  // 2. Doelpunt — stap 2: assist, met een uitweg als er geen was.
+  final geenAssist = UI.container(
+    name: 'LiveNoAssistWrap',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 10),
+    child: UI.text('Geen assist',
+        name: 'LiveNoAssist',
+        style: UITextStyle.labelMedium,
+        color: UIColor.primary,
+        textAlign: UITextAlign.center),
+  );
+  Actions.onTapChain(
+    geenAssist,
+    eventNode(
+      nodeKey: geenAssist.key,
+      output: 'liveGoalNoAssist',
+      statics: {'type': 'goal', 'side': 'own', 'relatedMemberId': '', 'cardType': ''},
+      dynamics: {'memberId': pageState('pickedId')},
+    ),
+  );
+
+  final assistPanel = panel(
+    key: 'LiveAssist',
+    title: 'Wie gaf de assist?',
+    panelValue: 'assist',
+    extraBottom: geenAssist,
+    onPick: (list, item) => eventNode(
+      nodeKey: item.key,
+      output: 'liveGoalAssist',
+      statics: {'type': 'goal', 'side': 'own', 'cardType': ''},
+      dynamics: {
+        'memberId': pageState('pickedId'),
+        'relatedMemberId': generatorVarField(list.key, 'id'),
+      },
+    ),
+  );
+
+  // 3. Wissel — eerst wie eruit gaat, dan wie erin komt.
+  final subOutPanel = panel(
+    key: 'LiveSubOut',
+    title: 'Wie gaat eruit?',
+    panelValue: 'subOut',
+    onPick: (list, item) => FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: rememberPicked(list),
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: setPanel('subIn'),
+      ),
+    ),
+  );
+
+  final subInPanel = panel(
+    key: 'LiveSubIn',
+    title: 'Wie komt erin?',
+    panelValue: 'subIn',
+    onPick: (list, item) => eventNode(
+      nodeKey: item.key,
+      output: 'liveSub',
+      statics: {'type': 'substitution', 'side': '', 'cardType': ''},
+      dynamics: {
+        'memberId': generatorVarField(list.key, 'id'),
+        'relatedMemberId': pageState('pickedId'),
+      },
+    ),
+  );
+
+  // 4. Kaart — eerst geel of rood, dan voor wie.
+  FFNode kaartKnop(String label, String waarde, UIColor kleur) {
+    final btn = UI.container(
+      name: 'LiveCard${label}Btn',
+      innerPadding: UIEdgeInsets.symmetric(vertical: 12),
+      borderRadius: 12,
+      color: kleur,
+      child: UI.text(label,
+          name: 'LiveCard${label}Label',
+          style: UITextStyle.labelMedium,
+          color: UIColor.white,
+          textAlign: UITextAlign.center),
+    );
+    Actions.onTapChain(
+      btn,
+      FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.updatePageState(
+          project,
+          widgetClassName: 'LiveMatchPage',
+          updates: [StateFieldUpdate.set('cardKind', waarde)],
+        ),
+        followUpAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: setPanel('cardPlayer'),
+        ),
+      ),
+    );
+    return btn;
+  }
+
+  final cardKindPanel = _dashCard(
+    name: 'LiveCardKindPanel',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.column(
+      name: 'LiveCardKindCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: [
+        UI.text('Gele of rode kaart?',
+            name: 'LiveCardKindTitle', style: UITextStyle.titleSmall),
+        UI.row(
+          name: 'LiveCardKindRow',
+          spacing: 10,
+          children: [
+            UI.expanded(kaartKnop('Geel', 'yellow', UIColor.hex(0xFFF59E0B))),
+            UI.expanded(kaartKnop('Rood', 'red', UIColor.hex(0xFFEF4444))),
+          ],
+        ),
+      ],
+    ),
+  );
+  setConditionalVisibility(cardKindPanel,
+      variable: _equalsLiteral(pageState('panel'), 'cardKind'));
+
+  final cardPlayerPanel = panel(
+    key: 'LiveCardPlayer',
+    title: 'Wie kreeg de kaart?',
+    panelValue: 'cardPlayer',
+    onPick: (list, item) => eventNode(
+      nodeKey: item.key,
+      output: 'liveCard',
+      statics: {'type': 'card', 'side': 'own', 'relatedMemberId': ''},
+      dynamics: {
+        'memberId': generatorVarField(list.key, 'id'),
+        'cardType': pageState('cardKind'),
+      },
+    ),
+  );
+
+  return UI.column(
+    name: 'LivePickerPanels',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    children: [
+      scorerPanel,
+      assistPanel,
+      subOutPanel,
+      subInPanel,
+      cardKindPanel,
+      cardPlayerPanel,
+    ],
+  );
+}
+
+/// Knop op de wedstrijddetailpagina: de coach start het verslag, iedereen kan
+/// meekijken zodra het loopt.
+///
+/// Vers opgebouwd elke push, net als de andere secties daar — en met een eigen
+/// naam, zodat _removeInlineCoachSections er niet overheen gaat.
+void _addLiveMatchButton(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  if (project.getWidgetClassByName('LiveMatchPage') == null) return;
+
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (authTokenId == null) return;
+
+  for (final n
+      in findDescendants(wc.node, (x) => x.name == 'LiveMatchButtonWrap').toList()) {
+    removeByKey(wc.node, n.key);
+  }
+
+  final infoColumn =
+      findDescendants(wc.node, (n) => n.name == 'MatchInfoColumn').firstOrNull ??
+          findDescendants(
+            wc.node,
+            (n) => n.children.any((c) => c.name == 'MatchInfoRow_opponent'),
+          ).firstOrNull;
+  if (infoColumn == null) return;
+
+  final scaffoldKey = wc.node.key;
+  FFVariable pageState(String name) {
+    final id = _findPageStateFieldId(project, 'WedstrijdDetailPage', name);
+    return varFromPageState(id!.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return;
+  final matchIdVar = varFromPageParam(matchIdParam.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final canManage = codeExpressionVar(
+    expression: "m == 'true'",
+    arguments: [
+      CodeExpressionArg(
+        name: 'm',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: pageState('matchMagOpstelling')),
+      ),
+    ],
+    returnType:
+        FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+  );
+
+  FFNode knop(String naam, String label, String icoon, UIColor kleur) {
+    return UI.container(
+      name: naam,
+      innerPadding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      borderRadius: 14,
+      color: kleur,
+      child: UI.row(
+        name: '${naam}Row',
+        mainAxisMin: true,
+        mainAxisAlignment: UIMainAxisAlignment.center,
+        spacing: 8,
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: [
+          UI.icon(icoon, size: 20, color: UIColor.white),
+          UI.text(label,
+              name: '${naam}Label',
+              style: UITextStyle.labelLarge,
+              color: UIColor.white,
+              maxLines: 1),
+        ],
+      ),
+    );
+  }
+
+  // Naar de livepagina; die start zelf het pollen.
+  final volgKnop = knop('LiveFollowButton', 'Live volgen', 'play_circle',
+      UIColor.hex(0xFFEF4444));
+  Actions.onTap(
+    volgKnop,
+    Actions.navigate(project, pageName: 'LiveMatchPage', params: {
+      'matchId': VariableParamValue(matchIdVar.deepCopy()),
+      'teamId': VariableParamValue(pageState('matchTeamId')),
+    }),
+  );
+
+  // Starten: eerst het endpoint, dan door naar de livepagina.
+  final startKnop =
+      knop('LiveStartButton', 'Start live verslag', 'sensors', UIColor.primary);
+  final startNode = Actions.apiCallNode(
+    project,
+    endpointName: 'StartLiveMatch',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'token': varFromAppState(authTokenId.deepCopy()),
+      'matchId': matchIdVar.deepCopy(),
+    },
+    outputVariableName: 'liveStart',
+    nodeKey: startKnop.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.navigate(project, pageName: 'LiveMatchPage', params: {
+        'matchId': VariableParamValue(matchIdVar.deepCopy()),
+        'teamId': VariableParamValue(pageState('matchTeamId')),
+      }),
+    ]),
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Kon het live verslag niet starten.'),
+    ]),
+  );
+  Actions.onTapChain(startKnop, startNode);
+  setConditionalVisibility(startKnop, variable: canManage);
+
+  final wrap = UI.container(
+    name: 'LiveMatchButtonWrap',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 6),
+    child: UI.column(
+      name: 'LiveMatchButtonCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [volgKnop, startKnop],
+    ),
+  );
+  infoColumn.children.insert(0, wrap);
+}
+
+/// "Nu live"-kaart op het dashboard: loopt er een wedstrijd in een van mijn
+/// teams, dan staat die bovenaan met de stand erbij.
+FFNode? _dashLiveCard(FFProject project, FFWidgetClass wc) {
+  final matchesId = _findAppStateFieldId(project, 'liveMatches');
+  if (matchesId == null) return null;
+  if (project.getWidgetClassByName('LiveMatchPage') == null) return null;
+  final scaffoldKey = wc.node.key;
+
+  final liveVar = varFromAppState(matchesId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final list = UI.listView(
+    name: 'DashLiveList',
+    shrinkWrap: true,
+    spacing: 6,
+    dynamicSource: DynamicSource(variable: liveVar, itemName: 'live'),
+  );
+
+  FFNode bound(String name, String field, UITextStyle style,
+      {UIColor? color, int? maxLines, UIFontWeight? weight, double? fontSize}) {
+    final t = UI.text('',
+        name: name,
+        style: style,
+        color: color,
+        fontWeight: weight,
+        fontSize: fontSize,
+        maxLines: maxLines,
+        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, field));
+    return t;
+  }
+
+  final stand = UI.text('',
+      name: 'DashLiveScore',
+      style: UITextStyle.titleLarge,
+      fontWeight: UIFontWeight.w700,
+      color: UIColor.primary,
+      maxLines: 1);
+  stand.props.text.textValue = interpolateVar([
+    generatorVarField(list.key, 'scoreOwn'),
+    ' - ',
+    generatorVarField(list.key, 'scoreOpponent'),
+  ]);
+
+  final klok = UI.text('',
+      name: 'DashLiveMinute',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText,
+      maxLines: 1);
+  klok.props.text.textValue = interpolateVar([
+    generatorVarField(list.key, 'periodLabel'),
+    ' · ',
+    generatorVarField(list.key, 'minute'),
+    "'",
+  ]);
+
+  final item = UI.container(
+    name: 'DashLiveItem',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 6),
+    child: UI.row(
+      name: 'DashLiveRow',
+      spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.container(
+          name: 'DashLiveDot',
+          width: 10,
+          height: 10,
+          borderRadius: 5,
+          color: UIColor.hex(0xFFEF4444),
+        ),
+        UI.expanded(UI.column(
+          name: 'DashLiveInfo',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 2,
+          children: [
+            bound('DashLiveOpponent', 'opponent', UITextStyle.bodyMedium,
+                weight: UIFontWeight.w600, maxLines: 1),
+            klok,
+          ],
+        )),
+        stand,
+        UI.icon('chevron_right', size: 20, color: UIColor.secondaryText),
+      ],
+    ),
+  );
+  Actions.onTap(
+    item,
+    Actions.navigate(project, pageName: 'LiveMatchPage', params: {
+      'matchId': VariableParamValue(generatorVarField(list.key, 'matchId')),
+      'teamId': VariableParamValue(generatorVarField(list.key, 'teamId')),
+    }),
+  );
+  list.children.add(item);
+
+  final card = _dashCard(
+    name: 'DashLiveCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+    child: UI.column(
+      name: 'DashLiveCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: [
+        UI.row(
+          name: 'DashLiveHead',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('sensors', size: 20, color: UIColor.hex(0xFFEF4444)),
+            UI.expanded(UI.text('Nu live',
+                name: 'DashLiveTitle', style: UITextStyle.titleSmall)),
+          ],
+        ),
+        list,
+      ],
+    ),
+  );
+  // Alleen tonen als er ook echt iets loopt.
+  setConditionalVisibility(card, variable: _listNotEmptyVar(liveVar));
+  return card;
+}
+
+/// Haalt de lopende wedstrijden op bij het laden van het dashboard.
+void _wireDashboardLiveMatches(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (authTokenId == null) return;
+  if (_findAppStateFieldId(project, 'liveMatches') == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetMyLiveMatches', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  bool hasCall(FFActionNode node) {
+    if (node.hasAction() &&
+        node.action.hasDatabase() &&
+        node.action.database.hasApiCall() &&
+        node.action.database.apiCall.hasEndpointIdentifier() &&
+        node.action.database.apiCall.endpointIdentifier.name ==
+            'GetMyLiveMatches') {
+      return true;
+    }
+    return node.hasFollowUpAction() && hasCall(node.followUpAction);
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && hasCall(t.rootAction))) {
+    return;
+  }
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMyLiveMatches',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+      },
+      outputVariableName: 'liveMatchesLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('liveMatches', ctx.responseVar),
+        ]),
+      ]),
+    ),
+  );
 }

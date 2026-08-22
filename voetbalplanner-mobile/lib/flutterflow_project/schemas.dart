@@ -266,6 +266,39 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle liveEvent = ffai.StructHandle(
+    "LiveEvent",
+    <String, ffai.DslType>{
+      "icon": ffai.string,
+      "id": ffai.string,
+      "label": ffai.string,
+      "minute": ffai.string,
+      "side": ffai.string,
+      "type": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
+  static final ffai.StructHandle liveMatchState = ffai.StructHandle(
+    "LiveMatchState",
+    <String, ffai.DslType>{
+      "canManage": ffai.string,
+      "hasEnded": ffai.string,
+      "isHome": ffai.string,
+      "isLive": ffai.string,
+      "matchId": ffai.string,
+      "minute": ffai.string,
+      "opponent": ffai.string,
+      "opponentLogo": ffai.string,
+      "period": ffai.string,
+      "periodLabel": ffai.string,
+      "scoreOpponent": ffai.string,
+      "scoreOwn": ffai.string,
+      "shareUrl": ffai.string,
+      "teamId": ffai.string,
+      "teamName": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle loginData = ffai.StructHandle(
     "LoginData",
     <String, ffai.DslType>{
@@ -455,6 +488,8 @@ abstract final class Structs {
     guardianRequestResult,
     guestInvitation,
     lineupPlayer,
+    liveEvent,
+    liveMatchState,
     loginData,
     loginResponse,
     matchGoal,
@@ -1275,6 +1310,7 @@ abstract final class CustomCode {
     "UnsubscribeFromTeamTopic",
     "UploadProfilePhoto",
     "VerifyMagicLink",
+    "WatchLiveMatch",
     "WatchUnreadChatCount",
   ];
   static const widgets = <String>[

@@ -191,6 +191,30 @@ abstract final class AppState {
     typeName: "Boolean",
     persisted: false,
   );
+  static const liveEvents = ffai.ProjectAppStateFieldHandle(
+    name: "liveEvents",
+    key: "3e6p9wim",
+    typeName: "List<DataStruct<LiveEvent>>",
+    persisted: false,
+  );
+  static const liveMatchId = ffai.ProjectAppStateFieldHandle(
+    name: "liveMatchId",
+    key: "jptvyiz1",
+    typeName: "String",
+    persisted: false,
+  );
+  static const liveMatches = ffai.ProjectAppStateFieldHandle(
+    name: "liveMatches",
+    key: "p348kg7z",
+    typeName: "List<DataStruct<LiveMatchState>>",
+    persisted: false,
+  );
+  static const liveState = ffai.ProjectAppStateFieldHandle(
+    name: "liveState",
+    key: "e36ko8u6",
+    typeName: "DataStruct<LiveMatchState>",
+    persisted: false,
+  );
   static const loginEmail = ffai.ProjectAppStateFieldHandle(
     name: "loginEmail",
     key: "zxehesix",
@@ -439,6 +463,10 @@ abstract final class AppState {
     guestInvitations,
     hasMultipleTeams,
     hasUnreadTeamChat,
+    liveEvents,
+    liveMatchId,
+    liveMatches,
+    liveState,
     loginEmail,
     loginError,
     loginPassword,

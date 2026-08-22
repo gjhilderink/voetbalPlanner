@@ -214,6 +214,9 @@ class LiveMatchService
 
         return [
             'matchId'       => $match->id,
+            // De app laadt hiermee de spelerkeuze voor doelpunten, wissels en
+            // kaarten; zonder teamId zou daar een tweede call voor nodig zijn.
+            'teamId'        => $match->team_id ?? '',
             'teamName'      => $match->team?->name ?? '',
             'opponent'      => $match->opponent ?? '',
             'opponentLogo'  => $match->opponent_logo ?? '',
