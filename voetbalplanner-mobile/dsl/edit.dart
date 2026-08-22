@@ -29631,6 +29631,9 @@ void _wireLiveMatchPage(FFProject project) {
       findDescendants(wc.node, (n) => n.name == 'LiveBodyContainer').firstOrNull;
   if (container == null) return;
   container.children.clear();
+  // Een Container toont maar één kind. De secties gaan daarom in een Column;
+  // los toevoegen liet alles na het scorebord wegvallen.
+  final sections = <FFNode>[];
 
   final bodyCol = getPropertyChild(wc.node, 'body');
   if (bodyCol != null && bodyCol.type == FFWidgetType.Column) {
@@ -29779,7 +29782,7 @@ void _wireLiveMatchPage(FFProject project) {
     );
   }
 
-  container.children.add(board);
+  sections.add(board);
 
   // ── Coachbalk ─────────────────────────────────────────────────────────────
   final canManage = _equalsLiteral(stateField('canManage'), 'true');
@@ -29938,6 +29941,67 @@ void _wireLiveMatchPage(FFProject project) {
   );
   Actions.onTapChain(undoBtn, undoNode);
 
+  // Deelknop: de geheime link naar de publieke pagina, zodat familie zonder app
+  // kan meekijken. Alleen voor de coach en alleen zolang het verslag loopt —
+  // daarbuiten is de link toch niet te gebruiken.
+  final deelKnop = UI.container(
+    name: 'LiveShareButton',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    borderRadius: 14,
+    color: UIColor.primary,
+    child: UI.row(
+      name: 'LiveShareRow',
+      mainAxisMin: true,
+      mainAxisAlignment: UIMainAxisAlignment.center,
+      spacing: 8,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('share', size: 18, color: UIColor.white),
+        UI.text('Deel meekijklink',
+            name: 'LiveShareLabel',
+            style: UITextStyle.labelMedium,
+            color: UIColor.white,
+            maxLines: 1),
+      ],
+    ),
+  );
+  // Platte tekst, geen URL-encoding: de deelsheet geeft de tekst ongewijzigd
+  // door, dus %20 zou letterlijk in het bericht belanden.
+  const deelExpr = r"""
+(u ?? '').isEmpty
+    ? ''
+    : 'Volg ' + (t ?? '') + ' - ' + (o ?? '') + ' live mee:\n' + (u ?? '')
+""";
+  final deelTekst = codeExpressionVar(
+    expression: deelExpr.trim(),
+    arguments: [
+      CodeExpressionArg(
+        name: 'u',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: stateField('shareUrl')),
+      ),
+      CodeExpressionArg(
+        name: 't',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: stateField('teamName')),
+      ),
+      CodeExpressionArg(
+        name: 'o',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: stateField('opponent')),
+      ),
+    ],
+    returnType:
+        FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+  );
+  Actions.onTap(
+    deelKnop,
+    FFAction(
+      key: generateRandomAlphaNumericString(),
+      share: FFShareAction(shareLink: FFValue(variable: deelTekst)),
+    ),
+  );
+
   final coachBar = UI.container(
     name: 'LiveCoachBar',
     innerPadding: UIEdgeInsets.only(left: 16, right: 16, top: 14),
@@ -29969,6 +30033,7 @@ void _wireLiveMatchPage(FFProject project) {
           spacing: 8,
           children: [halftimeBtn, secondHalfBtn, stopBtn, undoBtn],
         ),
+        deelKnop,
       ],
     ),
   );
@@ -29976,11 +30041,11 @@ void _wireLiveMatchPage(FFProject project) {
     coachBar,
     variable: andConditionsVar([canManage, isLive]).variable,
   );
-  container.children.add(coachBar);
+  sections.add(coachBar);
 
   // ── Keuzepanelen ──────────────────────────────────────────────────────────
   if (membersId != null) {
-    container.children.add(_livePickerPanels(
+    sections.add(_livePickerPanels(
       project,
       wc,
       membersId: membersId,
@@ -30040,7 +30105,7 @@ void _wireLiveMatchPage(FFProject project) {
       color: UIColor.secondaryText);
   setConditionalVisibility(empty, variable: _listEmptyVar(eventsVar));
 
-  container.children.add(_dashCard(
+  sections.add(_dashCard(
     name: 'LiveTimelineCard',
     margin: UIEdgeInsets.only(left: 16, right: 16, top: 14, bottom: 20),
     child: UI.column(
@@ -30062,6 +30127,13 @@ void _wireLiveMatchPage(FFProject project) {
         empty,
       ],
     ),
+  ));
+
+  // Alle secties onder elkaar als het enige kind van de container.
+  container.children.add(UI.column(
+    name: 'LiveSectionsCol',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    children: sections,
   ));
 }
 
