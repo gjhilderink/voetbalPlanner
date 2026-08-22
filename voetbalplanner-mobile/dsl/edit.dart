@@ -29014,6 +29014,15 @@ void _buildTrainingAttendanceSection(FFProject project) {
       findDescendants(wc.node, (n) => n.name == 'TrainingDetailColumn').firstOrNull;
   if (column == null) return;
 
+  // De pagina had geen scroll. Dat viel niet op tot de opkomstlijst erbij kwam:
+  // met een volledig team onder het afmeldformulier vielen de onderste spelers
+  // buiten beeld en was er geen manier om erbij te komen.
+  if (!column.props.column.scrollable) {
+    final c = column.props.column.deepCopy();
+    c.scrollable = true;
+    column.props.column = c;
+  }
+
   final partVar = varFromAppState(partId.deepCopy())
     ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
 
