@@ -238,7 +238,7 @@ abstract final class WedstrijdDetailPageWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "IconButton_y0gnvv9n",
+                  key: "IconButton_7r9n6g9e",
                   type: "IconButton",
                   path: "WedstrijdDetailPage.appBar[0].actions[2]",
                   name: "MatchShareButton",
@@ -291,76 +291,76 @@ abstract final class WedstrijdDetailPageWidgets {
                         name: "Column",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_7p3n35mj",
+                            key: "Container_bktknxsv",
                             type: "Container",
                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0]",
                             name: "LiveMatchButtonWrap",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_zkhysaa5",
+                                key: "Column_2nuv4s4n",
                                 type: "Column",
                                 path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0]",
                                 name: "LiveMatchButtonCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_bdyh1s6m",
+                                    key: "Container_ttja95xm",
                                     type: "Container",
                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0]",
-                                    name: "LiveFollowButton",
-                                    triggers: const <String>[
-                                      "ON_TAP",
-                                    ],
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Row_n4trnfeg",
-                                        type: "Row",
-                                        path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0]",
-                                        name: "LiveFollowButtonRow",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Icon_2guu49vz",
-                                            type: "Icon",
-                                            path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0].children[0]",
-                                            name: "Icon",
-                                          ),
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_10l9joab",
-                                            type: "Text",
-                                            path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0].children[1]",
-                                            name: "LiveFollowButtonLabel",
-                                            text: "Live volgen",
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Container_eex00v3u",
-                                    type: "Container",
-                                    path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[1]",
                                     name: "LiveStartButton",
                                     triggers: const <String>[
                                       "ON_TAP",
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_1130gn4y",
+                                        key: "Row_0064o6la",
                                         type: "Row",
-                                        path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0]",
+                                        path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0]",
                                         name: "LiveStartButtonRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_slsooz2s",
+                                            key: "Icon_mya60cd1",
+                                            type: "Icon",
+                                            path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0].children[0]",
+                                            name: "Icon",
+                                          ),
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_cq5vi0no",
+                                            type: "Text",
+                                            path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0].children[1]",
+                                            name: "LiveStartButtonLabel",
+                                            text: "Start live verslag",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Container_nf6828eb",
+                                    type: "Container",
+                                    path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[1]",
+                                    name: "LiveFollowButton",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Row_z7k1gl4o",
+                                        type: "Row",
+                                        path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0]",
+                                        name: "LiveFollowButtonRow",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Icon_hs3yh4su",
                                             type: "Icon",
                                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_93rl8290",
+                                            key: "Text_lrkiwa2u",
                                             type: "Text",
                                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0].children[1]",
-                                            name: "LiveStartButtonLabel",
-                                            text: "Start live verslag",
+                                            name: "LiveFollowButtonLabel",
+                                            text: "Live volgen",
                                           ),
                                         ],
                                       ),
@@ -389,7 +389,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                     name: "MatchInfoIcon_opponent",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Image_upl4xwc6",
+                                        key: "Image_7q69cry3",
                                         type: "Image",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[1].children[0].children[0].children[0]",
                                         name: "MatchInfoLogo_opponent",
@@ -643,25 +643,25 @@ abstract final class WedstrijdDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_9t2n8v95",
+                            key: "Container_mbjvnht7",
                             type: "Container",
                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[6]",
                             name: "MatchInfoRow_matchVlaggerName",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_4d1ftl5f",
+                                key: "Row_ouiu5uhf",
                                 type: "Row",
                                 path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[6].children[0]",
                                 name: "MatchInfoCardRow_matchVlaggerName",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_skjlpvve",
+                                    key: "Container_11hxgp02",
                                     type: "Container",
                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[6].children[0].children[0]",
                                     name: "MatchInfoIcon_matchVlaggerName",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_ntpnhj2o",
+                                        key: "Icon_ma6nrvbx",
                                         type: "Icon",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[6].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -669,20 +669,20 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_txw4a6i7",
+                                    key: "Column_6c3b7ur5",
                                     type: "Column",
                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[6].children[0].children[1]",
                                     name: "MatchInfoText_matchVlaggerName",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_aaoqltir",
+                                        key: "Text_qnxfz69d",
                                         type: "Text",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[6].children[0].children[1].children[0]",
                                         name: "Text",
                                         text: "Vlagger",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_xom9gu6w",
+                                        key: "Text_b5qeyv63",
                                         type: "Text",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[6].children[0].children[1].children[1]",
                                         name: "MatchInfoValue_matchVlaggerName",
@@ -690,7 +690,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_5y0f6kcd",
+                                    key: "Container_8ovlb0ou",
                                     type: "Container",
                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[6].children[0].children[2]",
                                     name: "MatchInfoDel_vlagger",
@@ -699,7 +699,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_9tdfbyg2",
+                                        key: "Icon_cwd73d86",
                                         type: "Icon",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[6].children[0].children[2].children[0]",
                                         name: "Icon",
@@ -711,25 +711,25 @@ abstract final class WedstrijdDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_fn6f9z6d",
+                            key: "Container_p8witrtz",
                             type: "Container",
                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7]",
                             name: "MatchInfoRow_matchGuestNames",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_s19jzn8w",
+                                key: "Row_3ha2qhxg",
                                 type: "Row",
                                 path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0]",
                                 name: "MatchInfoCardRow_matchGuestNames",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_lpk2l5r9",
+                                    key: "Container_yr3n4my1",
                                     type: "Container",
                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0].children[0]",
                                     name: "MatchInfoIcon_matchGuestNames",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_8idvszo4",
+                                        key: "Icon_egk23313",
                                         type: "Icon",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -737,44 +737,44 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_be6j1rzz",
+                                    key: "Column_cguaomrk",
                                     type: "Column",
                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0].children[1]",
                                     name: "MatchInfoText_matchGuestNames",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_950nhtnw",
+                                        key: "Text_pe1grjqw",
                                         type: "Text",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0].children[1].children[0]",
                                         name: "Text",
                                         text: "Gastspelers",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_25bzq30g",
+                                        key: "Text_g0ty1v1a",
                                         type: "Text",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0].children[1].children[1]",
                                         name: "MatchInfoValue_matchGuestNames",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "ListView_qpeep8va",
+                                        key: "ListView_698yubqw",
                                         type: "ListView",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0].children[1].children[2]",
                                         name: "MatchInfoGuestList",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Row_inxdltu6",
+                                            key: "Row_l7n7uqbx",
                                             type: "Row",
                                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0].children[1].children[2].children[0]",
                                             name: "MatchInfoGuestRow",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_q0lbu1r5",
+                                                key: "Text_1q0092r3",
                                                 type: "Text",
                                                 path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0].children[1].children[2].children[0].children[0]",
                                                 name: "MatchInfoGuestName",
                                               ),
                                               ffai.ProjectWidgetHandle(
-                                                key: "Container_bcxx83n1",
+                                                key: "Container_0ppt5d69",
                                                 type: "Container",
                                                 path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0].children[1].children[2].children[0].children[1]",
                                                 name: "MatchInfoGuestDel",
@@ -783,7 +783,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                                 ],
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_xmtinnzo",
+                                                    key: "Icon_2cls9iwn",
                                                     type: "Icon",
                                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[7].children[0].children[1].children[2].children[0].children[1].children[0]",
                                                     name: "Icon",
@@ -848,7 +848,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_ofm9a5ph",
+                                    key: "Container_43shlzma",
                                     type: "Container",
                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[8].children[0].children[2]",
                                     name: "MatchInfoDel_fruit",
@@ -857,7 +857,7 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_2b93r4li",
+                                        key: "Icon_cv1aeqm2",
                                         type: "Icon",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[8].children[0].children[2].children[0]",
                                         name: "Icon",
@@ -920,31 +920,31 @@ abstract final class WedstrijdDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_c8ximz5u",
+                            key: "Container_433lvelv",
                             type: "Container",
                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10]",
                             name: "MatchAfmeldSection",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_8k5jia1s",
+                                key: "Column_xyjzetg3",
                                 type: "Column",
                                 path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10].children[0]",
                                 name: "MatchAfmeldCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_1w14qsmd",
+                                    key: "Row_uge8j190",
                                     type: "Row",
                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10].children[0].children[0]",
                                     name: "MatchAfmeldHeaderRow",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_8dbpqaxj",
+                                        key: "Icon_wq7goksh",
                                         type: "Icon",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10].children[0].children[0].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_ddvgsd24",
+                                        key: "Text_gikww408",
                                         type: "Text",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10].children[0].children[0].children[1]",
                                         name: "MatchAfmeldAantal",
@@ -952,38 +952,38 @@ abstract final class WedstrijdDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_x8hjyovg",
+                                    key: "Text_u7skmc1m",
                                     type: "Text",
                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10].children[0].children[1]",
                                     name: "MatchAfmeldLeeg",
                                     text: "Niemand heeft zich afgemeld.",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "ListView_9ttg63vk",
+                                    key: "ListView_kkznjnp9",
                                     type: "ListView",
                                     path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10].children[0].children[2]",
                                     name: "MatchAfmeldList",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_vooklbo4",
+                                        key: "Container_dbafbtuz",
                                         type: "Container",
                                         path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10].children[0].children[2].children[0]",
                                         name: "MatchAfmeldItem",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Column_u0d5vtu5",
+                                            key: "Column_tmzlxbnd",
                                             type: "Column",
                                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10].children[0].children[2].children[0].children[0]",
                                             name: "MatchAfmeldItemCol",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_56vg5acw",
+                                                key: "Text_30vxqala",
                                                 type: "Text",
                                                 path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10].children[0].children[2].children[0].children[0].children[0]",
                                                 name: "MatchAfmeldNaam",
                                               ),
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_2kdpajph",
+                                                key: "Text_80slcmbk",
                                                 type: "Text",
                                                 path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[10].children[0].children[2].children[0].children[0].children[1]",
                                                 name: "MatchAfmeldReden",
@@ -999,21 +999,21 @@ abstract final class WedstrijdDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_h8q5y82v",
+                            key: "Text_jzgl3rke",
                             type: "Text",
                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[11]",
                             name: "MatchAfmeldHeader",
                             text: "Af-/aanmelden",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "TextField_yf5t44ec",
+                            key: "TextField_m67fxvep",
                             type: "TextField",
                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[12]",
                             name: "MatchReasonField",
                             text: "Reden (bij afmelden)",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Button_2jjbybo6",
+                            key: "Button_btlrerpz",
                             type: "Button",
                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[13]",
                             name: "MatchAfmeldButton",
@@ -1023,7 +1023,7 @@ abstract final class WedstrijdDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Button_qxg6h459",
+                            key: "Button_tjwreniz",
                             type: "Button",
                             path: "WedstrijdDetailPage.body[0].children[0].children[1].children[0].children[14]",
                             name: "MatchAanmeldButton",
@@ -1154,7 +1154,7 @@ abstract final class WedstrijdDetailPageWidgets {
         ],
         "floatingActionButton": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "FloatingActionButton_negxojiu",
+            key: "FloatingActionButton_t69iivdr",
             type: "FloatingActionButton",
             path: "WedstrijdDetailPage.floatingActionButton[0]",
             name: "MatchActionsFab",
@@ -1163,7 +1163,7 @@ abstract final class WedstrijdDetailPageWidgets {
             ],
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Icon_uc443q8s",
+                key: "Icon_7qu0we7m",
                 type: "Icon",
                 path: "WedstrijdDetailPage.floatingActionButton[0].children[0]",
                 name: "FAB Icon",

@@ -83,10 +83,14 @@ class LineupController extends Controller
             return response()->json(['success' => false, 'message' => 'Alleen de coach mag de opstelling beheren.'], 403);
         }
 
+        // position is niet meer verplicht: de app laat de coach vlak voor de
+        // aftrap alleen basis of bank kiezen, zonder per speler een positie aan
+        // te tikken. De kolom is NOT NULL, dus een weggelaten positie wordt
+        // 'player' — geen positie opgegeven.
         $validated = $request->validate([
             'player_name'   => 'nullable|string|max:255',
             'member_id'     => 'nullable|uuid|exists:members,id',
-            'position'      => 'required|in:keeper,defender,midfielder,forward',
+            'position'      => 'nullable|in:keeper,defender,midfielder,forward,player',
             'shirt_number'  => 'nullable|integer|min:1|max:99',
             'is_substitute' => 'nullable',
         ]);
@@ -104,7 +108,7 @@ class LineupController extends Controller
         LineupPlayer::create([
             'lineup_id'     => $lineup->id,
             'member_id'     => $memberId,
-            'position'      => $validated['position'],
+            'position'      => $validated['position'] ?? 'player',
             'shirt_number'  => $validated['shirt_number'] ?? null,
             'is_substitute' => $request->boolean('is_substitute'),
         ]);
@@ -122,7 +126,9 @@ class LineupController extends Controller
             return response()->json(['success' => false, 'message' => 'Alleen de coach mag de opstelling beheren.'], 403);
         }
 
-        $validated = $request->validate(['player_id' => 'required|uuid']);
+        // lineup_players heeft een oplopend getal als sleutel, geen uuid zoals de
+        // rest van dit project. Op uuid valideren wees elk geldig id af.
+        $validated = $request->validate(['player_id' => 'required|integer']);
         LineupPlayer::query()
             ->where('id', $validated['player_id'])
             ->whereHas('lineup', fn ($q) => $q->where('match_id', $match->id))

@@ -1339,6 +1339,10 @@ void buildEditFlow(App app) {
     _ensureLiveAppStateFields(project);
     _addLiveEndpoints(project);
     _ensureLiveCustomActions(project);
+    // Opstelling: het state-veld en de endpoints die tot nu toe alleen in het
+    // proto stonden en nergens werden aangeroepen.
+    _ensureLineupAppStateField(project);
+    _addLineupEndpoints(project);
     _wireDashboardLoad(project);
     _fixDashboardListViewShrinkWrap(project);
     // Add "Rijschema" section: shows matches where the user is assigned to drive.
@@ -29610,6 +29614,33 @@ void _wireLiveMatchPage(FFProject project) {
         ]),
       ]),
     );
+
+    // En de opstelling erbij, zodat basis en bank meteen staan.
+    if (_findAppStateFieldId(project, 'matchLineup') != null &&
+        findApiEndpoint(project,
+                name: 'GetLineup', groupName: 'VoetbalPlannerAPI') !=
+            null) {
+      var t2 = rememberId;
+      while (t2.hasFollowUpAction()) {
+        t2 = t2.followUpAction;
+      }
+      t2.followUpAction = Actions.apiCallNode(
+        project,
+        endpointName: 'GetLineup',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'matchId': pageParam(matchIdParam),
+        },
+        outputVariableName: 'liveLineup',
+        nodeKey: scaffoldKey,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('matchLineup', ctx.responseVar),
+          ]),
+        ]),
+      );
+    }
   }
 
   Actions.addTriggerChain(
@@ -30002,6 +30033,97 @@ void _wireLiveMatchPage(FFProject project) {
     ),
   );
 
+  // Startknop óp de livepagina zelf. Zonder deze knop kwam je hier via "Live
+  // volgen" terecht bij een wedstrijd die nog niet begonnen was, en was er
+  // niets te bedienen — de coachbalk verschijnt immers pas als het loopt.
+  final startHier = UI.container(
+    name: 'LiveStartHereButton',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    borderRadius: 14,
+    color: UIColor.primary,
+    child: UI.row(
+      name: 'LiveStartHereRow',
+      mainAxisMin: true,
+      mainAxisAlignment: UIMainAxisAlignment.center,
+      spacing: 8,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('sensors', size: 20, color: UIColor.white),
+        UI.text('Start het verslag',
+            name: 'LiveStartHereLabel',
+            style: UITextStyle.labelLarge,
+            color: UIColor.white,
+            maxLines: 1),
+      ],
+    ),
+  );
+  Actions.onTapChain(
+    startHier,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'StartLiveMatch',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromAppState(liveMatchIdId.deepCopy()),
+      },
+      outputVariableName: 'liveStartHere',
+      nodeKey: startHier.key,
+      onSuccess: (ctx) => _watchLiveNode(project,
+          FFValue(variable: varFromAppState(liveMatchIdId.deepCopy()))),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Kon het live verslag niet starten.'),
+      ]),
+    ),
+  );
+
+  final startPanel = UI.container(
+    name: 'LiveStartPanel',
+    innerPadding: UIEdgeInsets.only(left: 16, right: 16, top: 16),
+    child: UI.column(
+      name: 'LiveStartCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        UI.text('Deze wedstrijd is nog niet begonnen.',
+            name: 'LiveNotStartedText',
+            style: UITextStyle.bodyMedium,
+            color: UIColor.secondaryText,
+            textAlign: UITextAlign.center),
+        startHier,
+      ],
+    ),
+  );
+  setConditionalVisibility(
+    startPanel,
+    variable: andConditionsVar([
+      canManage,
+      _equalsLiteral(stateField('isLive'), 'true', negate: true),
+      _equalsLiteral(stateField('hasEnded'), 'true', negate: true),
+    ]).variable,
+  );
+
+  // Voor wie niet mag beheren en er loopt nog niets: uitleg in plaats van een
+  // leeg scherm.
+  final wachtTekst = UI.text('Er loopt nog geen live verslag van deze wedstrijd.',
+      name: 'LiveWaitingText',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center);
+  wachtTekst.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 24),
+  );
+  setConditionalVisibility(
+    wachtTekst,
+    variable: andConditionsVar([
+      _equalsLiteral(stateField('canManage'), 'true', negate: true),
+      _equalsLiteral(stateField('isLive'), 'true', negate: true),
+      _equalsLiteral(stateField('hasEnded'), 'true', negate: true),
+    ]).variable,
+  );
+
   final coachBar = UI.container(
     name: 'LiveCoachBar',
     innerPadding: UIEdgeInsets.only(left: 16, right: 16, top: 14),
@@ -30041,7 +30163,27 @@ void _wireLiveMatchPage(FFProject project) {
     coachBar,
     variable: andConditionsVar([canManage, isLive]).variable,
   );
+  sections.add(startPanel);
+  sections.add(wachtTekst);
   sections.add(coachBar);
+
+  // Opstelling: basis en bank, met voor de coach de knoppen om in te delen.
+  final lineupCard = _liveLineupSection(
+    project,
+    wc,
+    authTokenId: authTokenId,
+    liveMatchIdId: liveMatchIdId,
+    stateField: stateField,
+    canManage: canManage,
+  );
+  if (lineupCard != null) sections.add(lineupCard);
+  final lineupPanel = _liveLineupPanel(
+    project,
+    wc,
+    authTokenId: authTokenId,
+    liveMatchIdId: liveMatchIdId,
+  );
+  if (lineupPanel != null) sections.add(lineupPanel);
 
   // ── Keuzepanelen ──────────────────────────────────────────────────────────
   if (membersId != null) {
@@ -30538,6 +30680,9 @@ void _addLiveMatchButton(FFProject project) {
   Actions.onTapChain(startKnop, startNode);
   setConditionalVisibility(startKnop, variable: canManage);
 
+  // De startknop bovenaan: een coach die een wedstrijd opent wil beginnen, niet
+  // volgen. Andersom stond "Live volgen" eerst en kwam je op een lege pagina
+  // terecht bij een wedstrijd die nog niet gestart was.
   final wrap = UI.container(
     name: 'LiveMatchButtonWrap',
     innerPadding: UIEdgeInsets.symmetric(vertical: 6),
@@ -30545,7 +30690,7 @@ void _addLiveMatchButton(FFProject project) {
       name: 'LiveMatchButtonCol',
       crossAxisAlignment: UICrossAxisAlignment.stretch,
       spacing: 8,
-      children: [volgKnop, startKnop],
+      children: [startKnop, volgKnop],
     ),
   );
   infoColumn.children.insert(0, wrap);
@@ -30720,4 +30865,438 @@ void _wireDashboardLiveMatches(FFProject project) {
       ]),
     ),
   );
+}
+
+// ── Opstelling op de livepagina ──────────────────────────────────────────────
+//
+// De coach zet vlak voor de aftrap per speler basis of bank. Bewust géén
+// positie of rugnummer erbij: dat zou drie tikken per speler kosten, langs de
+// lijn, vlak voor het fluitsignaal. De backend krijgt 'player' als positie mee.
+
+void _ensureLineupAppStateField(FFProject project) {
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'matchLineup')) return;
+  final struct = findDataStruct(project, name: 'LineupPlayer');
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier:
+        FFIdentifier(name: 'matchLineup', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+/// De opstelling-endpoints stonden alleen in het proto en werden nergens
+/// aangeroepen. Hier krijgen ze de vorm die de livepagina nodig heeft.
+void _addLineupEndpoints(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  if (findApiGroup(project, name: groupName) == null) return;
+
+  void ensure({
+    required String name,
+    required String url,
+    required List<String> variables,
+    FFApiEndpoint_CallType method = FFApiEndpoint_CallType.GET,
+  }) {
+    final existing = findApiEndpoint(project, name: name, groupName: groupName);
+    if (existing == null) {
+      addEndpointToGroup(
+        project,
+        groupName: groupName,
+        name: name,
+        url: url,
+        method: method,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {
+          for (final v in variables)
+            v: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        },
+        headers: ['Authorization: Bearer [token]'],
+        responseDataStructName: 'LineupPlayer',
+        responseDataStructIsList: true,
+      );
+      return;
+    }
+    existing.url = url;
+    for (final v in variables) {
+      if (existing.variables
+          .any((x) => x.hasIdentifier() && x.identifier.name == v)) continue;
+      existing.variables.add(FFApiValue(
+        identifier: FFIdentifier(name: v, key: generateRandomAlphaNumericString()),
+        type: FFBaseDataType.String,
+      ));
+    }
+    updateApiEndpoint(
+      project,
+      name: name,
+      groupName: groupName,
+      responseDataStructName: 'LineupPlayer',
+      responseDataStructIsList: true,
+    );
+  }
+
+  ensure(
+    name: 'GetLineup',
+    url: '/matches/[matchId]/lineup',
+    variables: const ['token', 'matchId'],
+  );
+  // position=player: de coach kiest alleen basis of bank, de kolom is NOT NULL.
+  ensure(
+    name: 'AddLineupPlayer',
+    url: '/matches/[matchId]/lineup/player'
+        '?member_id=[memberId]&is_substitute=[isSubstitute]&position=player',
+    variables: const ['token', 'matchId', 'memberId', 'isSubstitute'],
+    method: FFApiEndpoint_CallType.POST,
+  );
+  ensure(
+    name: 'RemoveLineupPlayer',
+    url: '/matches/[matchId]/lineup/player/remove?player_id=[playerId]',
+    variables: const ['token', 'matchId', 'playerId'],
+    method: FFApiEndpoint_CallType.POST,
+  );
+}
+
+/// Het opstellingsblok: basis en bank, en voor de coach de knoppen om spelers
+/// in te delen. Geeft null terug als de gegevens er niet zijn.
+FFNode? _liveLineupSection(
+  FFProject project,
+  FFWidgetClass wc, {
+  required FFIdentifier authTokenId,
+  required FFIdentifier liveMatchIdId,
+  required FFVariable Function(String) stateField,
+  required FFVariable canManage,
+}) {
+  final lineupId = _findAppStateFieldId(project, 'matchLineup');
+  final membersId = _findAppStateFieldId(project, 'scoreTeamMembers');
+  if (lineupId == null || membersId == null) return null;
+  if (findApiEndpoint(project, name: 'GetLineup', groupName: 'VoetbalPlannerAPI') ==
+      null) return null;
+
+  final scaffoldKey = wc.node.key;
+  final lineupVar = varFromAppState(lineupId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  final membersVar = varFromAppState(membersId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  FFVariable pageState(String name) {
+    final id = _findPageStateFieldId(project, 'LiveMatchPage', name)!;
+    return varFromPageState(id.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  /// Ophalen van de opstelling; hierna staat hij vers in AppState.
+  FFActionNode reloadLineup(String nodeKey, String output) => Actions.apiCallNode(
+        project,
+        endpointName: 'GetLineup',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'matchId': varFromAppState(liveMatchIdId.deepCopy()),
+        },
+        outputVariableName: output,
+        nodeKey: nodeKey,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('matchLineup', ctx.responseVar),
+          ]),
+        ]),
+      );
+
+  /// Eén sectie van de opstelling: basis of bank.
+  FFNode sectie({
+    required String key,
+    required String titel,
+    required bool basis,
+    required String iconName,
+    required UIColor kleur,
+  }) {
+    final list = UI.listView(
+      name: '${key}List',
+      shrinkWrap: true,
+      spacing: 2,
+      dynamicSource: DynamicSource(variable: lineupVar, itemName: key),
+    );
+
+    final naam = UI.text('',
+        name: '${key}Naam',
+        style: UITextStyle.bodyMedium,
+        maxLines: 1,
+        textOverflow: UITextOverflow.ellipsis);
+    naam.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, 'memberName'));
+
+    // Kruisje om iemand er weer uit te halen; alleen voor de coach.
+    final verwijder = UI.icon('close', size: 18, color: UIColor.error);
+    Actions.onTapChain(
+      verwijder,
+      Actions.apiCallNode(
+        project,
+        endpointName: 'RemoveLineupPlayer',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'matchId': varFromAppState(liveMatchIdId.deepCopy()),
+          'playerId': generatorVarField(list.key, 'id'),
+        },
+        outputVariableName: '${key}Remove',
+        nodeKey: verwijder.key,
+        onSuccess: (ctx) => reloadLineup(verwijder.key, '${key}Reload'),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('Kon de speler niet verwijderen.'),
+        ]),
+      ),
+    );
+    setConditionalVisibility(verwijder, variable: canManage.deepCopy());
+
+    final item = UI.container(
+      name: '${key}Item',
+      innerPadding: UIEdgeInsets.symmetric(vertical: 6),
+      child: UI.row(
+        name: '${key}Row',
+        spacing: 10,
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: [
+          UI.icon(iconName, size: 16, color: kleur),
+          UI.expanded(naam),
+          verwijder,
+        ],
+      ),
+    );
+    // Eén lijst over de hele opstelling; isStarter bepaalt in welke sectie de
+    // regel thuishoort.
+    setConditionalVisibility(
+      item,
+      variable: conditionVar(
+        generatorVarField(list.key, 'isStarter'),
+        basis ? FFCondition_Relation.EQUAL_TO : FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+      ).variable,
+    );
+    list.children.add(item);
+
+    return UI.column(
+      name: key,
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 4,
+      children: [
+        UI.text(titel, name: '${key}Titel', style: UITextStyle.labelMedium),
+        list,
+      ],
+    );
+  }
+
+  // Knop om het indeelpaneel te openen.
+  final indeelKnop = UI.container(
+    name: 'LiveLineupEditBtn',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 10),
+    borderRadius: 12,
+    color: UIColor.hex(0xFFEFF1F5),
+    child: UI.text('Spelers indelen',
+        name: 'LiveLineupEditLabel',
+        style: UITextStyle.labelMedium,
+        color: UIColor.primary,
+        textAlign: UITextAlign.center),
+  );
+  Actions.onTap(
+    indeelKnop,
+    Actions.updatePageState(
+      project,
+      widgetClassName: 'LiveMatchPage',
+      updates: [StateFieldUpdate.set('panel', 'lineup')],
+    ),
+  );
+  setConditionalVisibility(indeelKnop, variable: canManage.deepCopy());
+
+  final kaart = _dashCard(
+    name: 'LiveLineupCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+    child: UI.column(
+      name: 'LiveLineupCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 12,
+      children: [
+        UI.row(
+          name: 'LiveLineupHead',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('groups', size: 20, color: UIColor.primary),
+            UI.expanded(UI.text('Opstelling',
+                name: 'LiveLineupTitle', style: UITextStyle.titleSmall)),
+          ],
+        ),
+        sectie(
+            key: 'LiveBasis',
+            titel: 'Basis',
+            basis: true,
+            iconName: 'radio_button_checked',
+            kleur: UIColor.success),
+        sectie(
+            key: 'LiveBank',
+            titel: 'Wissels',
+            basis: false,
+            iconName: 'event_seat',
+            kleur: UIColor.secondaryText),
+        indeelKnop,
+      ],
+    ),
+  );
+
+  // Geen opstelling ingevuld? Dan ook geen kopje — behalve voor de coach, die
+  // moet er juist bij kunnen om hem te maken.
+  setConditionalVisibility(
+    kaart,
+    variable: orConditionsVar([
+      _listNotEmptyVar(lineupVar),
+      canManage.deepCopy(),
+    ]).variable,
+  );
+
+  return kaart;
+}
+
+/// Het paneel waarin de coach spelers indeelt: tik een speler, kies basis of bank.
+FFNode? _liveLineupPanel(
+  FFProject project,
+  FFWidgetClass wc, {
+  required FFIdentifier authTokenId,
+  required FFIdentifier liveMatchIdId,
+}) {
+  final membersId = _findAppStateFieldId(project, 'scoreTeamMembers');
+  if (membersId == null) return null;
+  if (findApiEndpoint(project,
+          name: 'AddLineupPlayer', groupName: 'VoetbalPlannerAPI') ==
+      null) return null;
+
+  final scaffoldKey = wc.node.key;
+  final membersVar = varFromAppState(membersId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  FFVariable pageState(String name) {
+    final id = _findPageStateFieldId(project, 'LiveMatchPage', name)!;
+    return varFromPageState(id.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  final list = UI.listView(
+    name: 'LiveLineupPickList',
+    shrinkWrap: true,
+    spacing: 2,
+    dynamicSource: DynamicSource(variable: membersVar, itemName: 'lu'),
+  );
+
+  final naam = UI.text('',
+      name: 'LiveLineupPickNaam',
+      style: UITextStyle.bodyMedium,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  naam.props.text.textValue =
+      FFStringValue(variable: generatorVarField(list.key, 'name'));
+
+  /// Deelt de aangetikte speler in als basis of bank en ververst de opstelling.
+  FFActionNode indeel(String nodeKey, bool bank, String output) =>
+      Actions.apiCallNode(
+        project,
+        endpointName: 'AddLineupPlayer',
+        groupName: 'VoetbalPlannerAPI',
+        variables: {'isSubstitute': bank ? 'true' : 'false'},
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'matchId': varFromAppState(liveMatchIdId.deepCopy()),
+          'memberId': generatorVarField(list.key, 'id'),
+        },
+        outputVariableName: output,
+        nodeKey: nodeKey,
+        onSuccess: (ctx) => Actions.apiCallNode(
+          project,
+          endpointName: 'GetLineup',
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: {
+            'token': varFromAppState(authTokenId.deepCopy()),
+            'matchId': varFromAppState(liveMatchIdId.deepCopy()),
+          },
+          outputVariableName: '${output}Reload',
+          nodeKey: nodeKey,
+          onSuccess: (c2) => Actions.chain([
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable('matchLineup', c2.responseVar),
+            ]),
+          ]),
+        ),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('Kon de speler niet indelen.'),
+        ]),
+      );
+
+  FFNode spotKnop(String label, bool bank, UIColor kleur, String output) {
+    final btn = UI.container(
+      name: 'LiveSpot$label',
+      innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      borderRadius: 10,
+      color: kleur,
+      child: UI.text(label,
+          name: 'LiveSpot${label}Label',
+          style: UITextStyle.labelSmall,
+          color: UIColor.white,
+          maxLines: 1),
+    );
+    Actions.onTapChain(btn, indeel(btn.key, bank, output));
+    return btn;
+  }
+
+  final item = UI.container(
+    name: 'LiveLineupPickItem',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 6),
+    child: UI.row(
+      name: 'LiveLineupPickRow',
+      spacing: 8,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.expanded(naam),
+        spotKnop('Basis', false, UIColor.success, 'liveSpotBasis'),
+        spotKnop('Bank', true, UIColor.secondaryText, 'liveSpotBank'),
+      ],
+    ),
+  );
+  list.children.add(item);
+
+  final klaar = UI.text('Klaar',
+      name: 'LiveLineupDone',
+      style: UITextStyle.labelMedium,
+      color: UIColor.primary);
+  Actions.onTap(
+    klaar,
+    Actions.updatePageState(
+      project,
+      widgetClassName: 'LiveMatchPage',
+      updates: [StateFieldUpdate.set('panel', '')],
+    ),
+  );
+
+  final kaart = _dashCard(
+    name: 'LiveLineupPanel',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.column(
+      name: 'LiveLineupPanelCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        UI.row(
+          name: 'LiveLineupPanelHead',
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.expanded(UI.text('Wie staat in de basis?',
+                name: 'LiveLineupPanelTitle', style: UITextStyle.titleSmall)),
+            klaar,
+          ],
+        ),
+        list,
+      ],
+    ),
+  );
+  setConditionalVisibility(
+      kaart, variable: _equalsLiteral(pageState('panel'), 'lineup'));
+
+  return kaart;
 }

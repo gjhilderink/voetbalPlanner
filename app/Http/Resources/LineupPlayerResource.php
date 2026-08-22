@@ -12,7 +12,10 @@ class LineupPlayerResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'           => $this->id,
+            // Als string: de app typeert dit veld zo, en lineup_players heeft
+            // een oplopend getal als sleutel.
+            'id'           => (string) $this->id,
+            'memberId'     => $this->member_id ?? '',
             'memberName'   => $this->member?->name ?? '',
             'position'     => $this->position ?? '',
             'jerseyNumber' => (string) ($this->shirt_number ?? ''),
