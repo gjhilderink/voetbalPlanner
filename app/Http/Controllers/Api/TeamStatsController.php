@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Absence;
 use App\Models\FootballMatch;
 use App\Models\Goal;
+use App\Models\MatchEvent;
 use App\Models\Team;
 use App\Models\TrainingSchedule;
 use Carbon\Carbon;
@@ -112,6 +113,19 @@ class TeamStatsController extends Controller
                 ->count()
             : 0;
 
+        // Fair play: kaarten komen uit het live verslag. Wedstrijden die zonder
+        // live verslag gespeeld zijn tellen dus als nul kaarten — er is geen
+        // andere plek waar ze geregistreerd worden.
+        $kaarten = $memberId
+            ? MatchEvent::query()
+                ->whereIn('match_id', $matches->pluck('id'))
+                ->where('type', MatchEvent::TYPE_CARD)
+                ->where('member_id', $memberId)
+                ->selectRaw('card_type, count(*) as aantal')
+                ->groupBy('card_type')
+                ->pluck('aantal', 'card_type')
+            : collect();
+
         $difference = $goalsFor - $goalsAgainst;
 
         // Alles als string: de app-struct typeert deze velden als String.
@@ -131,6 +145,8 @@ class TeamStatsController extends Controller
             'myAttendance'   => (string) $attendance,
             'myGoals'        => (string) $goals,
             'myAssists'      => (string) $assists,
+            'myYellowCards'  => (string) ($kaarten[MatchEvent::CARD_YELLOW] ?? 0),
+            'myRedCards'     => (string) ($kaarten[MatchEvent::CARD_RED] ?? 0),
         ]);
     }
 

@@ -78,5 +78,16 @@ Route::get('/wedstrijd/{match}', function (string $match) {
     ]);
 })->where('match', '[0-9a-fA-F-]{36}');
 
+// Live wedstrijdverslag, publiek te volgen via een geheime link die de coach
+// deelt. Geen auth: wie de link heeft mag meekijken, zolang de wedstrijd loopt.
+// Het pollen krijgt een eigen IP-limiet — web-routes vallen buiten throttleApi.
+Route::get('/live/{token}', [\App\Http\Controllers\LivePageController::class, 'show'])
+    ->where('token', '[a-zA-Z0-9]{64}')
+    ->name('live.show');
+Route::get('/live/{token}/state', [\App\Http\Controllers\LivePageController::class, 'state'])
+    ->where('token', '[a-zA-Z0-9]{64}')
+    ->middleware('throttle:120,1')
+    ->name('live.state');
+
 // Impersonation routes (guarded by the package middleware)
 Route::impersonate();

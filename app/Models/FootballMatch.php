@@ -21,6 +21,7 @@ class FootballMatch extends Model
         'external_id', 'team_id', 'opponent', 'opponent_logo', 'match_datetime',
         'location', 'is_home', 'status', 'score_home', 'score_away',
         'arrival_time', 'dressing_room', 'coach_id', 'fruit_hero_id', 'vlagger_id', 'notes', 'last_synced_at',
+        'live_started_at', 'live_halftime_at', 'live_ended_at', 'live_token',
     ];
 
     protected function casts(): array
@@ -31,6 +32,38 @@ class FootballMatch extends Model
             'score_home' => 'integer',
             'score_away' => 'integer',
             'last_synced_at' => 'datetime',
+            'live_started_at' => 'datetime',
+            'live_halftime_at' => 'datetime',
+            'live_ended_at' => 'datetime',
+        ];
+    }
+
+    /** Gebeurtenissen van het live verslag, op registratievolgorde. */
+    public function events(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MatchEvent::class, 'match_id')->orderBy('created_at');
+    }
+
+    /** Er loopt een verslag: gestart en nog niet afgefloten. */
+    public function isLive(): bool
+    {
+        return $this->live_started_at !== null && $this->live_ended_at === null;
+    }
+
+    /**
+     * Stand uit de doelpunt-gebeurtenissen.
+     *
+     * @return array{own:int,opponent:int}
+     */
+    public function liveScore(): array
+    {
+        $goals = $this->relationLoaded('events')
+            ? $this->events->where('type', MatchEvent::TYPE_GOAL)
+            : $this->events()->where('type', MatchEvent::TYPE_GOAL)->get();
+
+        return [
+            'own'      => $goals->where('side', MatchEvent::SIDE_OWN)->count(),
+            'opponent' => $goals->where('side', MatchEvent::SIDE_OPPONENT)->count(),
         ];
     }
 

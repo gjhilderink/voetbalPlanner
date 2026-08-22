@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\BrandingController;
 use App\Http\Controllers\Api\DocumentationController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
+use App\Http\Controllers\Api\LiveMatchController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\TrainingController;
@@ -168,6 +169,15 @@ Route::prefix('v1')->group(function () {
         Route::post('/matches/{match}/goals', [GoalController::class, 'store']);
         Route::post('/matches/{match}/goals/delete-last', [GoalController::class, 'destroyLast']);
         Route::delete('/matches/{match}/goals/{goal}', [GoalController::class, 'destroy']);
+
+        // Live wedstrijdverslag. POST voor de schrijfacties, zoals overal hier:
+        // de shared host blokkeert PATCH en DELETE.
+        Route::get('/live', [LiveMatchController::class, 'mine']);
+        Route::get('/matches/{match}/live', [LiveMatchController::class, 'show']);
+        Route::post('/matches/{match}/live/start', [LiveMatchController::class, 'start']);
+        Route::post('/matches/{match}/live/event', [LiveMatchController::class, 'event']);
+        Route::post('/matches/{match}/live/undo', [LiveMatchController::class, 'undo']);
+        Route::post('/matches/{match}/live/stop', [LiveMatchController::class, 'stop']);
 
         // Bar duties
         Route::apiResource('bar-duties', BarDutyController::class)
