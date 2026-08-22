@@ -29990,7 +29990,32 @@ void _wireLiveMatchPage(FFProject project) {
     onSuccess: (ctx) {
       final refresh = _watchLiveNode(project,
           FFValue(variable: varFromAppState(liveMatchIdId.deepCopy())));
-      refresh.followUpAction = FFActionNode(
+      var tail = refresh;
+      // "Nu live" op het dashboard hangt aan AppState.liveMatches, en die wordt
+      // alleen bij het openen van het dashboard gevuld. Zonder deze verversing
+      // bleef de kaart staan tot je het dashboard opnieuw opende.
+      if (_findAppStateFieldId(project, 'liveMatches') != null &&
+          findApiEndpoint(project,
+                  name: 'GetMyLiveMatches', groupName: 'VoetbalPlannerAPI') !=
+              null) {
+        tail.followUpAction = Actions.apiCallNode(
+          project,
+          endpointName: 'GetMyLiveMatches',
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: {
+            'token': varFromAppState(authTokenId.deepCopy()),
+          },
+          outputVariableName: 'liveStopRefreshList',
+          nodeKey: stopBtn.key,
+          onSuccess: (c2) => Actions.chain([
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable('liveMatches', c2.responseVar),
+            ]),
+          ]),
+        );
+        tail = tail.followUpAction;
+      }
+      tail.followUpAction = FFActionNode(
         key: generateRandomAlphaNumericString(),
         action: Actions.snackBar('Het verslag is afgesloten.'),
       );
@@ -30839,6 +30864,13 @@ FFNode? _dashLiveCard(FFProject project, FFWidgetClass wc) {
       'teamId': VariableParamValue(generatorVarField(list.key, 'teamId')),
     }),
   );
+  // Alleen regels van wedstrijden die nu écht lopen. Het endpoint filtert
+  // afgelopen wedstrijden al weg, maar de lijst in AppState kan even achterlopen
+  // en dan hoort er geen afgefloten wedstrijd meer tussen te staan.
+  setConditionalVisibility(
+    item,
+    variable: _equalsLiteral(generatorVarField(list.key, 'isLive'), 'true'),
+  );
   list.children.add(item);
 
   final card = _dashCard(
@@ -30863,8 +30895,15 @@ FFNode? _dashLiveCard(FFProject project, FFWidgetClass wc) {
       ],
     ),
   );
-  // Alleen tonen als er ook echt iets loopt.
-  setConditionalVisibility(card, variable: _listNotEmptyVar(liveVar));
+  // De kaart zelf ook weg zodra er niets meer loopt — anders bleef de kop
+  // "Nu live" boven een lege lijst staan zodra alle regels verborgen zijn.
+  setConditionalVisibility(
+    card,
+    variable: andConditionsVar([
+      _listNotEmptyVar(liveVar),
+      _equalsLiteral(_firstItemVar(liveVar, 'isLive'), 'true'),
+    ]).variable,
+  );
   return card;
 }
 
