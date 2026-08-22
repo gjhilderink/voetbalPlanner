@@ -1242,6 +1242,9 @@ void buildEditFlow(App app) {
   // Af-/aanmelden met reden op WedstrijdDetailPage (ná de info-kolom + swap-knoppen).
   app.raw((project) => _wireWedstrijdAfmelden(project));
   // Coach: doelpunten/score-sectie op de wedstrijddetail (ná afmelden, zelfde kolom).
+  // Het AppState-veld voor de doelpuntenlijst moet bestaan vóór de secties die
+  // de laadketen opbouwen; anders slaan die de AppState-update stilzwijgend over.
+  app.raw((project) => _ensureMatchGoalsListAppState(project));
   app.raw((project) => _addWedstrijdScoreSection(project));
   app.raw((project) => _addWedstrijdGuestInviteSection(project));
   app.raw((project) => _addWedstrijdActionsFab(project));
@@ -1487,6 +1490,8 @@ void buildEditFlow(App app) {
     _wireDashboardLiveMatches(project);
     _wireLiveMatchPage(project);
     _addLiveMatchButton(project);
+    // Ná _addWedstrijdScoreSection, die de lijst opbouwt.
+    _bindGoalsTabToAppState(project);
     _rebuildDashboardBody(project);
     // Trainingsopkomst: wie is er wel en wie niet. Ná _wireTrainingDetailPage,
     // die de pagina-inhoud opbouwt waar deze sectie onderaan bij komt.
@@ -23016,8 +23021,20 @@ void _addWedstrijdActionsFab(FFProject project) {
         final setGoals = FFActionNode(key: generateRandomAlphaNumericString(),
           action: Actions.updatePageState(project, widgetClassName: 'WedstrijdDetailPage',
               updates: [StateFieldUpdate.setFromVariable('goals', ctx.responseVar)]));
+        // Zelfde lijst ook in AppState; daar hangt het tabblad aan. Via een
+        // tail-pointer, want de calls hieronder hangen er ook nog achter.
+        var goalsTail = setGoals;
+        if (_findAppStateFieldId(project, 'matchGoalsList') != null) {
+          goalsTail.followUpAction = FFActionNode(
+            key: generateRandomAlphaNumericString(),
+            action: Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable('matchGoalsList', ctx.responseVar),
+            ]),
+          );
+          goalsTail = goalsTail.followUpAction;
+        }
         if (hasGuestsList) {
-          setGoals.followUpAction = Actions.apiCallNode(project, endpointName: 'GetMatchGuestsList',
+          goalsTail.followUpAction = Actions.apiCallNode(project, endpointName: 'GetMatchGuestsList',
             groupName: 'VoetbalPlannerAPI',
             dynamicVariables: {
               'matchId': varFromPageParam(matchIdParam.identifier.deepCopy())
@@ -23245,6 +23262,12 @@ void _addWedstrijdScoreSection(FFProject project) {
               widgetClassName: 'WedstrijdDetailPage',
               updates: [StateFieldUpdate.setFromVariable('goals', ctx.responseVar)],
             ),
+            // Ook naar AppState: daar hangt de lijst op het tabblad aan, zodat
+            // een doelpunt uit het live verslag er meteen bij staat.
+            if (_findAppStateFieldId(project, 'matchGoalsList') != null)
+              Actions.updateAppState(project, updates: [
+                StateFieldUpdate.setFromVariable('matchGoalsList', ctx.responseVar),
+              ]),
           ]),
         ),
       );
@@ -29861,7 +29884,24 @@ void _wireLiveMatchPage(FFProject project) {
       onSuccess: (ctx) {
         final refresh = _watchLiveNode(project,
             FFValue(variable: varFromAppState(liveMatchIdId.deepCopy())));
-        refresh.followUpAction = FFActionNode(
+        var tail = refresh;
+        // Doelpunten ook opnieuw ophalen: LiveMatchService heeft er een gewone
+        // Goal-rij bij gemaakt, en die hoort meteen op het Doelpunten-tabblad
+        // te staan — ook als dat scherm nog onder deze pagina open ligt.
+        if (_findAppStateFieldId(project, 'matchGoalsList') != null &&
+            findApiEndpoint(project,
+                    name: 'GetMatchGoalsList', groupName: 'VoetbalPlannerAPI') !=
+                null) {
+          tail.followUpAction = _reloadGoalsToAppState(
+            project,
+            authTokenId: authTokenId,
+            matchIdVar: varFromAppState(liveMatchIdId.deepCopy()),
+            nodeKey: nodeKey,
+            output: '${output}Goals',
+          );
+          tail = tail.followUpAction;
+        }
+        tail.followUpAction = FFActionNode(
           key: generateRandomAlphaNumericString(),
           action: setPanel(''),
         );
@@ -31309,3 +31349,76 @@ FFNode? _liveLineupPanel(
 
   return kaart;
 }
+
+// ── Doelpunten: één bron voor het tabblad en het live verslag ────────────────
+//
+// Een doelpunt uit het live verslag werd al opgeslagen in de gewone
+// doelpuntenadministratie (LiveMatchService maakt naast de gebeurtenis een
+// Goal-rij aan). Je zag het alleen niet meteen terug op het Doelpunten-tabblad:
+// die lijst hing aan de page-state van de wedstrijdpagina, en die wordt bij het
+// openen één keer gevuld. Sta je op de livepagina, dan blijft de pagina
+// eronder met de oude lijst staan.
+//
+// De lijst hangt nu aan AppState. Zowel het openen van de wedstrijd, de
+// bestaande '+'-knop als het live verslag schrijven daarheen, dus alle drie de
+// wegen komen op hetzelfde uit.
+
+void _ensureMatchGoalsListAppState(FFProject project) {
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'matchGoalsList')) return;
+  final struct = findDataStruct(project, name: 'MatchGoal');
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(
+        name: 'matchGoalsList', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+/// Hangt de doelpuntenlijst op het tabblad aan AppState in plaats van aan de
+/// page-state, zodat hij meebeweegt met wat er elders gebeurt.
+void _bindGoalsTabToAppState(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final goalsId = _findAppStateFieldId(project, 'matchGoalsList');
+  if (goalsId == null) return;
+
+  final list = findDescendants(wc.node, (n) => n.key == 'ListView_ueutzh5d').firstOrNull;
+  if (list == null) return;
+
+  // Dezelfde struct als voorheen (MatchGoal) en dezelfde node-sleutel, dus de
+  // bindingen van de regels en de verwijderknop blijven werken.
+  list.generatorVariable = DynamicSource(
+    variable: varFromAppState(goalsId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+    itemName: 'goal',
+  ).toGeneratorVariable(list.key);
+}
+
+/// Actie die de doelpunten ophaalt en in AppState zet. Eén helper, gebruikt op
+/// de wedstrijdpagina en op de livepagina.
+FFActionNode _reloadGoalsToAppState(
+  FFProject project, {
+  required FFIdentifier authTokenId,
+  required FFVariable matchIdVar,
+  required String nodeKey,
+  required String output,
+}) =>
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMatchGoalsList',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': matchIdVar,
+      },
+      outputVariableName: output,
+      nodeKey: nodeKey,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('matchGoalsList', ctx.responseVar),
+        ]),
+      ]),
+    );

@@ -245,6 +245,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<GoalItem>>",
     persisted: false,
   );
+  static const matchGoalsList = ffai.ProjectAppStateFieldHandle(
+    name: "matchGoalsList",
+    key: "a0mzj2kc",
+    typeName: "List<DataStruct<MatchGoal>>",
+    persisted: false,
+  );
   static const matchLineup = ffai.ProjectAppStateFieldHandle(
     name: "matchLineup",
     key: "jq2ihj7i",
@@ -478,6 +484,7 @@ abstract final class AppState {
     loginPassword,
     matchActionMode,
     matchGoals,
+    matchGoalsList,
     matchLineup,
     myRoles,
     onboardingSeen,
