@@ -357,6 +357,86 @@ class ReleaseNotesSeeder extends Seeder
                     . 'inplannen met een eigen omschrijving, begin- en eindtijd en aantal personen, en daar een elftal of leden '
                     . 'aan toewijzen.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Vernieuwd dashboard',
+                'description' => 'Het dashboard is opnieuw opgebouwd. Bovenaan een begroeting met je foto en de teamkeuze, '
+                    . 'daaronder je rol, de volgende wedstrijd met beide clublogo\'s, de eerstvolgende training en je '
+                    . 'persoonlijke taken. Alles staat nu in overzichtelijke blokken bij elkaar.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Nieuwe navigatiebalk met Trainingen en Meer',
+                'description' => 'Onderin de app staan nu zes knoppen met tekst erbij: Dashboard, Wedstrijden, Trainingen, '
+                    . 'Agenda, Berichten en Meer. Trainingen is een nieuw overzicht van alle geplande trainingen. Onder Meer '
+                    . 'vind je het rijschema, de bardiensten, je profiel en de rest.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Komende activiteiten bij elkaar',
+                'description' => 'Wedstrijden, trainingen en de verenigingsagenda staan op het dashboard in één lijst op '
+                    . 'volgorde van datum, met een datumblokje en een icoon per soort. Tikken opent meteen het juiste scherm.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Teamkeuze als uitklapmenu',
+                'description' => 'Heb je meerdere teams, dan kies je bovenin het dashboard met één tik welk team je bekijkt. '
+                    . 'De wedstrijden en trainingen schakelen meteen mee.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Statistieken van je team en jezelf',
+                'description' => 'Nieuw op het dashboard: de cijfers van je team dit seizoen (gespeeld, winst-gelijk-verlies, '
+                    . 'punten en doelsaldo) en je eigen cijfers: aanwezigheid, wedstrijden, trainingen, doelpunten en assists.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Teamsfeer',
+                'description' => 'Geef met één tik op een smiley aan hoe de sfeer in het team is. Op het dashboard zie je het '
+                    . 'gemiddelde van het team en hoeveel mensen hebben gereageerd. Wie wat heeft gestemd blijft geheim.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Zie wie er op de training komt',
+                'description' => 'Bij een training staat nu wie er komt en wie zich heeft afgemeld, met het aantal erbij en de '
+                    . 'reden van afmelding. Handig voor trainers die hun oefening willen voorbereiden.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Live wedstrijdverslag',
+                'description' => 'De coach start bij de aftrap een live verslag en tikt tijdens de wedstrijd doelpunten, '
+                    . 'wissels en kaarten aan. Teamleden volgen de stand, de speelklok en het verslag live mee in de app.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Meekijken zonder app',
+                'description' => 'Bij een live wedstrijd deelt de coach een link, bijvoorbeeld via WhatsApp. Wie de app niet '
+                    . 'heeft, opent die link en volgt de wedstrijd gewoon in de browser. De link werkt zolang de wedstrijd bezig is.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Kaarten en fair play',
+                'description' => 'Gele en rode kaarten worden tijdens het live verslag vastgelegd en tellen mee in je '
+                    . 'seizoenscijfers op het dashboard.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Uitnodigingen in dezelfde opmaak',
+                'description' => 'Het blok met gastspeler-uitnodigingen op het dashboard heeft dezelfde kaartopmaak gekregen '
+                    . 'als de rest, met het logo van de tegenstander erbij.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Terugknop op onderliggende schermen',
+                'description' => 'Op het rijschema, de bardiensten en je profiel stond een menuknop waar de terugpijl hoort. '
+                    . 'Je kon daardoor niet terug naar het vorige scherm. Dat is opgelost.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Rijschema-blok bleef over het dashboard hangen',
+                'description' => 'Het oude rijschema-blok bleef bovenin het scherm over de rest van het dashboard heen staan. '
+                    . 'Het is verwijderd; je rijbeurten staan nu onder "Mijn taken".',
+            ],
         ];
 
         $sort = 0;
