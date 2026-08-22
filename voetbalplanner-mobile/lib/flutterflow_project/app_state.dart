@@ -53,6 +53,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const confirmDeleteAccount = ffai.ProjectAppStateFieldHandle(
+    name: "confirmDeleteAccount",
+    key: "3kjz6eyw",
+    typeName: "Boolean",
+    persisted: false,
+  );
   static const currentConversationId = ffai.ProjectAppStateFieldHandle(
     name: "currentConversationId",
     key: "u9wenb6q",
@@ -452,6 +458,7 @@ abstract final class AppState {
     bugScreenshotPaths,
     clubLogoUrl,
     clubName,
+    confirmDeleteAccount,
     currentConversationId,
     currentTeamId,
     currentTeamName,

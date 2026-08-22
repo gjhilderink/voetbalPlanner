@@ -123,32 +123,32 @@ abstract final class ProfielPageWidgets {
                             name: "ProfielRelatiecode",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_kjsds3pe",
+                            key: "Text_vrs0fx9p",
                             type: "Text",
                             path: "ProfielPage.body[0].children[0].children[0].children[0].children[5]",
                             name: "ProfielTeamsLabel",
                             text: "Teams",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "ListView_8bxog143",
+                            key: "ListView_dzwbs78a",
                             type: "ListView",
                             path: "ProfielPage.body[0].children[0].children[0].children[0].children[6]",
                             name: "ProfielTeamsList",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_qndoe3a2",
+                                key: "Row_mtuiia0e",
                                 type: "Row",
                                 path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0]",
                                 name: "ProfielTeamRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_o7lbu9vu",
+                                    key: "Icon_5piqxibu",
                                     type: "Icon",
                                     path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0].children[0]",
                                     name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_euhqrxiz",
+                                    key: "Text_onijwh7d",
                                     type: "Text",
                                     path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0].children[1]",
                                     name: "ProfielTeamName",
@@ -247,7 +247,7 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Button_1su2j3ew",
+                    key: "Button_cdbf3y0z",
                     type: "Button",
                     path: "ProfielPage.body[0].children[0].children[4]",
                     name: "OnboardingResetButton",
@@ -257,13 +257,63 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Button_op0g0gv0",
+                    key: "Button_2fupeus5",
                     type: "Button",
                     path: "ProfielPage.body[0].children[0].children[5]",
                     name: "DeleteAccountButton",
                     text: "Account verwijderen",
                     triggers: const <String>[
                       "ON_TAP",
+                    ],
+                  ),
+                  ffai.ProjectWidgetHandle(
+                    key: "Container_sg60gvih",
+                    type: "Container",
+                    path: "ProfielPage.body[0].children[0].children[6]",
+                    name: "DeleteAccountConfirmPanel",
+                    children: <ffai.ProjectWidgetHandle>[
+                      ffai.ProjectWidgetHandle(
+                        key: "Column_w1vyljr6",
+                        type: "Column",
+                        path: "ProfielPage.body[0].children[0].children[6].children[0]",
+                        name: "DeleteAccountConfirmCol",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_ifslkmvt",
+                            type: "Text",
+                            path: "ProfielPage.body[0].children[0].children[6].children[0].children[0]",
+                            name: "DeleteAccountConfirmTitle",
+                            text: "Account definitief verwijderen?",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_6hrr3lwe",
+                            type: "Text",
+                            path: "ProfielPage.body[0].children[0].children[6].children[0].children[1]",
+                            name: "DeleteAccountConfirmText",
+                            text: "Dit kan niet ongedaan worden gemaakt. Je profiel, je chatgeschiedenis en je team-, wedstrijd- en bardienstgegevens worden verwijderd.",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Button_rq1mb9vc",
+                            type: "Button",
+                            path: "ProfielPage.body[0].children[0].children[6].children[0].children[2]",
+                            name: "DeleteAccountConfirmButton",
+                            text: "Ja, alles verwijderen",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Button_9alcyt9n",
+                            type: "Button",
+                            path: "ProfielPage.body[0].children[0].children[6].children[0].children[3]",
+                            name: "DeleteAccountCancelButton",
+                            text: "Annuleren",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ],

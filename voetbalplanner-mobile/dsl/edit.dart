@@ -5337,8 +5337,10 @@ void _addDeleteAccountButton(FFProject project) {
   // Custom action die de eigen chatdata in Firestore opruimt.
   _ensureDeleteMyChatDataAction(project);
 
-  // Verse chain bij elke push: ruim een eerdere knop op.
+  // Verse chain bij elke push: ruim de eerdere knoppen en het bevestigingsblok
+  // op, anders stapelen ze.
   _removeProfielButton(project, 'DeleteAccountButton');
+  _removeProfielButton(project, 'DeleteAccountConfirmPanel');
 
   FFValue _lit(String s) =>
       FFValue(inputValue: FFParameterValue(serializedValue: s));
@@ -5346,6 +5348,17 @@ void _addDeleteAccountButton(FFProject project) {
   final button = UI.button(
     'Account verwijderen',
     name: 'DeleteAccountButton',
+    width: double.infinity,
+    color: UIColor.error,
+    textColor: UIColor.secondaryBackground,
+  );
+
+  // De knop die het daadwerkelijk doet, staat in het bevestigingsblok hieronder.
+  // Hier alvast aangemaakt omdat de API-actie aan díe knop moet hangen: een
+  // actie met de sleutel van een andere knop wordt door FlutterFlow afgekeurd.
+  final jaKnop = UI.button(
+    'Ja, alles verwijderen',
+    name: 'DeleteAccountConfirmButton',
     width: double.infinity,
     color: UIColor.error,
     textColor: UIColor.secondaryBackground,
@@ -5385,37 +5398,88 @@ void _addDeleteAccountButton(FFProject project) {
     endpointName:       'DeleteAccount',
     groupName:          'VoetbalPlannerAPI',
     outputVariableName: 'deleteAccountResult',
-    nodeKey:            button.key,
+    nodeKey:            jaKnop.key,
     onSuccess: (ctx) => successChain,
     onFailure: (ctx) => Actions.chain([
       Actions.snackBar('Verwijderen mislukt. Probeer het later opnieuw.'),
     ]),
   );
 
-  // Bevestig-dialog → (bij bevestigen) API-call chain.
-  final confirmNode = FFActionNode(
-    key: generateRandomAlphaNumericString(),
-    action: FFAction(
-      key: generateRandomAlphaNumericString(),
-      alertDialog: FFAlertDialogAction(
-        confirmDialog: FFConfirmDialogAction(
-          title:       _lit('Account definitief verwijderen?'),
-          message:     _lit(
-              'Let op: dit kan NIET ongedaan worden gemaakt.\n\n'
-              'Al uw gegevens worden permanent verwijderd, waaronder:\n'
-              '• uw profiel en persoonsgegevens\n'
-              '• uw volledige chatgeschiedenis\n'
-              '• uw team-, wedstrijd- en bardienstgegevens\n\n'
-              'Weet u zeker dat u akkoord gaat en alles wilt verwijderen?'),
-          confirmText: _lit('Ja, alles verwijderen'),
-          dismissText: _lit('Annuleren'),
-        ),
+  // Bevestiging ín het scherm in plaats van een dialoogvenster.
+  //
+  // Het was een bevestigingsdialoog, maar het antwoord daarvan werd nergens
+  // gecontroleerd: de app haalde het op en riep daarna hoe dan ook het
+  // verwijder-endpoint aan. Wie op "Annuleren" tikte was zijn account net zo
+  // goed kwijt. Het antwoord van zo'n dialoog laat zich in dit model niet als
+  // voorwaarde gebruiken, dus staat de bevestiging nu als een blok op de
+  // pagina zelf — voor een onomkeerbare actie ook duidelijker dan een venster
+  // dat je per ongeluk wegtikt.
+  if (!project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'confirmDeleteAccount')) {
+    project.appState.fields.add(FFAppStateField(
+      parameter: FFParameter(
+        identifier: FFIdentifier(
+            name: 'confirmDeleteAccount',
+            key: generateRandomAlphaNumericString()),
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
       ),
-    ),
-    followUpAction: apiNode,
-  );
+    ));
+  }
+  final confirmFlagId = _findAppStateFieldId(project, 'confirmDeleteAccount');
 
-  Actions.onTapChain(button, confirmNode);
+  FFAction setConfirm(bool value) => Actions.updateAppState(
+        project,
+        updates: [
+          StateFieldUpdate.set(
+              'confirmDeleteAccount', value ? 'true' : 'false'),
+        ],
+      );
+
+  Actions.onTap(button, setConfirm(true));
+
+  Actions.onTapChain(jaKnop, apiNode);
+
+  final neeKnop = UI.button(
+    'Annuleren',
+    name: 'DeleteAccountCancelButton',
+    variant: UIButtonVariant.outlined,
+    width: double.infinity,
+  );
+  Actions.onTap(neeKnop, setConfirm(false));
+
+  final confirmPanel = UI.container(
+    name: 'DeleteAccountConfirmPanel',
+    innerPadding: UIEdgeInsets.all(14),
+    borderRadius: 14,
+    color: UIColor.hex(0xFFFEF2F2),
+    border: UIBorder.all(width: 1, color: UIColor.hex(0xFFFCA5A5)),
+    child: UI.column(
+      name: 'DeleteAccountConfirmCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: [
+        UI.text('Account definitief verwijderen?',
+            name: 'DeleteAccountConfirmTitle', style: UITextStyle.titleSmall),
+        UI.text(
+            'Dit kan niet ongedaan worden gemaakt. Je profiel, je '
+            'chatgeschiedenis en je team-, wedstrijd- en bardienstgegevens '
+            'worden verwijderd.',
+            name: 'DeleteAccountConfirmText',
+            style: UITextStyle.bodySmall,
+            color: UIColor.secondaryText),
+        jaKnop,
+        neeKnop,
+      ],
+    ),
+  );
+  if (confirmFlagId != null) {
+    setConditionalVisibility(
+      confirmPanel,
+      variable: varFromAppState(confirmFlagId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+    );
+  }
+
 
   // De body is inmiddels een Stack; de knoppen (Uitloggen/Ouder) staan in de
   // Column daarbinnen. Zoek die Column op i.p.v. te vertrouwen op body==Column.
@@ -5434,8 +5498,10 @@ void _addDeleteAccountButton(FFProject project) {
 
   if (targetColumn != null) {
     targetColumn.children.add(button);
+    targetColumn.children.add(confirmPanel);
   } else {
     wc.node.children.add(button);
+    wc.node.children.add(confirmPanel);
   }
 }
 
