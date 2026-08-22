@@ -28128,6 +28128,7 @@ void _ensureTeamStatsStruct(FFProject project) {
     'played', 'won', 'drawn', 'lost', 'record',
     'points', 'goalsFor', 'goalsAgainst', 'goalDifference',
     'myMatches', 'myTrainings', 'myAttendance', 'myGoals', 'myAssists',
+    'myYellowCards', 'myRedCards',
   ];
   _ensureFlatStringStruct(
     project,
@@ -28321,6 +28322,9 @@ FFNode _statTile({
   String? suffix,
   UIColor? valueColor,
   String? iconName,
+  // Voor een tegel met twee getallen naast elkaar, zoals geel/rood.
+  FFVariable? secondVar,
+  String separator = ' / ',
 }) {
   final value = UI.text('',
       name: '${name}Value',
@@ -28330,9 +28334,11 @@ FFNode _statTile({
       textAlign: UITextAlign.center,
       maxLines: 1,
       textOverflow: UITextOverflow.ellipsis);
-  value.props.text.textValue = suffix == null
-      ? FFStringValue(variable: valueVar)
-      : interpolateVar([valueVar, suffix]);
+  value.props.text.textValue = secondVar != null
+      ? interpolateVar([valueVar, separator, secondVar])
+      : (suffix == null
+          ? FFStringValue(variable: valueVar)
+          : interpolateVar([valueVar, suffix]));
 
   final children = <FFNode>[
     if (iconName != null) UI.icon(iconName, size: 18, color: UIColor.secondaryText),
@@ -28672,6 +28678,14 @@ FFNode? _dashSeasonStatsCard(FFProject project, FFWidgetClass wc) {
                 name: 'DashStatAssists',
                 label: 'Assists',
                 valueVar: stat('myAssists')),
+            // Fair play kan pas sinds kaarten in het live verslag worden
+            // vastgelegd; wedstrijden zonder verslag tellen als nul.
+            _statTile(
+                name: 'DashStatCards',
+                label: 'Kaarten',
+                valueVar: stat('myYellowCards'),
+                secondVar: stat('myRedCards'),
+                separator: ' / '),
           ],
         ),
       ],
