@@ -1492,6 +1492,11 @@ void buildEditFlow(App app) {
     _addLiveMatchButton(project);
     // Ná _addWedstrijdScoreSection, die de lijst opbouwt.
     _bindGoalsTabToAppState(project);
+    // Derde tabblad: het bewaarde verslag van een gespeelde wedstrijd.
+    _ensureMatchEventsAppState(project);
+    _addMatchEventsEndpoint(project);
+    _wireMatchEventsLoad(project);
+    _addMatchReportTab(project);
     _rebuildDashboardBody(project);
     // Trainingsopkomst: wie is er wel en wie niet. Ná _wireTrainingDetailPage,
     // die de pagina-inhoud opbouwt waar deze sectie onderaan bij komt.
@@ -31527,3 +31532,215 @@ FFActionNode _reloadGoalsToAppState(
         ]),
       ]),
     );
+
+// ── Tabblad "Verslag" op de wedstrijddetailpagina ───────────────────────────
+//
+// De gebeurtenissen van een live verslag blijven na afloop gewoon staan in
+// match_events; ze werden alleen nergens meer getoond. Dit tabblad leest ze
+// terug, zodat je later kunt zien wat er gebeurd is.
+//
+// Oudste eerst: bij terugkijken lees je een wedstrijd van voor naar achter,
+// terwijl je tijdens de wedstrijd juist het laatste nieuws bovenaan wilt.
+
+void _ensureMatchEventsAppState(FFProject project) {
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'matchReportEvents')) return;
+  final struct = findDataStruct(project, name: 'LiveEvent');
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(
+        name: 'matchReportEvents', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+void _addMatchEventsEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  const name = 'GetMatchEvents';
+  if (findApiGroup(project, name: groupName) == null) return;
+
+  if (findApiEndpoint(project, name: name, groupName: groupName) == null) {
+    addEndpointToGroup(
+      project,
+      groupName: groupName,
+      name: name,
+      url: '/matches/[matchId]/events',
+      method: FFApiEndpoint_CallType.GET,
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      variables: {
+        'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'matchId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      headers: ['Authorization: Bearer [token]'],
+      responseDataStructName: 'LiveEvent',
+      responseDataStructIsList: true,
+    );
+    return;
+  }
+  updateApiEndpoint(
+    project,
+    name: name,
+    groupName: groupName,
+    responseDataStructName: 'LiveEvent',
+    responseDataStructIsList: true,
+  );
+}
+
+/// Haalt het verslag op bij het openen van de wedstrijd.
+void _wireMatchEventsLoad(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (authTokenId == null) return;
+  if (_findAppStateFieldId(project, 'matchReportEvents') == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetMatchEvents', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return;
+
+  bool hasCall(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasDatabase() &&
+        n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetMatchEvents') {
+      return true;
+    }
+    return n.hasFollowUpAction() && hasCall(n.followUpAction);
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && hasCall(t.rootAction))) return;
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMatchEvents',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromPageParam(matchIdParam.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      },
+      outputVariableName: 'matchEventsLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('matchReportEvents', ctx.responseVar),
+        ]),
+      ]),
+    ),
+  );
+}
+
+/// Voegt het derde tabblad toe aan de bestaande TabBar. Vers opgebouwd bij elke
+/// push, zodat wijzigingen aan de inhoud meekomen.
+void _addMatchReportTab(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final eventsId = _findAppStateFieldId(project, 'matchReportEvents');
+  if (eventsId == null) return;
+
+  final tabBar =
+      findDescendants(wc.node, (n) => n.name == 'MatchDetailTabs').firstOrNull;
+  if (tabBar == null) return;
+
+  // Eerdere versie eruit. De TabBar verwacht paren: eerst het tabblad zelf,
+  // dan de inhoud — dus allebei weg.
+  for (final naam in const ['Tab: Verslag', 'Tab Content: Verslag']) {
+    for (final n in findDescendants(tabBar, (x) => x.name == naam).toList()) {
+      removeByKey(wc.node, n.key);
+    }
+  }
+
+  final eventsVar = varFromAppState(eventsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final list = UI.listView(
+    name: 'MatchReportList',
+    shrinkWrap: true,
+    spacing: 2,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    dynamicSource: DynamicSource(variable: eventsVar, itemName: 'rep'),
+  );
+
+  FFNode bound(String name, String field, UITextStyle style,
+      {UIColor? color, int? maxLines, UIFontWeight? weight}) {
+    final t = UI.text('',
+        name: name,
+        style: style,
+        color: color,
+        fontWeight: weight,
+        maxLines: maxLines,
+        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, field));
+    return t;
+  }
+
+  list.children.add(UI.container(
+    name: 'MatchReportItem',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 9),
+    child: UI.row(
+      name: 'MatchReportRow',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.container(
+          name: 'MatchReportMinuteWrap',
+          width: 44,
+          child: bound('MatchReportMinute', 'minute', UITextStyle.labelMedium,
+              color: UIColor.primary, weight: UIFontWeight.w700, maxLines: 1),
+        ),
+        UI.expanded(
+            bound('MatchReportLabel', 'label', UITextStyle.bodyMedium, maxLines: 2)),
+      ],
+    ),
+  ));
+
+  final leeg = UI.text('Van deze wedstrijd is geen live verslag bijgehouden.',
+      name: 'MatchReportEmpty',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center);
+  leeg.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 28),
+  );
+  setConditionalVisibility(leeg, variable: _listEmptyVar(eventsVar));
+
+  final tab = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.Tab,
+    name: 'Tab: Verslag',
+    props: FFWidgetProperties(
+      tab: FFTab(text: FFText(textValue: FFStringValue(inputValue: 'Verslag'))),
+    ),
+  );
+  final content = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.PlaceholderWidget,
+    name: 'Tab Content: Verslag',
+    props: FFWidgetProperties(placeholderWidget: FFPlaceholderWidget()),
+    children: [
+      UI.column(
+        name: 'MatchReportCol',
+        crossAxisAlignment: UICrossAxisAlignment.stretch,
+        scrollable: true,
+        children: [list, leeg],
+      ),
+    ],
+  );
+
+  tabBar.children.add(tab);
+  tabBar.children.add(content);
+}

@@ -174,6 +174,8 @@ Route::prefix('v1')->group(function () {
         // de shared host blokkeert PATCH en DELETE.
         Route::get('/live', [LiveMatchController::class, 'mine']);
         Route::get('/matches/{match}/live', [LiveMatchController::class, 'show']);
+        // Bewaard verslag, ook lang na afloop terug te kijken.
+        Route::get('/matches/{match}/events', [LiveMatchController::class, 'events']);
         Route::post('/matches/{match}/live/start', [LiveMatchController::class, 'start']);
         Route::post('/matches/{match}/live/event', [LiveMatchController::class, 'event']);
         Route::post('/matches/{match}/live/undo', [LiveMatchController::class, 'undo']);

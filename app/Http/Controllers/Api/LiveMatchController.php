@@ -118,6 +118,35 @@ class LiveMatchController extends Controller
         ]);
     }
 
+    /**
+     * GET /v1/matches/{match}/events
+     *
+     * Het bewaarde verslag van een wedstrijd: alle gebeurtenissen op volgorde
+     * van spelen, met kant-en-klare omschrijvingen. Bedoeld om achteraf terug te
+     * kijken, dus oudste eerst — andersom dan tijdens de wedstrijd, waar het
+     * laatste nieuws bovenaan hoort.
+     *
+     * Aparte, platte lijst naast /live: de app kan een geneste lijst binnen een
+     * struct-antwoord niet uitpakken.
+     */
+    public function events(Request $request, FootballMatch $match): JsonResponse
+    {
+        $match->loadMissing(['events.member', 'events.relatedMember']);
+
+        return response()->json(
+            $match->events
+                ->map(fn (MatchEvent $e) => [
+                    'id'     => $e->id,
+                    'minute' => $e->minute !== null ? $e->minute . "'" : '',
+                    'label'  => $e->label(),
+                    'type'   => $e->type,
+                    'side'   => (string) ($e->side ?? ''),
+                    'icon'   => $e->icon(),
+                ])
+                ->values()
+        );
+    }
+
     /** GET /v1/matches/{match}/live — toestand voor volgers (pollen). */
     public function show(Request $request, FootballMatch $match): JsonResponse
     {

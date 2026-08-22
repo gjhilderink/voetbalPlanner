@@ -263,6 +263,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<LineupPlayer>>",
     persisted: false,
   );
+  static const matchReportEvents = ffai.ProjectAppStateFieldHandle(
+    name: "matchReportEvents",
+    key: "02js8i95",
+    typeName: "List<DataStruct<LiveEvent>>",
+    persisted: false,
+  );
   static const myRoles = ffai.ProjectAppStateFieldHandle(
     name: "myRoles",
     key: "n8eyx7ji",
@@ -493,6 +499,7 @@ abstract final class AppState {
     matchGoals,
     matchGoalsList,
     matchLineup,
+    matchReportEvents,
     myRoles,
     onboardingSeen,
     onboardingSlides,
