@@ -166,14 +166,29 @@ class DriveSchedule extends Page implements HasTable
                         Forms\Components\DatePicker::make('from')->label('Van')->displayFormat('d-m-Y'),
                         Forms\Components\DatePicker::make('until')->label('Tot')->displayFormat('d-m-Y'),
                     ])
-                    ->query(fn(Builder $query, array $data) => $query
-                        ->when($data['from'],  fn($q) => $q->whereDate('match_datetime', '>=', $data['from']))
-                        ->when($data['until'], fn($q) => $q->whereDate('match_datetime', '<=', $data['until'])))
+                    // ?? null op elke sleutel — zie MatchRoster: zodra een ánder
+                    // filter aanstaat komt dit filter zonder 'from'/'until'
+                    // terug, en een ontbrekende sleutel wordt in Laravel een
+                    // uitzondering in plaats van een lege waarde.
+                    ->query(function (Builder $query, array $data): Builder {
+                        $from  = $data['from']  ?? null;
+                        $until = $data['until'] ?? null;
+
+                        return $query
+                            ->when($from,  fn($q) => $q->whereDate('match_datetime', '>=', $from))
+                            ->when($until, fn($q) => $q->whereDate('match_datetime', '<=', $until));
+                    })
                     ->indicateUsing(function (array $data): ?string {
-                        if (!$data['from'] && !$data['until']) return null;
-                        $from  = $data['from']  ? Carbon::parse($data['from'])->format('d-m-Y')  : '...';
-                        $until = $data['until'] ? Carbon::parse($data['until'])->format('d-m-Y') : '...';
-                        return "Periode: {$from} t/m {$until}";
+                        $from  = $data['from']  ?? null;
+                        $until = $data['until'] ?? null;
+                        if (! $from && ! $until) {
+                            return null;
+                        }
+
+                        return 'Periode: '
+                            . ($from  ? Carbon::parse($from)->format('d-m-Y')  : '...')
+                            . ' t/m '
+                            . ($until ? Carbon::parse($until)->format('d-m-Y') : '...');
                     }),
             ])
             ->groups([

@@ -241,14 +241,31 @@ class MatchRoster extends Page implements HasTable
                             ->label('Tot')
                             ->displayFormat('d-m-Y'),
                     ])
-                    ->query(fn(Builder $query, array $data) => $query
-                        ->when($data['from'],  fn($q) => $q->whereDate('match_datetime', '>=', $data['from']))
-                        ->when($data['until'], fn($q) => $q->whereDate('match_datetime', '<=', $data['until'])))
+                    // ?? null op elke sleutel: zodra je een ánder filter
+                    // aanzet krijgt dit filter zijn eigen gegevens terug zonder
+                    // 'from' en 'until' (alleen 'preset', of helemaal leeg).
+                    // Een ontbrekende sleutel is in PHP een warning, en Laravel
+                    // maakt daar een uitzondering van — vandaar de foutpagina
+                    // zodra er meer dan één filter aan stond.
+                    ->query(function (Builder $query, array $data): Builder {
+                        $from  = $data['from']  ?? null;
+                        $until = $data['until'] ?? null;
+
+                        return $query
+                            ->when($from,  fn($q) => $q->whereDate('match_datetime', '>=', $from))
+                            ->when($until, fn($q) => $q->whereDate('match_datetime', '<=', $until));
+                    })
                     ->indicateUsing(function (array $data): ?string {
-                        if (!$data['from'] && !$data['until']) return null;
-                        $from  = isset($data['from'])  ? Carbon::parse($data['from'])->format('d-m-Y')  : '...';
-                        $until = isset($data['until']) ? Carbon::parse($data['until'])->format('d-m-Y') : '...';
-                        return "Periode: {$from} t/m {$until}";
+                        $from  = $data['from']  ?? null;
+                        $until = $data['until'] ?? null;
+                        if (! $from && ! $until) {
+                            return null;
+                        }
+
+                        return 'Periode: '
+                            . ($from  ? Carbon::parse($from)->format('d-m-Y')  : '...')
+                            . ' t/m '
+                            . ($until ? Carbon::parse($until)->format('d-m-Y') : '...');
                     }),
             ])
             ->groups([
