@@ -3186,7 +3186,15 @@ Future<void> subscribeToChatTopics() async {
 
 Future<void> _doSubscribeChatTopics() async {
   final email = FFAppState().userEmail;
-  final teamId = FFAppState().currentTeamId;
+
+  // Álle elftallen van de gebruiker, niet alleen het actieve. Wie twee teams
+  // heeft kreeg anders geen melding van het team waar hij op dat moment niet
+  // naar keek — precies het geval waarin je zo'n melding het hardst nodig hebt.
+  final teamIds = <String>{
+    ...FFAppState().availableTeams.map((t) => t.id),
+    FFAppState().currentTeamId,
+  }.where((id) => id.isNotEmpty).toList();
+
   try {
     final messaging = FirebaseMessaging.instance;
     final settings = await messaging.requestPermission(
@@ -3201,9 +3209,22 @@ Future<void> _doSubscribeChatTopics() async {
     if (email.isNotEmpty) {
       await messaging.subscribeToTopic('user_${_sanitizeTopicEmail(email)}');
     }
-    if (teamId.isNotEmpty) {
-      await messaging.subscribeToTopic('team_$teamId');
+
+    // Abonnementen op teams die niet meer van deze gebruiker zijn weer opzeggen;
+    // anders blijft een oud elftal meldingen sturen na een teamwissel.
+    final vorige = FFAppState().subscribedTeamTopics;
+    for (final oud in vorige) {
+      if (!teamIds.contains(oud)) {
+        await messaging.unsubscribeFromTopic('team_$oud');
+      }
     }
+    for (final id in teamIds) {
+      await messaging.subscribeToTopic('team_$id');
+    }
+    FFAppState().update(() {
+      FFAppState().subscribedTeamTopics = teamIds;
+    });
+
     // Globaal topic voor clubbrede push (bv. nieuwsberichten naar alle gebruikers).
     await messaging.subscribeToTopic('all_users');
   } catch (_) {
@@ -3211,12 +3232,28 @@ Future<void> _doSubscribeChatTopics() async {
   }
 }
 ''';
+  // Onthoudt op welke team-topics dit toestel geabonneerd is, zodat een team
+  // dat wegvalt ook weer afgemeld kan worden. Persistent: het abonnement leeft
+  // op het toestel, niet in de sessie.
+  if (!project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'subscribedTeamTopics')) {
+    final param = FFParameter(
+      identifier: FFIdentifier(
+          name: 'subscribedTeamTopics', key: generateRandomAlphaNumericString()),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    );
+    param.isList = true;
+    final field = FFAppStateField(parameter: param);
+    field.persisted = true;
+    project.appState.fields.add(field);
+  }
+
   if (findCustomAction(project, name: 'SubscribeToChatTopics') == null) {
     addCustomAction(
       project,
       name: 'SubscribeToChatTopics',
       description:
-          'Abonneert het toestel op user_<email> + team_<teamId> FCM-topics voor chat push-notificaties.',
+          'Abonneert het toestel op user_<email> + een team_<teamId> topic voor élk elftal van de gebruiker, en zegt topics op van teams die zijn weggevallen.',
       arguments: [],
       code: _subscribeChatTopicsCode,
     );
