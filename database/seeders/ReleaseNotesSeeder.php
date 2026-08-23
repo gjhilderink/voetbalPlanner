@@ -437,6 +437,46 @@ class ReleaseNotesSeeder extends Seeder
                 'description' => 'Het oude rijschema-blok bleef bovenin het scherm over de rest van het dashboard heen staan. '
                     . 'Het is verwijderd; je rijbeurten staan nu onder "Mijn taken".',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Wedstrijd achteraf terugkijken',
+                'description' => 'Bij een wedstrijd staat een tabblad "Verslag" met het volledige verloop: aftrap, '
+                    . 'doelpunten, wissels, kaarten, rust en eindsignaal, elk met de minuut erbij. Zo kun je later nog '
+                    . 'nalezen wat er gebeurd is.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Opstelling bij de live wedstrijd',
+                'description' => 'De coach deelt spelers met één tik in bij de basis of de bank. Wie meekijkt ziet die '
+                    . 'opstelling op de livepagina staan.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Doelpunten uit het live verslag meteen zichtbaar',
+                'description' => 'Een doelpunt dat de coach tijdens de wedstrijd aantikt, staat nu direct op het tabblad '
+                    . '"Doelpunten" en telt mee in de seizoenscijfers. Voorheen zag je het pas na het opnieuw openen van '
+                    . 'de wedstrijd.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Account verwijderen negeerde "Annuleren"',
+                'description' => 'De knop "Account verwijderen" vroeg om een bevestiging, maar verwijderde het account ook '
+                    . 'als je op Annuleren tikte. Dat is opgelost: de bevestiging staat nu als blok op de pagina en alleen '
+                    . '"Ja, alles verwijderen" doet iets. Ben je hierdoor je account kwijtgeraakt, meld het bij de club — '
+                    . 'het is te herstellen.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Trainingdetail kon niet scrollen',
+                'description' => 'Bij een training met een volledig team vielen de onderste spelers buiten beeld en kon je '
+                    . 'niet naar beneden scrollen. De pagina scrollt nu.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Filters in de rapportages',
+                'description' => 'In het wedstrijdrooster liep de periodefilter vast zodra je een periode koos. Dat is '
+                    . 'verholpen; ook het rijschema-rapport is nagelopen.',
+            ],
         ];
 
         $sort = 0;
