@@ -406,6 +406,7 @@ abstract final class Structs {
       "id": ffai.string,
       "name": ffai.string,
       "role": ffai.string,
+      "unread": ffai.string,
     },
     description: ffai.generatedProjectStructDescription,
   );

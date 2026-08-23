@@ -3524,11 +3524,26 @@ class _UnreadChatWatcher {
   // Per stream cached counts; total is sum across streams (de-duped by docId).
   static final Map<String, int> _counts = {};
 
+  // Ongelezen per team, zodat de chatpagina per elftal kan laten zien waar het
+  // bericht staat. Zonder dit zag je alleen een totaal en moest je zelf zoeken.
+  static final Map<String, int> _perTeam = {};
+
   static void _publish() {
     int total = 0;
     for (final v in _counts.values) total += v;
+
+    // Tellingen terugschrijven op de teamlijst; die lijst voedt de teamkeuze op
+    // de chatpagina, dus zo krijgt elke rij zijn eigen badge.
+    final teams = FFAppState()
+        .availableTeams
+        .map((t) => t..unread = (_perTeam[t.id] ?? 0) > 0
+            ? '${_perTeam[t.id]}'
+            : '')
+        .toList();
+
     FFAppState().update(() {
       FFAppState().unreadChatCount = total;
+      FFAppState().availableTeams = teams;
     });
     // App-icon badge bijwerken (iOS + ondersteunende Android-launchers).
     // 0 = badge weg. Web/niet-ondersteund faalt stil.
@@ -3567,9 +3582,18 @@ Future<void> watchUnreadChatCount() async {
     return;
   }
 
-  // Already watching for this user+team → keep existing listeners alive.
+  // Sleutel op de héle teamlijst, niet op het huidige team: komt er een elftal
+  // bij (bv. een ouder met een tweede kind), dan moet de listener opnieuw
+  // opgebouwd worden. Op alleen currentTeamId bleef hij op de oude lijst staan.
+  final teamKey = ([
+    ...FFAppState().availableTeams.map((t) => t.id).where((id) => id.isNotEmpty),
+    teamId,
+  ].toSet().toList()..sort())
+      .join(',');
+
+  // Already watching for this user+teams → keep existing listeners alive.
   if (_UnreadChatWatcher._lastEmail == userEmail
-      && _UnreadChatWatcher._lastTeamId == teamId
+      && _UnreadChatWatcher._lastTeamId == teamKey
       && (_UnreadChatWatcher._byParticipantsSub != null
           || _UnreadChatWatcher._byTeamSub != null)) {
     return;
@@ -3582,7 +3606,7 @@ Future<void> watchUnreadChatCount() async {
   _UnreadChatWatcher._byTeamSub = null;
   _UnreadChatWatcher._counts.clear();
   _UnreadChatWatcher._lastEmail = userEmail;
-  _UnreadChatWatcher._lastTeamId = teamId;
+  _UnreadChatWatcher._lastTeamId = teamKey;
 
   final fs = FirebaseFirestore.instance;
 
@@ -3601,20 +3625,44 @@ Future<void> watchUnreadChatCount() async {
     _UnreadChatWatcher._publish();
   }, onError: (Object _) {});
 
-  // Stream B — team chats for my currentTeamId (catch-all in case the user
-  // is not yet in participantIds for the team conversation).
-  if (teamId.isNotEmpty) {
+  // Stream B — teamchats van ál mijn elftallen, niet alleen het huidige.
+  // Met één team maakte dat niets uit; met meerdere zag je wel een totaal maar
+  // nergens bij welk elftal het bericht stond, en dus ook niet dat je moest
+  // omschakelen. whereIn kan tot 30 waarden aan; meer elftallen heeft niemand.
+  final teamIds = FFAppState()
+      .availableTeams
+      .map((t) => t.id)
+      .where((id) => id.isNotEmpty)
+      .toSet()
+      .toList();
+  if (teamId.isNotEmpty && !teamIds.contains(teamId)) {
+    teamIds.add(teamId);
+  }
+
+  if (teamIds.isNotEmpty) {
     _UnreadChatWatcher._byTeamSub = fs
         .collection('chatConversations')
-        .where('teamId', isEqualTo: teamId)
+        .where('teamId', whereIn: teamIds.take(30).toList())
         .snapshots()
         .listen((snap) {
       int total = 0;
+      _UnreadChatWatcher._perTeam.clear();
       for (final doc in snap.docs) {
-        // Skip conversations also covered by stream A to avoid double-counting.
-        final participants = doc.data()['participantIds'];
+        final data = doc.data();
+        final count = _UnreadChatWatcher._readCount(data, userEmail);
+        final docTeam = (data['teamId'] ?? '').toString();
+
+        // Per team tellen we álles mee, ook gesprekken uit stream A: die
+        // telling voedt alleen de badge naast het elftal, niet het totaal.
+        if (docTeam.isNotEmpty && count > 0) {
+          _UnreadChatWatcher._perTeam[docTeam] =
+              (_UnreadChatWatcher._perTeam[docTeam] ?? 0) + count;
+        }
+
+        // Voor het totaal wél overslaan wat stream A al telt, anders dubbel.
+        final participants = data['participantIds'];
         if (participants is List && participants.contains(userEmail)) continue;
-        total += _UnreadChatWatcher._readCount(doc.data(), userEmail);
+        total += count;
       }
       _UnreadChatWatcher._counts['team'] = total;
       _UnreadChatWatcher._publish();
@@ -8103,6 +8151,9 @@ void _addSwapStructFields(FFProject project) {
     ]),
     ('TeamOption',   [
       ('role', FFBaseDataType.String),
+      // Ongelezen berichten in de teamchat van dít team. Zonder dit veld zag je
+      // wel dát er iets ongelezen was, maar niet bij welk elftal.
+      ('unread', FFBaseDataType.String),
     ]),
   ] as List<(String, List<(String, FFBaseDataType)>)>) {
     final (structName, fieldDefs) = entry;
@@ -20058,26 +20109,20 @@ void _wireChatsPageTeamchatPicker(FFProject project) {
   // Idempotent: lijst al aanwezig → zorg dat shrinkWrap aanstaat en stop.
   // (Een verticale ListView in een scrollbare Column MOET shrinkWrap hebben,
   // anders krijgt-ie onbegrensde hoogte → render-exception → leeg scherm.)
-  final existingList =
-      findDescendants(wc.node, (n) => n.name == 'TeamchatTeamList').firstOrNull;
-  if (existingList != null) {
-    final lv = existingList.props.listView.deepCopy();
-    lv.shrinkWrapValue = FFBooleanValue(inputValue: true);
-    existingList.props.listView = lv;
-    // Geef de bestaande tegel ook een achtergrond (knop-uiterlijk).
-    final existingTile =
-        findDescendants(wc.node, (n) => n.name == 'TeamchatTeamTile').firstOrNull;
-    if (existingTile != null) {
-      _setContainerColor(
-        existingTile,
-        FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_BACKGROUND)),
-      );
-    }
-    return;
+  // Bestaande lijst weghalen en opnieuw opbouwen. Eerder werd hij bij elke push
+  // overgeslagen; dan kwamen wijzigingen aan de tegel — zoals het telbolletje
+  // per elftal — er nooit in.
+  final bestaand = findDescendants(
+    wc.node,
+    (n) => n.name == 'TeamchatTeamList' || n.name == 'TeamchatTeamListContainer',
+  ).map((n) => n.key).toList();
+  for (final k in bestaand) {
+    removeByKey(wc.node, k);
   }
 
   // Verwijder de oude enkele "Teamchat"-knop (volgende sibling van de header).
-  if (idx + 1 < col.children.length) {
+  // Alleen als daar nog iets staat dat níét de lijst was die we net wisten.
+  if (bestaand.isEmpty && idx + 1 < col.children.length) {
     col.children.removeAt(idx + 1);
   }
 
@@ -20100,11 +20145,47 @@ void _wireChatsPageTeamchatPicker(FFProject project) {
   nameText.props.text.textValue =
       FFStringValue(variable: generatorVarField(teamList.key, 'name'));
 
+  // Rood telbolletje per elftal. Met meerdere teams zag je wel dát er iets
+  // ongelezen was, maar niet waar — en dus ook niet dat je moest omschakelen.
+  final unreadBadge = UI.container(
+    name: 'TeamchatUnreadBadge',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 7, vertical: 2),
+    borderRadius: 10,
+    color: UIColor.hex(0xFFEF4444),
+    child: (() {
+      final t = UI.text('',
+          name: 'TeamchatUnreadCount',
+          style: UITextStyle.labelSmall,
+          color: UIColor.white,
+          maxLines: 1);
+      t.props.text.textValue =
+          FFStringValue(variable: generatorVarField(teamList.key, 'unread'));
+      return t;
+    })(),
+  );
+  setConditionalVisibility(
+    unreadBadge,
+    variable: conditionVar(
+      generatorVarField(teamList.key, 'unread'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable,
+  );
+
   final tile = UI.container(
     name: 'TeamchatTeamTile',
     height: 44,
     borderRadius: 8,
-    child: nameText,
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 10),
+    child: UI.row(
+      name: 'TeamchatTeamRow',
+      spacing: 8,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.expanded(nameText),
+        unreadBadge,
+      ],
+    ),
   );
   // Achtergrond zodat de tegel duidelijk als aantikbare knop oogt.
   _setContainerColor(

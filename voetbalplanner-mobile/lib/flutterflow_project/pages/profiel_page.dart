@@ -123,32 +123,32 @@ abstract final class ProfielPageWidgets {
                             name: "ProfielRelatiecode",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_obu51aw9",
+                            key: "Text_dod16xaq",
                             type: "Text",
                             path: "ProfielPage.body[0].children[0].children[0].children[0].children[5]",
                             name: "ProfielTeamsLabel",
                             text: "Teams",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "ListView_24y80exx",
+                            key: "ListView_8yi3zl7x",
                             type: "ListView",
                             path: "ProfielPage.body[0].children[0].children[0].children[0].children[6]",
                             name: "ProfielTeamsList",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_tpk490xa",
+                                key: "Row_l5o5ma3f",
                                 type: "Row",
                                 path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0]",
                                 name: "ProfielTeamRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_mh5pb7w6",
+                                    key: "Icon_r4rtlmc6",
                                     type: "Icon",
                                     path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0].children[0]",
                                     name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_pwzmfa9l",
+                                    key: "Text_c0rdr470",
                                     type: "Text",
                                     path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0].children[1]",
                                     name: "ProfielTeamName",
@@ -247,7 +247,7 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Button_nli0r26i",
+                    key: "Button_3a7xxpmd",
                     type: "Button",
                     path: "ProfielPage.body[0].children[0].children[4]",
                     name: "OnboardingResetButton",
@@ -257,7 +257,7 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Button_m076vfgd",
+                    key: "Button_x95p6nnl",
                     type: "Button",
                     path: "ProfielPage.body[0].children[0].children[5]",
                     name: "DeleteAccountButton",
@@ -267,33 +267,33 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_x6rh67sr",
+                    key: "Container_lq0x2e5i",
                     type: "Container",
                     path: "ProfielPage.body[0].children[0].children[6]",
                     name: "DeleteAccountConfirmPanel",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_2dnjkc92",
+                        key: "Column_bz3shjxq",
                         type: "Column",
                         path: "ProfielPage.body[0].children[0].children[6].children[0]",
                         name: "DeleteAccountConfirmCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_badlzqy4",
+                            key: "Text_b30pneqa",
                             type: "Text",
                             path: "ProfielPage.body[0].children[0].children[6].children[0].children[0]",
                             name: "DeleteAccountConfirmTitle",
                             text: "Account definitief verwijderen?",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_2ci2t97w",
+                            key: "Text_r9q5wjmk",
                             type: "Text",
                             path: "ProfielPage.body[0].children[0].children[6].children[0].children[1]",
                             name: "DeleteAccountConfirmText",
                             text: "Dit kan niet ongedaan worden gemaakt. Je profiel, je chatgeschiedenis en je team-, wedstrijd- en bardienstgegevens worden verwijderd.",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Button_incau00t",
+                            key: "Button_ej95iffh",
                             type: "Button",
                             path: "ProfielPage.body[0].children[0].children[6].children[0].children[2]",
                             name: "DeleteAccountConfirmButton",
@@ -303,7 +303,7 @@ abstract final class ProfielPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Button_9a6baxeq",
+                            key: "Button_v3bmbo09",
                             type: "Button",
                             path: "ProfielPage.body[0].children[0].children[6].children[0].children[3]",
                             name: "DeleteAccountCancelButton",
