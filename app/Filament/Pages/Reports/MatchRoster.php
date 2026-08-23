@@ -268,26 +268,42 @@ class MatchRoster extends Page implements HasTable
                             . ($until ? Carbon::parse($until)->format('d-m-Y') : '...');
                     }),
             ])
+            // Twee groeperingen over dezelfde kolom, maar mét een eigen naam.
+            // Ze heetten allebei 'match_datetime', en Filament gebruikt die naam
+            // als sleutel: de tweede overschreef de eerste, en bij het opnieuw
+            // opbouwen van de tabel — wat gebeurt zodra je een filter wijzigt —
+            // viel daar niet meer uit op te maken welke groepering actief was.
+            //
+            // Omdat de naam nu geen kolom meer is, moeten sleutel, titel en
+            // sortering expliciet: Filament kan ze niet meer afleiden.
             ->groups([
-                Group::make('match_datetime')
+                Group::make('week')
                     ->label('Week')
+                    ->getKeyFromRecordUsing(
+                        fn($record): string => $record->match_datetime?->format('o-W') ?? '')
                     ->getTitleFromRecordUsing(function ($record): string {
-                        $dt    = $record->match_datetime;
+                        $dt = $record->match_datetime;
+                        if (! $dt) {
+                            return 'Zonder datum';
+                        }
                         $start = $dt->copy()->startOfWeek()->locale('nl')->isoFormat('D MMM');
                         $end   = $dt->copy()->endOfWeek()->locale('nl')->isoFormat('D MMM YYYY');
+
                         return "Week {$dt->weekOfYear} ({$start} t/m {$end})";
                     })
                     ->orderQueryUsing(fn($query, $direction) => $query->orderBy('match_datetime', $direction))
                     ->collapsible(),
-                Group::make('match_datetime')
+                Group::make('maand')
                     ->label('Maand')
-                    ->getTitleFromRecordUsing(function ($record): string {
-                        return ucfirst($record->match_datetime->locale('nl')->isoFormat('MMMM YYYY'));
-                    })
+                    ->getKeyFromRecordUsing(
+                        fn($record): string => $record->match_datetime?->format('Y-m') ?? '')
+                    ->getTitleFromRecordUsing(fn($record): string => $record->match_datetime
+                        ? ucfirst($record->match_datetime->locale('nl')->isoFormat('MMMM YYYY'))
+                        : 'Zonder datum')
                     ->orderQueryUsing(fn($query, $direction) => $query->orderBy('match_datetime', $direction))
                     ->collapsible(),
             ])
-            ->defaultGroup('match_datetime')
+            ->defaultGroup('week')
             ->striped()
             ->paginationPageOptions([25, 50, 100, 'all'])
             ->defaultPaginationPageOption(50);
