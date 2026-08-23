@@ -11,6 +11,10 @@ use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Pages\Page;
+// Set zit in Filament 4 onder Schemas\Components\Utilities, niet meer onder
+// Forms. Met Forms\Set als type in de closure kon Filament de parameter niet
+// invullen en klapte de periodefilter zodra je er een keuze in maakte.
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -225,7 +229,7 @@ class MatchRoster extends Page implements HasTable
                                 'custom'      => 'Aangepast',
                             ])
                             ->live()
-                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                            ->afterStateUpdated(function ($state, Set $set) {
                                 match ($state) {
                                     'this_week'  => [$set('from', now()->startOfWeek()->toDateString()), $set('until', now()->endOfWeek()->toDateString())],
                                     'next_week'  => [$set('from', now()->addWeek()->startOfWeek()->toDateString()), $set('until', now()->addWeek()->endOfWeek()->toDateString())],
