@@ -207,32 +207,65 @@ class BarDutyController extends Controller
             }
         }
 
-        $memberIds = $barDuty->members()->pluck('members.id');
-        $userIds   = $barDuty->users()->pluck('users.id');
+        // Ouders komen vaak met z'n tweeën en melden zich via één account aan.
+        // Zonder aantal telt de aanmelding voor één plek, zoals voorheen.
+        $validated = $request->validate([
+            'spots' => 'nullable|integer|min:1|max:10',
+        ]);
+        $spots = (int) ($validated['spots'] ?? 1);
+
+        $barDuty->load(['members', 'users']);
+        $memberIds = $barDuty->members->pluck('id');
+        $userIds   = $barDuty->users->pluck('id');
 
         $already = ($member && $memberIds->contains($member->id)) || $userIds->contains($user->id);
+
+        // Al aangemeld? Dan is dit een bijstelling van het aantal, niet een
+        // dubbele aanmelding. Anders zou iemand die er eentje bij wil nemen
+        // zich eerst moeten afmelden.
+        $eigenPlekken = 0;
         if ($already) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Je bent al aangemeld voor deze bardienst.',
-            ], 422);
+            $eigen = $member
+                ? $barDuty->members->firstWhere('id', $member->id)
+                : $barDuty->users->firstWhere('id', $user->id);
+            $eigenPlekken = max(1, (int) ($eigen?->pivot->spots ?? 1));
         }
 
-        if (($memberIds->count() + $userIds->count()) >= $barDuty->requiredCount()) {
+        $bezetDoorAnderen = $barDuty->filledCount() - $eigenPlekken;
+        $vrij             = $barDuty->requiredCount() - $bezetDoorAnderen;
+
+        if ($vrij < 1) {
             return response()->json([
                 'success' => false,
                 'message' => 'Deze bardienst is al vol.',
             ], 422);
         }
+        if ($spots > $vrij) {
+            return response()->json([
+                'success' => false,
+                'message' => $vrij === 1
+                    ? 'Er is nog maar één plek vrij.'
+                    : "Er zijn nog maar {$vrij} plekken vrij.",
+            ], 422);
+        }
 
-        $member ? $barDuty->members()->attach($member->id) : $barDuty->users()->attach($user->id);
-        $barDuty->refreshStatus();
+        $relatie = $member ? $barDuty->members() : $barDuty->users();
+        $id      = $member ? $member->id : $user->id;
+        // syncWithoutDetaching werkt zowel voor een nieuwe aanmelding als voor
+        // het bijstellen van het aantal.
+        $relatie->syncWithoutDetaching([$id => ['spots' => $spots]]);
+        // Eerst opnieuw inlezen, dán de status bepalen: de relaties hierboven
+        // waren al geladen en zouden anders de stand van vóór het aanmelden
+        // gebruiken.
         $barDuty->load(['team', 'members', 'users']);
+        $barDuty->refreshStatus();
 
         return response()->json([
             'success' => true,
             'data'    => new BarDutyResource($barDuty),
-            'message' => 'Je bent aangemeld voor deze bardienst.',
+            'message' => $spots > 1
+                ? "Je bent aangemeld voor deze bardienst met {$spots} personen."
+                : 'Je bent aangemeld voor deze bardienst.',
         ]);
     }
 

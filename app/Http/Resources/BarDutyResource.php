@@ -18,9 +18,17 @@ class BarDutyResource extends JsonResource
         $myUserId   = $user?->id;
 
         // Aangemeld = leden (bar_duty_member) + losse User-accounts (bar_duty_user).
-        $names       = ($this->members?->pluck('name') ?? collect())
-            ->merge($this->users?->pluck('name') ?? collect());
-        $memberCount = $names->count();
+        // Achter de naam het aantal plekken, maar alleen als het er meer dan één
+        // is — "Jan (2 personen)" zegt iets, "(1 persoon)" is ruis.
+        $naam = fn ($r) => ((int) ($r->pivot->spots ?? 1)) > 1
+            ? $r->name . ' (' . (int) $r->pivot->spots . ' personen)'
+            : $r->name;
+
+        $names = ($this->members?->map($naam) ?? collect())
+            ->merge($this->users?->map($naam) ?? collect());
+
+        // Telling in plekken, niet in aanmeldingen.
+        $memberCount = $this->filledCount();
 
         $isAssignedToMe =
             ($myMemberId && (bool) $this->members?->contains('id', $myMemberId)) ||
@@ -58,6 +66,8 @@ class BarDutyResource extends JsonResource
             'memberCount'    => $memberCount,
             'requiredCount'  => $required,
             'canSelfAssign'  => $canSelfAssign,
+            // Hoeveel plekken er nog vrij zijn; de app biedt niet meer aan dan dat.
+            'spotsLeft'      => (string) max(0, $required - $memberCount),
         ];
     }
 }

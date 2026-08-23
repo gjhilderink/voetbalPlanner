@@ -134,12 +134,28 @@ class BarDuty extends Model
 
     public function members(): BelongsToMany
     {
-        return $this->belongsToMany(Member::class, 'bar_duty_member');
+        return $this->belongsToMany(Member::class, 'bar_duty_member')->withPivot('spots');
     }
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'bar_duty_user');
+        return $this->belongsToMany(User::class, 'bar_duty_user')->withPivot('spots');
+    }
+
+    /**
+     * Aantal gevulde plekken. Niet het aantal aanmeldingen: wie met z'n tweeën
+     * komt en zich via één account aanmeldt, vult er twee.
+     */
+    public function filledCount(): int
+    {
+        $tel = fn ($relatie) => $relatie
+            ->map(fn ($r) => max(1, (int) ($r->pivot->spots ?? 1)))
+            ->sum();
+
+        $leden    = $this->relationLoaded('members') ? $this->members : $this->members()->get();
+        $accounts = $this->relationLoaded('users')   ? $this->users   : $this->users()->get();
+
+        return (int) ($tel($leden) + $tel($accounts));
     }
 
     public function refreshStatus(): void
@@ -148,8 +164,8 @@ class BarDuty extends Model
             return;
         }
 
-        // Leden én losse User-accounts tellen mee.
-        $count = $this->members()->count() + $this->users()->count();
-        $this->update(['status' => $count >= $this->requiredCount() ? 'bevestigd' : 'open']);
+        $this->update([
+            'status' => $this->filledCount() >= $this->requiredCount() ? 'bevestigd' : 'open',
+        ]);
     }
 }

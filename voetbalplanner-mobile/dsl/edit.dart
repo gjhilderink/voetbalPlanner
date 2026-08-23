@@ -8298,15 +8298,33 @@ void _addSwapEndpoints(FFProject project) {
     );
   }
 
+  // spots: met hoeveel personen je komt. Ouders melden zich vaak samen aan via
+  // één account. Als query-param, want FlutterFlow vult [var] alleen in de URL.
   addIfMissing(
     name:      'SelfAssignBarDuty',
-    url:       '/bar-duties/[dutyId]/self-assign',
+    url:       '/bar-duties/[dutyId]/self-assign?spots=[spots]',
     method:    FFApiEndpoint_CallType.POST,
-    variables: {'dutyId': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+    variables: {
+      'dutyId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'spots':  FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
   );
   // Idempotent: als endpoint al bestond met method PATCH (vorige push) →
-  // force-update naar POST.
+  // force-update naar POST. De URL en de spots-variabele worden ook hier gezet,
+  // anders mist een bestaand endpoint ze.
   if (existing.contains('SelfAssignBarDuty')) {
+    final ep = findApiEndpoint(project,
+        name: 'SelfAssignBarDuty', groupName: 'VoetbalPlannerAPI');
+    if (ep != null) {
+      ep.url = '/bar-duties/[dutyId]/self-assign?spots=[spots]';
+      if (!ep.variables.any((v) => v.hasIdentifier() && v.identifier.name == 'spots')) {
+        ep.variables.add(FFApiValue(
+          identifier:
+              FFIdentifier(name: 'spots', key: generateRandomAlphaNumericString()),
+          type: FFBaseDataType.String,
+        ));
+      }
+    }
     updateApiEndpoint(
       project,
       name:      'SelfAssignBarDuty',
@@ -10308,8 +10326,19 @@ void _wireBardienDetailPageLoad(FFProject project) {
   for (final name in const [
     'dutyDate', 'dutyShift', 'dutyStatus', 'dutyTeamName', 'dutyMembers', 'dutyNotes',
     'apiStatus',
+    // Hoeveel plekken nog vrij zijn, en met hoeveel personen de gebruiker komt.
+    'dutySpotsLeft', 'dutySpots',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
+  }
+  // dutySpots begint op 1: zonder standaardwaarde staat er geen keuze aan en
+  // zou de eerste chip niet oplichten.
+  final spotsField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'dutySpots',
+          orElse: () => null);
+  if (spotsField != null && spotsField.serializedDefaultValue.isEmpty) {
+    spotsField.serializedDefaultValue.add('1');
   }
   _ensurePageStateField(wc, 'dutyCanSelfAssign', FFBaseDataType.Boolean);
   _ensurePageStateField(wc, 'dutyIsAssignedToMe', FFBaseDataType.Boolean);
@@ -10338,6 +10367,7 @@ void _wireBardienDetailPageLoad(FFProject project) {
           'dutyTeamName': r'$.teamName',
           'dutyMembers':  r'$.members',
           'dutyNotes':    r'$.notes',
+          'dutySpotsLeft': r'$.spotsLeft',
         };
         final updates = <StateFieldUpdate>[
           StateFieldUpdate.set('isLoading', 'false'),
@@ -10924,9 +10954,12 @@ void _addBardienAanmeldenButton(FFProject project) {
 
   // Idempotent: verwijder vorige instance zodat de chain bij elke push fris
   // wordt opgebouwd (anders kunnen state-field keys verschuiven).
-  final existingBtnKeys = findDescendants(infoColumn, (n) => n.name == 'DutyAanmeldenButton')
-      .map((n) => n.key)
-      .toList();
+  // Ook de wrapper eromheen: die bleef staan en er kwam elke push een nieuwe
+  // bij, dus stapelden zich lege containers op.
+  final existingBtnKeys = findDescendants(
+    infoColumn,
+    (n) => n.name == 'DutyAanmeldenButton' || n.name == 'DutyAanmeldenWrap',
+  ).map((n) => n.key).toList();
   for (final k in existingBtnKeys) {
     removeByKey(wc.node, k);
   }
@@ -10964,6 +10997,85 @@ void _addBardienAanmeldenButton(FFProject project) {
     width: double.infinity,
   );
   setConditionalVisibility(button, variable: visibleVar);
+
+  // Met hoeveel personen kom je? Ouders staan vaak samen achter de bar en
+  // melden zich via één account aan; dan bleef de bardienst openstaan terwijl
+  // er al genoeg mensen waren.
+  final spotsFieldId = _findPageStateFieldId(project, 'BardienDetailPage', 'dutySpots');
+  final spotsLeftId  = _findPageStateFieldId(project, 'BardienDetailPage', 'dutySpotsLeft');
+  FFNode? spotsRow;
+  if (spotsFieldId != null) {
+    FFVariable gekozen() => varFromPageState(spotsFieldId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+    FFNode aantalChip(String waarde, String label) {
+      // Twee chips over elkaar: de gekozen chip in de clubkleur, de andere grijs.
+      FFNode chip({required bool gekozenStijl}) {
+        final c = UI.container(
+          name: 'DutySpots$waarde${gekozenStijl ? 'Active' : ''}',
+          innerPadding: UIEdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          borderRadius: 20,
+          color: gekozenStijl ? UIColor.primary : UIColor.hex(0xFFEFF1F5),
+          child: UI.text(label,
+              name: 'DutySpots${waarde}Label${gekozenStijl ? 'Active' : ''}',
+              style: UITextStyle.labelMedium,
+              color: gekozenStijl ? UIColor.white : UIColor.secondaryText),
+        );
+        setConditionalVisibility(
+          c,
+          variable: _equalsLiteral(gekozen(), waarde, negate: !gekozenStijl),
+        );
+        return c;
+      }
+
+      final item = UI.row(
+        name: 'DutySpots${waarde}Wrap',
+        mainAxisMin: true,
+        children: [chip(gekozenStijl: true), chip(gekozenStijl: false)],
+      );
+      Actions.onTap(
+        item,
+        Actions.updatePageState(
+          project,
+          widgetClassName: 'BardienDetailPage',
+          updates: [StateFieldUpdate.set('dutySpots', waarde)],
+        ),
+      );
+      return item;
+    }
+
+    final tweeChip = aantalChip('2', '2 personen');
+    // "2 personen" alleen aanbieden als er ook echt twee plekken vrij zijn.
+    if (spotsLeftId != null) {
+      setConditionalVisibility(
+        tweeChip,
+        variable: _equalsLiteral(
+          varFromPageState(spotsLeftId.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+          '1',
+          negate: true,
+        ),
+      );
+    }
+
+    spotsRow = UI.column(
+      name: 'DutySpotsChooser',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 6,
+      children: [
+        UI.text('Met hoeveel personen kom je?',
+            name: 'DutySpotsLabel',
+            style: UITextStyle.bodySmall,
+            color: UIColor.secondaryText),
+        UI.row(
+          name: 'DutySpotsRow',
+          spacing: 8,
+          children: [aantalChip('1', '1 persoon'), tweeChip],
+        ),
+      ],
+    );
+    setConditionalVisibility(spotsRow, variable: visibleVar);
+  }
 
   // Build a snackBar action whose textMessage is a runtime variable (so we can
   // surface the server-side error message). interpolateVar returns FFStringValue,
@@ -11077,6 +11189,9 @@ void _addBardienAanmeldenButton(FFProject project) {
     groupName: 'VoetbalPlannerAPI',
     dynamicVariables: {
       'dutyId': varFromPageParam(dutyIdParamId.deepCopy()),
+      if (spotsFieldId != null)
+        'spots': varFromPageState(spotsFieldId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
     },
     outputVariableName: 'selfAssign',
     nodeKey: button.key,
@@ -11115,7 +11230,15 @@ void _addBardienAanmeldenButton(FFProject project) {
   final wrap = UI.container(
     name: 'DutyAanmeldenWrap',
     padding: UIEdgeInsets.symmetric(vertical: 12),
-    child: button,
+    child: UI.column(
+      name: 'DutyAanmeldenCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: [
+        if (spotsRow != null) spotsRow,
+        button,
+      ],
+    ),
   );
 
   infoColumn.children.add(wrap);
