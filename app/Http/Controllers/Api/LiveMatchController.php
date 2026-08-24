@@ -119,6 +119,34 @@ class LiveMatchController extends Controller
     }
 
     /**
+     * POST /v1/matches/{match}/live/delete
+     *
+     * Verwijdert het hele verslag. Mag ook als de wedstrijd al is afgesloten —
+     * juist dán wil een coach een verslag dat per ongeluk is gestart kwijt.
+     */
+    public function destroy(Request $request, FootballMatch $match): JsonResponse
+    {
+        if ($denied = $this->denyIfNotCoach($request, $match)) {
+            return $denied;
+        }
+
+        if (! $match->live_started_at && $match->events()->doesntExist()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bij deze wedstrijd staat geen verslag.',
+            ], 422);
+        }
+
+        $this->live->deleteReport($match);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Het verslag is verwijderd.',
+            'data'    => $this->live->state($match->fresh(), true),
+        ]);
+    }
+
+    /**
      * GET /v1/matches/{match}/events
      *
      * Het bewaarde verslag van een wedstrijd: alle gebeurtenissen op volgorde

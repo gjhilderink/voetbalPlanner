@@ -116,31 +116,31 @@ abstract final class DirectChatPageWidgets {
                         name: "Column",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_w55ebogf",
+                            key: "Container_wipha19i",
                             type: "Container",
                             path: "DirectChatPage.body[0].children[0].children[0].children[0].children[0]",
                             name: "OtherBubble",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_gopnfssr",
+                                key: "Column_6wp8h8mh",
                                 type: "Column",
                                 path: "DirectChatPage.body[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "OtherMsgCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_87dvcke9",
+                                    key: "Text_lvet3lat",
                                     type: "Text",
                                     path: "DirectChatPage.body[0].children[0].children[0].children[0].children[0].children[0].children[0]",
                                     name: "OtherSenderName",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_hpg7ym4t",
+                                    key: "Text_6k56nwi1",
                                     type: "Text",
                                     path: "DirectChatPage.body[0].children[0].children[0].children[0].children[0].children[0].children[1]",
                                     name: "OtherMsgText",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_5hhr9znp",
+                                    key: "Text_wskogueg",
                                     type: "Text",
                                     path: "DirectChatPage.body[0].children[0].children[0].children[0].children[0].children[0].children[2]",
                                     name: "OtherMsgTime",
@@ -150,37 +150,37 @@ abstract final class DirectChatPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_l3n1iqks",
+                            key: "Container_c4qe9dk8",
                             type: "Container",
                             path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1]",
                             name: "OwnBubble",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_ssfm9s56",
+                                key: "Column_qpypp1od",
                                 type: "Column",
                                 path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1].children[0]",
                                 name: "OwnMsgCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_k4qnpfps",
+                                    key: "Text_jbgx03xg",
                                     type: "Text",
                                     path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1].children[0].children[0]",
                                     name: "OwnSenderName",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_hbmupuh3",
+                                    key: "Text_7fjw11p3",
                                     type: "Text",
                                     path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1].children[0].children[1]",
                                     name: "OwnMsgText",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_61bv8qmp",
+                                    key: "Row_tcvg71l8",
                                     type: "Row",
                                     path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1].children[0].children[2]",
                                     name: "OwnMsgMeta",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_oz0ykynd",
+                                        key: "Text_9fy361t3",
                                         type: "Text",
                                         path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1].children[0].children[2].children[0]",
                                         name: "OwnMsgTime",
@@ -188,13 +188,13 @@ abstract final class DirectChatPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_vof7ttow",
+                                    key: "Row_vmj76yox",
                                     type: "Row",
                                     path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1].children[0].children[3]",
                                     name: "OwnActionsRow",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "IconButton_95gzzl78",
+                                        key: "IconButton_oj3x1xks",
                                         type: "IconButton",
                                         path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1].children[0].children[3].children[0]",
                                         name: "OwnEditBtn",
@@ -203,7 +203,7 @@ abstract final class DirectChatPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "IconButton_qyxhc9d3",
+                                        key: "IconButton_ey1i8bsf",
                                         type: "IconButton",
                                         path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1].children[0].children[3].children[1]",
                                         name: "OwnSaveBtn",
@@ -212,7 +212,7 @@ abstract final class DirectChatPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "IconButton_61xepygc",
+                                        key: "IconButton_rrcv1t7b",
                                         type: "IconButton",
                                         path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1].children[0].children[3].children[2]",
                                         name: "OwnCancelBtn",
@@ -221,7 +221,7 @@ abstract final class DirectChatPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "IconButton_ev3vya4l",
+                                        key: "IconButton_h6ccnj6w",
                                         type: "IconButton",
                                         path: "DirectChatPage.body[0].children[0].children[0].children[0].children[1].children[0].children[3].children[3]",
                                         name: "OwnDeleteBtn",
@@ -236,13 +236,13 @@ abstract final class DirectChatPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_a2tr2jcc",
+                            key: "Container_jw3k78g5",
                             type: "Container",
                             path: "DirectChatPage.body[0].children[0].children[0].children[0].children[2]",
                             name: "DeletedBubble",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_j4dd2txn",
+                                key: "Text_33vvi5d6",
                                 type: "Text",
                                 path: "DirectChatPage.body[0].children[0].children[0].children[0].children[2].children[0]",
                                 name: "DeletedBubbleText",

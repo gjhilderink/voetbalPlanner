@@ -1519,6 +1519,7 @@ void buildEditFlow(App app) {
     // Derde tabblad: het bewaarde verslag van een gespeelde wedstrijd.
     _ensureMatchEventsAppState(project);
     _addMatchEventsEndpoint(project);
+    _addDeleteReportEndpoint(project);
     _wireMatchEventsLoad(project);
     _addMatchReportTab(project);
     _rebuildDashboardBody(project);
@@ -31949,6 +31950,29 @@ void _addMatchEventsEndpoint(FFProject project) {
   );
 }
 
+/// Endpoint waarmee de coach een heel verslag weggooit.
+void _addDeleteReportEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  const name = 'DeleteMatchReport';
+  if (findApiGroup(project, name: groupName) == null) return;
+  if (findApiEndpoint(project, name: name, groupName: groupName) != null) return;
+
+  addEndpointToGroup(
+    project,
+    groupName: groupName,
+    name: name,
+    // POST, geen DELETE: de shared host blokkeert die methode.
+    url: '/matches/[matchId]/live/delete',
+    method: FFApiEndpoint_CallType.POST,
+    bodyType: FFApiEndpoint_BodyType.NONE,
+    variables: {
+      'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'matchId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+    headers: ['Authorization: Bearer [token]'],
+  );
+}
+
 /// Haalt het verslag op bij het openen van de wedstrijd.
 void _wireMatchEventsLoad(FFProject project) {
   final wc = findPage(project, name: 'WedstrijdDetailPage');
@@ -32097,13 +32121,223 @@ void _addMatchReportTab(FFProject project) {
         name: 'MatchReportCol',
         crossAxisAlignment: UICrossAxisAlignment.stretch,
         scrollable: true,
-        children: [list, leeg],
+        children: [
+          list,
+          leeg,
+          ..._matchReportDeleteSection(project, wc, eventsVar),
+        ],
       ),
     ],
   );
 
   tabBar.children.add(tab);
   tabBar.children.add(content);
+}
+
+/// "Verslag verwijderen" voor de coach, met de bevestiging als blok ín het
+/// tabblad in plaats van als dialoogvenster.
+///
+/// Een dialoogantwoord laat zich in dit model niet als voorwaarde gebruiken —
+/// zie het account-verwijderen, waar precies dat een keer misging en Annuleren
+/// net zo goed verwijderde. Voor iets onomkeerbaars is een blok bovendien
+/// duidelijker dan een venster dat je per ongeluk wegtikt.
+List<FFNode> _matchReportDeleteSection(
+    FFProject project, FFWidgetClass wc, FFVariable eventsVar) {
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final eventsId = _findAppStateFieldId(project, 'matchReportEvents');
+  if (authTokenId == null || eventsId == null) return const [];
+  if (findApiEndpoint(project,
+          name: 'DeleteMatchReport', groupName: 'VoetbalPlannerAPI') ==
+      null) return const [];
+
+  final magField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere(
+          (f) => f?.parameter.identifier.name == 'matchMagOpstelling',
+          orElse: () => null);
+  if (magField == null) return const [];
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return const [];
+
+  final bevestigId = _ensurePageStateFlag(project, wc, 'confirmDeleteReport');
+  if (bevestigId == null) return const [];
+
+  final scaffoldKey = wc.node.key;
+  final magVar = varFromPageState(magField.parameter.identifier.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  FFVariable bevestigVar() => varFromPageState(bevestigId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  FFVariable matchIdVar() => varFromPageParam(matchIdParam.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  FFAction zetBevestiging(bool waarde) => Actions.updatePageState(
+        project,
+        widgetClassName: 'WedstrijdDetailPage',
+        updates: [
+          StateFieldUpdate.set('confirmDeleteReport', waarde ? 'true' : 'false'),
+        ],
+      );
+
+  // Coach én er staat daadwerkelijk iets in het verslag.
+  FFVariable magBeheren() => codeExpressionVar(
+        expression: "m == 'true'",
+        arguments: [
+          CodeExpressionArg(
+            name: 'm',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: magVar.deepCopy()),
+          ),
+        ],
+        returnType:
+            FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+      );
+
+  final openKnop = UI.button(
+    'Verslag verwijderen',
+    name: 'MatchReportDeleteButton',
+    variant: UIButtonVariant.outlined,
+    color: UIColor.error,
+    width: double.infinity,
+  );
+  openKnop.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 16),
+    rightValue: FFDoubleValue(inputValue: 16),
+    topValue: FFDoubleValue(inputValue: 8),
+    bottomValue: FFDoubleValue(inputValue: 24),
+  );
+  Actions.onTap(openKnop, zetBevestiging(true));
+  setConditionalVisibility(
+    openKnop,
+    variable: andConditionsVar([
+      magBeheren(),
+      _listNotEmptyVar(eventsVar.deepCopy()),
+      conditionVar(
+        bevestigVar(),
+        FFCondition_Relation.EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.FALSE),
+      ).variable,
+    ]).variable,
+  );
+
+  final jaKnop = UI.button(
+    'Ja, verslag verwijderen',
+    name: 'MatchReportDeleteConfirmButton',
+    color: UIColor.error,
+    width: double.infinity,
+  );
+
+  // Verwijderen → verslag opnieuw ophalen (nu leeg) → doelpunten opnieuw
+  // ophalen, want de doelpunten die uit dit verslag kwamen zijn mee verdwenen.
+  //
+  // nodeKey is de knop waarop getikt wordt, niet de pagina: het antwoord van de
+  // call wordt aan die node opgehangen, en met de scaffold-key erin weigert
+  // FlutterFlow de app-state-update ("update value that is not properly set").
+  final verwijderNode = Actions.apiCallNode(
+    project,
+    endpointName: 'DeleteMatchReport',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'token': varFromAppState(authTokenId.deepCopy()),
+      'matchId': matchIdVar(),
+    },
+    outputVariableName: 'reportDelete',
+    nodeKey: jaKnop.key,
+    onSuccess: (ctx) {
+      final herlaad = Actions.apiCallNode(
+        project,
+        endpointName: 'GetMatchEvents',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'matchId': matchIdVar(),
+        },
+        outputVariableName: 'reportDeleteEvents',
+        nodeKey: jaKnop.key,
+        onSuccess: (c2) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('matchReportEvents', c2.responseVar),
+          ]),
+        ]),
+      );
+
+      var staart = herlaad;
+      while (staart.hasFollowUpAction()) {
+        staart = staart.followUpAction;
+      }
+      if (findApiEndpoint(project,
+              name: 'GetMatchGoalsList', groupName: 'VoetbalPlannerAPI') !=
+          null) {
+        staart.followUpAction = _reloadGoalsToAppState(
+          project,
+          authTokenId: authTokenId,
+          matchIdVar: matchIdVar(),
+          nodeKey: jaKnop.key,
+          output: 'reportDeleteGoals',
+        );
+        while (staart.hasFollowUpAction()) {
+          staart = staart.followUpAction;
+        }
+      }
+      staart.followUpAction = FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: zetBevestiging(false),
+        followUpAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Het verslag is verwijderd.'),
+        ),
+      );
+      return herlaad;
+    },
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Kon het verslag niet verwijderen.'),
+    ]),
+  );
+
+  Actions.onTapChain(jaKnop, verwijderNode);
+
+  final neeKnop = UI.button(
+    'Annuleren',
+    name: 'MatchReportDeleteCancelButton',
+    variant: UIButtonVariant.outlined,
+    width: double.infinity,
+  );
+  Actions.onTap(neeKnop, zetBevestiging(false));
+
+  final paneel = UI.container(
+    name: 'MatchReportDeletePanel',
+    innerPadding: UIEdgeInsets.all(14),
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 8, bottom: 24),
+    borderRadius: 14,
+    color: UIColor.hex(0xFFFEF2F2),
+    border: UIBorder.all(width: 1, color: UIColor.hex(0xFFFCA5A5)),
+    child: UI.column(
+      name: 'MatchReportDeleteCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: [
+        UI.text('Verslag definitief verwijderen?',
+            name: 'MatchReportDeleteTitle', style: UITextStyle.titleSmall),
+        UI.text(
+            'De hele tijdlijn verdwijnt: aftrap, doelpunten, wissels, kaarten '
+            'en het eindsignaal. Doelpunten die tijdens dit verslag zijn '
+            'vastgelegd gaan mee, ook uit het tabblad Doelpunten en uit de '
+            'seizoenscijfers. De uitslag van de wedstrijd blijft staan. Dit kan '
+            'niet ongedaan worden gemaakt.',
+            name: 'MatchReportDeleteText',
+            style: UITextStyle.bodySmall,
+            color: UIColor.secondaryText),
+        jaKnop,
+        neeKnop,
+      ],
+    ),
+  );
+  setConditionalVisibility(paneel, variable: bevestigVar());
+
+  return [openKnop, paneel];
 }
 
 // ── Ouder-toegangsverzoeken op het dashboard ────────────────────────────────

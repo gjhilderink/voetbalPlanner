@@ -144,6 +144,35 @@ class LiveMatchService
     }
 
     /**
+     * Wist het hele verslag: alle gebeurtenissen, de doelpunten die daaruit zijn
+     * ontstaan, en de live-klok inclusief de deel-link.
+     *
+     * De eindstand en de status van de wedstrijd blijven staan. Die horen bij de
+     * uitslag en niet bij het verslag, en kunnen ook uit de Sportlink-sync komen
+     * — die stilzwijgend leeggooien zou een goede uitslag kunnen kosten.
+     * Handmatig ingevoerde doelpunten hangen niet aan een gebeurtenis en blijven
+     * dus ook staan, net zoals bij het ongedaan maken van één gebeurtenis.
+     */
+    public function deleteReport(FootballMatch $match): void
+    {
+        DB::transaction(function () use ($match) {
+            $goalIds = $match->events()->whereNotNull('goal_id')->pluck('goal_id');
+            if ($goalIds->isNotEmpty()) {
+                Goal::whereIn('id', $goalIds)->delete();
+            }
+
+            $match->events()->delete();
+
+            $match->forceFill([
+                'live_started_at'  => null,
+                'live_halftime_at' => null,
+                'live_ended_at'    => null,
+                'live_token'       => null,
+            ])->save();
+        });
+    }
+
+    /**
      * Eindsignaal: het verslag sluit en de uitslag wordt op de wedstrijd
      * vastgelegd. Dit is de eerste plek waar de app zelf een uitslag schrijft;
      * tot nu toe kwam die alleen uit de Sportlink-sync.

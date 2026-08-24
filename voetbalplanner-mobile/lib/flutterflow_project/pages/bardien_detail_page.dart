@@ -174,33 +174,33 @@ abstract final class BardienDetailPageWidgets {
                 name: "DutyInfoColumn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Text_clbbu4el",
+                    key: "Text_5niyhf74",
                     type: "Text",
                     path: "BardienDetailPage.body[0].children[0].children[0]",
                     name: "DutyInfoTitle",
                     text: "Bardienst details",
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_9m5lnvqe",
+                    key: "Container_ifbe2ebl",
                     type: "Container",
                     path: "BardienDetailPage.body[0].children[0].children[1]",
                     name: "DutyInfoRow_dutyDate",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_cko8lcpc",
+                        key: "Column_3n2uekwl",
                         type: "Column",
                         path: "BardienDetailPage.body[0].children[0].children[1].children[0]",
                         name: "Column",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_6q2y90g0",
+                            key: "Text_n96nhpay",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[1].children[0].children[0]",
                             name: "Text",
                             text: "Datum",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_a6w2b91u",
+                            key: "Text_q2og565e",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[1].children[0].children[1]",
                             name: "DutyInfoValue_dutyDate",
@@ -210,26 +210,26 @@ abstract final class BardienDetailPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_6ot8r2k2",
+                    key: "Container_qgexsozz",
                     type: "Container",
                     path: "BardienDetailPage.body[0].children[0].children[2]",
                     name: "DutyInfoRow_dutyShift",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_9v7ji5qm",
+                        key: "Column_bzi77hdn",
                         type: "Column",
                         path: "BardienDetailPage.body[0].children[0].children[2].children[0]",
                         name: "Column",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_0ueganzz",
+                            key: "Text_l7s73bs2",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[2].children[0].children[0]",
                             name: "Text",
                             text: "Dienst",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_jp1my999",
+                            key: "Text_z7fyzjf4",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[2].children[0].children[1]",
                             name: "DutyInfoValue_dutyShift",
@@ -239,26 +239,26 @@ abstract final class BardienDetailPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_xho25bxq",
+                    key: "Container_rfdg8hry",
                     type: "Container",
                     path: "BardienDetailPage.body[0].children[0].children[3]",
                     name: "DutyInfoRow_dutyStatus",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_g5mv25ou",
+                        key: "Column_2df6q36p",
                         type: "Column",
                         path: "BardienDetailPage.body[0].children[0].children[3].children[0]",
                         name: "Column",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_a54k1smc",
+                            key: "Text_3qrcl57s",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[3].children[0].children[0]",
                             name: "Text",
                             text: "Status",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_2vvoj71q",
+                            key: "Text_cpw707as",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[3].children[0].children[1]",
                             name: "DutyInfoValue_dutyStatus",
@@ -268,26 +268,26 @@ abstract final class BardienDetailPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_picp5fg9",
+                    key: "Container_hl96v63d",
                     type: "Container",
                     path: "BardienDetailPage.body[0].children[0].children[4]",
                     name: "DutyInfoRow_dutyTeamName",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_fg9vbgxu",
+                        key: "Column_f10j56fb",
                         type: "Column",
                         path: "BardienDetailPage.body[0].children[0].children[4].children[0]",
                         name: "Column",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_u7gmycrd",
+                            key: "Text_ilna7lak",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[4].children[0].children[0]",
                             name: "Text",
                             text: "Team",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_f3h1z5dc",
+                            key: "Text_nfkedk6x",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[4].children[0].children[1]",
                             name: "DutyInfoValue_dutyTeamName",
@@ -297,26 +297,26 @@ abstract final class BardienDetailPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_n93ekl7j",
+                    key: "Container_bpetp25p",
                     type: "Container",
                     path: "BardienDetailPage.body[0].children[0].children[5]",
                     name: "DutyInfoRow_dutyMembers",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_83lhdxwl",
+                        key: "Column_i89s0pev",
                         type: "Column",
                         path: "BardienDetailPage.body[0].children[0].children[5].children[0]",
                         name: "Column",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_8571pcos",
+                            key: "Text_2bkh1uql",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[5].children[0].children[0]",
                             name: "Text",
                             text: "Leden",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_9lwuy2nb",
+                            key: "Container_f6gi5pp6",
                             type: "Container",
                             path: "BardienDetailPage.body[0].children[0].children[5].children[0].children[1]",
                             name: "NameList_dutyMembers",
@@ -326,26 +326,26 @@ abstract final class BardienDetailPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_2gz3o0sz",
+                    key: "Container_baibsi6s",
                     type: "Container",
                     path: "BardienDetailPage.body[0].children[0].children[6]",
                     name: "DutyInfoRow_dutyNotes",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_1n0t7gmo",
+                        key: "Column_nbqd2ovq",
                         type: "Column",
                         path: "BardienDetailPage.body[0].children[0].children[6].children[0]",
                         name: "Column",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_4nhcfxag",
+                            key: "Text_e0lt01bg",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[6].children[0].children[0]",
                             name: "Text",
                             text: "Notities",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_osiorxhb",
+                            key: "Text_g52lpfp5",
                             type: "Text",
                             path: "BardienDetailPage.body[0].children[0].children[6].children[0].children[1]",
                             name: "DutyInfoValue_dutyNotes",
@@ -355,38 +355,38 @@ abstract final class BardienDetailPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_xbbp4q30",
+                    key: "Container_0kghy239",
                     type: "Container",
                     path: "BardienDetailPage.body[0].children[0].children[7]",
                     name: "DutyAanmeldenWrap",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_tzcomsss",
+                        key: "Column_yb0kcyou",
                         type: "Column",
                         path: "BardienDetailPage.body[0].children[0].children[7].children[0]",
                         name: "DutyAanmeldenCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_goultnea",
+                            key: "Column_qywx3ozg",
                             type: "Column",
                             path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0]",
                             name: "DutySpotsChooser",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_ec8r1239",
+                                key: "Text_zxbhw24u",
                                 type: "Text",
                                 path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[0]",
                                 name: "DutySpotsLabel",
                                 text: "Met hoeveel personen kom je?",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_e0e2kup9",
+                                key: "Row_g21mi5ph",
                                 type: "Row",
                                 path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1]",
                                 name: "DutySpotsRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_z8fvvnve",
+                                    key: "Row_83joivdl",
                                     type: "Row",
                                     path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1].children[0]",
                                     name: "DutySpots1Wrap",
@@ -395,13 +395,13 @@ abstract final class BardienDetailPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_qqy8u5o6",
+                                        key: "Container_p1pskyoj",
                                         type: "Container",
                                         path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1].children[0].children[0]",
                                         name: "DutySpots1Active",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_v00hyx0f",
+                                            key: "Text_j8zj69ve",
                                             type: "Text",
                                             path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1].children[0].children[0].children[0]",
                                             name: "DutySpots1LabelActive",
@@ -410,13 +410,13 @@ abstract final class BardienDetailPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_1bbafodl",
+                                        key: "Container_gtkvo7lm",
                                         type: "Container",
                                         path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1].children[0].children[1]",
                                         name: "DutySpots1",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_4mtjznnz",
+                                            key: "Text_3xji37kb",
                                             type: "Text",
                                             path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1].children[0].children[1].children[0]",
                                             name: "DutySpots1Label",
@@ -427,7 +427,7 @@ abstract final class BardienDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_0555fpgi",
+                                    key: "Row_8gs1d7ve",
                                     type: "Row",
                                     path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1].children[1]",
                                     name: "DutySpots2Wrap",
@@ -436,13 +436,13 @@ abstract final class BardienDetailPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_8gq7y60o",
+                                        key: "Container_ru813w6n",
                                         type: "Container",
                                         path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1].children[1].children[0]",
                                         name: "DutySpots2Active",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_rhxtlx9k",
+                                            key: "Text_y5efv9tw",
                                             type: "Text",
                                             path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1].children[1].children[0].children[0]",
                                             name: "DutySpots2LabelActive",
@@ -451,13 +451,13 @@ abstract final class BardienDetailPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_9f79srpl",
+                                        key: "Container_gay0hvnc",
                                         type: "Container",
                                         path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1].children[1].children[1]",
                                         name: "DutySpots2",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_s5lz2cq1",
+                                            key: "Text_y5ptty8i",
                                             type: "Text",
                                             path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[0].children[1].children[1].children[1].children[0]",
                                             name: "DutySpots2Label",
@@ -472,7 +472,7 @@ abstract final class BardienDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Button_vb84b1np",
+                            key: "Button_ln65nl69",
                             type: "Button",
                             path: "BardienDetailPage.body[0].children[0].children[7].children[0].children[1]",
                             name: "DutyAanmeldenButton",
@@ -486,7 +486,7 @@ abstract final class BardienDetailPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Button_7p3uo8z2",
+                    key: "Button_trqs9rmk",
                     type: "Button",
                     path: "BardienDetailPage.body[0].children[0].children[8]",
                     name: "BardienWisselButton",

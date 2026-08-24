@@ -180,6 +180,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/matches/{match}/live/event', [LiveMatchController::class, 'event']);
         Route::post('/matches/{match}/live/undo', [LiveMatchController::class, 'undo']);
         Route::post('/matches/{match}/live/stop', [LiveMatchController::class, 'stop']);
+        Route::post('/matches/{match}/live/delete', [LiveMatchController::class, 'destroy']);
 
         // Bar duties
         Route::apiResource('bar-duties', BarDutyController::class)
