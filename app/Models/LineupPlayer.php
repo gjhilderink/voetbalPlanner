@@ -14,6 +14,7 @@ class LineupPlayer extends Model
     protected $fillable = [
         'lineup_id', 'member_id', 'position',
         'shirt_number', 'is_substitute', 'substituted_at_minute',
+        'slot_x', 'slot_y', 'sort_order',
     ];
 
     protected function casts(): array
@@ -22,6 +23,9 @@ class LineupPlayer extends Model
             'is_substitute' => 'boolean',
             'shirt_number' => 'integer',
             'substituted_at_minute' => 'integer',
+            'slot_x' => 'float',
+            'slot_y' => 'float',
+            'sort_order' => 'integer',
         ];
     }
 

@@ -165,6 +165,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/matches/{match}/lineup', [LineupController::class, 'store']);
         Route::post('/matches/{match}/lineup/player', [LineupController::class, 'addPlayer']);
         Route::post('/matches/{match}/lineup/player/remove', [LineupController::class, 'removePlayer']);
+        // Het opstellingsbord: alles in één keer lezen en schrijven.
+        Route::get('/matches/{match}/lineup/board', [LineupController::class, 'board']);
+        Route::post('/matches/{match}/lineup/board', [LineupController::class, 'saveBoard']);
+        Route::post('/matches/{match}/lineup/publish', [LineupController::class, 'publish']);
 
         // Goals
         Route::get('/matches/{match}/goals', [GoalController::class, 'index']);

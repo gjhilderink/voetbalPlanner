@@ -15,7 +15,24 @@ class Lineup extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $fillable = ['match_id', 'formation', 'tactical_notes'];
+    protected $fillable = [
+        'match_id', 'formation', 'tactical_notes',
+        'players_on_field', 'match_format', 'published_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'published_at'     => 'datetime',
+            'players_on_field' => 'integer',
+        ];
+    }
+
+    /** Mogen spelers deze opstelling al zien? */
+    public function isPublished(): bool
+    {
+        return $this->published_at !== null;
+    }
 
     public function match(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
