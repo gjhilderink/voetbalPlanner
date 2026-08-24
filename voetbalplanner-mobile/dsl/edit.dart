@@ -1498,6 +1498,9 @@ void buildEditFlow(App app) {
     _wireDashboardActivities(project);
     _wireStatsOnDashboardLoad(project);
     _wireDashboardLiveMatches(project);
+    // Toegangsverzoeken van ouders ook op het dashboard, niet alleen op profiel.
+    _ensurePendingGuardianAppState(project);
+    _wireDashboardGuardianRequests(project);
     _wireLiveMatchPage(project);
     _addLiveMatchButton(project);
     // Ná _addWedstrijdScoreSection, die de lijst opbouwt.
@@ -26227,6 +26230,8 @@ void _rebuildDashboardBody(FFProject project) {
     _dashRoleTabs(project, wc),
     // Loopt er nu een wedstrijd, dan hoort die bovenaan.
     _dashLiveCard(project, wc),
+    // Een openstaand toegangsverzoek vraagt om actie, dus hoog.
+    _dashGuardianCard(project, wc),
     _dashNextMatchCard(project, wc),
     _dashInvitationsCard(project, wc),
     _dashQuickRow(project, wc),
@@ -31994,4 +31999,243 @@ void _addMatchReportTab(FFProject project) {
 
   tabBar.children.add(tab);
   tabBar.children.add(content);
+}
+
+// ── Ouder-toegangsverzoeken op het dashboard ────────────────────────────────
+//
+// Een verzoek om toegang stond alleen op de profielpagina. Daar kijkt niemand
+// uit zichzelf, dus bleven verzoeken dagen liggen. De kaart staat nu bovenaan
+// het dashboard zodra er iets openstaat, en verdwijnt zodra alles afgehandeld
+// is.
+
+void _ensurePendingGuardianAppState(FFProject project) {
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'pendingGuardianRequests')) return;
+  final struct = findDataStruct(project, name: 'GuardianRequest');
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(
+        name: 'pendingGuardianRequests', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+/// Haalt de openstaande verzoeken op bij het laden van het dashboard.
+void _wireDashboardGuardianRequests(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  if (_findAppStateFieldId(project, 'pendingGuardianRequests') == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetPendingGuardianRequests', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  bool hasCall(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasDatabase() &&
+        n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name ==
+            'GetPendingGuardianRequests') {
+      return true;
+    }
+    return n.hasFollowUpAction() && hasCall(n.followUpAction);
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && hasCall(t.rootAction))) return;
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetPendingGuardianRequests',
+      groupName: 'VoetbalPlannerAPI',
+      outputVariableName: 'dashGuardianPending',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable(
+              'pendingGuardianRequests', ctx.responseVar),
+        ]),
+      ]),
+    ),
+  );
+}
+
+/// Kaart met openstaande toegangsverzoeken, met accepteren en weigeren erin.
+FFNode? _dashGuardianCard(FFProject project, FFWidgetClass wc) {
+  final pendingId = _findAppStateFieldId(project, 'pendingGuardianRequests');
+  if (pendingId == null) return null;
+  if (findApiEndpoint(project,
+          name: 'RespondGuardianRequest', groupName: 'VoetbalPlannerAPI') ==
+      null) return null;
+
+  final scaffoldKey = wc.node.key;
+  final pendingVar = varFromAppState(pendingId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final list = UI.listView(
+    name: 'DashGuardianList',
+    shrinkWrap: true,
+    spacing: 10,
+    dynamicSource: DynamicSource(variable: pendingVar, itemName: 'req'),
+  );
+
+  FFNode bound(String name, String field, UITextStyle style,
+      {UIColor? color, int? maxLines, UIFontWeight? weight}) {
+    final t = UI.text('',
+        name: name,
+        style: style,
+        color: color,
+        fontWeight: weight,
+        maxLines: maxLines,
+        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, field));
+    return t;
+  }
+
+  // Het id-veld met sleutel, zoals de guardianpagina het ook doet: een
+  // naam-only identifier wordt server-side niet altijd opgelost.
+  final linkIdFieldId = _findStructFieldId(project, 'GuardianRequest', 'id');
+  FFVariable linkIdVar() => linkIdFieldId != null
+      ? (varFromGeneratorVariable(list.key)
+        ..operations.add(FFVariableOperation(
+          accessDataStructField:
+              FFAccessDataStructField(fieldIdentifier: linkIdFieldId.deepCopy()),
+        )))
+      : generatorVarField(list.key, 'id');
+
+  /// Antwoordknop; ververst daarna de lijst zodat de kaart vanzelf verdwijnt
+  /// zodra er niets meer openstaat.
+  FFNode antwoordKnop({
+    required String naam,
+    required String label,
+    required String actie,
+    required UIColor kleur,
+    required String melding,
+    required String output,
+  }) {
+    final btn = UI.container(
+      name: naam,
+      innerPadding: UIEdgeInsets.symmetric(vertical: 10),
+      borderRadius: 12,
+      color: kleur,
+      child: UI.text(label,
+          name: '${naam}Label',
+          style: UITextStyle.labelMedium,
+          color: UIColor.white,
+          textAlign: UITextAlign.center,
+          maxLines: 1),
+    );
+
+    Actions.onTapChain(
+      btn,
+      Actions.apiCallNode(
+        project,
+        endpointName: 'RespondGuardianRequest',
+        groupName: 'VoetbalPlannerAPI',
+        variables: {'action': actie},
+        dynamicVariables: {'linkId': linkIdVar()},
+        outputVariableName: output,
+        nodeKey: btn.key,
+        onSuccess: (ctx) {
+          final melden = FFActionNode(
+            key: generateRandomAlphaNumericString(),
+            action: Actions.snackBar(melding),
+          );
+          melden.followUpAction = Actions.apiCallNode(
+            project,
+            endpointName: 'GetPendingGuardianRequests',
+            groupName: 'VoetbalPlannerAPI',
+            outputVariableName: '${output}Refresh',
+            nodeKey: btn.key,
+            onSuccess: (c2) => Actions.chain([
+              Actions.updateAppState(project, updates: [
+                StateFieldUpdate.setFromVariable(
+                    'pendingGuardianRequests', c2.responseVar),
+              ]),
+            ]),
+          );
+          return melden;
+        },
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('Actie mislukt, probeer opnieuw.'),
+        ]),
+      ),
+    );
+    return btn;
+  }
+
+  final item = UI.container(
+    name: 'DashGuardianItem',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 6),
+    child: UI.column(
+      name: 'DashGuardianItemCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        bound('DashGuardianName', 'guardianName', UITextStyle.bodyMedium,
+            weight: UIFontWeight.w600, maxLines: 1),
+        bound('DashGuardianEmail', 'guardianEmail', UITextStyle.bodySmall,
+            color: UIColor.secondaryText, maxLines: 1),
+        UI.row(
+          name: 'DashGuardianButtons',
+          spacing: 8,
+          children: [
+            UI.expanded(antwoordKnop(
+              naam: 'DashGuardianAccept',
+              label: 'Toestaan',
+              actie: 'approve',
+              kleur: UIColor.success,
+              melding: 'Koppeling geaccepteerd.',
+              output: 'dashGuardianApprove',
+            )),
+            UI.expanded(antwoordKnop(
+              naam: 'DashGuardianReject',
+              label: 'Weigeren',
+              actie: 'reject',
+              kleur: UIColor.secondaryText,
+              melding: 'Verzoek geweigerd.',
+              output: 'dashGuardianReject',
+            )),
+          ],
+        ),
+      ],
+    ),
+  );
+  list.children.add(item);
+
+  final card = _dashCard(
+    name: 'DashGuardianCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+    child: UI.column(
+      name: 'DashGuardianCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: [
+        UI.row(
+          name: 'DashGuardianHead',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('supervisor_account', size: 20, color: UIColor.warning),
+            UI.expanded(UI.text('Verzoek om toegang',
+                name: 'DashGuardianTitle', style: UITextStyle.titleSmall)),
+          ],
+        ),
+        UI.text(
+            'Deze persoon vraagt of hij jouw wedstrijden en trainingen mag meekijken.',
+            name: 'DashGuardianExplain',
+            style: UITextStyle.bodySmall,
+            color: UIColor.secondaryText),
+        list,
+      ],
+    ),
+  );
+  // Alleen tonen als er ook echt iets openstaat.
+  setConditionalVisibility(card, variable: _listNotEmptyVar(pendingVar));
+  return card;
 }

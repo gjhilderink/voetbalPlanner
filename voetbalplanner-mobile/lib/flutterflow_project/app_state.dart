@@ -317,6 +317,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const pendingGuardianRequests = ffai.ProjectAppStateFieldHandle(
+    name: "pendingGuardianRequests",
+    key: "r2kalh5u",
+    typeName: "List<DataStruct<GuardianRequest>>",
+    persisted: false,
+  );
   static const pendingMatchId = ffai.ProjectAppStateFieldHandle(
     name: "pendingMatchId",
     key: "pt034q0k",
@@ -514,6 +520,7 @@ abstract final class AppState {
     pendingDirectUserId,
     pendingDirectUserName,
     pendingGroupName,
+    pendingGuardianRequests,
     pendingMatchId,
     pendingMessageText,
     pendingStaffGroupId,
