@@ -10,6 +10,7 @@ use App\Models\MatchEvent;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -222,7 +223,10 @@ class LiveMatchService
     /** De volledige toestand: stand, klok, periode en de tijdlijn. */
     public function state(FootballMatch $match, bool $canManage = false): array
     {
-        $match->loadMissing(['team', 'events.member', 'events.relatedMember']);
+        $match->loadMissing([
+            'team.club', 'events.member', 'events.relatedMember',
+            'lineup.players.member',
+        ]);
 
         $score  = $match->liveScore();
         $ended  = $match->live_ended_at !== null;
@@ -238,6 +242,9 @@ class LiveMatchService
                 'type'   => $e->type,
                 'side'   => (string) ($e->side ?? ''),
                 'icon'   => $e->icon(),
+                // De publieke pagina zet hier een geel of rood blokje bij; zonder
+                // dit veld zou die de kleur uit de labeltekst moeten raden.
+                'cardType' => (string) ($e->card_type ?? ''),
             ])
             ->all();
 
@@ -259,7 +266,67 @@ class LiveMatchService
             'hasEnded'      => $ended ? 'true' : 'false',
             'canManage'     => $canManage ? 'true' : 'false',
             'shareUrl'      => $match->live_token ? url('/live/' . $match->live_token) : '',
+            // Het eigen clubembleem; de tegenstander heeft er al een. De publieke
+            // pagina zet ze links en rechts van de stand.
+            'teamLogo'      => $this->clubLogo($match),
             'events'        => $events,
+            'lineup'        => $this->lineup($match),
+            'stats'         => $this->stats($match),
+        ];
+    }
+
+    /** URL van het clubembleem, of leeg als de club er geen heeft. */
+    private function clubLogo(FootballMatch $match): string
+    {
+        $pad = $match->team?->club?->logo_path;
+
+        return $pad ? Storage::disk('logos')->url($pad) : '';
+    }
+
+    /**
+     * Basis en bank, op naam. Is er geen opstelling vastgelegd, dan blijven
+     * beide lijsten leeg en laat de pagina het blok weg.
+     *
+     * @return array{starters: array<string>, bench: array<string>}
+     */
+    private function lineup(FootballMatch $match): array
+    {
+        $spelers = $match->lineup?->players ?? collect();
+
+        $namen = fn (bool $bank) => $spelers
+            ->filter(fn ($p) => (bool) $p->is_substitute === $bank)
+            ->map(fn ($p) => $p->member?->name ?? '')
+            ->filter()
+            ->sort()
+            ->values()
+            ->all();
+
+        return [
+            'starters' => $namen(false),
+            'bench'    => $namen(true),
+        ];
+    }
+
+    /**
+     * Wat er uit de tijdlijn te tellen valt: doelpunten, kaarten en wissels.
+     * Alles als string, want de app typeert zijn velden zo.
+     *
+     * @return array<string, string>
+     */
+    private function stats(FootballMatch $match): array
+    {
+        $events = $match->events;
+
+        $tel = fn (callable $filter) => (string) $events->filter($filter)->count();
+
+        return [
+            'goalsOwn'      => $tel(fn ($e) => $e->type === MatchEvent::TYPE_GOAL && $e->side !== 'opponent'),
+            'goalsOpponent' => $tel(fn ($e) => $e->type === MatchEvent::TYPE_GOAL && $e->side === 'opponent'),
+            'yellowOwn'     => $tel(fn ($e) => $e->type === MatchEvent::TYPE_CARD && $e->card_type === 'yellow' && $e->side !== 'opponent'),
+            'yellowOpponent'=> $tel(fn ($e) => $e->type === MatchEvent::TYPE_CARD && $e->card_type === 'yellow' && $e->side === 'opponent'),
+            'redOwn'        => $tel(fn ($e) => $e->type === MatchEvent::TYPE_CARD && $e->card_type === 'red' && $e->side !== 'opponent'),
+            'redOpponent'   => $tel(fn ($e) => $e->type === MatchEvent::TYPE_CARD && $e->card_type === 'red' && $e->side === 'opponent'),
+            'substitutions' => $tel(fn ($e) => $e->type === MatchEvent::TYPE_SUBSTITUTION),
         ];
     }
 

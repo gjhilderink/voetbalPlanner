@@ -30172,7 +30172,9 @@ void _wireLiveMatchPage(FFProject project) {
     name: 'LiveClockWrap',
     innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 5),
     borderRadius: 20,
-    color: UIColor.hex(0x33000000),
+    // Rode pil zoals in het ontwerp; de doorzichtige zwarte chip viel weg
+    // tegen de donkere kop.
+    color: UIColor.error,
     child: UI.row(
       name: 'LiveClockRow',
       mainAxisMin: true,
@@ -30234,7 +30236,9 @@ void _wireLiveMatchPage(FFProject project) {
     width: double.infinity,
     innerPadding: UIEdgeInsets.only(left: 16, right: 16, top: 8, bottom: 18),
     borderRadius: UIBorderRadius.only(bottomLeft: 26, bottomRight: 26),
-    color: UIColor.primary,
+    // Bijna zwart in plaats van de clubkleur: de emblemen en de rode accenten
+    // komen daar beter op uit, zoals in het ontwerp.
+    color: UIColor.hex(0xFF0D0F14),
     child: UI.column(
       name: 'LiveBoardCol',
       spacing: 12,
@@ -30714,39 +30718,7 @@ void _wireLiveMatchPage(FFProject project) {
     dynamicSource: DynamicSource(variable: eventsVar, itemName: 'ev'),
   );
 
-  FFNode evText(String name, String field, UITextStyle style,
-      {UIColor? color, int? maxLines, UIFontWeight? weight}) {
-    final t = UI.text('',
-        name: name,
-        style: style,
-        color: color,
-        fontWeight: weight,
-        maxLines: maxLines,
-        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
-    t.props.text.textValue =
-        FFStringValue(variable: generatorVarField(list.key, field));
-    return t;
-  }
-
-  list.children.add(UI.container(
-    name: 'LiveEventItem',
-    innerPadding: UIEdgeInsets.symmetric(vertical: 8),
-    child: UI.row(
-      name: 'LiveEventRow',
-      spacing: 10,
-      crossAxisAlignment: UICrossAxisAlignment.center,
-      children: [
-        UI.container(
-          name: 'LiveEventMinuteWrap',
-          width: 42,
-          child: evText('LiveEventMinute', 'minute', UITextStyle.labelMedium,
-              color: UIColor.primary, weight: UIFontWeight.w700, maxLines: 1),
-        ),
-        UI.expanded(
-            evText('LiveEventLabel', 'label', UITextStyle.bodyMedium, maxLines: 2)),
-      ],
-    ),
-  ));
+  list.children.add(_timelineRow(list.key, 'LiveEvent'));
 
   final empty = UI.text('Nog niets gebeurd.',
       name: 'LiveEventsEmpty',
@@ -31950,6 +31922,144 @@ void _addMatchEventsEndpoint(FFProject project) {
   );
 }
 
+// ── Tijdlijn in de stijl van het nieuwe ontwerp ─────────────────────────────
+//
+// Een rond icoonvlak met daarnaast een witte kaart: de minuut in de clubkleur,
+// daaronder de omschrijving. Doelpunten, kaarten en het eindsignaal krijgen een
+// rood vlak, de rest een donker — zo spring je door de tijdlijn heen zonder te
+// lezen. Gedeeld door de livepagina en het tabblad Verslag, zodat beide er
+// hetzelfde uitzien.
+
+/// De vier icoonvarianten. FlutterFlow kan een icoon niet aan een variabele
+/// binden, dus staan ze er alle vier met per stuk een zichtbaarheidsvoorwaarde;
+/// wat onzichtbaar is wordt ook niet gebouwd.
+FFNode _timelineIcons(String listKey, String prefix, UIColor kleur) {
+  FFVariable type() => generatorVarField(listKey, 'type');
+
+  FFNode icoon(String naam, String iconNaam, FFVariable zichtbaar) {
+    final i = UI.icon(iconNaam, size: 22, color: kleur);
+    setConditionalVisibility(i, variable: zichtbaar);
+    return i;
+  }
+
+  return UI.row(
+    name: '${prefix}Icons',
+    mainAxisMin: true,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      icoon('${prefix}IconGoal', 'sports_soccer', _equalsLiteral(type(), 'goal')),
+      icoon('${prefix}IconCard', 'style', _equalsLiteral(type(), 'card')),
+      icoon('${prefix}IconSub', 'swap_horiz', _equalsLiteral(type(), 'substitution')),
+      icoon(
+        '${prefix}IconWhistle',
+        'sports',
+        orConditionsVar([
+          _equalsLiteral(type(), 'halftime'),
+          _equalsLiteral(type(), 'fulltime'),
+        ]).variable,
+      ),
+      // Aftrap en tweede helft: alles wat hierboven niet langskwam.
+      icoon(
+        '${prefix}IconStart',
+        'timer',
+        andConditionsVar([
+          for (final t in const ['goal', 'card', 'substitution', 'halftime', 'fulltime'])
+            _equalsLiteral(type(), t, negate: true),
+        ]).variable,
+      ),
+    ],
+  );
+}
+
+/// Het ronde vlak links van de kaart, in twee kleuren.
+FFNode _timelineBadge(String listKey, String prefix) {
+  FFVariable hoogtepunt() => orConditionsVar([
+        _equalsLiteral(generatorVarField(listKey, 'type'), 'goal'),
+        _equalsLiteral(generatorVarField(listKey, 'type'), 'card'),
+        _equalsLiteral(generatorVarField(listKey, 'type'), 'fulltime'),
+      ]).variable;
+
+  FFNode vlak(String naam, UIColor kleur, FFVariable zichtbaar, String iconPrefix) {
+    final c = UI.container(
+      name: naam,
+      width: 46,
+      height: 46,
+      borderRadius: 23,
+      color: kleur,
+      alignment: UIAlignment.center,
+      child: _timelineIcons(listKey, iconPrefix, UIColor.white),
+    );
+    setConditionalVisibility(c, variable: zichtbaar);
+    return c;
+  }
+
+  return UI.row(
+    name: '${prefix}Badge',
+    mainAxisMin: true,
+    children: [
+      vlak('${prefix}BadgeHot', UIColor.error, hoogtepunt(), '${prefix}Hot'),
+      vlak(
+        '${prefix}BadgeCalm',
+        UIColor.hex(0xFF0D0F14),
+        andConditionsVar([
+          for (final t in const ['goal', 'card', 'fulltime'])
+            _equalsLiteral(generatorVarField(listKey, 'type'), t, negate: true),
+        ]).variable,
+        '${prefix}Calm',
+      ),
+    ],
+  );
+}
+
+/// Complete regel: vlak + witte kaart met minuut en omschrijving.
+FFNode _timelineRow(String listKey, String prefix) {
+  FFNode gebonden(String naam, String veld, UITextStyle stijl,
+      {UIColor? kleur, int? maxLines, UIFontWeight? gewicht}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: maxLines,
+        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(listKey, veld));
+    return t;
+  }
+
+  final kaart = UI.container(
+    name: '${prefix}Card',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    borderRadius: 14,
+    color: UIColor.secondaryBackground,
+    shadow: const UIShadow(blurRadius: 6, dy: 1, color: UIColor.hex(0x12000000)),
+    child: UI.column(
+      name: '${prefix}CardCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 2,
+      children: [
+        gebonden('${prefix}Minute', 'minute', UITextStyle.labelMedium,
+            kleur: UIColor.primary, gewicht: UIFontWeight.w700, maxLines: 1),
+        gebonden('${prefix}Label', 'label', UITextStyle.bodyMedium, maxLines: 3),
+      ],
+    ),
+  );
+
+  return UI.container(
+    name: '${prefix}Item',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 6),
+    child: UI.row(
+      name: '${prefix}Row',
+      spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        _timelineBadge(listKey, prefix),
+        UI.expanded(kaart),
+      ],
+    ),
+  );
+}
+
 /// Endpoint waarmee de coach een heel verslag weggooit.
 void _addDeleteReportEndpoint(FFProject project) {
   const groupName = 'VoetbalPlannerAPI';
@@ -32057,39 +32167,7 @@ void _addMatchReportTab(FFProject project) {
     dynamicSource: DynamicSource(variable: eventsVar, itemName: 'rep'),
   );
 
-  FFNode bound(String name, String field, UITextStyle style,
-      {UIColor? color, int? maxLines, UIFontWeight? weight}) {
-    final t = UI.text('',
-        name: name,
-        style: style,
-        color: color,
-        fontWeight: weight,
-        maxLines: maxLines,
-        textOverflow: maxLines != null ? UITextOverflow.ellipsis : null);
-    t.props.text.textValue =
-        FFStringValue(variable: generatorVarField(list.key, field));
-    return t;
-  }
-
-  list.children.add(UI.container(
-    name: 'MatchReportItem',
-    innerPadding: UIEdgeInsets.symmetric(vertical: 9),
-    child: UI.row(
-      name: 'MatchReportRow',
-      spacing: 10,
-      crossAxisAlignment: UICrossAxisAlignment.center,
-      children: [
-        UI.container(
-          name: 'MatchReportMinuteWrap',
-          width: 44,
-          child: bound('MatchReportMinute', 'minute', UITextStyle.labelMedium,
-              color: UIColor.primary, weight: UIFontWeight.w700, maxLines: 1),
-        ),
-        UI.expanded(
-            bound('MatchReportLabel', 'label', UITextStyle.bodyMedium, maxLines: 2)),
-      ],
-    ),
-  ));
+  list.children.add(_timelineRow(list.key, 'MatchReport'));
 
   final leeg = UI.text('Van deze wedstrijd is geen live verslag bijgehouden.',
       name: 'MatchReportEmpty',
