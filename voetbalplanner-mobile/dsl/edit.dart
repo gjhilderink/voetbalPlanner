@@ -9663,9 +9663,15 @@ void _wireGuardianRespondActions(FFProject project) {
           dynamicVariables:   {'linkId': linkIdVar},
           outputVariableName: 'gApproveResult',
           nodeKey:            acceptBtn.key,
-          onSuccess: (ctx) => Actions.chain([
-            Actions.snackBar('Koppeling geaccepteerd. Vernieuw de pagina om de wijziging te zien.'),
-          ]),
+          // Melden én de lijst opnieuw ophalen, zodat het verzoek uit beeld
+          // gaat. Eerder stond hier "vernieuw de pagina om de wijziging te
+          // zien" — dat is werk dat de app zelf hoort te doen.
+          onSuccess: (ctx) => _guardianRespondFollowUp(
+            project,
+            nodeKey: acceptBtn.key,
+            melding: 'Toegang geaccepteerd.',
+            output: 'gApproveRefresh',
+          ),
           onFailure: (ctx) => Actions.chain([
             Actions.snackBar('Actie mislukt, probeer opnieuw.'),
           ]),
@@ -9698,9 +9704,12 @@ void _wireGuardianRespondActions(FFProject project) {
           dynamicVariables:   {'linkId': linkIdVar},
           outputVariableName: 'gRejectResult',
           nodeKey:            rejectBtn.key,
-          onSuccess: (ctx) => Actions.chain([
-            Actions.snackBar('Verzoek geweigerd.'),
-          ]),
+          onSuccess: (ctx) => _guardianRespondFollowUp(
+            project,
+            nodeKey: rejectBtn.key,
+            melding: 'Verzoek geweigerd.',
+            output: 'gRejectRefresh',
+          ),
           onFailure: (ctx) => Actions.chain([
             Actions.snackBar('Actie mislukt, probeer opnieuw.'),
           ]),
@@ -32190,7 +32199,7 @@ FFNode? _dashGuardianCard(FFProject project, FFWidgetClass wc) {
               label: 'Toestaan',
               actie: 'approve',
               kleur: UIColor.success,
-              melding: 'Koppeling geaccepteerd.',
+              melding: 'Toegang geaccepteerd.',
               output: 'dashGuardianApprove',
             )),
             UI.expanded(antwoordKnop(
@@ -32238,4 +32247,39 @@ FFNode? _dashGuardianCard(FFProject project, FFWidgetClass wc) {
   // Alleen tonen als er ook echt iets openstaat.
   setConditionalVisibility(card, variable: _listNotEmptyVar(pendingVar));
   return card;
+}
+
+/// Na een antwoord op een toegangsverzoek: melden en de lijst opnieuw ophalen,
+/// zodat het verzoek van het scherm verdwijnt in plaats van te blijven staan
+/// met de mededeling dat je zelf moet verversen.
+FFActionNode _guardianRespondFollowUp(
+  FFProject project, {
+  required String nodeKey,
+  required String melding,
+  required String output,
+}) {
+  final node = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: Actions.snackBar(melding),
+  );
+  node.followUpAction = Actions.apiCallNode(
+    project,
+    endpointName: 'GetPendingGuardianRequests',
+    groupName: 'VoetbalPlannerAPI',
+    outputVariableName: output,
+    nodeKey: nodeKey,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updatePageState(project, widgetClassName: 'GuardianPage', updates: [
+        StateFieldUpdate.setFromVariable('pendingForMe', ctx.responseVar),
+      ]),
+      // Ook de kopie op het dashboard bijwerken, anders staat het verzoek daar
+      // nog wanneer je terugkeert.
+      if (_findAppStateFieldId(project, 'pendingGuardianRequests') != null)
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable(
+              'pendingGuardianRequests', ctx.responseVar),
+        ]),
+    ]),
+  );
+  return node;
 }
