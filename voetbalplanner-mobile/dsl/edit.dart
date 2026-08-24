@@ -26862,7 +26862,28 @@ FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
     ],
   );
 
-  setConditionalVisibility(content, variable: _listNotEmptyVar(matchesVar));
+  // De hele kaart opent de wedstrijd, niet alleen het linkje rechtsboven. Dat
+  // linkje blijft staan: het maakt zichtbaar dát de kaart ergens heen gaat.
+  //
+  // De tik zit op de inhoud en niet op de kaart zelf, want zonder wedstrijd is
+  // er ook geen id om heen te navigeren — dan zou je op een leeg scherm komen.
+  final tapWrap = UI.container(
+    name: 'DashNextMatchTap',
+    width: double.infinity,
+    child: content,
+  );
+  Actions.onTap(
+    tapWrap,
+    Actions.navigate(
+      project,
+      pageName: 'WedstrijdDetailPage',
+      params: {
+        'matchId': VariableParamValue(_firstItemVar(matchesVar, 'id')),
+      },
+    ),
+  );
+
+  setConditionalVisibility(tapWrap, variable: _listNotEmptyVar(matchesVar));
   setConditionalVisibility(empty, variable: _listEmptyVar(matchesVar));
 
   final card = _dashCard(
@@ -26871,7 +26892,7 @@ FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
     child: UI.column(
       name: 'DashNextMatchCardCol',
       crossAxisAlignment: UICrossAxisAlignment.stretch,
-      children: [content, empty],
+      children: [tapWrap, empty],
     ),
   );
   return card;
