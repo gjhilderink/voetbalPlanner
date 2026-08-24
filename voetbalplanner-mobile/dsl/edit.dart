@@ -33473,8 +33473,14 @@ class _LineupBoardState extends State<LineupBoard> {
             ],
           );
 
+          // mainAxisSize.min: de widget krijgt geen vaste hoogte mee, dus hij
+          // moet zichzelf opmeten. Zonder dit probeert de Column het hele
+          // (oneindige) scrollgebied te vullen.
           return smal
-              ? Column(children: [veld, const SizedBox(height: 12), zijkant])
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [veld, const SizedBox(height: 12), zijkant],
+                )
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -33525,7 +33531,7 @@ class _LineupBoardState extends State<LineupBoard> {
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Text(
-                      'Sleep spelers vanaf de bank het veld op.',
+                      'Houd een speler ingedrukt en sleep hem het veld op.',
                       textAlign: TextAlign.center,
                       style: theme.bodyMedium.override(
                         fontFamily: theme.bodyMediumFamily,
@@ -33545,7 +33551,10 @@ class _LineupBoardState extends State<LineupBoard> {
     final kern = _pionInhoud(theme, speler);
     if (!_mag) return kern;
 
-    return Draggable<LineupSlotStruct>(
+    // LongPressDraggable en niet Draggable: de pagina scrollt, en een gewoon
+    // sleepgebaar verliest het van het scrollen. Even ingedrukt houden maakt
+    // duidelijk wie er wint.
+    return LongPressDraggable<LineupSlotStruct>(
       data: speler,
       feedback: Material(color: Colors.transparent, child: _pionInhoud(theme, speler)),
       childWhenDragging: Opacity(opacity: 0.3, child: kern),
@@ -33713,7 +33722,7 @@ class _LineupBoardState extends State<LineupBoard> {
 
     if (!_mag) return rij;
 
-    return Draggable<LineupSlotStruct>(
+    return LongPressDraggable<LineupSlotStruct>(
       data: speler,
       feedback: Material(
         color: Colors.transparent,
@@ -34185,10 +34194,12 @@ void _wireOpstellingPage(FFProject project) {
     name: 'OpstellingBord',
     params: {'canEdit': VariableParamValue(magBeheren())},
   );
+  // Bewust géén vaste hoogte: het veld is zo hoog als het scherm breed is, en
+  // daar komen de bank en de selectie nog onder. Met een vaste hoogte liep de
+  // inhoud eruit en werd de rest van de pagina overschreven.
   final bordWrap = UI.container(
     name: 'OpstellingBordWrap',
     width: double.infinity,
-    height: 470,
     padding: UIEdgeInsets.only(left: 16, right: 16, top: 12),
     child: bord,
   );
