@@ -578,6 +578,29 @@ class ReleaseNotesSeeder extends Seeder
                     . 'bevestiging die precies vertelt wat er weggaat. Doelpunten die tijdens dat verslag zijn vastgelegd '
                     . 'gaan mee; de uitslag van de wedstrijd blijft staan. Alleen de coach of leider ziet de knop.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Coach meldt spelers af en aan',
+                'description' => 'Sta je langs de lijn en is iemand er niet, dan zet je dat nu zelf om. Achter elke '
+                    . 'speler in het opkomstlijstje van een training of wedstrijd staat een knop "Afmelden" of '
+                    . '"Aanmelden". Er staat dan bij dat de trainer of coach het heeft gedaan. Alleen wie het elftal '
+                    . 'beheert ziet de knoppen.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Zie bij een wedstrijd wie er komt',
+                'description' => 'Bij een wedstrijd stond alleen wie zich had afgemeld — wie er nog wél stond zag je '
+                    . 'nergens. Nu staat de hele selectie er, verdeeld over "Aanwezig" en "Afgemeld", met de tellingen '
+                    . 'erbij. Net zoals dat bij een training al werkte.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Live verslag ziet er moderner uit',
+                'description' => 'De publieke livepagina heeft een donkere kop gekregen met beide clubemblemen om de '
+                    . 'stand heen en de speelminuut ertussen, en drie tabbladen: tijdlijn, opstelling en statistieken. '
+                    . 'De tijdlijn is een lijn met ronde iconen; doelpunten, kaarten en het eindsignaal springen eruit. '
+                    . 'In de app hebben de livepagina en het tabblad "Verslag" dezelfde opmaak gekregen.',
+            ],
         ];
 
         $sort = 0;
