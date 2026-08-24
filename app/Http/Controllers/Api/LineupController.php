@@ -107,7 +107,13 @@ class LineupController extends Controller
      */
     private function selectie(FootballMatch $match, array $afgemeld): array
     {
-        $leden = $match->team?->members()->where('is_active', true)->orderBy('name')->get() ?? collect();
+        // Kolommen kwalificeren: member_team heeft óók een is_active, en zonder
+        // tabelnaam maakt MySQL daar "Column 'is_active' is ambiguous" van — een
+        // 500 die er in de app uitzag als "kon de opstelling niet ophalen".
+        $leden = $match->team?->members()
+            ->where('members.is_active', true)
+            ->orderBy('members.name')
+            ->get() ?? collect();
 
         return $leden->map(fn ($m) => [
             'memberId'   => (string) $m->id,
