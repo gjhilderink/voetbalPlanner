@@ -1504,6 +1504,10 @@ void buildEditFlow(App app) {
     // Uitleg voor een ouder die nog op akkoord van het kind wacht.
     _ensureMyGuardianRequestsAppState(project);
     _wireDashboardMyGuardianRequests(project);
+    // Push-topics ook vanaf het dashboard: een ouder die op akkoord wacht komt
+    // niet op de wedstrijden- of chatpagina, en zou anders nergens op
+    // geabonneerd zijn juist wanneer de melding moet komen.
+    _wireChatTopicSubscriptionOnPage(project, 'DashboardPage');
     _wireLiveMatchPage(project);
     _addLiveMatchButton(project);
     // Ná _addWedstrijdScoreSection, die de lijst opbouwt.
@@ -12989,10 +12993,25 @@ void _ensurePubDepVersion(FFProject project, String name, String version) {
 // geabonneerd op zijn chat-push-topics — ook vóór hij de Chats-tab opent.
 // Idempotent: skipt als de ON_INIT_STATE chain de call al bevat (anders dupliceert
 // elke push de call → FF-validator-conflicten).
+/// Hangt het abonneren op de push-topics aan de on-load van meerdere pagina's.
+///
+/// Het stond alleen op de WedstrijdenPage. Een ouder die net is aangemaakt en
+/// nog op akkoord wacht komt daar nooit — die ziet alleen het dashboard — en
+/// was dus nergens op geabonneerd, precies wanneer hij de melding "je hebt nu
+/// toegang" moet krijgen.
 void _wireChatTopicSubscription(FFProject project) {
+  // DashboardPage niet hier: _wireDashboardLoad bouwt die keten verderop
+  // opnieuw op en zou deze toevoeging wissen. Die gebeurt aan het eind van
+  // buildEditFlow, ná alle dashboard-wiring.
+  for (final paginaNaam in const ['WedstrijdenPage', 'ChatsPage']) {
+    _wireChatTopicSubscriptionOnPage(project, paginaNaam);
+  }
+}
+
+void _wireChatTopicSubscriptionOnPage(FFProject project, String pageName) {
   final action = findCustomAction(project, name: 'SubscribeToChatTopics');
   if (action == null) return;
-  final wc = findPage(project, name: 'WedstrijdenPage');
+  final wc = findPage(project, name: pageName);
   if (wc == null) return;
 
   bool callsSubscribe(FFActionNode n) {
