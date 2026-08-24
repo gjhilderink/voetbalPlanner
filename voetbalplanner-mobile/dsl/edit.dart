@@ -1465,10 +1465,20 @@ void buildEditFlow(App app) {
   // setPageRequiresAuth zelf zit niet in de geëxporteerde SDK-barrel; dit is
   // exact wat die helper doet. (De waarschuwing om ensurePageRouteSettings met
   // rust te laten gaat over routePath, dat normalisatie nodig heeft.)
+  //
+  // Hetzelfde geldt voor de ouder-registratie: die is bedoeld voor mensen die
+  // nog géén account hebben, en is vanaf het inlogscherm te bereiken. Met
+  // requireAuth stuurde de bewaking je meteen terug naar het inlogscherm. Op
+  // een toestel dat al eens ingelogd was viel dat niet op — dan staat de
+  // Firebase-sessie er nog — en dus trof het precies de nieuwe gebruikers voor
+  // wie de pagina bedoeld is.
   app.raw((project) {
-    findPage(project, name: 'MagicLinkVerifyPage')
-        ?.ensurePageRouteSettings()
-        .onlyAuthenticated = false;
+    for (final naam in const [
+      'MagicLinkVerifyPage',
+      'GuardianSelfRegisterPage',
+    ]) {
+      findPage(project, name: naam)?.ensurePageRouteSettings().onlyAuthenticated = false;
+    }
   });
 
   // ── Nieuw dashboard + zes-tabs navigatiebalk ───────────────────────────────
