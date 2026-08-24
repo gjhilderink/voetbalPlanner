@@ -33376,6 +33376,20 @@ class _LineupBoardState extends State<LineupBoard> {
   List<LineupSlotStruct> get _veld => FFAppState().lineupField;
   List<LineupSlotStruct> get _bank => FFAppState().lineupBench;
 
+  /// De rest van de selectie. Bij een nieuwe wedstrijd staat er nog niemand op
+  /// het veld of de bank, en dan zou er zonder deze lijst niets te slepen zijn.
+  /// Ook een speler die later bij het team komt duikt hier vanzelf op.
+  List<LineupSlotStruct> get _nietIngedeeld {
+    final bezet = <String>{
+      ..._veld.map((s) => s.memberId),
+      ..._bank.map((s) => s.memberId),
+    };
+    return FFAppState()
+        .lineupSelection
+        .where((s) => !bezet.contains(s.memberId))
+        .toList();
+  }
+
   void _schrijf(List<LineupSlotStruct> veld, List<LineupSlotStruct> bank) {
     FFAppState().update(() {
       FFAppState().lineupField = veld;
@@ -33447,16 +33461,26 @@ class _LineupBoardState extends State<LineupBoard> {
           final veldBreedte = smal ? constraints.maxWidth : constraints.maxWidth - 170;
 
           final veld = _veldWidget(theme, veldBreedte);
-          final bank = _bankWidget(theme);
+          final zijkant = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _bankWidget(theme),
+              if (_nietIngedeeld.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _selectieWidget(theme),
+              ],
+            ],
+          );
 
           return smal
-              ? Column(children: [veld, const SizedBox(height: 12), bank])
+              ? Column(children: [veld, const SizedBox(height: 12), zijkant])
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(child: veld),
                     const SizedBox(width: 12),
-                    SizedBox(width: 158, child: bank),
+                    SizedBox(width: 158, child: zijkant),
                   ],
                 );
         },
@@ -33613,6 +33637,31 @@ class _LineupBoardState extends State<LineupBoard> {
           ),
         );
       },
+    );
+  }
+
+  /// Iedereen die nog nergens staat. Sleep naar het veld voor de basis, naar de
+  /// bank voor een wisselspeler.
+  Widget _selectieWidget(FlutterFlowTheme theme) {
+    final rest = _nietIngedeeld;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F2F5),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, left: 2),
+            child: Text('Nog niet ingedeeld', style: theme.titleSmall),
+          ),
+          for (final speler in rest) _bankRij(theme, speler),
+        ],
+      ),
     );
   }
 
@@ -33811,10 +33860,22 @@ Future<String> loadLineupBoard(String? matchId) async {
         'Authorization': 'Bearer ${FFAppState().authToken}',
       },
     );
-    if (res.statusCode != 200) return 'Kon de opstelling niet ophalen.';
+    if (res.statusCode != 200) {
+      // De melding op het scherm zetten en niet alleen teruggeven: anders zie je
+      // een leeg veld zonder te weten dat er iets misging.
+      final uitleg = res.statusCode == 401
+          ? 'Je bent niet (meer) ingelogd.'
+          : 'Kon de opstelling niet ophalen (${res.statusCode}).';
+      FFAppState().update(() => FFAppState().lineupMessage = uitleg);
+      return uitleg;
+    }
 
     final data = jsonDecode(res.body);
-    if (data is! Map) return 'Kon de opstelling niet ophalen.';
+    if (data is! Map) {
+      FFAppState().update(
+          () => FFAppState().lineupMessage = 'Kon de opstelling niet lezen.');
+      return 'Kon de opstelling niet lezen.';
+    }
 
     FFAppState().update(() {
       FFAppState().lineupField = lees(data['veld']);
@@ -33829,6 +33890,8 @@ Future<String> loadLineupBoard(String? matchId) async {
     });
     return '';
   } catch (_) {
+    FFAppState().update(() =>
+        FFAppState().lineupMessage = 'Kon de opstelling niet ophalen.');
     return 'Kon de opstelling niet ophalen.';
   }
 }
@@ -34241,6 +34304,28 @@ void _wireOpstellingPage(FFProject project) {
   );
   setConditionalVisibility(instellingen, variable: magBeheren());
 
+  // Mag je wél kijken maar niet schuiven, dan hoort dat er te staan. Zonder deze
+  // regel zie je een veld zonder knoppen en weet je niet of er iets stuk is.
+  final alleenLezen = UI.text(
+      'Je kunt deze opstelling bekijken, maar niet aanpassen.',
+      name: 'OpstellingAlleenLezen',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center,
+      maxLines: 2);
+  alleenLezen.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 14),
+  );
+  setConditionalVisibility(
+    alleenLezen,
+    variable: andConditionsVar([
+      _equalsLiteral(magVar.deepCopy(), 'true', negate: true),
+      _equalsLiteral(meldingVar.deepCopy(), ''),
+    ]).variable,
+  );
+
   // ── Opslaan en vrijgeven ─────────────────────────────────────────────────
   final opslaan = UI.button(
     'Opslaan',
@@ -34338,7 +34423,8 @@ void _wireOpstellingPage(FFProject project) {
   final props = kolom.props.column.deepCopy();
   props.scrollable = true;
   kolom.props.column = props;
-  kolom.children.addAll([kop, meldingKaart, bordWrap, instellingen, knoppen]);
+  kolom.children
+      .addAll([kop, meldingKaart, bordWrap, alleenLezen, instellingen, knoppen]);
 
   // ── Ophalen bij het openen ───────────────────────────────────────────────
   wc.node.triggerActions.removeWhere(
