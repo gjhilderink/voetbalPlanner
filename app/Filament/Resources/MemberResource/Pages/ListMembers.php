@@ -88,7 +88,14 @@ class ListMembers extends ListRecords
 
                     Excel::import($import, $path);
 
-                    ImportNotifier::report($import->imported, $import->created, $import->skipped, $import->errors, 'leden');
+                    ImportNotifier::report(
+                        $import->imported,
+                        $import->created,
+                        $import->skipped,
+                        $import->errors,
+                        'leden',
+                        $import->notices,
+                    );
 
                     Storage::disk('local')->delete($data['file']);
                 }),

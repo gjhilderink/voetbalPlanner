@@ -17,17 +17,32 @@ class ImportNotifier
     private const MAX_ERRORS = 5;
 
     /**
-     * @param string        $label Meervoud van wat er geïmporteerd is ('leden').
+     * @param string        $label   Meervoud van wat er geïmporteerd is ('leden').
      * @param array<string> $errors
+     * @param array<string> $notices Wél gelukt, maar het vermelden waard.
      */
-    public static function report(int $imported, int $created, int $skipped, array $errors, string $label): void
-    {
-        if ($errors) {
+    public static function report(
+        int $imported,
+        int $created,
+        int $skipped,
+        array $errors,
+        string $label,
+        array $notices = [],
+    ): void {
+        // Ook zónder fouten blijft de melding staan zodra er iets te vertellen is:
+        // een teruggezet lid mag niet wegvallen in een groen vinkje.
+        $regels = array_merge($errors, $notices);
+
+        if ($regels) {
+            $titel = $errors
+                ? "{$imported} {$label} verwerkt, {$skipped} overgeslagen"
+                : "{$imported} {$label} verwerkt";
+
             Notification::make()
                 ->warning()
-                ->title("{$imported} {$label} verwerkt, {$skipped} overgeslagen")
-                ->body(implode("\n", array_slice($errors, 0, self::MAX_ERRORS))
-                    . (count($errors) > self::MAX_ERRORS ? "\n…en meer" : ''))
+                ->title($titel)
+                ->body(implode("\n", array_slice($regels, 0, self::MAX_ERRORS))
+                    . (count($regels) > self::MAX_ERRORS ? "\n…en meer" : ''))
                 ->persistent()
                 ->send();
 

@@ -11,6 +11,7 @@ use App\Services\WhatsAppService;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -284,6 +285,13 @@ class MemberResource extends Resource
                         'staff'   => 'Overige staf',
                     ]),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Actief'),
+                // Verwijderde leden waren alleen via de database terug te halen.
+                // Staat standaard uit, dus de lijst blijft tonen wat hij toonde.
+                Tables\Filters\TrashedFilter::make()
+                    ->label('Verwijderd')
+                    ->placeholder('Zonder verwijderde')
+                    ->trueLabel('Inclusief verwijderde')
+                    ->falseLabel('Alleen verwijderde'),
             ])
             ->actions([
                 Actions\Action::make('whatsapp')
@@ -315,10 +323,12 @@ class MemberResource extends Resource
                     }),
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
+                Actions\RestoreAction::make()->label('Herstellen'),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make(),
+                    Actions\RestoreBulkAction::make()->label('Herstellen'),
                 ]),
             ])
             ->defaultSort('name');
@@ -326,7 +336,10 @@ class MemberResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query  = parent::getEloquentQuery();
+        // Zonder de soft-delete-scope kan het Verwijderd-filter zelf bepalen wat
+        // er te zien is; staat dat filter op de standaardstand, dan filtert het
+        // verwijderde leden gewoon weer weg.
+        $query  = parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
         // Koppelingen (met tegenpartij) eager-loaden voor de "Gekoppeld met"-kolom.
         $query->with(['guardianLinks.child', 'childLinks.guardian']);
         $user   = auth()->user();

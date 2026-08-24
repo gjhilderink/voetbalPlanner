@@ -29,9 +29,13 @@ class MembersImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
     public int $imported = 0;
     public int $created  = 0;
     public int $skipped  = 0;
+    public int $restored = 0;
 
     /** @var array<string> */
     public array $errors = [];
+
+    /** Wél gelukt, maar de moeite van het melden waard (herstelde leden). @var array<string> */
+    public array $notices = [];
 
     public function __construct(private readonly string $clubId) {}
 
@@ -52,9 +56,21 @@ class MembersImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
             $member = $this->resolveMember($id, $external);
 
             if ($id !== '' && ! $member) {
-                $this->errors[] = "Rij {$rowNum}: lid met ID '{$id}' niet gevonden in deze club";
+                // Eén melding voor drie oorzaken hielp niemand verder; zeg welke.
+                $this->errors[] = Member::withTrashed()->whereKey($id)->exists()
+                    ? "Rij {$rowNum}: lid met ID '{$id}' hoort niet bij deze club"
+                    : "Rij {$rowNum}: lid met ID '{$id}' bestaat niet";
                 $this->skipped++;
                 continue;
+            }
+
+            // Een rij die naar een verwijderd lid verwijst, zet het terug. Dat is
+            // wat de import bedoelt, maar het maakt wel een verwijdering ongedaan,
+            // dus het komt met naam en toenaam in de melding te staan.
+            if ($member?->trashed()) {
+                $member->restore();
+                $this->restored++;
+                $this->notices[] = "Rij {$rowNum}: verwijderd lid '{$member->name}' is teruggezet";
             }
 
             $isNew = $member === null;
@@ -119,17 +135,23 @@ class MembersImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
 
     /**
      * Zoekt het bestaande lid op ID of relatiecode, altijd binnen de eigen club.
+     *
+     * Verwijderde leden tellen mee. Een export van vóór een opruimactie verwijst
+     * er nog naar, en zo'n rij hoort een herstel te worden (zie collection()) in
+     * plaats van een "niet gevonden" waar niemand iets mee kan. De clubcontrole
+     * loopt over de teamkoppelingen, want een lid heeft zelf geen club.
      */
     private function resolveMember(string $id, string $external): ?Member
     {
-        $inClub = fn ($query) => $query->whereHas('teams', fn ($t) => $t->where('club_id', $this->clubId));
+        $inClub = fn () => Member::withTrashed()
+            ->whereHas('teams', fn ($t) => $t->where('club_id', $this->clubId));
 
         if ($id !== '') {
-            return Member::query()->tap($inClub)->whereKey($id)->first();
+            return $inClub()->whereKey($id)->first();
         }
 
         if ($external !== '') {
-            return Member::query()->tap($inClub)->where('external_id', $external)->first();
+            return $inClub()->where('external_id', $external)->first();
         }
 
         return null;
