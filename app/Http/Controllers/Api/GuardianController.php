@@ -479,6 +479,10 @@ class GuardianController extends Controller
 
         // Koppel User aan Member
         $parentMember->update(['user_id' => $parentUser->id]);
+        // Rol 'guardian': dit account is geen clublid maar een ouder die
+        // meekijkt via het gekoppelde kind. Zonder rol was het in het beheer
+        // niet van een gewoon lid te onderscheiden.
+        $parentUser->assignRole('guardian');
 
         // Maak de koppeling direct goedgekeurd aan — het kind heeft zelf het account aangemaakt
         GuardianLink::create([
@@ -581,6 +585,10 @@ class GuardianController extends Controller
         ]);
 
         $parentMember->update(['user_id' => $parentUser->id]);
+        // Rol 'guardian': dit account is geen clublid maar een ouder die
+        // meekijkt via het gekoppelde kind. Zonder rol was het in het beheer
+        // niet van een gewoon lid te onderscheiden.
+        $parentUser->assignRole('guardian');
 
         // Maak GuardianLink met status 'pending' — kind moet bevestigen.
         GuardianLink::create([

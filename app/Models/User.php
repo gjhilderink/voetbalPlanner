@@ -105,6 +105,32 @@ class User extends Authenticatable implements FilamentUser, HasTenants
     }
 
     /**
+     * De leden waarvoor dit account als ouder/verzorger is gekoppeld.
+     *
+     * Loopt via het Member-record van dit account: guardian_links koppelt twee
+     * leden aan elkaar, niet twee accounts. Alleen goedgekeurde koppelingen —
+     * een openstaand of ingetrokken verzoek geeft geen toegang.
+     *
+     * @return \Illuminate\Support\Collection<int, Member>
+     */
+    public function guardianChildren(): \Illuminate\Support\Collection
+    {
+        $member = $this->resolveMember();
+        if (! $member) {
+            return collect();
+        }
+
+        return GuardianLink::query()
+            ->where('guardian_member_id', $member->id)
+            ->where('status', 'approved')
+            ->with('child')
+            ->get()
+            ->map(fn ($link) => $link->child)
+            ->filter()
+            ->values();
+    }
+
+    /**
      * Het lid bij dit account: via de directe koppeling (user_id) óf, als die
      * ontbreekt, via een e-mail-match. Voorkomt 'Alleen leden'-403's bij leden
      * waarvan de Member-User-koppeling niet (goed) is gezet.

@@ -168,12 +168,24 @@ class UserResource extends Resource
                         'super_admin' => 'danger',
                         'club_admin'  => 'warning',
                         'coach'       => 'info',
+                        'guardian'    => 'success',
                         default       => 'gray',
                     }),
                 Tables\Columns\TextColumn::make('managedTeams.name')
                     ->label('Teams')
                     ->badge()
                     ->separator(','),
+                // Bij wie hoort dit account? Voor een ouder is dat de enige
+                // manier om te zien waarom hij toegang heeft; zonder deze
+                // kolom stond er alleen een naam zonder team of lidmaatschap.
+                Tables\Columns\TextColumn::make('guardianChildren')
+                    ->label('Ouder van')
+                    ->badge()
+                    ->getStateUsing(fn($record) => $record->guardianChildren()
+                        ->pluck('name')
+                        ->all())
+                    ->placeholder('-')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('club.name')
                     ->label('Club')
                     ->getStateUsing(fn($record) => $record->hasRole('super_admin') ? 'Alle clubs' : ($record->club?->name ?? '-'))

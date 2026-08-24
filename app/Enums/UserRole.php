@@ -10,6 +10,9 @@ enum UserRole: string
     case ClubAdmin = 'club_admin';
     case Coach = 'coach';
     case Member = 'member';
+    // Accounts die via een ouder/verzorger-koppeling zijn aangemaakt. Ze zijn
+    // geen clublid; hun toegang loopt volledig via het gekoppelde kind.
+    case Guardian = 'guardian';
 
     public function label(): string
     {
@@ -18,6 +21,7 @@ enum UserRole: string
             self::ClubAdmin => 'Clubbeheerder',
             self::Coach => 'Coach',
             self::Member => 'Lid',
+            self::Guardian => 'Ouder/verzorger',
         };
     }
 }
