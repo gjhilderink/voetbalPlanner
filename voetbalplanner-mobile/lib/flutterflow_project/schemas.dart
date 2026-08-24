@@ -266,6 +266,18 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle lineupSlot = ffai.StructHandle(
+    "LineupSlot",
+    <String, ffai.DslType>{
+      "isAfgemeld": ffai.string,
+      "memberId": ffai.string,
+      "naam": ffai.string,
+      "nummer": ffai.string,
+      "posX": ffai.string,
+      "posY": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle liveEvent = ffai.StructHandle(
     "LiveEvent",
     <String, ffai.DslType>{
@@ -507,6 +519,7 @@ abstract final class Structs {
     guardianRequestResult,
     guestInvitation,
     lineupPlayer,
+    lineupSlot,
     liveEvent,
     liveMatchState,
     loginData,
@@ -1317,10 +1330,13 @@ abstract final class CustomCode {
     "InitializeGroupConversation",
     "InitializeTeamConversation",
     "LoadGroupMemberNames",
+    "LoadLineupBoard",
     "LoginWithCredentials",
     "MarkConversationRead",
     "PickBugScreenshot",
+    "PublishLineup",
     "RefreshCurrentTeam",
+    "SaveLineupBoard",
     "SendMagicLink",
     "SendMessage",
     "SubmitBugReport",
@@ -1338,6 +1354,7 @@ abstract final class CustomCode {
     "ConvUnreadBadge",
     "DynamicMaterialIcon",
     "HighlightedNameList",
+    "LineupBoard",
   ];
 }
 

@@ -26,6 +26,7 @@ import 'pages/magic_link_verify_page.dart' show magicLinkVerifyPageHandle;
 import 'pages/meer_page.dart' show meerPageHandle;
 import 'pages/news_page.dart' show newsPageHandle;
 import 'pages/onboarding_page.dart' show onboardingPageHandle;
+import 'pages/opstelling_page.dart' show opstellingPageHandle;
 import 'pages/profiel_page.dart' show profielPageHandle;
 import 'pages/rijschema_detail_page.dart' show rijschemaDetailPageHandle;
 import 'pages/rijschema_page.dart' show rijschemaPageHandle;
@@ -62,6 +63,7 @@ abstract final class Pages {
   static final meerPage = meerPageHandle;
   static final newsPage = newsPageHandle;
   static final onboardingPage = onboardingPageHandle;
+  static final opstellingPage = opstellingPageHandle;
   static final profielPage = profielPageHandle;
   static final rijschemaDetailPage = rijschemaDetailPageHandle;
   static final rijschemaPage = rijschemaPageHandle;
@@ -97,6 +99,7 @@ abstract final class Pages {
     meerPage,
     newsPage,
     onboardingPage,
+    opstellingPage,
     profielPage,
     rijschemaDetailPage,
     rijschemaPage,

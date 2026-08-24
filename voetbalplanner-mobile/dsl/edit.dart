@@ -1412,6 +1412,7 @@ void buildEditFlow(App app) {
   // Live wedstrijdverslag. De pagina hier aanmaken zodat de knoppen die ernaar
   // verwijzen hem verderop kunnen vinden.
   _buildLiveMatchPage(app);
+  _buildOpstellingPage(app);
 
   // Force NavBar items LAST — after all other raw mutations that touch the scaffold.
   app.raw((project) => _forceDashboardNavBarItem(project));
@@ -1512,6 +1513,12 @@ void buildEditFlow(App app) {
     // niet op de wedstrijden- of chatpagina, en zou anders nergens op
     // geabonneerd zijn juist wanneer de melding moet komen.
     _wireChatTopicSubscriptionOnPage(project, 'DashboardPage');
+    _ensureLineupBoardStruct(project);
+    _ensureLineupBoardAppState(project);
+    _ensureLineupBoardActions(project);
+    _ensureLineupBoardWidget(project);
+    _wireOpstellingPage(project);
+    _addOpstellingButton(project);
     _wireLiveMatchPage(project);
     _addLiveMatchButton(project);
     // Ná _addWedstrijdScoreSection, die de lijst opbouwt.
@@ -33301,4 +33308,1099 @@ FFNode? _dashAwaitingApprovalCard(FFProject project, FFWidgetClass wc) {
     ]).variable,
   );
   return card;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OPSTELLING — het bord
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// De coach zet spelers op een veld door ze te slepen. Dat kan FlutterFlow niet
+// zelf, dus het veld én de wisselbank zitten samen in één eigen Flutter-widget:
+// slepen tússen twee losse widgets zou niet werken.
+//
+// De widget leest en schrijft AppState; ophalen en opslaan doen custom actions
+// met hun eigen HTTP-aanroep. Dat laatste omdat FlutterFlow alleen `[var]` in de
+// URL invult en niet in de body — een hele opstelling past niet in een
+// query-parameter.
+
+const String _kLineupBoardCode = r"""
+import 'package:flutter/material.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/backend/schema/structs/index.dart';
+import '/app_state.dart';
+
+/// Veld + wisselbank. Sleep een speler over het veld om hem te verplaatsen, of
+/// naar de bank (en terug) om te wisselen. Alles in één widget, want slepen
+/// werkt niet over widgetgrenzen heen.
+class LineupBoard extends StatefulWidget {
+  const LineupBoard({
+    super.key,
+    this.width,
+    this.height,
+    this.canEdit,
+  });
+
+  final double? width;
+  final double? height;
+  final bool? canEdit;
+
+  @override
+  State<LineupBoard> createState() => _LineupBoardState();
+}
+
+class _LineupBoardState extends State<LineupBoard> {
+  bool get _mag => widget.canEdit ?? false;
+
+  List<LineupSlotStruct> get _veld => FFAppState().lineupField;
+  List<LineupSlotStruct> get _bank => FFAppState().lineupBench;
+
+  void _schrijf(List<LineupSlotStruct> veld, List<LineupSlotStruct> bank) {
+    FFAppState().update(() {
+      FFAppState().lineupField = veld;
+      FFAppState().lineupBench = bank;
+    });
+  }
+
+  LineupSlotStruct _kopie(LineupSlotStruct s,
+          {required String posX, required String posY}) =>
+      LineupSlotStruct(
+        memberId: s.memberId,
+        naam: s.naam,
+        nummer: s.nummer,
+        posX: posX,
+        posY: posY,
+        isAfgemeld: s.isAfgemeld,
+      );
+
+  /// Verplaatst een speler naar een plek op het veld. De coördinaten zijn
+  /// verhoudingen, zodat de opstelling op elk scherm hetzelfde staat.
+  void _zetOpVeld(LineupSlotStruct speler, double x, double y) {
+    final veld = List<LineupSlotStruct>.from(_veld);
+    final bank = List<LineupSlotStruct>.from(_bank);
+
+    veld.removeWhere((s) => s.memberId == speler.memberId);
+    bank.removeWhere((s) => s.memberId == speler.memberId);
+
+    veld.add(_kopie(
+      speler,
+      posX: x.clamp(0.05, 0.95).toStringAsFixed(4),
+      posY: y.clamp(0.05, 0.95).toStringAsFixed(4),
+    ));
+
+    _schrijf(veld, bank);
+  }
+
+  void _zetOpBank(LineupSlotStruct speler) {
+    final veld = List<LineupSlotStruct>.from(_veld);
+    final bank = List<LineupSlotStruct>.from(_bank);
+
+    veld.removeWhere((s) => s.memberId == speler.memberId);
+    if (!bank.any((s) => s.memberId == speler.memberId)) {
+      bank.add(_kopie(speler, posX: '', posY: ''));
+    }
+
+    _schrijf(veld, bank);
+  }
+
+  double _getal(String v, double terugval) => double.tryParse(v) ?? terugval;
+
+  /// Alleen de roepnaam op de pion; een volledige naam past niet in een chip.
+  String _kort(String naam) {
+    final delen = naam.trim().split(RegExp(r'\s+'));
+    return delen.isEmpty ? '' : delen.first;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+
+    return SizedBox(
+      width: widget.width,
+      height: widget.height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Onder de 420 px staan veld en bank onder elkaar; naast elkaar wordt
+          // het veld dan zo smal dat er geen speler meer op past.
+          final smal = constraints.maxWidth < 420;
+          final veldBreedte = smal ? constraints.maxWidth : constraints.maxWidth - 170;
+
+          final veld = _veldWidget(theme, veldBreedte);
+          final bank = _bankWidget(theme);
+
+          return smal
+              ? Column(children: [veld, const SizedBox(height: 12), bank])
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: veld),
+                    const SizedBox(width: 12),
+                    SizedBox(width: 158, child: bank),
+                  ],
+                );
+        },
+      ),
+    );
+  }
+
+  Widget _veldWidget(FlutterFlowTheme theme, double breedte) {
+    // Een voetbalveld is hoger dan breed; 1.35 houdt de pionnen groot genoeg.
+    final hoogte = breedte * 1.35;
+
+    return DragTarget<LineupSlotStruct>(
+      onWillAcceptWithDetails: (_) => _mag,
+      onAcceptWithDetails: (details) {
+        final doos = context.findRenderObject() as RenderBox?;
+        if (doos == null) return;
+        final lokaal = doos.globalToLocal(details.offset);
+        _zetOpVeld(details.data, (lokaal.dx + 21) / breedte, (lokaal.dy + 21) / hoogte);
+      },
+      builder: (context, kandidaten, __) {
+        return Container(
+          width: breedte,
+          height: hoogte,
+          decoration: BoxDecoration(
+            color: const Color(0xFF3F9B47),
+            borderRadius: BorderRadius.circular(14),
+            border: kandidaten.isNotEmpty
+                ? Border.all(color: Colors.white, width: 2)
+                : null,
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(child: CustomPaint(painter: _VeldLijnen())),
+              for (final speler in _veld)
+                Positioned(
+                  left: _getal(speler.posX, 0.5) * breedte - 21,
+                  top: _getal(speler.posY, 0.5) * hoogte - 21,
+                  child: _pion(theme, speler),
+                ),
+              if (_veld.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      'Sleep spelers vanaf de bank het veld op.',
+                      textAlign: TextAlign.center,
+                      style: theme.bodyMedium.override(
+                        fontFamily: theme.bodyMediumFamily,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _pion(FlutterFlowTheme theme, LineupSlotStruct speler) {
+    final kern = _pionInhoud(theme, speler);
+    if (!_mag) return kern;
+
+    return Draggable<LineupSlotStruct>(
+      data: speler,
+      feedback: Material(color: Colors.transparent, child: _pionInhoud(theme, speler)),
+      childWhenDragging: Opacity(opacity: 0.3, child: kern),
+      child: kern,
+    );
+  }
+
+  Widget _pionInhoud(FlutterFlowTheme theme, LineupSlotStruct speler) {
+    // Een speler die zich heeft afgemeld staat er nog, maar valt op: dat moet de
+    // coach zien in plaats van hem stilletjes kwijt te raken.
+    final afgemeld = speler.isAfgemeld == 'true';
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: afgemeld ? const Color(0xFFB91C1C) : const Color(0xFF1E3A5F),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: Text(
+            speler.nummer.isEmpty ? '·' : speler.nummer,
+            style: theme.labelMedium.override(
+              fontFamily: theme.labelMediumFamily,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            _kort(speler.naam),
+            style: theme.labelSmall.override(
+              fontFamily: theme.labelSmallFamily,
+              color: const Color(0xFF1E3A5F),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _bankWidget(FlutterFlowTheme theme) {
+    return DragTarget<LineupSlotStruct>(
+      onWillAcceptWithDetails: (_) => _mag,
+      onAcceptWithDetails: (details) => _zetOpBank(details.data),
+      builder: (context, kandidaten, __) {
+        return Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F2F5),
+            borderRadius: BorderRadius.circular(14),
+            border: kandidaten.isNotEmpty
+                ? Border.all(color: const Color(0xFF1E3A5F), width: 2)
+                : null,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8, left: 2),
+                child: Text('Wisselspelers', style: theme.titleSmall),
+              ),
+              if (_bank.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Text(
+                    'Niemand op de bank.',
+                    textAlign: TextAlign.center,
+                    style: theme.bodySmall.override(
+                      fontFamily: theme.bodySmallFamily,
+                      color: theme.secondaryText,
+                    ),
+                  ),
+                ),
+              for (final speler in _bank) _bankRij(theme, speler),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _bankRij(FlutterFlowTheme theme, LineupSlotStruct speler) {
+    final afgemeld = speler.isAfgemeld == 'true';
+
+    final rij = Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          if (_mag)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(Icons.drag_indicator, size: 18, color: theme.secondaryText),
+            ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  speler.nummer.isEmpty ? '–' : speler.nummer,
+                  style: theme.labelMedium.override(
+                    fontFamily: theme.labelMediumFamily,
+                    fontWeight: FontWeight.w700,
+                    color: afgemeld ? const Color(0xFFB91C1C) : theme.primaryText,
+                  ),
+                ),
+                Text(
+                  speler.naam,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.bodySmall.override(
+                    fontFamily: theme.bodySmallFamily,
+                    color: theme.secondaryText,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!_mag) return rij;
+
+    return Draggable<LineupSlotStruct>(
+      data: speler,
+      feedback: Material(
+        color: Colors.transparent,
+        child: SizedBox(width: 140, child: rij),
+      ),
+      childWhenDragging: Opacity(opacity: 0.3, child: rij),
+      child: rij,
+    );
+  }
+}
+
+/// De belijning. Puur decoratief, maar zonder lijnen is het geen veld.
+class _VeldLijnen extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final kwast = Paint()
+      ..color = Colors.white.withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    const rand = 8.0;
+    canvas.drawRect(
+      Rect.fromLTWH(rand, rand, size.width - rand * 2, size.height - rand * 2),
+      kwast,
+    );
+    canvas.drawLine(
+      Offset(rand, size.height / 2),
+      Offset(size.width - rand, size.height / 2),
+      kwast,
+    );
+    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width * 0.16, kwast);
+
+    // Strafschopgebieden boven en onder.
+    final gebiedBreedte = size.width * 0.55;
+    final gebiedHoogte = size.height * 0.14;
+    for (final boven in [true, false]) {
+      canvas.drawRect(
+        Rect.fromLTWH(
+          (size.width - gebiedBreedte) / 2,
+          boven ? rand : size.height - rand - gebiedHoogte,
+          gebiedBreedte,
+          gebiedHoogte,
+        ),
+        kwast,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+""";
+
+/// Struct voor één speler op het bord. Alles String, zoals de rest van de
+/// koppeling met de backend; de widget rekent zelf met de coördinaten.
+void _ensureLineupBoardStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'LineupSlot',
+    description:
+        'Eén speler op het opstellingsbord: naam, rugnummer, plek op het veld (0..1) en of hij zich heeft afgemeld.',
+    fields: const ['memberId', 'naam', 'nummer', 'posX', 'posY', 'isAfgemeld'],
+  );
+}
+
+void _ensureLineupBoardAppState(FFProject project) {
+  final struct = findDataStruct(project, name: 'LineupSlot');
+  if (struct == null) return;
+
+  bool heeft(String naam) =>
+      project.appState.fields.any((f) => f.parameter.identifier.name == naam);
+
+  for (final naam in const ['lineupField', 'lineupBench', 'lineupSelection']) {
+    if (heeft(naam)) continue;
+    final param = FFParameter(
+      identifier: FFIdentifier(name: naam, key: generateRandomAlphaNumericString()),
+      dataType: dataStructType(struct.identifier.deepCopy()),
+    );
+    param.isList = true;
+    project.appState.fields.add(FFAppStateField(parameter: param));
+  }
+
+  for (final naam in const [
+    'lineupFormation',
+    'lineupPlayersOnField',
+    'lineupMatchFormat',
+    'lineupCanManage',
+    'lineupPublished',
+    'lineupMessage',
+  ]) {
+    if (heeft(naam)) continue;
+    project.appState.fields.add(FFAppStateField(
+      parameter: FFParameter(
+        identifier: FFIdentifier(name: naam, key: generateRandomAlphaNumericString()),
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ),
+    ));
+  }
+}
+
+/// Ophalen, opslaan en vrijgeven. Eigen HTTP-aanroepen en geen FlutterFlow-
+/// endpoints: FF vult `[var]` alleen in de URL in en niet in de body, en een
+/// hele opstelling past niet in een query-parameter.
+void _ensureLineupBoardActions(FFProject project) {
+  const laadCode = r"""
+// Automatic FlutterFlow imports
+import '/backend/schema/structs/index.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+/// Haalt het opstellingsbord op en zet het in AppState. Retourneert '' bij
+/// succes, anders een korte melding.
+Future<String> loadLineupBoard(String? matchId) async {
+  final id = (matchId ?? '').trim();
+  if (id.isEmpty) return 'Geen wedstrijd gekozen.';
+
+  List<LineupSlotStruct> lees(dynamic lijst) {
+    if (lijst is! List) return <LineupSlotStruct>[];
+    return lijst
+        .whereType<Map>()
+        .map((m) => LineupSlotStruct(
+              memberId: '${m['memberId'] ?? ''}',
+              naam: '${m['naam'] ?? ''}',
+              nummer: '${m['nummer'] ?? ''}',
+              posX: '${m['posX'] ?? ''}',
+              posY: '${m['posY'] ?? ''}',
+              isAfgemeld: '${m['isAfgemeld'] ?? 'false'}',
+            ))
+        .toList();
+  }
+
+  try {
+    final res = await http.get(
+      Uri.parse('https://voetbalplanner.nubix.nl/api/v1/matches/$id/lineup/board'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ${FFAppState().authToken}',
+      },
+    );
+    if (res.statusCode != 200) return 'Kon de opstelling niet ophalen.';
+
+    final data = jsonDecode(res.body);
+    if (data is! Map) return 'Kon de opstelling niet ophalen.';
+
+    FFAppState().update(() {
+      FFAppState().lineupField = lees(data['veld']);
+      FFAppState().lineupBench = lees(data['bank']);
+      FFAppState().lineupSelection = lees(data['selectie']);
+      FFAppState().lineupFormation = '${data['formation'] ?? ''}';
+      FFAppState().lineupPlayersOnField = '${data['playersOnField'] ?? ''}';
+      FFAppState().lineupMatchFormat = '${data['matchFormat'] ?? ''}';
+      FFAppState().lineupCanManage = '${data['magBeheren'] ?? 'false'}';
+      FFAppState().lineupPublished = '${data['isVrijgegeven'] ?? 'false'}';
+      FFAppState().lineupMessage = '${data['melding'] ?? ''}';
+    });
+    return '';
+  } catch (_) {
+    return 'Kon de opstelling niet ophalen.';
+  }
+}
+""";
+
+  const bewaarCode = r"""
+// Automatic FlutterFlow imports
+import '/backend/schema/structs/index.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+/// Slaat het hele bord in één keer op. Eén call en niet per speler: bij het
+/// slepen verandert er van alles tegelijk, en een half opgeslagen opstelling is
+/// erger dan geen. Retourneert '' bij succes, anders een korte melding.
+Future<String> saveLineupBoard(String? matchId) async {
+  final id = (matchId ?? '').trim();
+  if (id.isEmpty) return 'Geen wedstrijd gekozen.';
+
+  Map<String, dynamic> rij(LineupSlotStruct s, bool bank) => {
+        'member_id': s.memberId,
+        'shirt_number': int.tryParse(s.nummer),
+        'is_substitute': bank,
+        'slot_x': bank ? null : double.tryParse(s.posX),
+        'slot_y': bank ? null : double.tryParse(s.posY),
+      };
+
+  final spelers = <Map<String, dynamic>>[
+    ...FFAppState().lineupField.map((s) => rij(s, false)),
+    ...FFAppState().lineupBench.map((s) => rij(s, true)),
+  ];
+
+  try {
+    final res = await http.post(
+      Uri.parse('https://voetbalplanner.nubix.nl/api/v1/matches/$id/lineup/board'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${FFAppState().authToken}',
+      },
+      body: jsonEncode({
+        'formation': FFAppState().lineupFormation,
+        'players_on_field': int.tryParse(FFAppState().lineupPlayersOnField),
+        'match_format': FFAppState().lineupMatchFormat,
+        'players': spelers,
+      }),
+    );
+    if (res.statusCode >= 200 && res.statusCode < 300) return '';
+
+    // De backend legt zelf uit wat er mis is (geen rechten, speler buiten het
+    // elftal); die tekst is bruikbaarder dan een algemene melding.
+    try {
+      final data = jsonDecode(res.body);
+      if (data is Map && data['message'] is String) return data['message'] as String;
+    } catch (_) {}
+    return 'Kon de opstelling niet opslaan.';
+  } catch (_) {
+    return 'Kon de opstelling niet opslaan.';
+  }
+}
+""";
+
+  const vrijgeefCode = r"""
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+/// Zet de opstelling bij de spelers, of haalt hem daar weer weg.
+/// Retourneert '' bij succes, anders een korte melding.
+Future<String> publishLineup(String? matchId, bool? published) async {
+  final id = (matchId ?? '').trim();
+  if (id.isEmpty) return 'Geen wedstrijd gekozen.';
+  final vrij = published ?? true;
+
+  try {
+    final res = await http.post(
+      Uri.parse('https://voetbalplanner.nubix.nl/api/v1/matches/$id/lineup/publish'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${FFAppState().authToken}',
+      },
+      body: jsonEncode({'published': vrij}),
+    );
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      FFAppState().update(() {
+        FFAppState().lineupPublished = vrij ? 'true' : 'false';
+      });
+      return '';
+    }
+    try {
+      final data = jsonDecode(res.body);
+      if (data is Map && data['message'] is String) return data['message'] as String;
+    } catch (_) {}
+    return 'Kon dit niet aanpassen.';
+  } catch (_) {
+    return 'Kon dit niet aanpassen.';
+  }
+}
+""";
+
+  void borg(String naam, String omschrijving, List<FFParameter> args, String code) {
+    if (findCustomAction(project, name: naam) == null) {
+      addCustomAction(
+        project,
+        name: naam,
+        description: omschrijving,
+        arguments: args,
+        returnParameter: FFParameter(
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
+        code: code,
+      );
+    } else {
+      updateCustomAction(project, name: naam, code: code);
+    }
+  }
+
+  FFParameter tekst(String naam) => FFParameter(
+        identifier: FFIdentifier(name: naam),
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      );
+
+  borg('LoadLineupBoard', 'Haalt het opstellingsbord op en zet het in AppState.',
+      [tekst('matchId')], laadCode);
+  borg('SaveLineupBoard', 'Slaat het hele opstellingsbord in één keer op.',
+      [tekst('matchId')], bewaarCode);
+  borg(
+    'PublishLineup',
+    'Zet de opstelling bij de spelers, of haalt hem daar weer weg.',
+    [
+      tekst('matchId'),
+      FFParameter(
+        identifier: FFIdentifier(name: 'published'),
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+      ),
+    ],
+    vrijgeefCode,
+  );
+}
+
+void _ensureLineupBoardWidget(FFProject project) {
+  if (findCustomWidget(project, name: 'LineupBoard') == null) {
+    addCustomWidget(
+      project,
+      name: 'LineupBoard',
+      description:
+          'Voetbalveld met sleepbare spelers plus de wisselbank. Leest en schrijft AppState.lineupField/lineupBench.',
+      parameters: [
+        FFParameter(
+          identifier: FFIdentifier(name: 'canEdit'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+        ),
+      ],
+      code: _kLineupBoardCode,
+    );
+  } else {
+    updateCustomWidget(project, name: 'LineupBoard', code: _kLineupBoardCode);
+  }
+}
+
+/// Argumenten voor een custom action. De sleutel is de *key* van het argument
+/// zoals het in de actie staat, niet de naam — vandaar de omweg langs de actie.
+FFFunctionCallValues _actieArgs(
+    FFCustomAction actie, Map<String, FFValue> waarden) {
+  final args = FFFunctionCallValues();
+  for (final arg in actie.arguments) {
+    final waarde = waarden[arg.identifier.name];
+    if (waarde == null) continue;
+    args.arguments[arg.identifier.key] =
+        FFFunctionCallValues_FFArgument(value: waarde);
+  }
+  return args;
+}
+
+/// De opstellingspagina. Het veld zelf is een eigen widget; hieromheen staan de
+/// instellingen, opslaan en vrijgeven.
+void _buildOpstellingPage(App app) {
+  app.ensurePage(
+    'OpstellingPage',
+    description:
+        'Opstelling maken: spelers op het veld slepen, instellingen kiezen, opslaan en vrijgeven voor de spelers.',
+    route: 'opstelling',
+    params: {
+      'matchId': string.withDefault(''),
+      'teamName': string.withDefault(''),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Opstelling'),
+      body: Column(
+        name: 'OpstellingRootColumn',
+        children: [
+          Container(name: 'OpstellingBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Vult de pagina. Vers opgebouwd bij elke push.
+void _wireOpstellingPage(FFProject project) {
+  final wc = findPage(project, name: 'OpstellingPage');
+  if (wc == null) return;
+  final widget = findCustomWidget(project, name: 'LineupBoard');
+  final laadActie = findCustomAction(project, name: 'LoadLineupBoard');
+  final bewaarActie = findCustomAction(project, name: 'SaveLineupBoard');
+  final vrijgeefActie = findCustomAction(project, name: 'PublishLineup');
+  if (widget == null || laadActie == null || bewaarActie == null || vrijgeefActie == null) {
+    return;
+  }
+
+  final scaffoldKey = wc.node.key;
+  FFVariable? appVar(String naam) {
+    final id = _findAppStateFieldId(project, naam);
+    if (id == null) return null;
+    return varFromAppState(id.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return;
+
+  FFVariable matchIdVar() => varFromPageParam(matchIdParam.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final magVar = appVar('lineupCanManage');
+  final meldingVar = appVar('lineupMessage');
+  if (magVar == null || meldingVar == null) return;
+
+  FFVariable magBeheren() => _equalsLiteral(magVar.deepCopy(), 'true');
+
+  // ── Kop: teamnaam ────────────────────────────────────────────────────────
+  final teamParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'teamName', orElse: () => null)
+      ?.identifier;
+  final kop = UI.text('',
+      name: 'OpstellingTeamNaam',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  if (teamParam != null) {
+    kop.props.text.textValue = FFStringValue(
+        variable: varFromPageParam(teamParam.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey));
+  }
+  kop.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 16),
+    rightValue: FFDoubleValue(inputValue: 16),
+    topValue: FFDoubleValue(inputValue: 4),
+  );
+
+  // ── Melding voor wie de opstelling (nog) niet mag zien ───────────────────
+  final melding = UI.text('',
+      name: 'OpstellingMelding',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center,
+      maxLines: 3);
+  melding.props.text.textValue = FFStringValue(variable: meldingVar.deepCopy());
+  final meldingKaart = _dashCard(
+    name: 'OpstellingMeldingKaart',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 16),
+    child: melding,
+  );
+  setConditionalVisibility(
+    meldingKaart,
+    variable: _equalsLiteral(meldingVar.deepCopy(), '', negate: true),
+  );
+
+  // ── Het veld ─────────────────────────────────────────────────────────────
+  final bord = UI.customWidget(
+    widget,
+    name: 'OpstellingBord',
+    params: {'canEdit': VariableParamValue(magBeheren())},
+  );
+  final bordWrap = UI.container(
+    name: 'OpstellingBordWrap',
+    width: double.infinity,
+    height: 470,
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: bord,
+  );
+  // Zonder opstelling én zonder rechten is er niets te tonen; dan alleen de
+  // melding hierboven.
+  setConditionalVisibility(
+    bordWrap,
+    variable: _equalsLiteral(meldingVar.deepCopy(), ''),
+  );
+
+  // ── Instellingen ─────────────────────────────────────────────────────────
+  FFNode keuzeRij({
+    required String naam,
+    required String label,
+    required String appStateVeld,
+    required List<String> opties,
+  }) {
+    final huidigVar = appVar(appStateVeld);
+    final chips = <FFNode>[];
+
+    for (var i = 0; i < opties.length; i++) {
+      final optie = opties[i];
+      final gekozen = huidigVar != null
+          ? _equalsLiteral(huidigVar.deepCopy(), optie)
+          : null;
+
+      FFNode chip({required bool actief}) {
+        final c = UI.container(
+          name: '$naam${actief ? 'Aan' : 'Uit'}$i',
+          innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          borderRadius: 12,
+          color: actief ? UIColor.primary : UIColor.hex(0xFFEFF1F5),
+          child: UI.text(optie,
+              name: '$naam${actief ? 'Aan' : 'Uit'}Label$i',
+              style: UITextStyle.labelSmall,
+              color: actief ? UIColor.white : UIColor.primaryText,
+              maxLines: 1),
+        );
+        if (gekozen != null) {
+          setConditionalVisibility(
+            c,
+            variable: actief
+                ? gekozen
+                : _equalsLiteral(huidigVar!.deepCopy(), optie, negate: true),
+          );
+        }
+        return c;
+      }
+
+      final paar = UI.row(
+        name: '$naam$i',
+        mainAxisMin: true,
+        children: [chip(actief: true), chip(actief: false)],
+      );
+      Actions.onTap(
+        paar,
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.set(appStateVeld, optie),
+        ]),
+      );
+      chips.add(paar);
+    }
+
+    return UI.column(
+      name: '${naam}Col',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 8,
+      children: [
+        UI.text(label, name: '${naam}Label', style: UITextStyle.labelMedium),
+        UI.row(name: '${naam}Chips', spacing: 8, children: chips),
+      ],
+    );
+  }
+
+  final instellingen = _dashCard(
+    name: 'OpstellingInstellingen',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+    child: UI.column(
+      name: 'OpstellingInstellingenCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 16,
+      children: [
+        UI.row(
+          name: 'OpstellingInstellingenKop',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('settings', size: 20, color: UIColor.primary),
+            UI.expanded(UI.text('Wedstrijdinstellingen',
+                name: 'OpstellingInstellingenTitel', style: UITextStyle.titleSmall)),
+          ],
+        ),
+        keuzeRij(
+          naam: 'OpstellingAantal',
+          label: 'Aantal spelers op het veld',
+          appStateVeld: 'lineupPlayersOnField',
+          opties: const ['6', '8', '9', '11'],
+        ),
+        keuzeRij(
+          naam: 'OpstellingFormatie',
+          label: 'Opstelling',
+          appStateVeld: 'lineupFormation',
+          opties: const ['2-3-1', '3-2-3', '3-3-2', '4-3-3', '4-4-2'],
+        ),
+        keuzeRij(
+          naam: 'OpstellingFormaat',
+          label: 'Wedstrijdformaat',
+          appStateVeld: 'lineupMatchFormat',
+          opties: const ['2 x 25 min', '2 x 30 min', '4 x 15 min', '4 x 20 min'],
+        ),
+      ],
+    ),
+  );
+  setConditionalVisibility(instellingen, variable: magBeheren());
+
+  // ── Opslaan en vrijgeven ─────────────────────────────────────────────────
+  final opslaan = UI.button(
+    'Opslaan',
+    name: 'OpstellingOpslaan',
+    width: double.infinity,
+  );
+  Actions.onTapChain(
+    opslaan,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: bewaarActie.identifier.deepCopy(),
+          argumentValues: _actieArgs(bewaarActie, {'matchId': FFValue(variable: matchIdVar())}),
+        ),
+      ),
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.snackBar('Opgeslagen.'),
+      ),
+    ),
+  );
+
+  FFNode vrijgeefKnop({required bool vrijgeven}) {
+    final knop = UI.button(
+      vrijgeven ? 'Vrijgeven voor spelers' : 'Verbergen voor spelers',
+      name: vrijgeven ? 'OpstellingVrijgeven' : 'OpstellingVerbergen',
+      variant: UIButtonVariant.outlined,
+      width: double.infinity,
+    );
+    Actions.onTapChain(
+      knop,
+      FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: vrijgeefActie.identifier.deepCopy(),
+            argumentValues: _actieArgs(vrijgeefActie, {
+              'matchId': FFValue(variable: matchIdVar()),
+              'published': FFValue(
+                variable: varFromConstant(vrijgeven
+                    ? FFConstantsVariable_ConstantValue.TRUE
+                    : FFConstantsVariable_ConstantValue.FALSE),
+              ),
+            }),
+          ),
+        ),
+        followUpAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar(vrijgeven
+              ? 'De opstelling staat nu bij de spelers.'
+              : 'De opstelling is weer verborgen.'),
+        ),
+      ),
+    );
+
+    final publicVar = appVar('lineupPublished');
+    setConditionalVisibility(
+      knop,
+      variable: andConditionsVar([
+        magBeheren(),
+        if (publicVar != null)
+          _equalsLiteral(publicVar.deepCopy(), 'true', negate: vrijgeven),
+      ]).variable,
+    );
+    return knop;
+  }
+
+  final knoppen = UI.column(
+    name: 'OpstellingKnoppen',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 10,
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 16, bottom: 28),
+    children: [
+      opslaan,
+      vrijgeefKnop(vrijgeven: true),
+      vrijgeefKnop(vrijgeven: false),
+    ],
+  );
+  setConditionalVisibility(knoppen, variable: magBeheren());
+
+  // ── De pagina samenstellen ───────────────────────────────────────────────
+  final body = getPropertyChild(wc.node, 'body');
+  if (body == null) return;
+  final kolom = body.type == FFWidgetType.Column
+      ? body
+      : body.children
+          .cast<FFNode?>()
+          .firstWhere((n) => n?.type == FFWidgetType.Column, orElse: () => null);
+  if (kolom == null) return;
+
+  kolom.children.clear();
+  final props = kolom.props.column.deepCopy();
+  props.scrollable = true;
+  kolom.props.column = props;
+  kolom.children.addAll([kop, meldingKaart, bordWrap, instellingen, knoppen]);
+
+  // ── Ophalen bij het openen ───────────────────────────────────────────────
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+  Actions.onPageLoadChain(
+    wc.node,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: laadActie.identifier.deepCopy(),
+          argumentValues: _actieArgs(laadActie, {'matchId': FFValue(variable: matchIdVar())}),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Knop op de wedstrijdpagina naar de opstelling. Voor iedereen zichtbaar: wie
+/// hem niet mag zien krijgt daar de uitleg, en dat is duidelijker dan een knop
+/// die er soms wel en soms niet staat.
+void _addOpstellingButton(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  if (findPage(project, name: 'OpstellingPage') == null) return;
+
+  for (final n in findDescendants(wc.node, (x) => x.name == 'MatchOpstellingButton').toList()) {
+    removeByKey(wc.node, n.key);
+  }
+
+  final anker = findDescendants(wc.node, (n) => n.name == 'MatchAfmeldButton').firstOrNull;
+  if (anker == null) return;
+  final kolom = findDescendants(wc.node, (_) => true)
+      .where((n) => n.children.any((c) => identical(c, anker)))
+      .firstOrNull;
+  if (kolom == null) return;
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return;
+
+  final knop = UI.container(
+    name: 'MatchOpstellingButton',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 8),
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    borderRadius: 14,
+    color: UIColor.secondaryBackground,
+    border: UIBorder.all(width: 1, color: UIColor.hex(0xFFE7E9EE)),
+    child: UI.row(
+      name: 'MatchOpstellingRow',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('grid_view', size: 20, color: UIColor.primary),
+        UI.expanded(UI.text('Opstelling',
+            name: 'MatchOpstellingLabel', style: UITextStyle.bodyMedium, maxLines: 1)),
+        UI.icon('chevron_right', size: 20, color: UIColor.secondaryText),
+      ],
+    ),
+  );
+
+  Actions.onTap(
+    knop,
+    Actions.navigate(
+      project,
+      pageName: 'OpstellingPage',
+      params: {
+        'matchId': VariableParamValue(varFromPageParam(matchIdParam.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
+        // Puur voor de kop op de opstellingspagina; de wedstrijd zelf draagt
+        // geen teamnaam, dus die komt uit het gekozen elftal.
+        if (_findAppStateFieldId(project, 'currentTeamName') != null)
+          'teamName': VariableParamValue(
+              varFromAppState(_findAppStateFieldId(project, 'currentTeamName')!.deepCopy())
+                ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
+      },
+    ),
+  );
+
+  final idx = kolom.children.indexWhere((c) => identical(c, anker));
+  kolom.children.insert(idx + 1, knop);
 }

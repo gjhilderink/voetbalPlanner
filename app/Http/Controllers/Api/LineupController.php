@@ -74,8 +74,10 @@ class LineupController extends Controller
             'memberId'   => (string) $p->member_id,
             'naam'       => $p->member?->name ?? '',
             'nummer'     => (string) ($p->shirt_number ?? ''),
-            'x'          => (string) ($p->slot_x ?? ''),
-            'y'          => (string) ($p->slot_y ?? ''),
+            // posX/posY en niet x/y: FlutterFlow weigert die veldnamen in een
+            // struct omdat ze met een sleutelwoord botsen.
+            'posX'       => (string) ($p->slot_x ?? ''),
+            'posY'       => (string) ($p->slot_y ?? ''),
             'isAfgemeld' => in_array($p->member_id, $afgemeld, true) ? 'true' : 'false',
         ];
 
@@ -111,8 +113,8 @@ class LineupController extends Controller
             'memberId'   => (string) $m->id,
             'naam'       => $m->name,
             'nummer'     => '',
-            'x'          => '',
-            'y'          => '',
+            'posX'       => '',
+            'posY'       => '',
             'isAfgemeld' => in_array($m->id, $afgemeld, true) ? 'true' : 'false',
         ])->values()->all();
     }

@@ -197,6 +197,60 @@ abstract final class AppState {
     typeName: "Boolean",
     persisted: false,
   );
+  static const lineupBench = ffai.ProjectAppStateFieldHandle(
+    name: "lineupBench",
+    key: "xmsr88a3",
+    typeName: "List<DataStruct<LineupSlot>>",
+    persisted: false,
+  );
+  static const lineupCanManage = ffai.ProjectAppStateFieldHandle(
+    name: "lineupCanManage",
+    key: "xkcgv7mu",
+    typeName: "String",
+    persisted: false,
+  );
+  static const lineupField = ffai.ProjectAppStateFieldHandle(
+    name: "lineupField",
+    key: "4mz6oy8m",
+    typeName: "List<DataStruct<LineupSlot>>",
+    persisted: false,
+  );
+  static const lineupFormation = ffai.ProjectAppStateFieldHandle(
+    name: "lineupFormation",
+    key: "249hbvpu",
+    typeName: "String",
+    persisted: false,
+  );
+  static const lineupMatchFormat = ffai.ProjectAppStateFieldHandle(
+    name: "lineupMatchFormat",
+    key: "08uet96a",
+    typeName: "String",
+    persisted: false,
+  );
+  static const lineupMessage = ffai.ProjectAppStateFieldHandle(
+    name: "lineupMessage",
+    key: "c4xo96e2",
+    typeName: "String",
+    persisted: false,
+  );
+  static const lineupPlayersOnField = ffai.ProjectAppStateFieldHandle(
+    name: "lineupPlayersOnField",
+    key: "pukpiwqx",
+    typeName: "String",
+    persisted: false,
+  );
+  static const lineupPublished = ffai.ProjectAppStateFieldHandle(
+    name: "lineupPublished",
+    key: "jz7ld1u4",
+    typeName: "String",
+    persisted: false,
+  );
+  static const lineupSelection = ffai.ProjectAppStateFieldHandle(
+    name: "lineupSelection",
+    key: "55ccb4du",
+    typeName: "List<DataStruct<LineupSlot>>",
+    persisted: false,
+  );
   static const liveEvents = ffai.ProjectAppStateFieldHandle(
     name: "liveEvents",
     key: "3e6p9wim",
@@ -512,6 +566,15 @@ abstract final class AppState {
     guestInvitations,
     hasMultipleTeams,
     hasUnreadTeamChat,
+    lineupBench,
+    lineupCanManage,
+    lineupField,
+    lineupFormation,
+    lineupMatchFormat,
+    lineupMessage,
+    lineupPlayersOnField,
+    lineupPublished,
+    lineupSelection,
     liveEvents,
     liveMatchId,
     liveMatches,
