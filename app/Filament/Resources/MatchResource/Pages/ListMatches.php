@@ -14,6 +14,7 @@ use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -90,16 +91,15 @@ class ListMatches extends ListRecords
                         return;
                     }
 
-                    $path   = storage_path('app/private/imports/' . $data['file']);
+                    // Zie ListMembers: FileUpload levert het pad al mét de map erin.
+                    $path   = Storage::disk('local')->path($data['file']);
                     $import = new MatchesImport($clubId);
 
                     Excel::import($import, $path);
 
                     ImportNotifier::report($import->imported, $import->created, $import->skipped, $import->errors, 'wedstrijden');
 
-                    if (file_exists($path)) {
-                        unlink($path);
-                    }
+                    Storage::disk('local')->delete($data['file']);
                 }),
         ];
     }

@@ -13,6 +13,7 @@ use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ListBarDuties extends ListRecords
@@ -89,7 +90,8 @@ class ListBarDuties extends ListRecords
                         ->helperText('Gebruik het sjabloon of de export. Datum: dd-mm-jjjj · Dagdeel: Ochtend/Middag/Avond 1/… · een bestaand dagdeel wordt bijgewerkt (elftal toegewezen).'),
                 ])
                 ->action(function (array $data): void {
-                    $path    = storage_path('app/private/imports/' . $data['file']);
+                    // Zie ListMembers: FileUpload levert het pad al mét de map erin.
+                    $path    = Storage::disk('local')->path($data['file']);
                     $clubId  = filament()->getTenant()?->id;
                     $import  = new BarDutiesImport($clubId);
 
@@ -117,9 +119,7 @@ class ListBarDuties extends ListRecords
                     }
 
                     // Clean up the uploaded file
-                    if (file_exists($path)) {
-                        unlink($path);
-                    }
+                    Storage::disk('local')->delete($data['file']);
                 }),
         ];
     }

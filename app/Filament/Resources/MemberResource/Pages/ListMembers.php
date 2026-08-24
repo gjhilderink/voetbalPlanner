@@ -14,6 +14,7 @@ use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -78,16 +79,18 @@ class ListMembers extends ListRecords
                         return;
                     }
 
-                    $path   = storage_path('app/private/imports/' . $data['file']);
+                    // FileUpload bewaart het pad inclusief de map ("imports/x.xlsx"),
+                    // dus die map er niet nóg eens voor plakken — dan wijst het pad
+                    // naar imports/imports/ en klapt Excel::import op een bestand
+                    // dat niet bestaat. Storage kent de wortel van de schijf zelf.
+                    $path   = Storage::disk('local')->path($data['file']);
                     $import = new MembersImport($clubId);
 
                     Excel::import($import, $path);
 
                     ImportNotifier::report($import->imported, $import->created, $import->skipped, $import->errors, 'leden');
 
-                    if (file_exists($path)) {
-                        unlink($path);
-                    }
+                    Storage::disk('local')->delete($data['file']);
                 }),
         ];
     }

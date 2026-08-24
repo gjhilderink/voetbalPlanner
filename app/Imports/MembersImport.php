@@ -81,6 +81,25 @@ class MembersImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
                 continue;
             }
 
+            // Relatiecode vastleggen op leden die er nog geen hebben. Zonder dit
+            // werd de kolom alleen gelézen: een nieuw lid kwam binnen zónder
+            // relatiecode, en een tweede import van hetzelfde bestand vond hem
+            // dus niet terug en maakte iedereen nóg een keer aan. Een afwijkende
+            // code op een bestaand lid laten we met rust — dat is een correctie
+            // die iemand bewust moet doen.
+            if ($external !== '' && ($isNew || ($member?->external_id ?? '') === '')) {
+                $bezet = Member::withTrashed()
+                    ->where('external_id', $external)
+                    ->when($member, fn ($q) => $q->whereKeyNot($member->getKey()))
+                    ->exists();
+
+                if ($bezet) {
+                    $this->errors[] = "Rij {$rowNum}: relatiecode '{$external}' is al in gebruik bij een ander lid";
+                } else {
+                    $attributes['external_id'] = $external;
+                }
+            }
+
             if ($isNew) {
                 $member = Member::create($attributes);
                 $this->created++;
