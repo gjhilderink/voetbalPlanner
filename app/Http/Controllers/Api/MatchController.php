@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\ManagesAttendance;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MatchResource;
 use App\Models\Absence;
@@ -14,6 +15,8 @@ use Illuminate\Http\Request;
 
 class MatchController extends Controller
 {
+    use ManagesAttendance;
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -108,25 +111,33 @@ class MatchController extends Controller
      */
     public function afmelden(Request $request, FootballMatch $match): JsonResponse
     {
-        $user   = $request->user();
-        $member = $user?->resolveMember();
+        $user = $request->user();
 
         $validated = $request->validate([
-            'reason' => 'required|string|max:255',
+            'reason'    => 'required|string|max:255',
+            // Alleen de coach mag deze meegeven; zie ManagesAttendance.
+            'member_id' => 'nullable|uuid',
         ]);
 
-        $matchAttrs = [
+        [$member, $fout] = $this->attendanceTarget($request, $match->team_id);
+        if ($fout) {
+            return $fout;
+        }
+
+        $matchAttrs = $this->attendanceKey([
             'type'     => Absence::TYPE_MATCH,
             'match_id' => $match->id,
-        ];
-        $matchAttrs += $member ? ['member_id' => $member->id] : ['user_id' => $user->id];
+        ], $member, $request);
 
         Absence::updateOrCreate($matchAttrs, [
             'club_id' => $user->club_id,
             'reason'  => $validated['reason'],
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Je bent afgemeld voor deze wedstrijd.']);
+        return response()->json([
+            'success' => true,
+            'message' => $this->attendanceMessage($request, $member, 'afgemeld', 'deze wedstrijd'),
+        ]);
     }
 
     /**
@@ -134,16 +145,84 @@ class MatchController extends Controller
      */
     public function aanmelden(Request $request, FootballMatch $match): JsonResponse
     {
-        $user   = $request->user();
-        $member = $user?->resolveMember();
+        $request->validate(['member_id' => 'nullable|uuid']);
 
-        $q = Absence::query()
+        [$member, $fout] = $this->attendanceTarget($request, $match->team_id);
+        if ($fout) {
+            return $fout;
+        }
+
+        Absence::query()
+            ->where($this->attendanceKey([
+                'type'     => Absence::TYPE_MATCH,
+                'match_id' => $match->id,
+            ], $member, $request))
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->attendanceMessage($request, $member, 'weer aangemeld', 'deze wedstrijd'),
+        ]);
+    }
+
+    /**
+     * GET /v1/matches/{match}/deelnemers
+     *
+     * De hele selectie met per speler of hij is af- of aangemeld. De coach heeft
+     * die lijst nodig om iemand namens hem af te melden; /afmeldingen geeft
+     * alleen de afmeldingen en dus niet wie er nog wél staat.
+     */
+    public function deelnemers(Request $request, FootballMatch $match): JsonResponse
+    {
+        $absences = Absence::query()
             ->where('type', Absence::TYPE_MATCH)
-            ->where('match_id', $match->id);
-        $member ? $q->where('member_id', $member->id) : $q->where('user_id', $user->id);
-        $q->delete();
+            ->where('match_id', $match->id)
+            ->with(['member:id,name', 'user:id,name'])
+            ->get();
 
-        return response()->json(['success' => true, 'message' => 'Je bent weer aangemeld voor deze wedstrijd.']);
+        $redenPerLid = $absences
+            ->filter(fn (Absence $a) => $a->member_id !== null)
+            ->mapWithKeys(fn (Absence $a) => [$a->member_id => (string) $a->reason]);
+
+        $mag = $request->user()?->canManageLineup($match->team_id) ? 'true' : 'false';
+
+        $rows = [];
+        foreach ($match->team?->members()->orderBy('name')->get() ?? collect() as $member) {
+            $afgemeld = $redenPerLid->has($member->id);
+            $rows[] = [
+                'memberId' => $member->id,
+                'naam'     => $member->name,
+                'status'   => $afgemeld ? 'afgemeld' : 'aangemeld',
+                'reden'    => $afgemeld ? $redenPerLid->get($member->id) : '',
+            ];
+        }
+
+        // Losse accounts zonder lidnummer staan niet in de teamlijst maar horen
+        // er wel bij; de coach kan ze niet omzetten, vandaar een lege memberId.
+        foreach ($absences->filter(fn (Absence $a) => $a->member_id === null) as $absence) {
+            if (! $naam = $absence->user?->name) {
+                continue;
+            }
+            $rows[] = [
+                'memberId' => '',
+                'naam'     => $naam,
+                'status'   => 'afgemeld',
+                'reden'    => (string) $absence->reason,
+            ];
+        }
+
+        usort($rows, fn ($a, $b) => [$a['status'], $a['naam']] <=> [$b['status'], $b['naam']]);
+
+        // Tellingen op elke regel: de app kan een gefilterde lijst niet tellen,
+        // en zo kan de kop "Aanwezig (11)" tonen zonder een tweede endpoint.
+        $aangemeld = count(array_filter($rows, fn ($r) => $r['status'] === 'aangemeld'));
+        $afgemeld  = count($rows) - $aangemeld;
+
+        return response()->json(array_map(fn ($r) => $r + [
+            'aantalAangemeld' => (string) $aangemeld,
+            'aantalAfgemeld'  => (string) $afgemeld,
+            'magBeheren'      => $mag,
+        ], $rows));
     }
 
     public function update(Request $request, FootballMatch $match): JsonResponse

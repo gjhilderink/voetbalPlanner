@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\ManagesAttendance;
 use App\Http\Controllers\Controller;
 use App\Models\Absence;
 use App\Models\TrainingSchedule;
@@ -13,6 +14,8 @@ use Illuminate\Http\Request;
 
 class TrainingController extends Controller
 {
+    use ManagesAttendance;
+
     /**
      * GET /v1/trainings?team_id=&days=21
      * Komende training-occurrences (berekend uit de herhaal-schema's) voor een team.
@@ -147,6 +150,8 @@ class TrainingController extends Controller
         foreach ($schedule->team?->members()->orderBy('name')->get() ?? collect() as $member) {
             $isAfgemeld = $reasonByMember->has($member->id);
             $rows[] = [
+                // De coach meldt hiermee iemand namens hem af of aan.
+                'memberId' => $member->id,
                 'naam'   => $member->name,
                 'status' => $isAfgemeld ? 'afgemeld' : 'aangemeld',
                 'reden'  => $isAfgemeld ? $reasonByMember->get($member->id) : '',
@@ -161,6 +166,8 @@ class TrainingController extends Controller
                 continue;
             }
             $rows[] = [
+                // Zonder lidnummer valt er niets om te zetten; lege memberId.
+                'memberId' => '',
                 'naam'   => $naam,
                 'status' => 'afgemeld',
                 'reden'  => (string) $absence->reason,
@@ -175,9 +182,14 @@ class TrainingController extends Controller
         // zonder een tweede endpoint.
         $aangemeld = count(array_filter($rows, fn ($r) => $r['status'] === 'aangemeld'));
         $afgemeld  = count($rows) - $aangemeld;
+        // Mag deze gebruiker anderen af- en aanmelden? Op elke regel, zodat de
+        // app de knoppen per speler kan tonen zonder een extra call.
+        $mag = $request->user()?->canManageLineup($schedule->team_id) ? 'true' : 'false';
+
         $rows = array_map(fn ($r) => $r + [
             'aantalAangemeld' => (string) $aangemeld,
             'aantalAfgemeld'  => (string) $afgemeld,
+            'magBeheren'      => $mag,
         ], $rows);
 
         return response()->json($rows);
@@ -188,30 +200,36 @@ class TrainingController extends Controller
      */
     public function afmelden(Request $request, TrainingSchedule $schedule, string $date): JsonResponse
     {
-        $user   = $request->user();
-        $member = $user?->resolveMember();
-
         $validated = $request->validate([
             'reason' => 'required|string|max:255',
+            // Alleen de coach mag deze meegeven; zie ManagesAttendance.
+            'member_id' => 'nullable|uuid',
         ]);
+
+        [$member, $fout] = $this->attendanceTarget($request, $schedule->team_id);
+        if ($fout) {
+            return $fout;
+        }
 
         $day = Carbon::parse($date)->toDateString();
 
         // Een lid hangt aan member_id; een los account (User zonder lidnummer)
         // aan user_id.
-        $match = [
+        $match = $this->attendanceKey([
             'type'                 => Absence::TYPE_TRAINING,
             'training_schedule_id' => $schedule->id,
             'training_date'        => $day,
-        ];
-        $match += $member ? ['member_id' => $member->id] : ['user_id' => $user->id];
+        ], $member, $request);
 
         Absence::updateOrCreate($match, [
             'club_id' => $schedule->club_id,
             'reason'  => $validated['reason'],
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Je bent afgemeld voor deze training.']);
+        return response()->json([
+            'success' => true,
+            'message' => $this->attendanceMessage($request, $member, 'afgemeld', 'deze training'),
+        ]);
     }
 
     /**
@@ -219,16 +237,24 @@ class TrainingController extends Controller
      */
     public function aanmelden(Request $request, TrainingSchedule $schedule, string $date): JsonResponse
     {
-        $user   = $request->user();
-        $member = $user?->resolveMember();
+        $request->validate(['member_id' => 'nullable|uuid']);
 
-        $q = Absence::query()
-            ->where('type', Absence::TYPE_TRAINING)
-            ->where('training_schedule_id', $schedule->id)
-            ->whereDate('training_date', Carbon::parse($date)->toDateString());
-        $member ? $q->where('member_id', $member->id) : $q->where('user_id', $user->id);
-        $q->delete();
+        [$member, $fout] = $this->attendanceTarget($request, $schedule->team_id);
+        if ($fout) {
+            return $fout;
+        }
 
-        return response()->json(['success' => true, 'message' => 'Je bent weer aangemeld voor deze training.']);
+        Absence::query()
+            ->where($this->attendanceKey([
+                'type'                 => Absence::TYPE_TRAINING,
+                'training_schedule_id' => $schedule->id,
+            ], $member, $request))
+            ->whereDate('training_date', Carbon::parse($date)->toDateString())
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->attendanceMessage($request, $member, 'weer aangemeld', 'deze training'),
+        ]);
     }
 }

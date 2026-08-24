@@ -327,6 +327,19 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle matchParticipant = ffai.StructHandle(
+    "MatchParticipant",
+    <String, ffai.DslType>{
+      "aantalAangemeld": ffai.string,
+      "aantalAfgemeld": ffai.string,
+      "magBeheren": ffai.string,
+      "memberId": ffai.string,
+      "naam": ffai.string,
+      "reden": ffai.string,
+      "status": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle newsItem = ffai.StructHandle(
     "NewsItem",
     <String, ffai.DslType>{
@@ -457,6 +470,8 @@ abstract final class Structs {
     <String, ffai.DslType>{
       "aantalAangemeld": ffai.string,
       "aantalAfgemeld": ffai.string,
+      "magBeheren": ffai.string,
+      "memberId": ffai.string,
       "naam": ffai.string,
       "reden": ffai.string,
       "status": ffai.string,
@@ -497,6 +512,7 @@ abstract final class Structs {
     loginData,
     loginResponse,
     matchGoal,
+    matchParticipant,
     newsItem,
     onboardingSlide,
     staffGroupItem,

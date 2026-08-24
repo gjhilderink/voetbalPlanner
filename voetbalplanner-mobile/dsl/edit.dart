@@ -1530,6 +1530,13 @@ void buildEditFlow(App app) {
     _addTrainingParticipantsEndpoint(project);
     _wireTrainingParticipantsLoad(project);
     _buildTrainingAttendanceSection(project);
+
+    // Dezelfde opkomstkaart op de wedstrijdpagina.
+    _ensureMatchParticipantStruct(project);
+    _ensureMatchParticipantsAppState(project);
+    _addMatchParticipantsEndpoint(project);
+    _wireMatchParticipantsLoad(project);
+    _buildMatchAttendanceSection(project);
   });
 }
 
@@ -21793,6 +21800,26 @@ void _addAfmeldEndpoints(FFProject project) {
       ['token', 'matchId', 'reason']);
   ensure('AanmeldenMatchApi', '/matches/[matchId]/aanmelden',
       ['token', 'matchId']);
+
+  // Dezelfde acties, maar namens een speler. Aparte endpoints en niet een
+  // optionele variabele op de bestaande: FlutterFlow zet een lege variabele
+  // gewoon in de URL, en `member_id=` zou de backend dan als "iemand anders"
+  // lezen. De backend controleert of je het elftal echt beheert.
+  //
+  // De reden staat vast in de URL. Een invulveld zou de trainer drie tikken per
+  // speler kosten op het moment dat hij juist bezig is, en deze tekst vertelt
+  // precies wat er gebeurd is.
+  ensure('AfmeldenTrainingCoach',
+      '/trainings/[scheduleId]/[date]/afmelden?reason=Afgemeld%20door%20de%20trainer&member_id=[memberId]',
+      ['token', 'scheduleId', 'date', 'memberId']);
+  ensure('AanmeldenTrainingCoach',
+      '/trainings/[scheduleId]/[date]/aanmelden?member_id=[memberId]',
+      ['token', 'scheduleId', 'date', 'memberId']);
+  ensure('AfmeldenMatchCoach',
+      '/matches/[matchId]/afmelden?reason=Afgemeld%20door%20de%20coach&member_id=[memberId]',
+      ['token', 'matchId', 'memberId']);
+  ensure('AanmeldenMatchCoach', '/matches/[matchId]/aanmelden?member_id=[memberId]',
+      ['token', 'matchId', 'memberId']);
 }
 
 // Native endpoints voor score-beheer (coach): doelpunten ophalen (struct-list),
@@ -29334,7 +29361,13 @@ void _ensureTrainingParticipantStruct(FFProject project) {
     name: 'TrainingParticipant',
     description:
         'Eén teamlid bij een training: naam, status (aangemeld/afgemeld) en de opgegeven reden.',
-    fields: const ['naam', 'status', 'reden', 'aantalAangemeld', 'aantalAfgemeld'],
+    // memberId + magBeheren: waarmee de trainer een speler zelf omzet. Leeg
+    // memberId = een afmelding van een account zonder lidnummer, die valt niet
+    // om te zetten.
+    fields: const [
+      'naam', 'status', 'reden', 'aantalAangemeld', 'aantalAfgemeld',
+      'memberId', 'magBeheren',
+    ],
   );
 }
 
@@ -29447,6 +29480,383 @@ void _wireTrainingParticipantsLoad(FFProject project) {
   );
 }
 
+// ── Wedstrijdopkomst: wie is er wel en wie niet ─────────────────────────────
+//
+// Dezelfde vraag als bij de training, maar de wedstrijdpagina had alleen een
+// lijstje afmeldingen: wie er nog wél stond zag je nergens. Deze kaart toont de
+// hele selectie in twee secties, en de coach zet er spelers mee om.
+
+void _ensureMatchParticipantStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'MatchParticipant',
+    description:
+        'Eén teamlid bij een wedstrijd: naam, status (aangemeld/afgemeld) en de opgegeven reden.',
+    fields: const [
+      'naam', 'status', 'reden', 'aantalAangemeld', 'aantalAfgemeld',
+      'memberId', 'magBeheren',
+    ],
+  );
+}
+
+void _ensureMatchParticipantsAppState(FFProject project) {
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'matchParticipants')) return;
+  final struct = findDataStruct(project, name: 'MatchParticipant');
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(
+        name: 'matchParticipants', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+void _addMatchParticipantsEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  const endpointName = 'GetMatchDeelnemers';
+  if (findApiGroup(project, name: groupName) == null) return;
+
+  if (findApiEndpoint(project, name: endpointName, groupName: groupName) == null) {
+    addEndpointToGroup(
+      project,
+      groupName: groupName,
+      name: endpointName,
+      url: '/matches/[matchId]/deelnemers',
+      method: FFApiEndpoint_CallType.GET,
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      variables: {
+        'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'matchId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      headers: ['Authorization: Bearer [token]'],
+      responseDataStructName: 'MatchParticipant',
+      responseDataStructIsList: true,
+    );
+    return;
+  }
+  updateApiEndpoint(
+    project,
+    name: endpointName,
+    groupName: groupName,
+    responseDataStructName: 'MatchParticipant',
+    responseDataStructIsList: true,
+  );
+}
+
+/// Haalt de selectie op bij het openen van de wedstrijd.
+void _wireMatchParticipantsLoad(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (authTokenId == null) return;
+  if (_findAppStateFieldId(project, 'matchParticipants') == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetMatchDeelnemers', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return;
+
+  bool hasCall(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasDatabase() &&
+        n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetMatchDeelnemers') {
+      return true;
+    }
+    return n.hasFollowUpAction() && hasCall(n.followUpAction);
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && hasCall(t.rootAction))) return;
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMatchDeelnemers',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromPageParam(matchIdParam.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      },
+      outputVariableName: 'matchDeelnemersLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('matchParticipants', ctx.responseVar),
+        ]),
+      ]),
+    ),
+  );
+}
+
+/// De opkomstkaart op de wedstrijdpagina: twee secties met daarachter, voor de
+/// coach, een knop om een speler om te zetten.
+void _buildMatchAttendanceSection(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final partId = _findAppStateFieldId(project, 'matchParticipants');
+  if (partId == null) return;
+
+  // Vers opbouwen elke push.
+  for (final n in findDescendants(wc.node, (x) => x.name == 'MatchAttendanceCard').toList()) {
+    removeByKey(wc.node, n.key);
+  }
+
+  // Aanhaken bij de kolom waar de afmeldknop in staat; dat is de vaste opbouw
+  // van de pagina, en die overleeft het opruimen van inline coach-secties.
+  final anker = findDescendants(wc.node, (n) => n.name == 'MatchAfmeldButton').firstOrNull;
+  if (anker == null) return;
+  final kolom = findDescendants(wc.node, (_) => true)
+      .where((n) => n.children.any((c) => identical(c, anker)))
+      .firstOrNull;
+  if (kolom == null) return;
+
+  final partVar = varFromAppState(partId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final tokenId = _findAppStateFieldId(project, 'authToken');
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+
+  FFNode sectie({
+    required String key,
+    required String title,
+    required String status,
+    required String iconName,
+    required UIColor color,
+    required String countField,
+    bool withReason = false,
+  }) {
+    final list = UI.listView(
+      name: '${key}List',
+      shrinkWrap: true,
+      spacing: 2,
+      dynamicSource: DynamicSource(variable: partVar, itemName: key),
+    );
+
+    final naam = UI.text('',
+        name: '${key}Naam',
+        style: UITextStyle.bodyMedium,
+        maxLines: 1,
+        textOverflow: UITextOverflow.ellipsis);
+    naam.props.text.textValue =
+        FFStringValue(variable: generatorVarField(list.key, 'naam'));
+
+    final rowChildren = <FFNode>[
+      UI.icon(iconName, size: 18, color: color),
+      UI.expanded(naam),
+    ];
+    if (withReason) {
+      final reden = UI.text('',
+          name: '${key}Reden',
+          style: UITextStyle.bodySmall,
+          color: UIColor.secondaryText,
+          maxLines: 1,
+          textOverflow: UITextOverflow.ellipsis);
+      reden.props.text.textValue =
+          FFStringValue(variable: generatorVarField(list.key, 'reden'));
+      rowChildren.add(reden);
+    }
+
+    final toggle = (tokenId == null || matchIdParam == null)
+        ? null
+        : _attendanceToggle(
+            project,
+            wc: wc,
+            listKey: list.key,
+            naamPrefix: key,
+            afmelden: status == 'aangemeld',
+            afmeldEndpoint: 'AfmeldenMatchCoach',
+            aanmeldEndpoint: 'AanmeldenMatchCoach',
+            herlaadEndpoint: 'GetMatchDeelnemers',
+            appStateVeld: 'matchParticipants',
+            basisVars: () => {
+              'token': varFromAppState(tokenId.deepCopy()),
+              'matchId': varFromPageParam(matchIdParam.deepCopy())
+                ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+            },
+          );
+    if (toggle != null) {
+      rowChildren.add(toggle);
+    }
+
+    final item = UI.container(
+      name: '${key}Item',
+      innerPadding: UIEdgeInsets.symmetric(vertical: 5),
+      child: UI.row(
+        name: '${key}Row',
+        spacing: 8,
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: rowChildren,
+      ),
+    );
+    setConditionalVisibility(
+      item,
+      variable: _equalsLiteral(generatorVarField(list.key, 'status'), status),
+    );
+    list.children.add(item);
+
+    final heading =
+        UI.text(title, name: '${key}Title', style: UITextStyle.titleSmall);
+    heading.props.text.textValue = interpolateVar([
+      '$title (',
+      _firstItemVar(partVar, countField),
+      ')',
+    ]);
+
+    return UI.column(
+      name: key,
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 6,
+      children: [
+        UI.row(
+          name: '${key}Head',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon(iconName, size: 20, color: color),
+            UI.expanded(heading),
+          ],
+        ),
+        list,
+      ],
+    );
+  }
+
+  final card = _dashCard(
+    name: 'MatchAttendanceCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12, bottom: 4),
+    child: UI.column(
+      name: 'MatchAttendanceCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 16,
+      children: [
+        sectie(
+          key: 'MatchAanwezig',
+          title: 'Aanwezig',
+          status: 'aangemeld',
+          iconName: 'check_circle',
+          color: UIColor.success,
+          countField: 'aantalAangemeld',
+        ),
+        sectie(
+          key: 'MatchAfwezig',
+          title: 'Afgemeld',
+          status: 'afgemeld',
+          iconName: 'cancel',
+          color: UIColor.error,
+          countField: 'aantalAfgemeld',
+          withReason: true,
+        ),
+      ],
+    ),
+  );
+
+  // Leeg = nog aan het laden of een team zonder leden; dan geen lege kaart met
+  // "Aanwezig (null)".
+  setConditionalVisibility(card, variable: _listNotEmptyVar(partVar));
+
+  final idx = kolom.children.indexWhere((c) => identical(c, anker));
+  kolom.children.insert(idx + 1, card);
+}
+
+/// Knopje achter een speler waarmee de trainer hem af- of aanmeldt.
+///
+/// Zichtbaar wanneer de backend zegt dat je het elftal beheert (magBeheren) én
+/// er een lidnummer bij de regel staat — een afmelding van een los account
+/// zonder lidnummer valt niet om te zetten.
+///
+/// De reden is vast. Een invulveld zou drie tikken per speler kosten op het
+/// moment dat de trainer juist bezig is, en "Afgemeld door de trainer" vertelt
+/// precies wat er gebeurd is.
+FFNode? _attendanceToggle(
+  FFProject project, {
+  required FFWidgetClass wc,
+  required String listKey,
+  required String naamPrefix,
+  required bool afmelden,
+  required String afmeldEndpoint,
+  required String aanmeldEndpoint,
+  required String herlaadEndpoint,
+  required String appStateVeld,
+  required Map<String, FFVariable> Function() basisVars,
+}) {
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (authTokenId == null) return null;
+
+  final endpointNaam = afmelden ? afmeldEndpoint : aanmeldEndpoint;
+  for (final naam in [endpointNaam, herlaadEndpoint]) {
+    if (findApiEndpoint(project, name: naam, groupName: 'VoetbalPlannerAPI') == null) {
+      return null;
+    }
+  }
+
+  final knop = UI.container(
+    name: '${naamPrefix}Toggle',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    borderRadius: 12,
+    color: UIColor.hex(0xFFEFF1F5),
+    child: UI.text(
+      afmelden ? 'Afmelden' : 'Aanmelden',
+      name: '${naamPrefix}ToggleLabel',
+      style: UITextStyle.labelSmall,
+      color: afmelden ? UIColor.error : UIColor.success,
+      maxLines: 1,
+    ),
+  );
+
+  // Na afloop de lijst opnieuw ophalen; anders blijft de speler in de verkeerde
+  // sectie staan tot je de pagina opnieuw opent.
+  final node = Actions.apiCallNode(
+    project,
+    endpointName: endpointNaam,
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      ...basisVars(),
+      'memberId': generatorVarField(listKey, 'memberId'),
+    },
+    outputVariableName: '${naamPrefix}ToggleCall',
+    nodeKey: knop.key,
+    onSuccess: (ctx) => Actions.apiCallNode(
+      project,
+      endpointName: herlaadEndpoint,
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: basisVars(),
+      outputVariableName: '${naamPrefix}ToggleReload',
+      nodeKey: knop.key,
+      onSuccess: (c2) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable(appStateVeld, c2.responseVar),
+        ]),
+      ]),
+    ),
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Kon dit niet aanpassen.'),
+    ]),
+  );
+  Actions.onTapChain(knop, node);
+
+  setConditionalVisibility(
+    knop,
+    variable: andConditionsVar([
+      _equalsLiteral(generatorVarField(listKey, 'magBeheren'), 'true'),
+      _equalsLiteral(generatorVarField(listKey, 'memberId'), '', negate: true),
+    ]).variable,
+  );
+  return knop;
+}
+
 /// Twee lijsten op de trainingdetailpagina: wie er is en wie niet.
 /// Vervangt het oude losse afmeldingenlijstje.
 void _buildTrainingAttendanceSection(FFProject project) {
@@ -29521,6 +29931,40 @@ void _buildTrainingAttendanceSection(FFProject project) {
       reden.props.text.textValue =
           FFStringValue(variable: generatorVarField(list.key, 'reden'));
       rowChildren.add(reden);
+    }
+
+    // De trainer zet een speler zelf om. Bewust zonder invulveld voor de reden:
+    // dat kost tikken langs de lijn, en "Afgemeld door de trainer" zegt genoeg.
+    final toggle = _attendanceToggle(
+      project,
+      wc: wc,
+      listKey: list.key,
+      naamPrefix: key,
+      afmelden: status == 'aangemeld',
+      afmeldEndpoint: 'AfmeldenTrainingCoach',
+      aanmeldEndpoint: 'AanmeldenTrainingCoach',
+      herlaadEndpoint: 'GetTrainingParticipants',
+      appStateVeld: 'trainingParticipants',
+      basisVars: () {
+        FFIdentifier? param(String naam) => wc.params.values
+            .cast<FFParameter?>()
+            .firstWhere((p) => p?.identifier.name == naam, orElse: () => null)
+            ?.identifier;
+        final schedule = param('scheduleId');
+        final datum = param('date');
+        final tokenId = _findAppStateFieldId(project, 'authToken');
+        if (schedule == null || datum == null || tokenId == null) return {};
+        return {
+          'token': varFromAppState(tokenId.deepCopy()),
+          'scheduleId': varFromPageParam(schedule.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+          'date': varFromPageParam(datum.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        };
+      },
+    );
+    if (toggle != null) {
+      rowChildren.add(toggle);
     }
 
     final item = UI.container(

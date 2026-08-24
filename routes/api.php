@@ -135,6 +135,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/matches/{match}/afmeldingen', [MatchController::class, 'afmeldingen']);
         // Notitie bij een wedstrijd (coach/leider). POST i.p.v. PATCH, zie afmelden.
         Route::post('/matches/{match}/notitie', [MatchController::class, 'setNote']);
+        // Hele selectie met af-/aanmeldstatus; de coach zet ze hiermee om.
+        Route::get('/matches/{match}/deelnemers', [MatchController::class, 'deelnemers']);
         Route::post('/matches/{match}/afmelden', [MatchController::class, 'afmelden']);
         Route::post('/matches/{match}/aanmelden', [MatchController::class, 'aanmelden']);
 
