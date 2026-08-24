@@ -477,6 +477,98 @@ class ReleaseNotesSeeder extends Seeder
                 'description' => 'In het wedstrijdrooster liep de periodefilter vast zodra je een periode koos. Dat is '
                     . 'verholpen; ook het rijschema-rapport is nagelopen.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Bardienst voor twee personen tegelijk',
+                'description' => 'Ouders komen vaak samen en melden zich aan via het kind. Bij het aanmelden voor een '
+                    . 'bardienst kies je nu of je één of twee plekken vult. In het overzicht staat er dan "(2 personen)" '
+                    . 'achter je naam en telt de dienst ook echt voor twee.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Zien bij wélk elftal een bericht staat',
+                'description' => 'Hoor je bij meerdere teams, dan zag je wel dát er een ongelezen bericht was, maar niet '
+                    . 'waar. Op de chatpagina staat het aantal ongelezen berichten nu per elftal, en je schakelt met één '
+                    . 'tik naar dat team.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Meldingen voor al je elftallen',
+                'description' => 'Pushberichten kwamen alleen binnen voor het elftal dat op dat moment actief stond. Je '
+                    . 'toestel luistert nu mee met álle teams waar je bij hoort, dus je mist geen bericht meer van het '
+                    . 'andere elftal van je kind.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Rol-tabs horen bij het elftal',
+                'description' => 'Op het dashboard zag je alle functies die je ergens in de club hebt. Ben je coach van '
+                    . 'het ene en speler in het andere elftal, dan kreeg je overal een coach-tab met een stafblok dat bij '
+                    . 'een ander team hoorde. De tabs volgen nu het elftal dat je hebt gekozen: speel je daar alleen, dan '
+                    . 'staat er alleen "Speler".',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Aanmelden als ouder op een nieuw toestel',
+                'description' => 'Op een net geïnstalleerde app werkte het aanmelden als ouder niet: je bleef op het '
+                    . 'inlogscherm staan, en pas nadat er ooit iemand op dat toestel had ingelogd lukte het wél. Bij de '
+                    . 'eerste inlog bleef het scherm daarna soms grijs, tot je de app afsloot en opnieuw opende. Allebei '
+                    . 'opgelost.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Toegangsverzoek van een ouder op het dashboard',
+                'description' => 'Vraagt een ouder toegang tot jouw gegevens, dan stond dat verzoek alleen op je '
+                    . 'profielpagina. Het staat nu bovenaan het dashboard, waar je het meteen ziet. Na je antwoord '
+                    . 'verdwijnt het blok en krijg je een bevestiging.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Bericht zodra je kind akkoord geeft',
+                'description' => 'Als ouder krijg je nu een melding op je toestel op het moment dat je kind je verzoek '
+                    . 'goedkeurt. Voorheen moest je zelf blijven kijken of er al iets veranderd was.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Uitleg zolang je nog op akkoord wacht',
+                'description' => 'Een ouder die net een account had aangemaakt zag een leeg dashboard: geen team, geen '
+                    . 'wedstrijden, geen trainingen. Dat klopte — zonder akkoord van het kind hoort er niets te staan — '
+                    . 'maar het zei niet waarom. Er staat nu uitleg met de naam van het kind op wie je wacht.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Ouderaccounts herkenbaar in het clubbeheer',
+                'description' => 'Ouderaccounts kwamen als gewone gebruiker in de lijst te staan. Ze krijgen nu de rol '
+                    . '"Ouder/verzorger", en een kolom laat zien bij welk kind ze horen.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Excel-import werkt weer',
+                'description' => 'Het importeren van leden, wedstrijden en bardiensten liep vast op "er is een onverwachte '
+                    . 'fout opgetreden": het geüploade bestand werd op de verkeerde plek gezocht. Daarnaast werden '
+                    . 'geboortedatums uit een als datum opgemaakte Excel-cel niet herkend, waardoor élke rij werd '
+                    . 'afgekeurd. Beide zijn verholpen.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Ledenimport legt de relatiecode vast',
+                'description' => 'De relatiecode werd bij het importeren alleen gelezen, nooit opgeslagen. Een nieuw lid '
+                    . 'kwam daardoor zonder code binnen, en een tweede import van hetzelfde bestand zette iedereen er nog '
+                    . 'een keer bij. De code wordt nu vastgelegd bij leden die er nog geen hebben.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Verwijderde leden terugzetten',
+                'description' => 'In de ledenlijst staat een filter "Verwijderd" en een knop "Herstellen", zodat je kunt '
+                    . 'zien wie er weg is en iemand kunt terughalen. Verwijst een importbestand naar een verwijderd lid, '
+                    . 'dan wordt dat lid teruggezet en staat dat er met naam en toenaam bij in de melding.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Rijschema in Excel indelen',
+                'description' => 'Het rijschema kon alleen als PDF naar buiten. Je kunt het nu exporteren naar Excel, de '
+                    . 'rijders voor een heel seizoen in één keer invullen en het bestand terugzetten. De export bevat óók '
+                    . 'de uitwedstrijden waar nog niemand rijdt — dat is meteen je overzicht van wat er nog open staat.',
+            ],
         ];
 
         $sort = 0;
