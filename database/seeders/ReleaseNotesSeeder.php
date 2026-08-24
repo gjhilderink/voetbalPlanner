@@ -569,6 +569,15 @@ class ReleaseNotesSeeder extends Seeder
                     . 'rijders voor een heel seizoen in één keer invullen en het bestand terugzetten. De export bevat óók '
                     . 'de uitwedstrijden waar nog niemand rijdt — dat is meteen je overzicht van wat er nog open staat.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Verslag verwijderen',
+                'description' => 'Een verslag dat per ongeluk gestart is of niet klopt, kon je nergens meer kwijt: '
+                    . '"ongedaan maken" haalt alleen de laatste gebeurtenis weg, en na het eindsignaal ging dat ook niet '
+                    . 'meer. Op het tabblad "Verslag" staat nu een knop om het hele verslag te verwijderen, met een '
+                    . 'bevestiging die precies vertelt wat er weggaat. Doelpunten die tijdens dat verslag zijn vastgelegd '
+                    . 'gaan mee; de uitslag van de wedstrijd blijft staan. Alleen de coach of leider ziet de knop.',
+            ],
         ];
 
         $sort = 0;
