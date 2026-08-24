@@ -20,27 +20,45 @@ class UserResource extends JsonResource
             ?? $this->member?->teams->first()
             ?? $accessibleTeams->first();
 
-        // Rol/functie van de gebruiker per team (member_team.role of user_team.role).
-        // Voor de eigen teams; kinderteams (guardian) hebben geen eigen rol.
-        $roleByTeam = [];
-        if ($this->member) {
-            foreach ($this->member->teams as $t) {
-                $r = $t->pivot->role ?? null;
-                if ($r) {
-                    $roleByTeam[$t->id] = $r;
-                }
+        // Functies van de gebruiker per team (member_team.role én user_team.role).
+        // Álle functies, niet één: iemand kan in hetzelfde elftal speler zijn
+        // (member_team) én coach (user_team). De app leidt hier zijn rol-tabs uit
+        // af, en met één label zou zo'n spelende coach zijn stafblok verliezen in
+        // juist het team waar hij traint.
+        //
+        // resolveMember() i.p.v. de member-relatie: leden die alleen via e-mail
+        // aan hun account hangen kregen anders bij elk team een lege functie.
+        // Kinderteams (guardian) hebben terecht geen eigen functie.
+        $rolesByTeam = [];
+        $addRole = function (string $teamId, ?string $role) use (&$rolesByTeam): void {
+            if (! $role) {
+                return;
+            }
+            $rolesByTeam[$teamId] ??= [];
+            if (! in_array($role, $rolesByTeam[$teamId], true)) {
+                $rolesByTeam[$teamId][] = $role;
+            }
+        };
+        if ($member = $this->resolveMember()) {
+            foreach ($member->teams as $t) {
+                $addRole($t->id, $t->pivot->role ?? null);
             }
         }
         foreach ($this->managedTeams as $t) {
-            $r = $t->pivot->role ?? null;
-            if ($r && ! isset($roleByTeam[$t->id])) {
-                $roleByTeam[$t->id] = $r;
-            }
+            $addRole($t->id, $t->pivot->role ?? null);
         }
+
         $roleLabels = \App\Models\Member::TEAM_FUNCTIONS;
-        $roleLabelFor = fn ($teamId) => isset($roleByTeam[$teamId])
-            ? ($roleLabels[$roleByTeam[$teamId]] ?? $roleByTeam[$teamId])
+        $labelOf = fn (string $role) => $roleLabels[$role] ?? $role;
+        // 'role' blijft één label (member_team vóór user_team, zoals altijd) voor
+        // bestaande app-versies; 'roles' draagt de volledige lijst.
+        $roleLabelFor = fn ($teamId) => isset($rolesByTeam[$teamId][0])
+            ? $labelOf($rolesByTeam[$teamId][0])
             : '';
+        $roleLabelsFor = fn ($teamId) => implode(
+            ',',
+            array_map($labelOf, $rolesByTeam[$teamId] ?? [])
+        );
 
         return [
             'id'            => $this->id,
@@ -68,9 +86,10 @@ class UserResource extends JsonResource
             // Alle toegankelijke teams voor de teamkeuze in de app (multi-team,
             // bv. ouder met kinderen in meerdere teams).
             'teams' => $accessibleTeams->map(fn ($t) => [
-                'id'   => $t->id,
-                'name' => $t->name,
-                'role' => $roleLabelFor($t->id),
+                'id'    => $t->id,
+                'name'  => $t->name,
+                'role'  => $roleLabelFor($t->id),
+                'roles' => $roleLabelsFor($t->id),
             ])->values(),
             'member_id'         => $this->member?->id ?? '',
             'relatiecode'       => $this->member?->external_id ?? '',

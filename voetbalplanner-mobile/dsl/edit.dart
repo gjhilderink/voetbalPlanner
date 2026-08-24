@@ -1373,6 +1373,10 @@ void buildEditFlow(App app) {
     _wireTrainingCardNavigation(project);
     // Tap on a dashboard card → open the corresponding detail page.
     _wireDashboardCardNavigation(project);
+    // Rol-state + SyncUserRoles moeten bestaan vóór de team-switcher: die hangt
+    // de actie achter het omzetten van currentTeamId.
+    _ensureRoleAppStateFields(project);
+    _ensureSyncUserRolesAction(project);
     // Team-switcher bovenaan (alleen bij >1 team); switcht wedstrijden + trainingen.
     _addDashboardTeamSwitcher(project);
     _persistTeamSwitcherState(project);
@@ -8226,6 +8230,10 @@ void _addSwapStructFields(FFProject project) {
       // Ongelezen berichten in de teamchat van dít team. Zonder dit veld zag je
       // wel dát er iets ongelezen was, maar niet bij welk elftal.
       ('unread', FFBaseDataType.String),
+      // Álle functies binnen dít elftal, komma-gescheiden. 'role' draagt er maar
+      // één en laat een spelende coach als speler zien; die zou dan zijn
+      // stafblok verliezen in juist het team waar hij traint.
+      ('roles', FFBaseDataType.String),
     ]),
   ] as List<(String, List<(String, FFBaseDataType)>)>) {
     final (structName, fieldDefs) = entry;
@@ -15889,6 +15897,22 @@ void _addDashboardTeamSwitcher(FFProject project) {
     ),
   );
 
+  // Rollen horen bij het elftal: meteen na het omzetten van currentTeamId
+  // opnieuw afleiden, nog vóór de API-calls. Anders zou je de rol-tabs (en het
+  // stafblok) van het vórige team nog twee netwerkrondes lang zien staan.
+  final syncRoles = findCustomAction(project, name: 'SyncUserRoles');
+  if (syncRoles != null) {
+    setStateNode.followUpAction = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: syncRoles.identifier.deepCopy(),
+        ),
+      ),
+    );
+  }
+
   final matchesNode = Actions.apiCallNode(
     project,
     endpointName: 'GetDashboardMatches',
@@ -15912,7 +15936,9 @@ void _addDashboardTeamSwitcher(FFProject project) {
         ]),
     ]),
   );
-  setStateNode.followUpAction = matchesNode;
+  var chainTail = setStateNode;
+  while (chainTail.hasFollowUpAction()) chainTail = chainTail.followUpAction;
+  chainTail.followUpAction = matchesNode;
 
   // Trainingen herladen (indien endpoint + state aanwezig).
   final hasTrainings =
@@ -20320,6 +20346,22 @@ void _wireChatsPageTeamchatPicker(FFProject project) {
       ),
     ),
   );
+  // Ook deze tegel zet currentTeamId om. Zonder de rol-sync erachter zou het
+  // dashboard na een teamchat nog de rol-tabs van het vórige elftal tonen.
+  final syncRolesChat = findCustomAction(project, name: 'SyncUserRoles');
+  if (syncRolesChat != null) {
+    final navigate = tap.followUpAction.deepCopy();
+    tap.followUpAction = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: syncRolesChat.identifier.deepCopy(),
+        ),
+      ),
+      followUpAction: navigate,
+    );
+  }
   Actions.onTapChain(tile, tap);
 
   teamList.children.add(tile);
@@ -25944,10 +25986,14 @@ import 'package:flutter/material.dart';
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
-/// Zet AppState.myRoles (alle functies van deze gebruiker) en AppState.
-/// activeRole (de functie binnen het nu gekozen team). De backend levert per
+/// Zet AppState.myRoles (de functies binnen het nu gekozen elftal) en
+/// AppState.activeRole (de tab die daarvan actief is). De backend levert per
 /// team een Nederlands functielabel; hier wordt dat teruggebracht tot de korte
 /// tab-namen uit het dashboardontwerp.
+///
+/// Rollen horen bij een elftal, niet bij de persoon. Wie coach is van de JO13
+/// en speler in de JO17, hoort in de JO17 alleen een Speler-tab te zien — een
+/// coach-tab zou daar een stafblok opentrekken dat bij het andere team hoort.
 Future<String> syncUserRoles() async {
   String shortLabel(String raw) {
     final r = raw.trim().toLowerCase();
@@ -25959,11 +26005,32 @@ Future<String> syncUserRoles() async {
     return raw.trim();
   }
 
+  // Eén team kan meerdere functies dragen (speler én coach van hetzelfde
+  // elftal). Die staan komma-gescheiden in 'roles'; oudere backends sturen dat
+  // veld nog niet, dan valt het terug op het enkele 'role'.
+  void collect(TeamOptionStruct team, List<String> into) {
+    final raw = team.roles;
+    final parts = raw.trim().isEmpty ? <String>[team.role] : raw.split(',');
+    for (final p in parts) {
+      if (p.trim().isEmpty && parts.length > 1) continue;
+      final label = shortLabel(p);
+      if (!into.contains(label)) into.add(label);
+    }
+  }
+
   final teams = FFAppState().availableTeams;
+  final currentId = FFAppState().currentTeamId;
+
   final roles = <String>[];
   for (final t in teams) {
-    final label = shortLabel(t.role);
-    if (!roles.contains(label)) roles.add(label);
+    if (t.id == currentId) collect(t, roles);
+  }
+  // Nog geen team gekozen, of het gekozen team bestaat niet meer: val terug op
+  // alles wat de gebruiker heeft, anders staat het dashboard zonder tabs.
+  if (roles.isEmpty) {
+    for (final t in teams) {
+      collect(t, roles);
+    }
   }
   if (roles.isEmpty) roles.add('Speler');
 
@@ -25975,22 +26042,11 @@ Future<String> syncUserRoles() async {
     return (ia < 0 ? order.length : ia).compareTo(ib < 0 ? order.length : ib);
   });
 
-  final currentId = FFAppState().currentTeamId;
-  var active = '';
-  for (final t in teams) {
-    if (t.id == currentId) {
-      active = shortLabel(t.role);
-      break;
-    }
-  }
-  // Bewaar de eerder gekozen rol als die nog geldig is; anders de rol van het
-  // huidige team, anders de eerste rol.
+  // Een eerder gekozen tab blijft staan zolang die in dít team bestaat; wissel
+  // je naar een elftal waar je alleen speelt, dan valt hij terug op Speler.
   final previous = FFAppState().activeRole;
-  if (previous.isNotEmpty && roles.contains(previous)) {
-    active = previous;
-  } else if (active.isEmpty || !roles.contains(active)) {
-    active = roles.first;
-  }
+  final active =
+      (previous.isNotEmpty && roles.contains(previous)) ? previous : roles.first;
 
   FFAppState().update(() {
     FFAppState().myRoles = roles;
