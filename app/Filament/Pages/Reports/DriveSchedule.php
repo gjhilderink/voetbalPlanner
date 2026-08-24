@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages\Reports;
 
+use App\Exports\DriveScheduleExport;
+use App\Filament\Support\ImportNotifier;
+use App\Imports\DriveScheduleImport;
 use App\Models\FootballMatch;
 use App\Models\Team;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -18,6 +22,9 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DriveSchedule extends Page implements HasTable
 {
@@ -36,9 +43,89 @@ class DriveSchedule extends Page implements HasTable
         return auth()->check();
     }
 
+    /** Elftallen waar deze gebruiker bij mag; null = geen beperking (beheerder). */
+    private function allowedTeamIds(): ?array
+    {
+        $user = auth()->user();
+
+        return $user?->isAdmin() ? null : ($user?->managedTeamIds()->all() ?? []);
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('exportExcel')
+                ->label('Excel exporteren')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('gray')
+                ->action(function (): BinaryFileResponse {
+                    $filters = $this->tableFilters;
+                    $teamId  = $filters['team_id']['value'] ?? null;
+
+                    return Excel::download(
+                        new DriveScheduleExport(
+                            clubId:         filament()->getTenant()?->id,
+                            teamId:         $teamId,
+                            from:           $filters['period']['from']  ?? null,
+                            until:          $filters['period']['until'] ?? null,
+                            allowedTeamIds: $this->allowedTeamIds(),
+                        ),
+                        'rijschema' . DriveScheduleExport::teamSlug($teamId)
+                            . '-' . now()->format('Y-m-d') . '.xlsx',
+                    );
+                }),
+
+            Action::make('import')
+                ->label('Importeren')
+                ->icon('heroicon-o-arrow-up-tray')
+                ->color('gray')
+                ->form([
+                    Forms\Components\FileUpload::make('file')
+                        ->label('Excel bestand (.xlsx)')
+                        ->acceptedFileTypes([
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'application/vnd.ms-excel',
+                        ])
+                        ->disk('local')
+                        ->directory('imports')
+                        ->required(),
+                    Forms\Components\Placeholder::make('format_hint')
+                        ->label('Zo werkt het')
+                        ->content('Exporteer eerst, vul de rijders in Excel in en zet het bestand terug.')
+                        ->helperText(
+                            'De export bevat álle uitwedstrijden in je huidige filter, ook die zonder rijder — daar vul je ze dus in. '
+                            . 'Laat de ID-kolom staan: daarop wordt de wedstrijd teruggevonden. '
+                            . 'Meerdere rijders scheid je met een puntkomma ("Jan Jansen; Piet Pietersen"), en de naam moet exact overeenkomen met het lid. '
+                            . 'Een lege Rijders-cel haalt de rijders van die wedstrijd weg; een lege Verzameltijd laat de huidige tijd staan. '
+                            . 'Datum, elftal en tegenstander staan er alleen ter herkenning in en worden nooit gewijzigd.'
+                        ),
+                ])
+                ->action(function (array $data): void {
+                    $clubId = filament()->getTenant()?->id;
+                    if (! $clubId) {
+                        Notification::make()->danger()->title('Geen club geselecteerd')->send();
+
+                        return;
+                    }
+
+                    // FileUpload levert het pad al mét de map erin; zie ListMembers.
+                    $path   = Storage::disk('local')->path($data['file']);
+                    $import = new DriveScheduleImport($clubId, $this->allowedTeamIds());
+
+                    Excel::import($import, $path);
+
+                    ImportNotifier::report(
+                        $import->imported,
+                        $import->created,
+                        $import->skipped,
+                        $import->errors,
+                        'wedstrijden',
+                        $import->notices,
+                    );
+
+                    Storage::disk('local')->delete($data['file']);
+                }),
+
             Action::make('exportPdf')
                 ->label('PDF exporteren')
                 ->icon('heroicon-o-document-arrow-down')
