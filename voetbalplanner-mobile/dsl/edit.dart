@@ -7438,6 +7438,21 @@ Future<String> verifyMagicLink(String? token) async {
           .timeout(const Duration(seconds: 3), onTimeout: () => null);
     } catch (_) {}
 
+    // Wachten tot FlutterFlow's eigen router-notifier bijgewerkt is.
+    //
+    // Zolang die op 'loading' staat rendert élke route de splash-container in
+    // plaats van de pagina — een leeg grijs scherm. Navigeren we meteen na het
+    // aanmelden bij Firebase, dan is de notifier nog niet bij, en op een vers
+    // toestel blijft dat scherm staan. Na het herstarten van de app was alles
+    // wél goed, want dan is de notifier al bij bij het opstarten.
+    //
+    // Maximaal twee seconden; daarna gewoon doorgaan. Blijven wachten zou het
+    // grijze scherm alleen maar langer laten staan.
+    for (var i = 0; i < 20; i++) {
+      if (!AppStateNotifier.instance.loading) break;
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
     return sanctumToken;
   } catch (_) {
     return '';
