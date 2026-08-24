@@ -1501,6 +1501,9 @@ void buildEditFlow(App app) {
     // Toegangsverzoeken van ouders ook op het dashboard, niet alleen op profiel.
     _ensurePendingGuardianAppState(project);
     _wireDashboardGuardianRequests(project);
+    // Uitleg voor een ouder die nog op akkoord van het kind wacht.
+    _ensureMyGuardianRequestsAppState(project);
+    _wireDashboardMyGuardianRequests(project);
     _wireLiveMatchPage(project);
     _addLiveMatchButton(project);
     // Ná _addWedstrijdScoreSection, die de lijst opbouwt.
@@ -26241,6 +26244,9 @@ void _rebuildDashboardBody(FFProject project) {
     _dashLiveCard(project, wc),
     // Een openstaand toegangsverzoek vraagt om actie, dus hoog.
     _dashGuardianCard(project, wc),
+    // En voor de ouder die zelf nog op akkoord wacht: uitleg in plaats van
+    // een leeg scherm.
+    _dashAwaitingApprovalCard(project, wc),
     _dashNextMatchCard(project, wc),
     _dashInvitationsCard(project, wc),
     _dashQuickRow(project, wc),
@@ -32282,4 +32288,171 @@ FFActionNode _guardianRespondFollowUp(
     ]),
   );
   return node;
+}
+
+// ── Ouder wacht nog op akkoord van het kind ─────────────────────────────────
+//
+// Een ouder die zich net heeft aangemeld ziet niets: geen team, geen
+// wedstrijden, geen trainingen. Dat is terecht — zonder akkoord van het kind
+// hoort er ook niets te staan — maar een leeg scherm zegt niet waaróm. Deze
+// kaart legt het uit en laat zien op wie er gewacht wordt.
+
+void _ensureMyGuardianRequestsAppState(FFProject project) {
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'myGuardianRequests')) return;
+  final struct = findDataStruct(project, name: 'GuardianLinkSummary');
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(
+        name: 'myGuardianRequests', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+/// Haalt de eigen verzoeken op bij het laden van het dashboard.
+void _wireDashboardMyGuardianRequests(FFProject project) {
+  final wc = findPage(project, name: 'DashboardPage');
+  if (wc == null) return;
+  if (_findAppStateFieldId(project, 'myGuardianRequests') == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetMyGuardianRequests', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  bool hasCall(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasDatabase() &&
+        n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name ==
+            'GetMyGuardianRequests') {
+      return true;
+    }
+    return n.hasFollowUpAction() && hasCall(n.followUpAction);
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && hasCall(t.rootAction))) return;
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMyGuardianRequests',
+      groupName: 'VoetbalPlannerAPI',
+      outputVariableName: 'dashMyGuardianRequests',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('myGuardianRequests', ctx.responseVar),
+        ]),
+      ]),
+    ),
+  );
+}
+
+/// Uitlegkaart voor een ouder die nog op akkoord wacht.
+FFNode? _dashAwaitingApprovalCard(FFProject project, FFWidgetClass wc) {
+  final requestsId = _findAppStateFieldId(project, 'myGuardianRequests');
+  final teamsId = _findAppStateFieldId(project, 'availableTeams');
+  if (requestsId == null || teamsId == null) return null;
+
+  final scaffoldKey = wc.node.key;
+  final requestsVar = varFromAppState(requestsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  final teamsVar = varFromAppState(teamsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final list = UI.listView(
+    name: 'DashAwaitingList',
+    shrinkWrap: true,
+    spacing: 6,
+    dynamicSource: DynamicSource(variable: requestsVar, itemName: 'wachtend'),
+  );
+
+  final naam = UI.text('',
+      name: 'DashAwaitingChild',
+      style: UITextStyle.bodyMedium,
+      fontWeight: UIFontWeight.w600,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  naam.props.text.textValue =
+      FFStringValue(variable: generatorVarField(list.key, 'childName'));
+
+  final status = UI.text('',
+      name: 'DashAwaitingStatus',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  status.props.text.textValue =
+      FFStringValue(variable: generatorVarField(list.key, 'statusLabel'));
+
+  final item = UI.container(
+    name: 'DashAwaitingItem',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 6),
+    child: UI.row(
+      name: 'DashAwaitingRow',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('hourglass_empty', size: 18, color: UIColor.warning),
+        UI.expanded(UI.column(
+          name: 'DashAwaitingInfo',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          children: [naam, status],
+        )),
+      ],
+    ),
+  );
+  // Alleen de verzoeken die nog niet beantwoord zijn; goedgekeurde en
+  // geweigerde staan er ook in, maar daar wacht niemand meer op.
+  setConditionalVisibility(
+    item,
+    variable: _equalsLiteral(generatorVarField(list.key, 'status'), 'pending'),
+  );
+  list.children.add(item);
+
+  final card = _dashCard(
+    name: 'DashAwaitingCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+    child: UI.column(
+      name: 'DashAwaitingCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: [
+        UI.row(
+          name: 'DashAwaitingHead',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('lock_clock', size: 20, color: UIColor.warning),
+            UI.expanded(UI.text('Nog even wachten',
+                name: 'DashAwaitingTitle', style: UITextStyle.titleSmall)),
+          ],
+        ),
+        UI.text(
+            'Je ziet hier pas wedstrijden en trainingen zodra je kind je '
+            'verzoek heeft goedgekeurd in de app. Vraag hem of haar om het '
+            'dashboard te openen — het verzoek staat daar bovenaan.',
+            name: 'DashAwaitingText',
+            style: UITextStyle.bodySmall,
+            color: UIColor.secondaryText),
+        list,
+      ],
+    ),
+  );
+
+  // Alleen tonen wanneer er nog geen enkel team is: heb je wél toegang, dan is
+  // er niets uit te leggen. Een openstaand verzoek voor een tweede kind mag de
+  // kaart niet terugbrengen bij iemand die al meekijkt.
+  setConditionalVisibility(
+    card,
+    variable: andConditionsVar([
+      _listEmptyVar(teamsVar),
+      _listNotEmptyVar(requestsVar),
+    ]).variable,
+  );
+  return card;
 }
