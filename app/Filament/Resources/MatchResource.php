@@ -158,6 +158,30 @@ class MatchResource extends Resource
                     ->rows(3)
                     ->columnSpanFull(),
             ])->columns(2),
+
+            // Het live verslag uit de app, alleen om te lezen: vastleggen en
+            // verwijderen gebeurt daar. Staat er niets, dan ook geen lege sectie
+            // — bij de meeste wedstrijden is er nooit een verslag bijgehouden.
+            Section::make('Verslag')
+                ->description('Het live verslag zoals de coach het in de app heeft vastgelegd.')
+                ->icon('heroicon-o-list-bullet')
+                ->collapsible()
+                ->visible(fn (?FootballMatch $record): bool => $record?->events()->exists() ?? false)
+                ->schema([
+                    Forms\Components\Placeholder::make('verslag')
+                        ->hiddenLabel()
+                        ->content(fn (FootballMatch $record) => view('filament.matches.report', [
+                            'match' => $record,
+                            // match meeladen: label() leest de tegenstander
+                            // daaruit, en zonder dit doet elke regel een eigen
+                            // query.
+                            'events' => $record->events()
+                                ->with(['member', 'relatedMember', 'match'])
+                                ->orderByDesc('created_at')
+                                ->get(),
+                        ]))
+                        ->columnSpanFull(),
+                ]),
         ]);
     }
 
