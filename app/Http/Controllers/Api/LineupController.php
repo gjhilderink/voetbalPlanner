@@ -9,6 +9,7 @@ use App\Http\Resources\LineupPlayerResource;
 use App\Models\Absence;
 use App\Models\Lineup;
 use App\Models\LineupPlayer;
+use App\Models\LineupSubstitution;
 use App\Models\FootballMatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,7 +44,9 @@ class LineupController extends Controller
     public function board(Request $request, FootballMatch $match): JsonResponse
     {
         $magBeheren = $request->user()?->canManageLineup($match->team_id) ?? false;
-        $lineup     = $match->lineup()->with('players.member')->first();
+        $lineup     = $match->lineup()
+            ->with(['players.member', 'substitutions.memberOut', 'substitutions.memberIn'])
+            ->first();
         $vrijgegeven = $lineup?->isPublished() ?? false;
 
         if (! $magBeheren && ! $vrijgegeven) {
@@ -53,9 +56,11 @@ class LineupController extends Controller
                 'formation'     => '',
                 'playersOnField' => '',
                 'matchFormat'   => '',
+                'blocks'        => '',
                 'veld'          => [],
                 'bank'          => [],
                 'selectie'      => [],
+                'wissels'       => [],
                 'melding'       => 'De opstelling is nog niet bekend.',
             ]);
         }
@@ -91,11 +96,20 @@ class LineupController extends Controller
             'formation'      => (string) ($lineup?->formation ?? ''),
             'playersOnField' => (string) ($lineup?->players_on_field ?? 11),
             'matchFormat'    => (string) ($lineup?->match_format ?? ''),
+            'blocks'         => (string) ($lineup?->substitution_blocks ?? 1),
             'veld'           => $spelers->where('is_substitute', false)
                 ->sortBy('sort_order')->values()->map($rij)->all(),
             'bank'           => $spelers->where('is_substitute', true)
                 ->sortBy('sort_order')->values()->map($rij)->all(),
             'selectie'       => $this->selectie($match, $afgemeld),
+            'wissels'        => ($lineup?->substitutions ?? collect())
+                ->map(fn (LineupSubstitution $s) => [
+                    'block'   => (string) $s->block,
+                    'outId'   => (string) ($s->member_out_id ?? ''),
+                    'outNaam' => $s->memberOut?->name ?? '',
+                    'inId'    => (string) ($s->member_in_id ?? ''),
+                    'inNaam'  => $s->memberIn?->name ?? '',
+                ])->values()->all(),
             'melding'        => '',
         ]);
     }
@@ -153,6 +167,11 @@ class LineupController extends Controller
             'players.*.is_substitute' => 'nullable|boolean',
             'players.*.slot_x'        => 'nullable|numeric|between:0,1',
             'players.*.slot_y'        => 'nullable|numeric|between:0,1',
+            'substitution_blocks'     => 'nullable|integer|min:0|max:6',
+            'substitutions'           => 'nullable|array',
+            'substitutions.*.block'         => 'required|integer|min:1|max:6',
+            'substitutions.*.member_out_id' => 'nullable|uuid|exists:members,id',
+            'substitutions.*.member_in_id'  => 'nullable|uuid|exists:members,id',
         ]);
 
         $teamLeden = $match->team?->members()->pluck('members.id')->all() ?? [];
@@ -161,9 +180,10 @@ class LineupController extends Controller
             $lineup = Lineup::updateOrCreate(
                 ['match_id' => $match->id],
                 [
-                    'formation'        => $validated['formation'] ?? null,
-                    'players_on_field' => $validated['players_on_field'] ?? 11,
-                    'match_format'     => $validated['match_format'] ?? null,
+                    'formation'           => $validated['formation'] ?? null,
+                    'players_on_field'    => $validated['players_on_field'] ?? 11,
+                    'match_format'        => $validated['match_format'] ?? null,
+                    'substitution_blocks' => $validated['substitution_blocks'] ?? 1,
                 ],
             );
 
@@ -188,6 +208,33 @@ class LineupController extends Controller
                     'slot_x'        => $speler['slot_x'] ?? null,
                     'slot_y'        => $speler['slot_y'] ?? null,
                     'sort_order'    => $volgorde++,
+                ]);
+            }
+
+            // Het wisselschema gaat mee in dezelfde opslag: het hoort bij deze
+            // opstelling, en apart bewaren zou de twee uit elkaar kunnen laten
+            // lopen. Ook hier eerst leeg, dan opnieuw.
+            $lineup->substitutions()->delete();
+
+            $wisselVolgorde = 0;
+            foreach ($validated['substitutions'] ?? [] as $wissel) {
+                $uit = $wissel['member_out_id'] ?? null;
+                $in  = $wissel['member_in_id'] ?? null;
+
+                // Een wissel zonder een van beide kanten zegt niets.
+                if (! $uit || ! $in) {
+                    continue;
+                }
+                if ($teamLeden && (! in_array($uit, $teamLeden, true) || ! in_array($in, $teamLeden, true))) {
+                    continue;
+                }
+
+                LineupSubstitution::create([
+                    'lineup_id'     => $lineup->id,
+                    'block'         => $wissel['block'],
+                    'member_out_id' => $uit,
+                    'member_in_id'  => $in,
+                    'sort_order'    => $wisselVolgorde++,
                 ]);
             }
         });

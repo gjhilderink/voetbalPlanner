@@ -18,14 +18,24 @@ class Lineup extends Model
     protected $fillable = [
         'match_id', 'formation', 'tactical_notes',
         'players_on_field', 'match_format', 'published_at',
+        'substitution_blocks',
     ];
 
     protected function casts(): array
     {
         return [
-            'published_at'     => 'datetime',
-            'players_on_field' => 'integer',
+            'published_at'        => 'datetime',
+            'players_on_field'    => 'integer',
+            'substitution_blocks' => 'integer',
         ];
+    }
+
+    /** Het geplande wisselschema, op wisselmoment en daarbinnen op volgorde. */
+    public function substitutions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(LineupSubstitution::class)
+            ->orderBy('block')
+            ->orderBy('sort_order');
     }
 
     /** Mogen spelers deze opstelling al zien? */
