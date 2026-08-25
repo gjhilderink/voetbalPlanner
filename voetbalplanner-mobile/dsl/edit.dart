@@ -1519,6 +1519,7 @@ void buildEditFlow(App app) {
     _ensureLineupBoardWidget(project);
     _wireOpstellingPage(project);
     _addOpstellingButton(project);
+    _ensurePlannedSubsWidget(project);
     _wireLiveMatchPage(project);
     _addLiveMatchButton(project);
     // Ná _addWedstrijdScoreSection, die de lijst opbouwt.
@@ -35067,4 +35068,323 @@ void _addOpstellingButton(FFProject project) {
 
   final idx = kolom.children.indexWhere((c) => identical(c, anker));
   kolom.children.insert(idx + 1, knop);
+}
+
+// ── Geplande wissels tijdens de wedstrijd ───────────────────────────────────
+//
+// Het wisselschema is een plan; zonder deze widget zou de coach het langs de
+// lijn alsnog met de hand moeten naspelen. Hij ziet hier het eerstvolgende
+// wisselmoment en legt een wissel met één tik vast als gebeurtenis.
+//
+// Welke wissels al gebeurd zijn leiden we af uit het aantal wissel-gebeurtenissen
+// in de tijdlijn. Grof, maar betrouwbaar genoeg: het schema is een suggestie en
+// wat er echt gebeurde staat in de tijdlijn.
+
+const String _kPlannedSubsCode = r"""
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/backend/schema/structs/index.dart';
+import '/app_state.dart';
+
+class PlannedSubs extends StatefulWidget {
+  const PlannedSubs({
+    super.key,
+    this.width,
+    this.height,
+    this.matchId,
+  });
+
+  final double? width;
+  final double? height;
+  final String? matchId;
+
+  @override
+  State<PlannedSubs> createState() => _PlannedSubsState();
+}
+
+class _PlannedSubsState extends State<PlannedSubs> {
+  final _bezig = <String>{};
+
+  /// Het eerstvolgende wisselmoment: het laagste blok waarvan nog niet alle
+  /// wissels zijn vastgelegd.
+  int? get _volgendBlok {
+    final gedaan = FFAppState()
+        .liveEvents
+        .where((e) => e.type == 'substitution')
+        .length;
+
+    final blokken = <int, int>{};
+    for (final w in FFAppState().lineupSubs) {
+      final b = int.tryParse(w.block) ?? 1;
+      blokken[b] = (blokken[b] ?? 0) + 1;
+    }
+    if (blokken.isEmpty) return null;
+
+    final volgorde = blokken.keys.toList()..sort();
+    var over = gedaan;
+    for (final b in volgorde) {
+      final aantal = blokken[b]!;
+      if (over < aantal) return b;
+      over -= aantal;
+    }
+    return null;
+  }
+
+  List<LineupSubStruct> get _teDoen {
+    final blok = _volgendBlok;
+    if (blok == null) return <LineupSubStruct>[];
+    return FFAppState()
+        .lineupSubs
+        .where((w) => (int.tryParse(w.block) ?? 1) == blok)
+        .toList();
+  }
+
+  Future<void> _legVast(LineupSubStruct wissel) async {
+    final id = (widget.matchId ?? '').trim();
+    if (id.isEmpty || _bezig.contains(wissel.inId)) return;
+
+    setState(() => _bezig.add(wissel.inId));
+    try {
+      final res = await http.post(
+        Uri.parse('https://voetbalplanner.nubix.nl/api/v1/matches/$id/live/event'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${FFAppState().authToken}',
+        },
+        body: jsonEncode({
+          'type': 'substitution',
+          // member_id is wie erin komt, related_member_id wie eruit gaat —
+          // zoals MatchEvent::label() het ook leest.
+          'member_id': wissel.inId,
+          'related_member_id': wissel.outId,
+        }),
+      );
+      if (!mounted) return;
+
+      final gelukt = res.statusCode >= 200 && res.statusCode < 300;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(gelukt
+            ? '${wissel.inNaam} erin, ${wissel.outNaam} eruit.'
+            : 'Kon de wissel niet vastleggen.'),
+      ));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Kon de wissel niet vastleggen.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _bezig.remove(wissel.inId));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final teDoen = _teDoen;
+
+    // Geen schema of alles gehad: dan ook geen leeg blok in beeld.
+    if (teDoen.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      width: widget.width,
+      height: widget.height,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Wisselmoment ${_volgendBlok ?? ''}',
+              style: theme.titleSmall,
+            ),
+          ),
+          for (final wissel in teDoen)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F2F5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${wissel.inNaam} erin',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.bodySmall,
+                        ),
+                        Text(
+                          '${wissel.outNaam} eruit',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.bodySmall.override(
+                            fontFamily: theme.bodySmallFamily,
+                            color: theme.secondaryText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _legVast(wissel),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E3A5F),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        _bezig.contains(wissel.inId) ? '…' : 'Vastleggen',
+                        style: theme.labelSmall.override(
+                          fontFamily: theme.labelSmallFamily,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+""";
+
+void _ensurePlannedSubsWidget(FFProject project) {
+  if (findCustomWidget(project, name: 'PlannedSubs') == null) {
+    addCustomWidget(
+      project,
+      name: 'PlannedSubs',
+      description:
+          'Toont het eerstvolgende geplande wisselmoment tijdens de wedstrijd en legt een wissel met één tik vast.',
+      parameters: [
+        FFParameter(
+          identifier: FFIdentifier(name: 'matchId'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
+      ],
+      code: _kPlannedSubsCode,
+    );
+  } else {
+    updateCustomWidget(project, name: 'PlannedSubs', code: _kPlannedSubsCode);
+  }
+}
+
+/// Hangt de geplande wissels in de coachbalk van de livepagina, en zorgt dat het
+/// schema daar ook geladen wordt.
+void _wirePlannedSubsOnLivePage(FFProject project) {
+  final wc = findPage(project, name: 'LiveMatchPage');
+  if (wc == null) return;
+  final widget = findCustomWidget(project, name: 'PlannedSubs');
+  final laadActie = findCustomAction(project, name: 'LoadLineupBoard');
+  if (widget == null || laadActie == null) return;
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return;
+
+  FFVariable matchIdVar() => varFromPageParam(matchIdParam.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  // Vers opbouwen elke push.
+  for (final n in findDescendants(wc.node, (x) => x.name == 'LivePlannedSubs').toList()) {
+    removeByKey(wc.node, n.key);
+  }
+
+  final kolom = findDescendants(wc.node, (n) => n.name == 'LiveSectionsCol').firstOrNull;
+  if (kolom == null) return;
+
+  final kaart = _dashCard(
+    name: 'LivePlannedSubs',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+    child: UI.column(
+      name: 'LivePlannedSubsCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        UI.row(
+          name: 'LivePlannedSubsHead',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('swap_horiz', size: 20, color: UIColor.primary),
+            UI.expanded(UI.text('Geplande wissels',
+                name: 'LivePlannedSubsTitle', style: UITextStyle.titleSmall)),
+          ],
+        ),
+        UI.customWidget(
+          widget,
+          name: 'LivePlannedSubsWidget',
+          params: {'matchId': VariableParamValue(matchIdVar())},
+        ),
+      ],
+    ),
+  );
+
+  // Alleen voor wie de wedstrijd beheert; een speler heeft hier niets te kiezen.
+  final canManageId = _findAppStateFieldId(project, 'liveState');
+  final magId = _findAppStateFieldId(project, 'lineupCanManage');
+  if (magId != null) {
+    setConditionalVisibility(
+      kaart,
+      variable: _equalsLiteral(
+        varFromAppState(magId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        'true',
+      ),
+    );
+  } else if (canManageId != null) {
+    // Geen aparte vlag: dan maar altijd tonen, de widget verbergt zichzelf als
+    // er niets gepland staat.
+  }
+
+  kolom.children.add(kaart);
+
+  // Het schema ophalen bij het openen van de livepagina; zonder deze aanroep
+  // staat lineupSubs leeg zodra je de app opnieuw opent.
+  bool alGeladen(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasCustomAction() &&
+        n.action.customAction.hasCustomActionIdentifier() &&
+        n.action.customAction.customActionIdentifier.name == 'LoadLineupBoard') {
+      return true;
+    }
+    return n.hasFollowUpAction() && alGeladen(n.followUpAction);
+  }
+
+  if (wc.node.triggerActions.any((t) => t.hasRootAction() && alGeladen(t.rootAction))) {
+    return;
+  }
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: laadActie.identifier.deepCopy(),
+          argumentValues:
+              _actieArgs(laadActie, {'matchId': FFValue(variable: matchIdVar())}),
+        ),
+      ),
+    ),
+  );
 }

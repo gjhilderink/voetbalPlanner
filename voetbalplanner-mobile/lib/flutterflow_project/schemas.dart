@@ -1367,6 +1367,7 @@ abstract final class CustomCode {
     "DynamicMaterialIcon",
     "HighlightedNameList",
     "LineupBoard",
+    "PlannedSubs",
   ];
 }
 
