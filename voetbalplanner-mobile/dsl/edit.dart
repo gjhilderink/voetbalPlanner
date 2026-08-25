@@ -35632,6 +35632,15 @@ void _restyleTeamMembersPage(FFProject project) {
     ),
   );
 
+  // Niet elk lid heeft een pasfoto in Sportlink. Zonder deze regel houdt zo
+  // iemand een leeg rondje over waar de foto had moeten staan.
+  setConditionalVisibility(
+    foto,
+    variable: _equalsLiteral(
+        generatorVarField(lijst.key, 'photoUrl'), '',
+        negate: true),
+  );
+
   // ── Vakje met rugnummer of afkorting ────────────────────────────────────
   //
   // Twee varianten omdat de kleur van de rol afhangt en FlutterFlow een kleur

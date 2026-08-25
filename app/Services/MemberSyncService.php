@@ -9,6 +9,7 @@ use App\Models\Member;
 use App\Models\SyncLog;
 use App\Models\Team;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class MemberSyncService
 {
@@ -36,7 +37,9 @@ class MemberSyncService
         ]);
 
         try {
-            $membersData = $this->mcpService->getMembers();
+            // Met foto's: die worden hieronder als bestand weggeschreven, zodat
+            // de app een gewone URL krijgt in plaats van een base64-blob.
+            $membersData = $this->mcpService->getMembers(null, true);
             $synced = 0;
 
             // Verzamel per lid álle teams die Sportlink in deze run meldt. Zo
@@ -156,18 +159,102 @@ class MemberSyncService
     {
         $existing = Member::where('external_id', $dto->externalId)->first();
 
-        return Member::updateOrCreate(
-            ['external_id' => $dto->externalId],
-            [
-                'name'           => $dto->name,
-                'last_name'      => $dto->lastName ?: $existing?->last_name,
-                'email'          => $dto->email ?: $existing?->email,
-                'phone'          => $dto->phone ?: $existing?->phone,
-                'date_of_birth'  => $dto->dateOfBirth,
-                'role'           => $dto->role,
-                'is_active'      => $dto->isActive,
-                'last_synced_at' => now(),
-            ]
-        );
+        $velden = [
+            'name'           => $dto->name,
+            'last_name'      => $dto->lastName ?: $existing?->last_name,
+            'email'          => $dto->email ?: $existing?->email,
+            'phone'          => $dto->phone ?: $existing?->phone,
+            'date_of_birth'  => $dto->dateOfBirth,
+            'role'           => $dto->role,
+            'is_active'      => $dto->isActive,
+            'last_synced_at' => now(),
+        ];
+
+        // De pasfoto alleen aanraken als Sportlink er een meestuurt. Zou een run
+        // zonder foto's het veld leegmaken, dan verdwijnen alle foto's zodra de
+        // koppeling ze een keer niet levert.
+        if ($dto->photo !== null) {
+            $velden += $this->fotoVelden($dto, $existing);
+        }
+
+        return Member::updateOrCreate(['external_id' => $dto->externalId], $velden);
+    }
+
+    /**
+     * De pasfoto wegschrijven als bestand en het pad teruggeven.
+     *
+     * Sportlink levert de foto als base64 mee in het antwoord. Die blob elke keer
+     * door de API pompen zou een ledenlijst van tien man op een halve megabyte
+     * brengen; als bestand is het een gewone URL die het toestel ook nog cachet.
+     *
+     * De hash zit in de bestandsnaam en niet alleen in de kolom: verandert de
+     * foto, dan verandert de URL mee, en laat een toestel dat de oude nog in de
+     * cache heeft staan hem niet oneindig staan.
+     *
+     * @return array<string, string|null>
+     */
+    private function fotoVelden(MemberDTO $dto, ?Member $bestaand): array
+    {
+        $base64 = $dto->photo ?? '';
+
+        // Een data-URI mag ook: welke vorm de koppeling kiest is niet aan ons.
+        if (str_contains($base64, ',') && str_starts_with($base64, 'data:')) {
+            $base64 = substr($base64, strpos($base64, ',') + 1);
+        }
+
+        $hash = md5($base64);
+        if ($bestaand?->sportlink_photo_hash === $hash && $bestaand?->sportlink_photo) {
+            return []; // ongewijzigd; niets te schrijven
+        }
+
+        $bytes = base64_decode(strtr($base64, ' ', '+'), true);
+        if ($bytes === false || $bytes === '') {
+            Log::warning('[MemberSync] pasfoto niet te decoderen', ['lid' => $dto->externalId]);
+            return [];
+        }
+
+        // Een pasfoto van meer dan 2 MB is geen pasfoto meer; dan zit er iets
+        // anders in het veld en willen we dat niet klakkeloos publiceren.
+        if (strlen($bytes) > 2 * 1024 * 1024) {
+            Log::warning('[MemberSync] pasfoto overgeslagen, te groot', [
+                'lid'   => $dto->externalId,
+                'bytes' => strlen($bytes),
+            ]);
+            return [];
+        }
+
+        $ext = self::extensieVan($bytes);
+        if ($ext === null) {
+            Log::warning('[MemberSync] pasfoto is geen herkenbare afbeelding', ['lid' => $dto->externalId]);
+            return [];
+        }
+
+        $veilig = preg_replace('/[^A-Za-z0-9_-]/', '', $dto->externalId) ?: md5($dto->externalId);
+        $pad    = 'member_photos/' . $veilig . '_' . substr($hash, 0, 8) . '.' . $ext;
+
+        $disk = Storage::disk('member_photos');
+        $disk->put(basename($pad), $bytes);
+
+        // De vorige versie opruimen; anders groeit de map bij elke nieuwe pasfoto.
+        if ($bestaand?->sportlink_photo && $bestaand->sportlink_photo !== $pad) {
+            $disk->delete(basename($bestaand->sportlink_photo));
+        }
+
+        return [
+            'sportlink_photo'      => $pad,
+            'sportlink_photo_hash' => $hash,
+        ];
+    }
+
+    /** Het formaat uit de eerste bytes; de koppeling meldt geen content-type. */
+    private static function extensieVan(string $bytes): ?string
+    {
+        return match (true) {
+            str_starts_with($bytes, 'GIF87a'), str_starts_with($bytes, 'GIF89a') => 'gif',
+            str_starts_with($bytes, "\xFF\xD8\xFF")                              => 'jpg',
+            str_starts_with($bytes, "\x89PNG\r\n\x1a\n")                         => 'png',
+            str_starts_with($bytes, 'RIFF') && substr($bytes, 8, 4) === 'WEBP'   => 'webp',
+            default                                                              => null,
+        };
     }
 }

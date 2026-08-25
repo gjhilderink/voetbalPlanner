@@ -56,6 +56,19 @@ return [
             'report' => false,
         ],
 
+        // Pasfoto's uit Sportlink. Rechtstreeks in public/ en niet via de
+        // 'public'-disk, omdat public/storage een symlink vereist die op deze
+        // gedeelde hosting niet gegarandeerd te maken is. Zelfde keuze als bij
+        // de clublogo's hierboven.
+        'member_photos' => [
+            'driver' => 'local',
+            'root'   => public_path('member_photos'),
+            'url'    => rtrim(env('APP_URL', 'http://localhost'), '/') . '/member_photos',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

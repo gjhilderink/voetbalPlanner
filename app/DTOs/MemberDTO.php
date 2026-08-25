@@ -15,6 +15,8 @@ readonly class MemberDTO
         public string $role = 'player',
         public bool $isActive = true,
         public ?string $lastName = null,
+        /** Ruwe base64 van de Sportlink-pasfoto, of null als die er niet is. */
+        public ?string $photo = null,
     ) {}
 
     public static function fromMcpData(array $data): self
@@ -46,6 +48,11 @@ readonly class MemberDTO
         ]);
         $lastName = $lastNameParts ? trim(implode(' ', $lastNameParts)) : null;
 
+        // De MCP levert de foto alleen als er bij de aanroep om is gevraagd
+        // (toon_foto). Een lid zonder foto krijgt hier gewoon null.
+        $foto = $data['foto'] ?? null;
+        $foto = (is_string($foto) && trim($foto) !== '') ? trim($foto) : null;
+
         return new self(
             externalId: (string) ($externalId ?? ''),
             name: $name,
@@ -55,6 +62,7 @@ readonly class MemberDTO
             role: $role,
             isActive: ($data['einddatum'] === null), // null einddatum = currently active
             lastName: $lastName,
+            photo: $foto,
         );
     }
 }

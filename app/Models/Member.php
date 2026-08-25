@@ -36,7 +36,8 @@ class Member extends Model
 
     protected $fillable = [
         'external_id', 'user_id', 'name', 'last_name', 'email', 'phone',
-        'date_of_birth', 'role', 'profile_photo', 'is_active', 'last_synced_at',
+        'date_of_birth', 'role', 'profile_photo', 'sportlink_photo',
+        'sportlink_photo_hash', 'is_active', 'last_synced_at',
         'shirt_number',
     ];
 
@@ -134,5 +135,23 @@ class Member extends Model
     public function isPlayer(): bool
     {
         return $this->role === 'player';
+    }
+    /**
+     * De foto die de app moet tonen, als volledige URL.
+     *
+     * Een zelf geüploade foto wint van de clubpasfoto: wie de moeite neemt om er
+     * zelf een te kiezen, wil niet dat de volgende sync die terugzet.
+     */
+    public function photoUrl(): string
+    {
+        if ($this->profile_photo) {
+            return asset('storage/' . $this->profile_photo);
+        }
+
+        if ($this->sportlink_photo) {
+            return asset($this->sportlink_photo);
+        }
+
+        return '';
     }
 }

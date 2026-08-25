@@ -79,10 +79,12 @@ class SportlinkMcpService
 
             $data = $this->parseSSE($response->body()) ?: ($response->json() ?? []);
 
+            // Het antwoord ingekort: met toon_foto zit er per speler tientallen kB
+            // base64 in, en dan is één sync goed voor een logbestand van megabytes.
             Log::debug('MCP call', [
                 'method' => $method,
                 'status' => $response->status(),
-                'result' => $data,
+                'result' => self::kortVoorLog($data),
             ]);
 
             return $data;
@@ -90,6 +92,25 @@ class SportlinkMcpService
             Log::error('MCP call failed', ['method' => $method, 'error' => $e->getMessage()]);
             return [];
         }
+    }
+
+    /**
+     * Lange tekstwaarden inkorten voor het logboek. Alleen de vorm blijft over,
+     * zodat een probleem nog te herkennen is zonder de inhoud mee te slepen.
+     */
+    private static function kortVoorLog(mixed $waarde, int $max = 300): mixed
+    {
+        if (is_string($waarde)) {
+            return strlen($waarde) > $max
+                ? substr($waarde, 0, $max) . '… (' . strlen($waarde) . ' tekens)'
+                : $waarde;
+        }
+
+        if (is_array($waarde)) {
+            return array_map(fn ($v) => self::kortVoorLog($v, $max), $waarde);
+        }
+
+        return $waarde;
     }
 
     // Call a named tool and return its content payload
@@ -155,11 +176,18 @@ class SportlinkMcpService
         return is_array($result) ? $result : [];
     }
 
-    public function getMembers(?string $teamCode = null): array
+    /**
+     * Leden van één team, of van alle teams van de club.
+     *
+     * $metFoto staat standaard uit: de pasfoto is een base64-blob van tientallen
+     * kB per speler, en de meeste aanroepers willen alleen namen en rollen. Alleen
+     * de ledensync vraagt hem op, en slaat hem dan als bestand op.
+     */
+    public function getMembers(?string $teamCode = null, bool $metFoto = false): array
     {
         // teamcode MUST be a string — the MCP schema validates it as string
         if ($teamCode) {
-            $result = $this->callTool('get_team_players', ['teamcode' => (string) $teamCode, 'toon_foto' => false]);
+            $result = $this->callTool('get_team_players', ['teamcode' => (string) $teamCode, 'toon_foto' => $metFoto]);
             return is_array($result) ? $result : [];
         }
 
@@ -173,7 +201,7 @@ class SportlinkMcpService
             }
             $seen[$code] = true;
 
-            $players = $this->callTool('get_team_players', ['teamcode' => $code, 'toon_foto' => false]);
+            $players = $this->callTool('get_team_players', ['teamcode' => $code, 'toon_foto' => $metFoto]);
             if (is_array($players)) {
                 foreach ($players as $p) {
                     $p['_teamcode'] = $code;

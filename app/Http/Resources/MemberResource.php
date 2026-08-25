@@ -25,9 +25,9 @@ class MemberResource extends JsonResource
             'role' => $this->role,
             'profile_photo' => $this->profile_photo,
             // Kant-en-klare URL: de app kan een opslagpad niet zelf omzetten.
-            'photoUrl' => $this->profile_photo
-                ? asset('storage/' . $this->profile_photo)
-                : '',
+            // Eigen upload eerst, anders de pasfoto uit Sportlink; zie
+            // Member::photoUrl().
+            'photoUrl' => $this->resource->photoUrl(),
             'is_active' => $this->is_active,
             'external_id' => $this->external_id,
             // CamelCase alias zodat de mobile SwapMember struct (externalId) automatisch matcht.

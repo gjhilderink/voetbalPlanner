@@ -106,9 +106,11 @@ class TeamController extends Controller
                 'role'           => null,
                 'team_role'      => $u->pivot->role ?? null,
                 'profile_photo'  => $u->profile_photo,
+                // Deze users horen niet bij een lid van dít team, maar kunnen
+                // elders wel een ledenrecord met pasfoto hebben.
                 'photoUrl'       => $u->profile_photo
                     ? asset('storage/' . $u->profile_photo)
-                    : '',
+                    : ($u->member?->photoUrl() ?? ''),
                 'is_active'      => true,
                 'external_id'    => '',
                 'externalId'     => '',

@@ -93,10 +93,11 @@ class UserResource extends JsonResource
             ])->values(),
             'member_id'         => $this->member?->id ?? '',
             'relatiecode'       => $this->member?->external_id ?? '',
-            'profile_photo_url' => ($this->profile_photo
-                    ?? $this->member?->profile_photo)
-                ? asset('storage/' . ($this->profile_photo ?? $this->member->profile_photo))
-                : '',
+            // Eigen upload eerst; anders de pasfoto uit Sportlink van het
+            // gekoppelde lid. Zie Member::photoUrl().
+            'profile_photo_url' => $this->profile_photo
+                ? asset('storage/' . $this->profile_photo)
+                : ($this->member?->photoUrl() ?? ''),
             'is_active'     => $this->is_active,
             'created_at'    => $this->created_at?->toISOString(),
         ];
