@@ -1421,6 +1421,7 @@ void buildEditFlow(App app) {
   // verwijzen hem verderop kunnen vinden.
   _buildLiveMatchPage(app);
   _buildOpstellingPage(app);
+  _buildStandPage(app);
 
   // Force NavBar items LAST — after all other raw mutations that touch the scaffold.
   app.raw((project) => _forceDashboardNavBarItem(project));
@@ -1503,6 +1504,10 @@ void buildEditFlow(App app) {
     _ensureSyncUserRolesAction(project);
     _wireSyncUserRolesOnLoad(project);
     _wireTrainingenPage(project);
+    _ensureStandingStruct(project);
+    _ensureStandingAppState(project);
+    _addStandingEndpoint(project);
+    _wireStandPage(project);
     _wireMeerPage(project);
     _setupNavBarV2(project);
     _updateChatBadgeOverlayPosition(project);
@@ -27914,6 +27919,8 @@ void _wireMeerPage(FFProject project) {
     tile('MeerTileBardienst', 'Bardiensten', 'local_bar', 'BardienPage',
         subtitle: 'Jouw diensten en die van het team'),
     tile('MeerTileTeam', 'Teamleden', 'groups', 'TeamMembersPage'),
+    tile('MeerTileStand', 'Stand', 'leaderboard', 'StandPage',
+        subtitle: 'De stand in de poule van je elftal'),
     tile('MeerTileWissels', 'Wisselverzoeken', 'swap_horiz', 'WisselVerzoekenPage'),
     tile('MeerTileNieuws', 'Nieuws', 'newspaper', 'NewsPage'),
     tile('MeerTileDocs', 'Handleiding', 'menu_book', 'DocumentatiePage'),
@@ -35733,4 +35740,282 @@ void _restyleTeamMembersPage(FFProject project) {
   );
 
   lijst.children.add(kaart);
+}
+
+// ── Poulestand ──────────────────────────────────────────────────────────────
+//
+// Live opgehaald bij de backend, die hem op zijn beurt bij de MCP-server haalt.
+// Niets van opgeslagen in de app: een stand verandert per speelronde en is puur
+// om te lezen.
+
+void _ensureStandingStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'StandingRow',
+    description:
+        'Eén regel uit de poulestand: positie, team, gespeeld, punten en doelcijfers.',
+    fields: const [
+      'positie', 'team', 'gespeeld', 'punten', 'doelsaldo',
+      'voor', 'tegen', 'isEigenTeam', 'melding',
+    ],
+  );
+}
+
+void _ensureStandingAppState(FFProject project) {
+  final struct = findDataStruct(project, name: 'StandingRow');
+  if (struct == null) return;
+
+  if (!project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'standingRows')) {
+    final param = FFParameter(
+      identifier:
+          FFIdentifier(name: 'standingRows', key: generateRandomAlphaNumericString()),
+      dataType: dataStructType(struct.identifier.deepCopy()),
+    );
+    param.isList = true;
+    project.appState.fields.add(FFAppStateField(parameter: param));
+  }
+
+}
+
+void _addStandingEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  const name = 'GetStanding';
+  if (findApiGroup(project, name: groupName) == null) return;
+  if (findApiEndpoint(project, name: name, groupName: groupName) != null) return;
+
+  addEndpointToGroup(
+    project,
+    groupName: groupName,
+    name: name,
+    url: '/teams/[teamId]/standing',
+    method: FFApiEndpoint_CallType.GET,
+    bodyType: FFApiEndpoint_BodyType.NONE,
+    variables: {
+      'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'teamId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+    headers: ['Authorization: Bearer [token]'],
+    responseDataStructName: 'StandingRow',
+    responseDataStructIsList: true,
+  );
+}
+
+void _buildStandPage(App app) {
+  app.ensurePage(
+    'StandPage',
+    description: 'De stand van de poule waarin dit elftal uitkomt.',
+    route: 'stand',
+    body: Scaffold(
+      appBar: AppBar(title: 'Stand'),
+      body: Column(
+        name: 'StandRootColumn',
+        children: [
+          Container(name: 'StandBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Vult de standpagina. Vers opgebouwd bij elke push.
+void _wireStandPage(FFProject project) {
+  final wc = findPage(project, name: 'StandPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final teamId = _findAppStateFieldId(project, 'currentTeamId');
+  final rowsId = _findAppStateFieldId(project, 'standingRows');
+  if (authTokenId == null || teamId == null || rowsId == null) {
+    return;
+  }
+  if (findApiEndpoint(project,
+          name: 'GetStanding', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  final scaffoldKey = wc.node.key;
+  final rowsVar = varFromAppState(rowsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final lijst = UI.listView(
+    name: 'StandList',
+    shrinkWrap: true,
+    spacing: 2,
+    dynamicSource: DynamicSource(variable: rowsVar, itemName: 'stand'),
+  );
+
+  FFNode cel(String naam, String veld, double breedte,
+      {UITextAlign uitlijning = UITextAlign.center, UIFontWeight? gewicht}) {
+    final t = UI.text('',
+        name: naam,
+        style: UITextStyle.bodySmall,
+        fontWeight: gewicht,
+        textAlign: uitlijning,
+        maxLines: 1,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijst.key, veld));
+    return UI.container(name: '${naam}Wrap', width: breedte, child: t);
+  }
+
+  FFNode kopCel(String tekst, double breedte,
+      {UITextAlign uitlijning = UITextAlign.center}) {
+    return UI.container(
+      name: 'StandKop$tekst',
+      width: breedte,
+      child: UI.text(tekst,
+          name: 'StandKop${tekst}Tekst',
+          style: UITextStyle.labelSmall,
+          color: UIColor.secondaryText,
+          textAlign: uitlijning,
+          maxLines: 1),
+    );
+  }
+
+  // Twee varianten van de teamnaam: de eigen ploeg vet en in de clubkleur, zodat
+  // je hem in één oogopslag vindt. De backend markeert welke rij dat is; op naam
+  // vergelijken gaat mis zodra de schrijfwijze net afwijkt.
+  FFNode teamNaam({required bool eigen}) {
+    final t = UI.text('',
+        name: eigen ? 'StandTeamEigen' : 'StandTeamAnder',
+        style: UITextStyle.bodySmall,
+        color: eigen ? UIColor.primary : null,
+        fontWeight: eigen ? UIFontWeight.w700 : null,
+        maxLines: 1,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijst.key, 'team'));
+    final wrap = UI.expanded(t);
+    setConditionalVisibility(
+      wrap,
+      variable: _equalsLiteral(
+          generatorVarField(lijst.key, 'isEigenTeam'), 'true',
+          negate: !eigen),
+    );
+    return wrap;
+  }
+
+  final rij = UI.container(
+    name: 'StandRij',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 9),
+    child: UI.row(
+      name: 'StandRijRow',
+      spacing: 6,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        cel('StandPositie', 'positie', 26, gewicht: UIFontWeight.w700),
+        teamNaam(eigen: true),
+        teamNaam(eigen: false),
+        cel('StandGespeeld', 'gespeeld', 28),
+        cel('StandSaldo', 'doelsaldo', 34),
+        cel('StandPunten', 'punten', 30, gewicht: UIFontWeight.w700),
+      ],
+    ),
+  );
+  // Een rij zonder teamnaam draagt alleen een melding; die hoort niet in de
+  // tabel te staan.
+  setConditionalVisibility(
+    rij,
+    variable: _equalsLiteral(generatorVarField(lijst.key, 'team'), '', negate: true),
+  );
+  lijst.children.add(rij);
+
+  final kopRij = UI.container(
+    name: 'StandKopRij',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    child: UI.row(
+      name: 'StandKopRow',
+      spacing: 6,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        kopCel('#', 26),
+        UI.expanded(UI.text('Team',
+            name: 'StandKopTeam',
+            style: UITextStyle.labelSmall,
+            color: UIColor.secondaryText,
+            maxLines: 1)),
+        kopCel('G', 28),
+        kopCel('DS', 34),
+        kopCel('P', 30),
+      ],
+    ),
+  );
+
+  final kaart = _dashCard(
+    name: 'StandKaart',
+    margin: UIEdgeInsets.only(left: 12, right: 12, top: 12),
+    padding: UIEdgeInsets.symmetric(vertical: 6),
+    child: UI.column(
+      name: 'StandKaartCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      children: [kopRij, lijst],
+    ),
+  );
+  // Alleen tonen als er echt een stand is: de melding-rij heeft geen teamnaam.
+  setConditionalVisibility(
+    kaart,
+    variable: _firstFieldFilledVar(rowsVar, 'team'),
+  );
+
+  // De melding staat op elke rij mee; bij een probleem is er precies één rij en
+  // draagt die alleen de tekst. Zelfde aanpak als de tellingen bij de opkomst:
+  // de app kan geen gefilterde lijst uitlezen, dus lezen we het eerste item.
+  final melding = UI.text('',
+      name: 'StandMelding',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center,
+      maxLines: 3);
+  melding.props.text.textValue =
+      FFStringValue(variable: _firstItemVar(rowsVar, 'melding'));
+  melding.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 28),
+  );
+  setConditionalVisibility(
+    melding,
+    variable: _firstFieldFilledVar(rowsVar, 'melding'),
+  );
+
+  final body = getPropertyChild(wc.node, 'body');
+  if (body == null) return;
+  final kolom = body.type == FFWidgetType.Column
+      ? body
+      : body.children
+          .cast<FFNode?>()
+          .firstWhere((n) => n?.type == FFWidgetType.Column, orElse: () => null);
+  if (kolom == null) return;
+
+  kolom.children.clear();
+  final props = kolom.props.column.deepCopy();
+  props.scrollable = true;
+  kolom.props.column = props;
+  kolom.children.addAll([melding, kaart]);
+
+  // Ophalen bij het openen.
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetStanding',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'teamId': varFromAppState(teamId.deepCopy()),
+      },
+      outputVariableName: 'standLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('standingRows', ctx.responseVar),
+        ]),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('De stand kon niet worden opgehaald.'),
+      ]),
+    ),
+  );
 }

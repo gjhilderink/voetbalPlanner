@@ -36,26 +36,21 @@ class StandingController extends Controller
         // is ook geen reden om de hele competitie van een vreemde club te openen.
         $mag = $request->user()?->accessibleTeams()->contains('id', $team->id) ?? false;
         if (! $mag) {
-            return response()->json([
-                'rijen'   => [],
-                'melding' => 'Je hebt geen toegang tot dit elftal.',
-            ], 403);
+            return response()->json(self::alleenMelding('Je hebt geen toegang tot dit elftal.'), 403);
         }
 
         $teamCode = (string) ($team->external_id ?? '');
         if ($teamCode === '') {
-            return response()->json([
-                'rijen'   => [],
-                'melding' => 'Voor dit elftal is geen competitiekoppeling bekend.',
-            ]);
+            return response()->json(
+                self::alleenMelding('Voor dit elftal is geen competitiekoppeling bekend.')
+            );
         }
 
         $service = $this->mcp->forClub($team->club_id);
         if (! $service->isConfigured()) {
-            return response()->json([
-                'rijen'   => [],
-                'melding' => 'De competitiekoppeling is niet ingesteld.',
-            ]);
+            return response()->json(
+                self::alleenMelding('De competitiekoppeling is niet ingesteld.')
+            );
         }
 
         try {
@@ -67,22 +62,46 @@ class StandingController extends Controller
         } catch (\Throwable $e) {
             report($e);
 
-            return response()->json([
-                'rijen'   => [],
-                'melding' => 'De stand kon niet worden opgehaald.',
-            ]);
+            return response()->json(self::alleenMelding('De stand kon niet worden opgehaald.'));
         }
 
         $rijen = collect($ruw)
             ->filter(fn ($r) => is_array($r))
-            ->map(fn (array $r) => $this->rij($r, $team->name))
+            ->map(fn (array $r) => $this->rij($r, $team->name) + ['melding' => ''])
             ->values()
             ->all();
 
-        return response()->json([
-            'rijen'   => $rijen,
-            'melding' => $rijen ? '' : 'Er is nog geen stand beschikbaar voor dit elftal.',
-        ]);
+        if (! $rijen) {
+            return response()->json(
+                self::alleenMelding('Er is nog geen stand beschikbaar voor dit elftal.')
+            );
+        }
+
+        return response()->json($rijen);
+    }
+
+    /**
+     * Eén lege regel die alleen een melding draagt.
+     *
+     * De app leest de melding van de eerste regel, net als bij de opkomstlijsten:
+     * een platte array is wat elk ander lijst-endpoint hier teruggeeft, en een
+     * omhullend object zou de app dwingen tot JSON-pad-gedoe rond een structlijst.
+     *
+     * @return array<int, array<string, string>>
+     */
+    private static function alleenMelding(string $melding): array
+    {
+        return [[
+            'positie'     => '',
+            'team'        => '',
+            'gespeeld'    => '',
+            'punten'      => '',
+            'doelsaldo'   => '',
+            'voor'        => '',
+            'tegen'       => '',
+            'isEigenTeam' => 'false',
+            'melding'     => $melding,
+        ]];
     }
 
     /**

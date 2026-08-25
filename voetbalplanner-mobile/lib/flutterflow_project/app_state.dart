@@ -497,6 +497,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<SwapMember>>",
     persisted: false,
   );
+  static const standingRows = ffai.ProjectAppStateFieldHandle(
+    name: "standingRows",
+    key: "dt5gf9bn",
+    typeName: "List<DataStruct<StandingRow>>",
+    persisted: false,
+  );
   static const subscribedTeamTopics = ffai.ProjectAppStateFieldHandle(
     name: "subscribedTeamTopics",
     key: "f0kw4a8l",
@@ -640,6 +646,7 @@ abstract final class AppState {
     secondaryColor,
     sharedBarDuties,
     sharedTeamMembers,
+    standingRows,
     subscribedTeamTopics,
     teamMatches,
     teamMood,

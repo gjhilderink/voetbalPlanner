@@ -397,6 +397,21 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle standingRow = ffai.StructHandle(
+    "StandingRow",
+    <String, ffai.DslType>{
+      "doelsaldo": ffai.string,
+      "gespeeld": ffai.string,
+      "isEigenTeam": ffai.string,
+      "melding": ffai.string,
+      "positie": ffai.string,
+      "punten": ffai.string,
+      "team": ffai.string,
+      "tegen": ffai.string,
+      "voor": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle swapMember = ffai.StructHandle(
     "SwapMember",
     <String, ffai.DslType>{
@@ -546,6 +561,7 @@ abstract final class Structs {
     newsItem,
     onboardingSlide,
     staffGroupItem,
+    standingRow,
     swapMember,
     swapRequest,
     teamMood,
