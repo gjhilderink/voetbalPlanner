@@ -43,24 +43,37 @@ class Team extends Model
      * af- en aanmelden bij een wedstrijd — een trainer staat niet in de basis en
      * meldt zich ook niet af.
      *
-     * Twee filters, want de functie staat op twee plekken: members.role is de
-     * hoofdrol in de club, member_team.role de functie binnen dít elftal. Iemand
-     * kan speler zijn in het ene team en leider in het andere.
+     * De functie staat op twee plekken: member_team.role is de functie binnen
+     * dít elftal, members.role de hoofdrol in de club. De teamfunctie wint,
+     * want die zegt iets over dit team; iemand kan speler zijn in het ene team
+     * en leider in het andere. Pas als de teamfunctie leeg is, beslist de
+     * hoofdrol.
      *
-     * Een lege of onbekende functie telt als speler: NOT IN sluit NULL anders
-     * stilzwijgend uit, en dan zou een lid zonder ingevulde functie verdwijnen.
+     * Bij twijfel telt iemand als speler. Een naam te veel ziet de coach staan
+     * en negeert hij; een speler die stilzwijgend ontbreekt merkt niemand op tot
+     * hij langs de lijn blijkt te missen.
      */
     public function playingMembers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        $staf = [Member::ROLE_COACH, Member::ROLE_ASSISTANT, Member::ROLE_LEIDER];
+        $teamStaf = [Member::ROLE_COACH, Member::ROLE_ASSISTANT, Member::ROLE_LEIDER];
+        $clubStaf = ['coach', 'medical', 'staff'];
 
-        return $this->members()
-            ->where(fn ($q) => $q
-                ->whereNull('members.role')
-                ->orWhereNotIn('members.role', ['coach', 'medical', 'staff']))
-            ->where(fn ($q) => $q
-                ->whereNull('member_team.role')
-                ->orWhereNotIn('member_team.role', $staf));
+        return $this->members()->where(function ($q) use ($teamStaf, $clubStaf) {
+            // Teamfunctie ingevuld: die beslist, en alleen die.
+            $q->where(fn ($sub) => $sub
+                ->whereNotNull('member_team.role')
+                ->where('member_team.role', '!=', '')
+                ->whereNotIn('member_team.role', $teamStaf));
+
+            // Geen teamfunctie: dan valt de club-hoofdrol terug in.
+            $q->orWhere(fn ($sub) => $sub
+                ->where(fn ($leeg) => $leeg
+                    ->whereNull('member_team.role')
+                    ->orWhere('member_team.role', '=', ''))
+                ->where(fn ($rol) => $rol
+                    ->whereNull('members.role')
+                    ->orWhereNotIn('members.role', $clubStaf)));
+        });
     }
 
     /**
