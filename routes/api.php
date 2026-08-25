@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\AgendaController;
 use App\Http\Controllers\Api\NewsItemController;
 use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\StaffGroupController;
+use App\Http\Controllers\Api\StandingController;
 use App\Http\Controllers\Api\SwapRequestController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TeamController;
@@ -118,6 +119,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/teams', [TeamController::class, 'index']);
         Route::get('/teams/{team}', [TeamController::class, 'show']);
         Route::get('/teams/{team}/members', [TeamController::class, 'members']);
+        // Poulestand, live opgehaald bij de MCP-server (kort gecachet).
+        Route::get('/teams/{team}/standing', [StandingController::class, 'show']);
         // Seizoenscijfers (team + jezelf) en teamsfeer voor het dashboard.
         Route::get('/teams/{team}/stats', [TeamStatsController::class, 'show']);
         Route::get('/teams/{team}/mood', [TeamMoodController::class, 'show']);

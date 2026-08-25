@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Setting;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -217,6 +218,152 @@ class SportlinkMcpService
     {
         $data = $this->mcpPost('tools/list');
         return $data['result']['tools'] ?? [];
+    }
+
+    /**
+     * Welke argumenten accepteert een tool? Uit tools/list, kort gecachet.
+     *
+     * De MCP-kant gebruikt Nederlandse namen (teamcode, aantaldagen), maar die
+     * verschillen per tool. Door het schema te lezen in plaats van te gokken
+     * sturen we nooit een argument dat de server niet kent — dat leverde anders
+     * een stilzwijgend leeg antwoord op.
+     *
+     * @return array<string>
+     */
+    private function toolArguments(string $tool): array
+    {
+        $alle = Cache::remember(
+            'mcp_tool_args_' . md5($this->baseUrl),
+            now()->addMinutes(30),
+            function (): array {
+                $map = [];
+                foreach ($this->listTools() as $t) {
+                    $naam = $t['name'] ?? null;
+                    if (! $naam) {
+                        continue;
+                    }
+                    $map[$naam] = array_keys($t['inputSchema']['properties'] ?? []);
+                }
+                return $map;
+            },
+        );
+
+        return $alle[$tool] ?? [];
+    }
+
+    /**
+     * Roept een tool aan met alleen de argumenten die hij kent.
+     *
+     * @param  array<string, mixed>  $kandidaten  naam => waarde; lege waarden vallen weg
+     */
+    private function callToolFiltered(string $name, array $kandidaten): mixed
+    {
+        $toegestaan = $this->toolArguments($name);
+
+        $args = [];
+        foreach ($kandidaten as $sleutel => $waarde) {
+            if ($waarde === null || $waarde === '') {
+                continue;
+            }
+            // Kent de server geen schema (lege lijst), dan alles meesturen: beter
+            // een afgewezen argument dan helemaal geen filter.
+            if ($toegestaan && ! in_array($sleutel, $toegestaan, true)) {
+                continue;
+            }
+            $args[$sleutel] = $waarde;
+        }
+
+        return $this->callTool($name, $args);
+    }
+
+    /** De poules waarin de club uitkomt. */
+    public function getPoules(?string $teamCode = null): array
+    {
+        $result = $this->callToolFiltered('get_poules', [
+            'teamcode' => $teamCode !== null ? (string) $teamCode : null,
+        ]);
+
+        return is_array($result) ? $result : [];
+    }
+
+    /**
+     * De stand van een poule. Accepteert de tool een teamcode, dan is dat genoeg;
+     * anders moet er een poulecode bij.
+     */
+    public function getStanding(?string $pouleCode = null, ?string $teamCode = null): array
+    {
+        $result = $this->callToolFiltered('get_standing', [
+            'poulecode' => $pouleCode !== null ? (string) $pouleCode : null,
+            'teamcode'  => $teamCode !== null ? (string) $teamCode : null,
+        ]);
+
+        return is_array($result) ? $result : [];
+    }
+
+    /**
+     * De stand voor één elftal, ongeacht hoe de tool hem wil hebben.
+     *
+     * Kan get_standing overweg met een teamcode, dan zijn we klaar. Zo niet, dan
+     * zoeken we de poulecode op — eerst in get_poules, anders in de uitslagen van
+     * dat team, want die dragen die code sinds kort mee.
+     */
+    public function standingForTeam(string $teamCode): array
+    {
+        if (in_array('teamcode', $this->toolArguments('get_standing'), true)) {
+            $stand = $this->getStanding(teamCode: $teamCode);
+            if ($stand) {
+                return $stand;
+            }
+        }
+
+        $pouleCode = $this->pouleCodeVoorTeam($teamCode);
+
+        return $pouleCode ? $this->getStanding(pouleCode: $pouleCode) : [];
+    }
+
+    /** Zoekt de poulecode van een elftal op. Null als hij nergens te vinden is. */
+    public function pouleCodeVoorTeam(string $teamCode): ?string
+    {
+        foreach ($this->getPoules($teamCode) as $poule) {
+            if ($code = self::pouleCodeUit($poule)) {
+                return $code;
+            }
+        }
+
+        foreach ($this->getResults($teamCode, 365) as $uitslag) {
+            if ($code = self::pouleCodeUit($uitslag)) {
+                return $code;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Vist de poulecode uit een rij. De sleutel heet niet overal hetzelfde, dus
+     * we zoeken op de eerste sleutel waar 'poule' in zit met een gevulde waarde.
+     *
+     * @param  mixed  $rij
+     */
+    private static function pouleCodeUit($rij): ?string
+    {
+        if (! is_array($rij)) {
+            return null;
+        }
+
+        foreach (['poulecode', 'poule_code', 'pouleCode'] as $sleutel) {
+            if (! empty($rij[$sleutel])) {
+                return (string) $rij[$sleutel];
+            }
+        }
+
+        foreach ($rij as $sleutel => $waarde) {
+            if (is_scalar($waarde) && $waarde !== '' && str_contains(strtolower((string) $sleutel), 'poule')) {
+                return (string) $waarde;
+            }
+        }
+
+        return null;
     }
 
     public function isConfigured(): bool
