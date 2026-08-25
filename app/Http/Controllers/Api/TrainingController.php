@@ -65,8 +65,11 @@ class TrainingController extends Controller
 
         // Aantal teamleden (voor 'aangemeld' = leden - afmeldingen). Eén query;
         // alle schema's horen bij hetzelfde team (team_id-filter).
+        //
+        // Alleen spelers, net als de deelnemerslijst: telde dit de trainers mee,
+        // dan zou de kaart een hoger aantal tonen dan er namen onder staan.
         $team        = $schedules->first()?->team;
-        $memberCount = $team ? (int) $team->members()->count() : 0;
+        $memberCount = $team ? (int) $team->playingMembers()->count() : 0;
 
         $occurrences = [];
         foreach ($schedules as $schedule) {
@@ -147,7 +150,9 @@ class TrainingController extends Controller
             ->mapWithKeys(fn ($a) => [$a->member_id => (string) $a->reason]);
 
         $rows = [];
-        foreach ($schedule->team?->members()->orderBy('name')->get() ?? collect() as $member) {
+        // Alleen spelers, net als bij een wedstrijd: een trainer staat niet in
+        // de opkomstlijst en meldt zich ook niet af.
+        foreach ($schedule->team?->playingMembers()->orderBy('members.name')->get() ?? collect() as $member) {
             $isAfgemeld = $reasonByMember->has($member->id);
             $rows[] = [
                 // De coach meldt hiermee iemand namens hem af of aan.
