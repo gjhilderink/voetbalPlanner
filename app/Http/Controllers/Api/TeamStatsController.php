@@ -102,23 +102,55 @@ class TeamStatsController extends Controller
             ? (int) round($attended / $opportunities * 100)
             : 0;
 
-        $goals = $memberId
-            ? Goal::query()
-                ->whereIn('match_id', $played->pluck('id'))
-                ->where('scorer_id', $memberId)
-                ->where('is_own_goal', false)
-                ->count()
-            : 0;
-        $assists = $memberId
-            ? Goal::query()
-                ->whereIn('match_id', $played->pluck('id'))
-                ->where('assist_id', $memberId)
+        // Doelpunten en assists komen uit het live verslag: dat is de plek waar
+        // een wedstrijd echt wordt vastgelegd, mét minuut en assist.
+        //
+        // Doelpunten die alleen via het tabblad Doelpunten zijn ingevoerd tellen
+        // er los bij op. Zonder dat zouden de cijfers van iedereen kelderen zodra
+        // er een keer geen verslag is bijgehouden, en dat leest als verlies van
+        // gegevens. Een live vastgelegd doelpunt maakt óók een Goal-rij aan, en
+        // die is via goal_id aan de gebeurtenis gekoppeld — daarop filteren we,
+        // zodat er niets dubbel wordt geteld.
+        $wedstrijdIds = $played->pluck('id');
+
+        $uitVerslag = fn (string $veld) => $memberId
+            ? MatchEvent::query()
+                ->whereIn('match_id', $wedstrijdIds)
+                ->where('type', MatchEvent::TYPE_GOAL)
+                ->where('side', MatchEvent::SIDE_OWN)
+                ->where($veld, $memberId)
                 ->count()
             : 0;
 
-        // Fair play: kaarten komen uit het live verslag. Wedstrijden die zonder
-        // live verslag gespeeld zijn tellen dus als nul kaarten — er is geen
-        // andere plek waar ze geregistreerd worden.
+        $losseDoelpunten = $memberId
+            ? Goal::query()
+                ->whereIn('match_id', $wedstrijdIds)
+                ->where('scorer_id', $memberId)
+                ->where('is_own_goal', false)
+                ->whereNotIn('id', MatchEvent::query()
+                    ->whereIn('match_id', $wedstrijdIds)
+                    ->whereNotNull('goal_id')
+                    ->select('goal_id'))
+                ->count()
+            : 0;
+
+        $losseAssists = $memberId
+            ? Goal::query()
+                ->whereIn('match_id', $wedstrijdIds)
+                ->where('assist_id', $memberId)
+                ->whereNotIn('id', MatchEvent::query()
+                    ->whereIn('match_id', $wedstrijdIds)
+                    ->whereNotNull('goal_id')
+                    ->select('goal_id'))
+                ->count()
+            : 0;
+
+        $goals   = $uitVerslag('member_id') + $losseDoelpunten;
+        $assists = $uitVerslag('related_member_id') + $losseAssists;
+
+        // Kaarten bestaan alleen in het live verslag; anders dan bij doelpunten
+        // is er geen tweede plek waar ze vandaan kunnen komen. Een wedstrijd
+        // zonder verslag telt dus als nul kaarten.
         $kaarten = $memberId
             ? MatchEvent::query()
                 ->whereIn('match_id', $matches->pluck('id'))

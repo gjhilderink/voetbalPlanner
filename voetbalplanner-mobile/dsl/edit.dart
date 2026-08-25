@@ -29282,6 +29282,15 @@ FFNode? _dashSeasonStatsCard(FFProject project, FFWidgetClass wc) {
             seasonChip,
           ],
         ),
+        // Doelpunten, assists en kaarten komen uit de live verslagen. Dat hoort
+        // erbij te staan: blijft het bij nul, dan is er geen verslag bijgehouden
+        // en niet slecht gespeeld.
+        UI.text('Uit de live verslagen van je wedstrijden',
+            name: 'DashSeasonStatsBron',
+            style: UITextStyle.labelSmall,
+            color: UIColor.secondaryText,
+            maxLines: 2,
+            textOverflow: UITextOverflow.ellipsis),
         UI.row(
           name: 'DashSeasonStatsRowA',
           mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
