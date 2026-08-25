@@ -29870,6 +29870,12 @@ FFNode? _attendanceToggle(
   required String herlaadEndpoint,
   required String appStateVeld,
   required Map<String, FFVariable> Function() basisVars,
+  // Een tweede lijst die van deze wijziging afhangt. Bij een training is dat de
+  // trainingenlijst: die voedt de kaart op het dashboard, en zonder deze
+  // verversing klopte de telling daar pas na een herstart.
+  String? extraEndpoint,
+  String? extraAppStateVeld,
+  Map<String, FFVariable> Function()? extraVars,
 }) {
   final authTokenId = _findAppStateFieldId(project, 'authToken');
   if (authTokenId == null) return null;
@@ -29907,19 +29913,48 @@ FFNode? _attendanceToggle(
     },
     outputVariableName: '${naamPrefix}ToggleCall',
     nodeKey: knop.key,
-    onSuccess: (ctx) => Actions.apiCallNode(
-      project,
-      endpointName: herlaadEndpoint,
-      groupName: 'VoetbalPlannerAPI',
-      dynamicVariables: basisVars(),
-      outputVariableName: '${naamPrefix}ToggleReload',
-      nodeKey: knop.key,
-      onSuccess: (c2) => Actions.chain([
-        Actions.updateAppState(project, updates: [
-          StateFieldUpdate.setFromVariable(appStateVeld, c2.responseVar),
+    onSuccess: (ctx) {
+      final herlaad = Actions.apiCallNode(
+        project,
+        endpointName: herlaadEndpoint,
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: basisVars(),
+        outputVariableName: '${naamPrefix}ToggleReload',
+        nodeKey: knop.key,
+        onSuccess: (c2) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable(appStateVeld, c2.responseVar),
+          ]),
         ]),
-      ]),
-    ),
+      );
+
+      if (extraEndpoint != null &&
+          extraAppStateVeld != null &&
+          extraVars != null &&
+          findApiEndpoint(project,
+                  name: extraEndpoint, groupName: 'VoetbalPlannerAPI') !=
+              null) {
+        var staart = herlaad;
+        while (staart.hasFollowUpAction()) {
+          staart = staart.followUpAction;
+        }
+        staart.followUpAction = Actions.apiCallNode(
+          project,
+          endpointName: extraEndpoint,
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: extraVars(),
+          outputVariableName: '${naamPrefix}ToggleExtra',
+          nodeKey: knop.key,
+          onSuccess: (c3) => Actions.chain([
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable(extraAppStateVeld, c3.responseVar),
+            ]),
+          ]),
+        );
+      }
+
+      return herlaad;
+    },
     onFailure: (ctx) => Actions.chain([
       Actions.snackBar('Kon dit niet aanpassen.'),
     ]),
@@ -30024,6 +30059,19 @@ void _buildTrainingAttendanceSection(FFProject project) {
       aanmeldEndpoint: 'AanmeldenTrainingCoach',
       herlaadEndpoint: 'GetTrainingParticipants',
       appStateVeld: 'trainingParticipants',
+      // De trainingenlijst voedt de kaart op het dashboard; zonder deze tweede
+      // verversing zag je daar de nieuwe telling pas na een herstart.
+      extraEndpoint: 'GetTrainingsList',
+      extraAppStateVeld: 'trainings',
+      extraVars: () {
+        final tokenId = _findAppStateFieldId(project, 'authToken');
+        final teamId = _findAppStateFieldId(project, 'currentTeamId');
+        if (tokenId == null || teamId == null) return {};
+        return {
+          'token': varFromAppState(tokenId.deepCopy()),
+          'teamId': varFromAppState(teamId.deepCopy()),
+        };
+      },
       basisVars: () {
         FFIdentifier? param(String naam) => wc.params.values
             .cast<FFParameter?>()
