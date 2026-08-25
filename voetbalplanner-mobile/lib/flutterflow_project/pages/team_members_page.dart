@@ -81,29 +81,143 @@ abstract final class TeamMembersPageWidgets {
                 name: "TeamMemberList",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_0536if3z",
+                    key: "Container_q0wr98av",
                     type: "Container",
                     path: "TeamMembersPage.body[0].children[0].children[0]",
-                    name: "TeamMemberCard",
+                    name: "TeamMemberCard Margin",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_jpashzf5",
-                        type: "Column",
+                        key: "Container_4275d0i9",
+                        type: "Container",
                         path: "TeamMembersPage.body[0].children[0].children[0].children[0]",
-                        name: "TeamMemberCol",
+                        name: "TeamMemberCard",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_d1dtg8qh",
-                            type: "Text",
+                            key: "Row_nwav9bog",
+                            type: "Row",
                             path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0]",
-                            name: "TeamMemberNameText",
-                          ),
-                          ffai.ProjectWidgetHandle(
-                            key: "Text_idmvz53b",
-                            type: "Text",
-                            path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[1]",
-                            name: "TeamMemberOfflineLabel",
-                            text: "Nog niet online",
+                            name: "TeamMemberRij",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "j9tuc488",
+                                type: "CircleImage",
+                                path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[0]",
+                                name: "TeamMemberFoto",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_w7lp180p",
+                                type: "Container",
+                                path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[1]",
+                                name: "TeamMemberBadgeSpeler",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_t6622qxt",
+                                    type: "Text",
+                                    path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[1].children[0]",
+                                    name: "TeamMemberBadgeSpelerTekst",
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_zl41rm4g",
+                                type: "Container",
+                                path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[2]",
+                                name: "TeamMemberBadgeStaf",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_7fjcym7t",
+                                    type: "Text",
+                                    path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[2].children[0]",
+                                    name: "TeamMemberBadgeStafTekst",
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Column_pahvcwrk",
+                                type: "Column",
+                                path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3]",
+                                name: "TeamMemberNaamCol",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_axfoqddp",
+                                    type: "Text",
+                                    path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[0]",
+                                    name: "TeamMemberNameText",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_0esjh5ka",
+                                    type: "Row",
+                                    path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1]",
+                                    name: "TeamMemberOnderRij",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_busfc9jg",
+                                        type: "Container",
+                                        path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[0]",
+                                        name: "TeamMemberRolSpeler",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_0v1l42mz",
+                                            type: "Text",
+                                            path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[0].children[0]",
+                                            name: "TeamMemberRolSpelerTekst",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_vdkzjrb0",
+                                        type: "Container",
+                                        path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[1]",
+                                        name: "TeamMemberRolStaf",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_hesiv1il",
+                                            type: "Text",
+                                            path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[1].children[0]",
+                                            name: "TeamMemberRolStafTekst",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Row_xa7na6t4",
+                                        type: "Row",
+                                        path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[2]",
+                                        name: "TeamMemberOffline",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Container_xs6d9mzq",
+                                            type: "Container",
+                                            path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[2].children[0]",
+                                            name: "TeamMemberOfflineStip",
+                                          ),
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_ccmoxpzd",
+                                            type: "Text",
+                                            path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[2].children[1]",
+                                            name: "TeamMemberOfflineLabel",
+                                            text: "Nog niet online",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_m7ehnekz",
+                                type: "Container",
+                                path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[4]",
+                                name: "TeamMemberChatKnop",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Icon_q38rsbpc",
+                                    type: "Icon",
+                                    path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[4].children[0]",
+                                    name: "Icon",
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ],
                       ),

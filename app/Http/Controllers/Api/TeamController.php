@@ -70,7 +70,12 @@ class TeamController extends Controller
                 $data = (new MemberResource($m))->resolve();
                 // Functie van dit lid binnen DIT team (member_team.role).
                 $data['team_role'] = $m->pivot->role ?? null;
-                return $data;
+
+                return $data + self::presentatie(
+                    $m->pivot->role ?? null,
+                    $m->role,
+                    $m->shirt_number,
+                );
             })
             ->all();
 
@@ -101,18 +106,65 @@ class TeamController extends Controller
                 'role'           => null,
                 'team_role'      => $u->pivot->role ?? null,
                 'profile_photo'  => $u->profile_photo,
+                'photoUrl'       => $u->profile_photo
+                    ? asset('storage/' . $u->profile_photo)
+                    : '',
                 'is_active'      => true,
                 'external_id'    => '',
                 'externalId'     => '',
                 'hasAppAccount'  => true,
                 'teams'          => [],
                 'created_at'     => $u->created_at?->toISOString(),
-            ];
+            ] + self::presentatie($u->pivot->role ?? null, null, null);
         }
 
         // Sort merged op naam.
         usort($memberPayload, fn($a, $b) => strcasecmp(($a['name'] ?? ''), ($b['name'] ?? '')));
 
         return response()->json($memberPayload);
+    }
+
+    /**
+     * Wat de ledenlijst in de app toont: een label, een kort teken voor het
+     * ronde vakje en of het om staf gaat (dat bepaalt de kleur).
+     *
+     * Hier en niet in de app: de app zou dan zelf rollen moeten vertalen, en
+     * dan staat dezelfde tabel op twee plekken.
+     *
+     * @return array<string, string>
+     */
+    private static function presentatie(?string $teamRol, ?string $clubRol, ?int $rugnummer): array
+    {
+        // De functie binnen dit elftal is het meest specifiek; pas als die
+        // ontbreekt telt de hoofdrol in de club mee.
+        $rol = $teamRol ?: $clubRol;
+
+        $label = match ($rol) {
+            'coach'           => 'Coach',
+            'assistant_coach' => 'Trainer',
+            'leider'          => 'Leider',
+            'medical'         => 'Medisch',
+            'staff'           => 'Staf',
+            default           => 'Speler',
+        };
+
+        $isStaf = $label !== 'Speler';
+
+        // Spelers krijgen hun rugnummer, staf een afkorting van twee letters.
+        $teken = match ($label) {
+            'Coach'   => 'CO',
+            'Trainer' => 'TR',
+            'Leider'  => 'LE',
+            'Medisch' => 'MD',
+            'Staf'    => 'ST',
+            default   => $rugnummer !== null ? (string) $rugnummer : '–',
+        };
+
+        return [
+            'roleLabel'   => $label,
+            'badge'       => $teken,
+            'isStaff'     => $isStaf ? 'true' : 'false',
+            'shirtNumber' => $rugnummer !== null ? (string) $rugnummer : '',
+        ];
     }
 }

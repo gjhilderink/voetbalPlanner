@@ -400,11 +400,15 @@ abstract final class Structs {
   static final ffai.StructHandle swapMember = ffai.StructHandle(
     "SwapMember",
     <String, ffai.DslType>{
+      "badge": ffai.string,
       "email": ffai.string,
       "externalId": ffai.string,
       "hasAppAccount": ffai.bool_,
       "id": ffai.string,
+      "isStaff": ffai.string,
       "name": ffai.string,
+      "photoUrl": ffai.string,
+      "roleLabel": ffai.string,
     },
     description: ffai.generatedProjectStructDescription,
   );

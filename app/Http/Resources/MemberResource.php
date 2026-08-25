@@ -24,6 +24,10 @@ class MemberResource extends JsonResource
             'date_of_birth' => $this->date_of_birth?->format('Y-m-d'),
             'role' => $this->role,
             'profile_photo' => $this->profile_photo,
+            // Kant-en-klare URL: de app kan een opslagpad niet zelf omzetten.
+            'photoUrl' => $this->profile_photo
+                ? asset('storage/' . $this->profile_photo)
+                : '',
             'is_active' => $this->is_active,
             'external_id' => $this->external_id,
             // CamelCase alias zodat de mobile SwapMember struct (externalId) automatisch matcht.

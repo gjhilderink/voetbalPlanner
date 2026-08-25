@@ -701,6 +701,12 @@ void buildEditFlow(App app) {
     addField('email',         FFBaseDataType.String);
     addField('externalId',    FFBaseDataType.String);
     addField('hasAppAccount', FFBaseDataType.Boolean);
+    // Voor de ledenlijst: foto, rugnummer/afkorting in het vakje, en het label
+    // eronder. De backend rekent die uit, zodat de rollentabel op één plek staat.
+    addField('photoUrl',      FFBaseDataType.String);
+    addField('badge',         FFBaseDataType.String);
+    addField('roleLabel',     FFBaseDataType.String);
+    addField('isStaff',       FFBaseDataType.String);
   });
 
   // AppState intermediary for GetAppUsersAsMembers. Only declared if not yet present —
@@ -889,6 +895,8 @@ void buildEditFlow(App app) {
     _buildGroupMembersPageRaw(project);
     // Build TeamMembersPage (lijst van team leden).
     _buildTeamMembersPage(project);
+    // Ná het aanmaken: de opmaak wordt elke push vers opgebouwd.
+    _restyleTeamMembersPage(project);
     // Voeg "Toon leden" subtitle + tap-naar-leden toe aan ChatDetailPage + TeamChatPage AppBars.
     _addTeamMembersSubtitleToChatDetail(project);
     // Rebuild GroupChatPage AppBar with the title param and delete button.
@@ -35485,4 +35493,196 @@ void _wirePlannedSubsOnLivePage(FFProject project) {
       ),
     ),
   );
+}
+
+/// Ledenlijst in de vorm van screenshots/teamleden.png: foto, een gekleurd
+/// vakje met het rugnummer (of een afkorting bij staf), de naam met daaronder
+/// het functielabel en de online-status, en rechts een chatknop.
+///
+/// Vers opgebouwd bij elke push. De pagina zelf wordt maar één keer aangemaakt
+/// (_buildTeamMembersPage stopt als hij al bestaat), dus de opmaak moet hier
+/// staan en niet daar.
+void _restyleTeamMembersPage(FFProject project) {
+  final wc = findPage(project, name: 'TeamMembersPage');
+  if (wc == null) return;
+
+  final lijst =
+      findDescendants(wc.node, (n) => n.name == 'TeamMemberList').firstOrNull;
+  if (lijst == null) return;
+
+  lijst.children.clear();
+
+  FFNode gebonden(String naam, String veld, UITextStyle stijl,
+      {UIColor? kleur, UIFontWeight? gewicht, int maxLines = 1}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: maxLines,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijst.key, veld));
+    return t;
+  }
+
+  // ── Foto ────────────────────────────────────────────────────────────────
+  final foto = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.CircleImage,
+    name: 'TeamMemberFoto',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue: FFStringValue(
+            variable: generatorVarField(lijst.key, 'photoUrl')),
+        fit: FFBoxFit.FF_BOX_FIT_COVER,
+        cached: true,
+        dimensions: FFDimensions(
+          width: FFDim(pixelsValue: FFDoubleValue(inputValue: 46.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 46.0)),
+        ),
+      ),
+    ),
+  );
+
+  // ── Vakje met rugnummer of afkorting ────────────────────────────────────
+  //
+  // Twee varianten omdat de kleur van de rol afhangt en FlutterFlow een kleur
+  // niet aan een variabele kan binden: rood voor spelers, bijna zwart voor staf.
+  FFNode vakje({required bool staf}) {
+    final v = UI.container(
+      name: staf ? 'TeamMemberBadgeStaf' : 'TeamMemberBadgeSpeler',
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      alignment: UIAlignment.center,
+      color: staf ? UIColor.hex(0xFF1F2430) : UIColor.error,
+      child: gebonden('TeamMemberBadge${staf ? 'Staf' : 'Speler'}Tekst', 'badge',
+          UITextStyle.titleSmall,
+          kleur: UIColor.white, gewicht: UIFontWeight.w700),
+    );
+    setConditionalVisibility(
+      v,
+      variable: _equalsLiteral(
+          generatorVarField(lijst.key, 'isStaff'), 'true',
+          negate: !staf),
+    );
+    return v;
+  }
+
+  // ── Functielabel ────────────────────────────────────────────────────────
+  FFNode label({required bool staf}) {
+    final l = UI.container(
+      name: staf ? 'TeamMemberRolStaf' : 'TeamMemberRolSpeler',
+      innerPadding: UIEdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      borderRadius: 6,
+      color: staf ? UIColor.hex(0xFF1F2430) : UIColor.hex(0xFFFDE3E3),
+      child: gebonden(
+          'TeamMemberRol${staf ? 'Staf' : 'Speler'}Tekst', 'roleLabel',
+          UITextStyle.labelSmall,
+          kleur: staf ? UIColor.white : UIColor.error),
+    );
+    setConditionalVisibility(
+      l,
+      variable: _equalsLiteral(
+          generatorVarField(lijst.key, 'isStaff'), 'true',
+          negate: !staf),
+    );
+    return l;
+  }
+
+  final offline = UI.row(
+    name: 'TeamMemberOffline',
+    mainAxisMin: true,
+    spacing: 5,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      UI.container(
+        name: 'TeamMemberOfflineStip',
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        color: UIColor.secondaryText,
+      ),
+      UI.text('Nog niet online',
+          name: 'TeamMemberOfflineLabel',
+          style: UITextStyle.labelSmall,
+          color: UIColor.secondaryText,
+          maxLines: 1),
+    ],
+  );
+  // Alleen voor wie de app nog niet heeft geactiveerd.
+  setConditionalVisibility(
+    offline,
+    variable: conditionVar(
+      generatorVarField(lijst.key, 'hasAppAccount'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+    ).variable,
+  );
+
+  final onderRij = UI.row(
+    name: 'TeamMemberOnderRij',
+    spacing: 8,
+    mainAxisMin: true,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [label(staf: false), label(staf: true), offline],
+  );
+
+  final naamKolom = UI.column(
+    name: 'TeamMemberNaamCol',
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    spacing: 5,
+    children: [
+      gebonden('TeamMemberNameText', 'name', UITextStyle.bodyLarge,
+          gewicht: UIFontWeight.w700),
+      onderRij,
+    ],
+  );
+
+  // ── Chatknop ────────────────────────────────────────────────────────────
+  final chatKnop = UI.container(
+    name: 'TeamMemberChatKnop',
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignment: UIAlignment.center,
+    color: UIColor.secondaryBackground,
+    border: UIBorder.all(width: 1, color: UIColor.hex(0xFFE7E9EE)),
+    child: UI.icon('chat_bubble_outline', size: 20, color: UIColor.error),
+  );
+  // Zonder app-account valt er niets te chatten; dan de knop weglaten in plaats
+  // van een tik die nergens toe leidt.
+  setConditionalVisibility(
+    chatKnop,
+    variable: conditionVar(
+      generatorVarField(lijst.key, 'hasAppAccount'),
+      FFCondition_Relation.EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+    ).variable,
+  );
+
+  final kaart = UI.container(
+    name: 'TeamMemberCard',
+    margin: UIEdgeInsets.only(left: 12, right: 12, top: 4, bottom: 4),
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    borderRadius: 14,
+    color: UIColor.secondaryBackground,
+    shadow: const UIShadow(blurRadius: 6, dy: 1, color: UIColor.hex(0x12000000)),
+    child: UI.row(
+      name: 'TeamMemberRij',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        foto,
+        vakje(staf: false),
+        vakje(staf: true),
+        UI.expanded(naamKolom),
+        chatKnop,
+      ],
+    ),
+  );
+
+  lijst.children.add(kaart);
 }
