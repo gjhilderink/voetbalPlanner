@@ -33360,11 +33360,17 @@ class LineupBoard extends StatefulWidget {
     this.width,
     this.height,
     this.canEdit,
+    this.mode,
   });
 
   final double? width;
   final double? height;
   final bool? canEdit;
+
+  /// 'wissels' toont het wisselschema, al het andere het veld. Eén widget voor
+  /// beide, omdat het wisselschema dezelfde spelerslijsten en dezelfde
+  /// keuzedialogen gebruikt.
+  final String? mode;
 
   @override
   State<LineupBoard> createState() => _LineupBoardState();
@@ -33449,6 +33455,14 @@ class _LineupBoardState extends State<LineupBoard> {
   @override
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
+
+    if ((widget.mode ?? '') == 'wissels') {
+      return SizedBox(
+        width: widget.width,
+        height: widget.height,
+        child: _wisselSchema(theme),
+      );
+    }
 
     return SizedBox(
       width: widget.width,
@@ -33732,6 +33746,343 @@ class _LineupBoardState extends State<LineupBoard> {
       child: rij,
     );
   }
+
+
+  // ── Wisselschema ─────────────────────────────────────────────────────────
+  //
+  // Een wisselmoment is niet hetzelfde als een speelperiode: bij twee momenten
+  // heeft de wedstrijd drie perioden en wordt er twee keer gewisseld.
+
+  int get _blokken => int.tryParse(FFAppState().lineupBlocks) ?? 1;
+  List<LineupSubStruct> get _wissels => FFAppState().lineupSubs;
+
+  void _schrijfWissels(List<LineupSubStruct> lijst) {
+    FFAppState().update(() => FFAppState().lineupSubs = lijst);
+  }
+
+  /// Verdeelt de speeltijd zo gelijk mogelijk: bij elk wisselmoment gaan de
+  /// spelers eruit die tot dan toe het meest hebben gespeeld, en komen de
+  /// spelers erin die het minst aan bod kwamen.
+  ///
+  /// Het aantal wissels per moment is beperkt tot de omvang van de bank; met
+  /// drie wisselspelers wissel je er nooit vier tegelijk.
+  void _autoVerdeel() {
+    final blokken = _blokken;
+    var veld = List<LineupSlotStruct>.from(_veld);
+    var bank = List<LineupSlotStruct>.from(_bank);
+
+    if (blokken < 1 || veld.isEmpty || bank.isEmpty) {
+      _schrijfWissels(<LineupSubStruct>[]);
+      return;
+    }
+
+    final gespeeld = <String, int>{};
+    for (final s in veld) {
+      gespeeld[s.memberId] = 1;
+    }
+    for (final s in bank) {
+      gespeeld[s.memberId] = 0;
+    }
+
+    final aantal = bank.length < veld.length ? bank.length : veld.length;
+    final nieuw = <LineupSubStruct>[];
+
+    for (var blok = 1; blok <= blokken; blok++) {
+      veld.sort((a, b) =>
+          (gespeeld[b.memberId] ?? 0).compareTo(gespeeld[a.memberId] ?? 0));
+      bank.sort((a, b) =>
+          (gespeeld[a.memberId] ?? 0).compareTo(gespeeld[b.memberId] ?? 0));
+
+      final uit = veld.take(aantal).toList();
+      final erin = bank.take(aantal).toList();
+
+      for (var i = 0; i < aantal; i++) {
+        nieuw.add(LineupSubStruct(
+          block: '$blok',
+          outId: uit[i].memberId,
+          outNaam: uit[i].naam,
+          inId: erin[i].memberId,
+          inNaam: erin[i].naam,
+        ));
+      }
+
+      veld = [...veld.skip(aantal), ...erin];
+      bank = [...bank.skip(aantal), ...uit];
+      for (final s in veld) {
+        gespeeld[s.memberId] = (gespeeld[s.memberId] ?? 0) + 1;
+      }
+    }
+
+    _schrijfWissels(nieuw);
+  }
+
+  /// Spelerkiezer. Retourneert null als er niets gekozen is.
+  Future<LineupSlotStruct?> _kiesSpeler(
+      String titel, List<LineupSlotStruct> uit) async {
+    if (uit.isEmpty) return null;
+
+    return showModalBottomSheet<LineupSlotStruct>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) {
+        final theme = FlutterFlowTheme.of(ctx);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                child: Text(titel, style: theme.titleSmall),
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: uit.length,
+                  itemBuilder: (_, i) => ListTile(
+                    title: Text(uit[i].naam),
+                    subtitle: uit[i].nummer.isEmpty ? null : Text(uit[i].nummer),
+                    onTap: () => Navigator.of(ctx).pop(uit[i]),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _voegWisselToe(int blok) async {
+    // Wie op dit moment op het veld staat, gaat eruit; wie op de bank of nog
+    // niet ingedeeld is, komt erin. Bewust de begintoestand en niet de stand ná
+    // eerdere blokken: dat zou de coach moeten laten uitrekenen wie waar staat.
+    final uit = await _kiesSpeler('Wie gaat eruit?', _veld);
+    if (uit == null) return;
+
+    final erin = await _kiesSpeler(
+        'Wie komt erin?', [..._bank, ..._nietIngedeeld]);
+    if (erin == null) return;
+
+    _schrijfWissels([
+      ..._wissels,
+      LineupSubStruct(
+        block: '$blok',
+        outId: uit.memberId,
+        outNaam: uit.naam,
+        inId: erin.memberId,
+        inNaam: erin.naam,
+      ),
+    ]);
+  }
+
+  void _verwijderWissel(LineupSubStruct wissel) {
+    final lijst = List<LineupSubStruct>.from(_wissels);
+    lijst.removeWhere((w) =>
+        w.block == wissel.block &&
+        w.outId == wissel.outId &&
+        w.inId == wissel.inId);
+    _schrijfWissels(lijst);
+  }
+
+  Widget _wisselSchema(FlutterFlowTheme theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _aantalMomenten(theme),
+        if (_mag) ...[
+          const SizedBox(height: 12),
+          _autoKnop(theme),
+        ],
+        const SizedBox(height: 14),
+        if (_blokken < 1)
+          Text(
+            'Zonder wisselmomenten valt er niets te plannen.',
+            style: theme.bodySmall.override(
+              fontFamily: theme.bodySmallFamily,
+              color: theme.secondaryText,
+            ),
+          ),
+        for (var blok = 1; blok <= _blokken; blok++) _blokKaart(theme, blok),
+      ],
+    );
+  }
+
+  Widget _aantalMomenten(FlutterFlowTheme theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Aantal wisselmomenten', style: theme.labelMedium),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final n in const [0, 1, 2, 3, 4])
+              GestureDetector(
+                onTap: !_mag
+                    ? null
+                    : () {
+                        FFAppState().update(() {
+                          FFAppState().lineupBlocks = '$n';
+                          // Wissels van weggevallen momenten meteen opruimen,
+                          // anders bewaren we een plan dat niemand meer ziet.
+                          FFAppState().lineupSubs = _wissels
+                              .where((w) => (int.tryParse(w.block) ?? 1) <= n)
+                              .toList();
+                        });
+                      },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _blokken == n
+                        ? const Color(0xFF1E3A5F)
+                        : const Color(0xFFEFF1F5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$n',
+                    style: theme.labelMedium.override(
+                      fontFamily: theme.labelMediumFamily,
+                      color: _blokken == n ? Colors.white : theme.primaryText,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _autoKnop(FlutterFlowTheme theme) {
+    return GestureDetector(
+      onTap: _autoVerdeel,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF1F5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF1E3A5F)),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Automatisch verdelen — iedereen ongeveer evenveel speeltijd',
+                style: theme.labelSmall.override(
+                  fontFamily: theme.labelSmallFamily,
+                  color: const Color(0xFF1E3A5F),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _blokKaart(FlutterFlowTheme theme, int blok) {
+    final vanDitBlok =
+        _wissels.where((w) => (int.tryParse(w.block) ?? 1) == blok).toList();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE7E9EE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Wisselmoment $blok', style: theme.titleSmall),
+          const SizedBox(height: 8),
+          if (vanDitBlok.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                'Nog geen wissels gepland.',
+                style: theme.bodySmall.override(
+                  fontFamily: theme.bodySmallFamily,
+                  color: theme.secondaryText,
+                ),
+              ),
+            ),
+          for (final wissel in vanDitBlok) _wisselRij(theme, wissel),
+          if (_mag) ...[
+            const SizedBox(height: 6),
+            GestureDetector(
+              onTap: () => _voegWisselToe(blok),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.add, size: 18, color: Color(0xFF1E3A5F)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Wissel toevoegen',
+                    style: theme.labelSmall.override(
+                      fontFamily: theme.labelSmallFamily,
+                      color: const Color(0xFF1E3A5F),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _wisselRij(FlutterFlowTheme theme, LineupSubStruct wissel) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.arrow_downward, size: 16, color: Color(0xFFE11D2E)),
+          Expanded(
+            child: Text(
+              wissel.outNaam,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.bodySmall,
+            ),
+          ),
+          const Icon(Icons.arrow_upward, size: 16, color: Color(0xFF16A34A)),
+          Expanded(
+            child: Text(
+              wissel.inNaam,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.bodySmall,
+            ),
+          ),
+          if (_mag)
+            GestureDetector(
+              onTap: () => _verwijderWissel(wissel),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child:
+                    Icon(Icons.close, size: 18, color: theme.secondaryText),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 /// De belijning. Puur decoratief, maar zonder lijnen is het geen veld.
@@ -33786,6 +34137,14 @@ void _ensureLineupBoardStruct(FFProject project) {
         'Eén speler op het opstellingsbord: naam, rugnummer, plek op het veld (0..1) en of hij zich heeft afgemeld.',
     fields: const ['memberId', 'naam', 'nummer', 'posX', 'posY', 'isAfgemeld'],
   );
+
+  _ensureFlatStringStruct(
+    project,
+    name: 'LineupSub',
+    description:
+        'Eén geplande wissel: het hoeveelste wisselmoment, wie eruit gaat en wie erin komt.',
+    fields: const ['block', 'outId', 'outNaam', 'inId', 'inNaam'],
+  );
 }
 
 void _ensureLineupBoardAppState(FFProject project) {
@@ -33795,17 +34154,28 @@ void _ensureLineupBoardAppState(FFProject project) {
   bool heeft(String naam) =>
       project.appState.fields.any((f) => f.parameter.identifier.name == naam);
 
-  for (final naam in const ['lineupField', 'lineupBench', 'lineupSelection']) {
-    if (heeft(naam)) continue;
+  void lijst(String naam, FFDataStruct s) {
+    if (heeft(naam)) return;
     final param = FFParameter(
       identifier: FFIdentifier(name: naam, key: generateRandomAlphaNumericString()),
-      dataType: dataStructType(struct.identifier.deepCopy()),
+      dataType: dataStructType(s.identifier.deepCopy()),
     );
     param.isList = true;
     project.appState.fields.add(FFAppStateField(parameter: param));
   }
 
+  for (final naam in const ['lineupField', 'lineupBench', 'lineupSelection']) {
+    lijst(naam, struct);
+  }
+
+  final subStruct = findDataStruct(project, name: 'LineupSub');
+  if (subStruct != null) {
+    lijst('lineupSubs', subStruct);
+  }
+
   for (final naam in const [
+    'lineupBlocks',
+    'lineupTab',
     'lineupFormation',
     'lineupPlayersOnField',
     'lineupMatchFormat',
@@ -33890,6 +34260,19 @@ Future<String> loadLineupBoard(String? matchId) async {
       FFAppState().lineupField = lees(data['veld']);
       FFAppState().lineupBench = lees(data['bank']);
       FFAppState().lineupSelection = lees(data['selectie']);
+      FFAppState().lineupBlocks = '${data['blocks'] ?? '1'}';
+      FFAppState().lineupSubs = (data['wissels'] is List)
+          ? (data['wissels'] as List)
+              .whereType<Map>()
+              .map((m) => LineupSubStruct(
+                    block: '${m['block'] ?? ''}',
+                    outId: '${m['outId'] ?? ''}',
+                    outNaam: '${m['outNaam'] ?? ''}',
+                    inId: '${m['inId'] ?? ''}',
+                    inNaam: '${m['inNaam'] ?? ''}',
+                  ))
+              .toList()
+          : <LineupSubStruct>[];
       FFAppState().lineupFormation = '${data['formation'] ?? ''}';
       FFAppState().lineupPlayersOnField = '${data['playersOnField'] ?? ''}';
       FFAppState().lineupMatchFormat = '${data['matchFormat'] ?? ''}';
@@ -33952,6 +34335,15 @@ Future<String> saveLineupBoard(String? matchId) async {
         'players_on_field': int.tryParse(FFAppState().lineupPlayersOnField),
         'match_format': FFAppState().lineupMatchFormat,
         'players': spelers,
+        'substitution_blocks': int.tryParse(FFAppState().lineupBlocks) ?? 1,
+        'substitutions': FFAppState()
+            .lineupSubs
+            .map((w) => {
+                  'block': int.tryParse(w.block) ?? 1,
+                  'member_out_id': w.outId.isEmpty ? null : w.outId,
+                  'member_in_id': w.inId.isEmpty ? null : w.inId,
+                })
+            .toList(),
       }),
     );
     if (res.statusCode >= 200 && res.statusCode < 300) return '';
@@ -34067,11 +34459,27 @@ void _ensureLineupBoardWidget(FFProject project) {
           identifier: FFIdentifier(name: 'canEdit'),
           dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
         ),
+        FFParameter(
+          identifier: FFIdentifier(name: 'mode'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
       ],
       code: _kLineupBoardCode,
     );
   } else {
     updateCustomWidget(project, name: 'LineupBoard', code: _kLineupBoardCode);
+
+    // updateCustomWidget raakt alleen de code aan; een nieuwe parameter op een
+    // widget die al bestaat moet er zelf bij.
+    final bestaand = findCustomWidget(project, name: 'LineupBoard');
+    if (bestaand != null &&
+        !bestaand.parameters.any((p) => p.identifier.name == 'mode')) {
+      bestaand.parameters.add(FFParameter(
+        identifier: FFIdentifier(
+            name: 'mode', key: generateRandomAlphaNumericString()),
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ));
+    }
   }
 }
 
@@ -34101,6 +34509,10 @@ void _buildOpstellingPage(App app) {
       'matchId': string.withDefault(''),
       'teamName': string.withDefault(''),
     },
+    state: {
+      // Welk tabblad open staat: 'veld', 'wissels' of 'instellingen'.
+      'tab': string.withDefault('veld'),
+    },
     body: Scaffold(
       appBar: AppBar(title: 'Opstelling'),
       body: Column(
@@ -34124,6 +34536,7 @@ void _wireOpstellingPage(FFProject project) {
   if (widget == null || laadActie == null || bewaarActie == null || vrijgeefActie == null) {
     return;
   }
+
 
   final scaffoldKey = wc.node.key;
   FFVariable? appVar(String naam) {
@@ -34188,11 +34601,107 @@ void _wireOpstellingPage(FFProject project) {
     variable: _equalsLiteral(meldingVar.deepCopy(), '', negate: true),
   );
 
+  // ── Tabbladen ────────────────────────────────────────────────────────────
+  //
+  // In AppState en niet in page-state: de stateFields van deze pagina zijn na
+  // het aanmaken niet meer muteerbaar (dezelfde read-only lijst als bij het
+  // profiel). Meegenomen voordeel: kom je terug op de pagina, dan sta je nog op
+  // hetzelfde tabblad.
+  final tabId = _findAppStateFieldId(project, 'lineupTab');
+  FFVariable? tabVar() => tabId == null
+      ? null
+      : (varFromAppState(tabId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey));
+  // Het veld is het beginscherm, dus een nog niet gezette waarde telt daarvoor.
+  FFVariable tabIs(String waarde) {
+    if (tabVar() == null) return _equalsLiteral(magVar.deepCopy(), 'true');
+    if (waarde != 'veld') return _equalsLiteral(tabVar()!, waarde);
+    return orConditionsVar([
+      _equalsLiteral(tabVar()!, 'veld'),
+      _equalsLiteral(tabVar()!, ''),
+    ]).variable;
+  }
+
+  FFVariable tabNiet(String waarde) {
+    if (tabVar() == null) return _equalsLiteral(magVar.deepCopy(), 'false');
+    if (waarde != 'veld') return _equalsLiteral(tabVar()!, waarde, negate: true);
+    return andConditionsVar([
+      _equalsLiteral(tabVar()!, 'veld', negate: true),
+      _equalsLiteral(tabVar()!, '', negate: true),
+    ]).variable;
+  }
+
+  FFNode tabKnop(String waarde, String label, String icoon) {
+    FFNode variant({required bool actief}) {
+      final c = UI.container(
+        name: 'OpstellingTab${waarde}${actief ? 'Aan' : 'Uit'}',
+        innerPadding: UIEdgeInsets.symmetric(vertical: 10),
+        alignment: UIAlignment.center,
+        borderRadius: 10,
+        color: actief ? UIColor.primary : UIColor.hex(0xFFEFF1F5),
+        child: UI.row(
+          name: 'OpstellingTab${waarde}${actief ? 'Aan' : 'Uit'}Row',
+          mainAxisMin: true,
+          spacing: 6,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon(icoon,
+                size: 16, color: actief ? UIColor.white : UIColor.secondaryText),
+            UI.text(label,
+                name: 'OpstellingTab${waarde}${actief ? 'Aan' : 'Uit'}Label',
+                style: UITextStyle.labelSmall,
+                color: actief ? UIColor.white : UIColor.secondaryText,
+                maxLines: 1),
+          ],
+        ),
+      );
+      if (tabVar() != null) {
+        setConditionalVisibility(
+          c,
+          variable: actief ? tabIs(waarde) : tabNiet(waarde),
+        );
+      }
+      return c;
+    }
+
+    final knop = UI.column(
+      name: 'OpstellingTab$waarde',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      children: [variant(actief: true), variant(actief: false)],
+    );
+    Actions.onTap(
+      knop,
+      Actions.updateAppState(
+        project,
+        updates: [StateFieldUpdate.set('lineupTab', waarde)],
+      ),
+    );
+    return knop;
+  }
+
+  final tabBalk = UI.row(
+    name: 'OpstellingTabs',
+    spacing: 8,
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    children: [
+      UI.expanded(tabKnop('veld', 'Opstelling', 'grid_view')),
+      UI.expanded(tabKnop('wissels', 'Wissels', 'swap_horiz')),
+      UI.expanded(tabKnop('instellingen', 'Instellingen', 'settings')),
+    ],
+  );
+  setConditionalVisibility(
+    tabBalk,
+    variable: _equalsLiteral(meldingVar.deepCopy(), ''),
+  );
+
   // ── Het veld ─────────────────────────────────────────────────────────────
   final bord = UI.customWidget(
     widget,
     name: 'OpstellingBord',
-    params: {'canEdit': VariableParamValue(magBeheren())},
+    params: {
+      'canEdit': VariableParamValue(magBeheren()),
+      'mode': StaticParamValue('veld'),
+    },
   );
   // Bewust géén vaste hoogte: het veld is zo hoog als het scherm breed is, en
   // daar komen de bank en de selectie nog onder. Met een vaste hoogte liep de
@@ -34207,7 +34716,33 @@ void _wireOpstellingPage(FFProject project) {
   // melding hierboven.
   setConditionalVisibility(
     bordWrap,
-    variable: _equalsLiteral(meldingVar.deepCopy(), ''),
+    variable: andConditionsVar([
+      _equalsLiteral(meldingVar.deepCopy(), ''),
+      tabIs('veld'),
+    ]).variable,
+  );
+
+  // ── Wisselschema ─────────────────────────────────────────────────────────
+  final wisselBord = UI.customWidget(
+    widget,
+    name: 'OpstellingWissels',
+    params: {
+      'canEdit': VariableParamValue(magBeheren()),
+      'mode': StaticParamValue('wissels'),
+    },
+  );
+  final wisselWrap = UI.container(
+    name: 'OpstellingWisselWrap',
+    width: double.infinity,
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+    child: wisselBord,
+  );
+  setConditionalVisibility(
+    wisselWrap,
+    variable: andConditionsVar([
+      _equalsLiteral(meldingVar.deepCopy(), ''),
+      tabIs('wissels'),
+    ]).variable,
   );
 
   // ── Instellingen ─────────────────────────────────────────────────────────
@@ -34313,7 +34848,10 @@ void _wireOpstellingPage(FFProject project) {
       ],
     ),
   );
-  setConditionalVisibility(instellingen, variable: magBeheren());
+  setConditionalVisibility(
+    instellingen,
+    variable: andConditionsVar([magBeheren(), tabIs('instellingen')]).variable,
+  );
 
   // Mag je wél kijken maar niet schuiven, dan hoort dat er te staan. Zonder deze
   // regel zie je een veld zonder knoppen en weet je niet of er iets stuk is.
@@ -34434,8 +34972,16 @@ void _wireOpstellingPage(FFProject project) {
   final props = kolom.props.column.deepCopy();
   props.scrollable = true;
   kolom.props.column = props;
-  kolom.children
-      .addAll([kop, meldingKaart, bordWrap, alleenLezen, instellingen, knoppen]);
+  kolom.children.addAll([
+    kop,
+    meldingKaart,
+    tabBalk,
+    bordWrap,
+    wisselWrap,
+    alleenLezen,
+    instellingen,
+    knoppen,
+  ]);
 
   // ── Ophalen bij het openen ───────────────────────────────────────────────
   wc.node.triggerActions.removeWhere(

@@ -278,6 +278,17 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle lineupSub = ffai.StructHandle(
+    "LineupSub",
+    <String, ffai.DslType>{
+      "block": ffai.string,
+      "inId": ffai.string,
+      "inNaam": ffai.string,
+      "outId": ffai.string,
+      "outNaam": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle liveEvent = ffai.StructHandle(
     "LiveEvent",
     <String, ffai.DslType>{
@@ -520,6 +531,7 @@ abstract final class Structs {
     guestInvitation,
     lineupPlayer,
     lineupSlot,
+    lineupSub,
     liveEvent,
     liveMatchState,
     loginData,

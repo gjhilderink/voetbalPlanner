@@ -203,6 +203,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<LineupSlot>>",
     persisted: false,
   );
+  static const lineupBlocks = ffai.ProjectAppStateFieldHandle(
+    name: "lineupBlocks",
+    key: "pi2ww0d4",
+    typeName: "String",
+    persisted: false,
+  );
   static const lineupCanManage = ffai.ProjectAppStateFieldHandle(
     name: "lineupCanManage",
     key: "xkcgv7mu",
@@ -249,6 +255,18 @@ abstract final class AppState {
     name: "lineupSelection",
     key: "55ccb4du",
     typeName: "List<DataStruct<LineupSlot>>",
+    persisted: false,
+  );
+  static const lineupSubs = ffai.ProjectAppStateFieldHandle(
+    name: "lineupSubs",
+    key: "37lninci",
+    typeName: "List<DataStruct<LineupSub>>",
+    persisted: false,
+  );
+  static const lineupTab = ffai.ProjectAppStateFieldHandle(
+    name: "lineupTab",
+    key: "fiyvnzru",
+    typeName: "String",
     persisted: false,
   );
   static const liveEvents = ffai.ProjectAppStateFieldHandle(
@@ -567,6 +585,7 @@ abstract final class AppState {
     hasMultipleTeams,
     hasUnreadTeamChat,
     lineupBench,
+    lineupBlocks,
     lineupCanManage,
     lineupField,
     lineupFormation,
@@ -575,6 +594,8 @@ abstract final class AppState {
     lineupPlayersOnField,
     lineupPublished,
     lineupSelection,
+    lineupSubs,
+    lineupTab,
     liveEvents,
     liveMatchId,
     liveMatches,
