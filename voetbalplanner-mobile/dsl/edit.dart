@@ -15996,6 +15996,42 @@ void _addDashboardTeamSwitcher(FFProject project) {
     tail.followUpAction = trainingsNode;
   }
 
+  // Statistieken en teamgevoel horen bij het elftal en moeten dus mee omschakelen.
+  // Zonder dit bleef de statistiekenkaart — inclusief positie, punten en
+  // doelsaldo uit de stand — het vórige team tonen tot je het dashboard sloot
+  // en opnieuw opende.
+  void herlaad(String endpoint, String stateField, String output) {
+    if (findApiEndpoint(project, name: endpoint, groupName: 'VoetbalPlannerAPI') ==
+        null) return;
+    if (_findAppStateFieldId(project, stateField) == null) return;
+
+    final node = Actions.apiCallNode(
+      project,
+      endpointName: endpoint,
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        // Het aangetikte team, niet currentTeamId: die is op dit punt in de
+        // keten net gezet en FlutterFlow leest hem niet gegarandeerd vers.
+        'teamId': generatorVarField(list.key, 'id'),
+      },
+      outputVariableName: output,
+      nodeKey: chip.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable(stateField, ctx.responseVar),
+        ]),
+      ]),
+    );
+
+    var t = setStateNode;
+    while (t.hasFollowUpAction()) t = t.followUpAction;
+    t.followUpAction = node;
+  }
+
+  herlaad('GetTeamStats', 'teamStats', 'switchStats');
+  herlaad('GetTeamMood', 'teamMood', 'switchMood');
+
   Actions.onTapChain(chip, setStateNode);
   list.children.add(chip);
 
@@ -36115,6 +36151,44 @@ void _wireStandPage(FFProject project) {
     ]).variable,
   );
 
+  // Nooit een blanco scherm. Kwam er geen enkele regel binnen — de aanroep
+  // mislukte, of de app kreeg een foutcode terug — dan hoort er te staan dát er
+  // niets is en voor welk elftal het geprobeerd is. Zonder dit is een mislukte
+  // aanroep niet te onderscheiden van een stand die er nog niet is.
+  final teamNaamId = _findAppStateFieldId(project, 'currentTeamName');
+  final geenDataKinderen = <FFNode>[
+    UI.text('Geen stand geladen voor dit elftal.',
+        name: 'StandGeenDataTitel',
+        style: UITextStyle.bodyMedium,
+        color: UIColor.secondaryText,
+        textAlign: UITextAlign.center,
+        maxLines: 2),
+  ];
+  if (teamNaamId != null) {
+    final naam = UI.text('',
+        name: 'StandGeenDataTeam',
+        style: UITextStyle.labelSmall,
+        color: UIColor.secondaryText,
+        textAlign: UITextAlign.center,
+        maxLines: 1);
+    naam.props.text.textValue = FFStringValue(
+        variable: varFromAppState(teamNaamId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey));
+    geenDataKinderen.add(naam);
+  }
+  final geenData = UI.container(
+    name: 'StandGeenData',
+    innerPadding: UIEdgeInsets.all(24),
+    alignment: UIAlignment.center,
+    child: UI.column(
+      name: 'StandGeenDataCol',
+      spacing: 4,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: geenDataKinderen,
+    ),
+  );
+  setConditionalVisibility(geenData, variable: _listEmptyVar(rowsVar));
+
   final body = getPropertyChild(wc.node, 'body');
   if (body == null) return;
   final kolom = body.type == FFWidgetType.Column
@@ -36128,7 +36202,7 @@ void _wireStandPage(FFProject project) {
   final props = kolom.props.column.deepCopy();
   props.scrollable = true;
   kolom.props.column = props;
-  kolom.children.addAll([melding, kaart]);
+  kolom.children.addAll([geenData, melding, kaart]);
 
   // Ophalen bij het openen.
   wc.node.triggerActions.removeWhere(
