@@ -33624,6 +33624,13 @@ class _LineupBoardState extends State<LineupBoard> {
 
   List<LineupSlotStruct> get _veld =>
       _vanPeriode(FFAppState().lineupField, _periode);
+
+  /// Hoeveel spelers er volgens de instelling in het veld horen. 0 betekent
+  /// niet ingesteld; dan valt er ook niets te controleren en zwijgen we liever
+  /// dan dat we een verzonnen aantal gaan handhaven.
+  int get _maxVeld => int.tryParse(FFAppState().lineupPlayersOnField) ?? 0;
+
+  bool get _teVeelInVeld => _maxVeld > 0 && _veld.length > _maxVeld;
   List<LineupSlotStruct> get _bank =>
       _vanPeriode(FFAppState().lineupBench, _periode);
 
@@ -33679,6 +33686,8 @@ class _LineupBoardState extends State<LineupBoard> {
   /// Verplaatst een speler naar een plek op het veld. De coördinaten zijn
   /// verhoudingen, zodat de opstelling op elk scherm hetzelfde staat.
   void _zetOpVeld(LineupSlotStruct speler, double x, double y) {
+    if (_weigerAfgemeld(speler)) return;
+
     final veld = List<LineupSlotStruct>.from(_veld);
     final bank = List<LineupSlotStruct>.from(_bank);
 
@@ -33695,6 +33704,8 @@ class _LineupBoardState extends State<LineupBoard> {
   }
 
   void _zetOpBank(LineupSlotStruct speler) {
+    if (_weigerAfgemeld(speler)) return;
+
     final veld = List<LineupSlotStruct>.from(_veld);
     final bank = List<LineupSlotStruct>.from(_bank);
 
@@ -33704,6 +33715,26 @@ class _LineupBoardState extends State<LineupBoard> {
     }
 
     _schrijf(veld, bank);
+  }
+
+  /// Wie zich heeft afgemeld hoort niet in de opstelling. Een stille weigering
+  /// zou lezen als een haperende app, dus er komt een melding bij: de coach ziet
+  /// dan meteen dat het aan de afmelding ligt en niet aan zijn vinger.
+  ///
+  /// Iemand die al stond opgesteld en zich daarna afmeldt blijft staan; die
+  /// weghalen zonder het te zeggen is erger dan hem rood laten oplichten.
+  bool _weigerAfgemeld(LineupSlotStruct speler) {
+    if (speler.isAfgemeld != 'true') return false;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(
+            '${speler.naam} heeft zich afgemeld en kan niet worden ingedeeld.'),
+        backgroundColor: const Color(0xFFB91C1C),
+      ));
+
+    return true;
   }
 
   double _getal(String v, double terugval) => double.tryParse(v) ?? terugval;
@@ -33736,7 +33767,16 @@ class _LineupBoardState extends State<LineupBoard> {
           final smal = constraints.maxWidth < 420;
           final veldBreedte = smal ? constraints.maxWidth : constraints.maxWidth - 170;
 
-          final veld = _veldWidget(theme, veldBreedte);
+          // De melding boven het veld en niet in de zijkant: die is in de brede
+          // indeling maar 158 px breed, en daar valt een waarschuwing weg.
+          final veld = Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_teVeelInVeld)
+                SizedBox(width: veldBreedte, child: _teveelMelding(theme)),
+              _veldWidget(theme, veldBreedte),
+            ],
+          );
           final zijkant = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -33776,6 +33816,41 @@ class _LineupBoardState extends State<LineupBoard> {
                   ],
                 );
         },
+      ),
+    );
+  }
+
+  /// Waarschuwing bij te veel spelers in het veld.
+  ///
+  /// Waarschuwen en niet blokkeren: tijdens het schuiven staat er geregeld even
+  /// iemand te veel, en een coach die dan geen speler meer op het veld krijgt is
+  /// slechter af dan een coach die zijn eigen fout ziet. Per periode geteld,
+  /// want elke periode heeft zijn eigen opstelling.
+  Widget _teveelMelding(FlutterFlowTheme theme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDE3E3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF3B4B4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              size: 18, color: Color(0xFFB91C1C)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${_veld.length} spelers in het veld, terwijl er $_maxVeld zijn ingesteld.',
+              style: theme.bodySmall.override(
+                fontFamily: theme.bodySmallFamily,
+                color: const Color(0xFFB91C1C),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -34051,14 +34126,15 @@ class _LineupBoardState extends State<LineupBoard> {
                   children: [
                     Expanded(
                       child: _actieKnop(theme, 'Wissel', Icons.event_seat,
-                          () => _zetOpBank(speler)),
+                          () => _zetOpBank(speler),
+                          uit: afgemeld),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: _actieKnop(
                           theme, 'Opstellen', Icons.sports_soccer,
                           () => _zetOpEersteVrijePlek(speler),
-                          primair: true),
+                          primair: true, uit: afgemeld),
                     ),
                   ],
                 ),
@@ -34067,7 +34143,9 @@ class _LineupBoardState extends State<LineupBoard> {
           : kop,
     );
 
-    if (!_mag) return rij;
+    // Niet sleepbaar wanneer indelen toch geweigerd wordt: een speler die je wel
+    // kunt oppakken maar nergens kwijt kunt, leest als een storing.
+    if (!_mag || afgemeld) return rij;
 
     return LongPressDraggable<LineupSlotStruct>(
       data: speler,
@@ -34080,17 +34158,23 @@ class _LineupBoardState extends State<LineupBoard> {
     );
   }
 
+  /// uit: de knop blijft aantikbaar maar oogt uitgeschakeld. De tik levert dan
+  /// de uitleg op waarom het niet kan — een dode knop laat die vraag open.
   Widget _actieKnop(FlutterFlowTheme theme, String tekst, IconData icoon,
       VoidCallback bijTik,
-      {bool primair = false}) {
-    final kleur = primair ? Colors.white : const Color(0xFF1E3A5F);
+      {bool primair = false, bool uit = false}) {
+    final kleur = uit
+        ? theme.secondaryText
+        : (primair ? Colors.white : const Color(0xFF1E3A5F));
 
     return GestureDetector(
       onTap: bijTik,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
         decoration: BoxDecoration(
-          color: primair ? const Color(0xFF1E3A5F) : const Color(0xFFEFF1F5),
+          color: uit
+              ? const Color(0xFFE9EBEF)
+              : (primair ? const Color(0xFF1E3A5F) : const Color(0xFFEFF1F5)),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -34200,10 +34284,33 @@ class _LineupBoardState extends State<LineupBoard> {
     final vorigeBank = _vanPeriode(FFAppState().lineupBench, _periode - 1);
     if (vorigeVeld.isEmpty && vorigeBank.isEmpty) return;
 
+    // Wie zich intussen heeft afgemeld gaat niet mee. Zwijgend overslaan zou een
+    // gat in de opstelling opleveren dat niemand ziet, dus het aantal komt in een
+    // melding terug.
+    bool weg(LineupSlotStruct s) => s.isAfgemeld == 'true';
+    final overgeslagen =
+        vorigeVeld.where(weg).length + vorigeBank.where(weg).length;
+
     _schrijf(
-      vorigeVeld.map((s) => _kopie(s, posX: s.posX, posY: s.posY)).toList(),
-      vorigeBank.map((s) => _kopie(s, posX: '', posY: '')).toList(),
+      vorigeVeld
+          .where((s) => !weg(s))
+          .map((s) => _kopie(s, posX: s.posX, posY: s.posY))
+          .toList(),
+      vorigeBank
+          .where((s) => !weg(s))
+          .map((s) => _kopie(s, posX: '', posY: ''))
+          .toList(),
     );
+
+    if (overgeslagen > 0) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(overgeslagen == 1
+              ? 'Eén afgemelde speler is niet overgenomen.'
+              : '$overgeslagen afgemelde spelers zijn niet overgenomen.'),
+        ));
+    }
   }
 
   /// Verdeelt de speeltijd over alle perioden zo gelijk mogelijk: wie het meest
