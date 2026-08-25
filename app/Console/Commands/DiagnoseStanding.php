@@ -63,6 +63,8 @@ class DiagnoseStanding extends Command
         if ($poules) {
             $this->line('   sleutels: ' . implode(', ', array_keys((array) $poules[0])));
             $this->line('   eerste:   ' . json_encode($poules[0], JSON_UNESCAPED_UNICODE));
+        } else {
+            $this->ruweAanroep($svc, 'get_poules', ['teamcode' => (string) $team->external_id]);
         }
 
         $pouleCode = $svc->pouleCodeVoorTeam((string) $team->external_id);
@@ -75,8 +77,15 @@ class DiagnoseStanding extends Command
         $this->line('   regels: ' . count($rijen));
 
         if (! $rijen) {
-            $this->warn('   Leeg. Kijk hierboven of de tool bestaat, of hij de meegestuurde');
-            $this->warn('   argumenten accepteert, en of get_poules een bruikbare code geeft.');
+            // Tellingen zeggen niets over wát de server terugstuurt: een lege
+            // lijst, een foutmelding of een vorm die we niet uitpakken zien er
+            // hier allemaal hetzelfde uit. Dus het ruwe antwoord erbij.
+            $this->ruweAanroep($svc, 'get_standings', ['teamcode' => (string) $team->external_id]);
+            if ($pouleCode) {
+                $this->ruweAanroep($svc, 'get_standings', ['poulecode' => $pouleCode]);
+            }
+            $this->ruweAanroep($svc, 'get_standings', []);
+
             return self::SUCCESS;
         }
 
@@ -86,5 +95,40 @@ class DiagnoseStanding extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Doet één aanroep buiten de service om en drukt het ruwe antwoord af.
+     *
+     * Via reflectie omdat mcpPost private is; dit hoort ook privé te blijven,
+     * maar bij een lege uitkomst is de onbewerkte tekst het enige dat je verder
+     * helpt.
+     *
+     * @param  array<string, string>  $args
+     */
+    private function ruweAanroep(SportlinkMcpService $svc, string $tool, array $args): void
+    {
+        try {
+            $post = new \ReflectionMethod($svc, 'mcpPost');
+            $post->setAccessible(true);
+            $out = $post->invoke($svc, 'tools/call', [
+                'name'      => $tool,
+                'arguments' => $args ?: new \stdClass(),
+            ]);
+        } catch (\Throwable $e) {
+            $this->error('   ruwe aanroep mislukt: ' . $e->getMessage());
+            return;
+        }
+
+        $tekst = $out['result']['content'][0]['text'] ?? null;
+        $this->newLine();
+        $this->comment('   ruw · ' . $tool . ' ' . (json_encode($args) ?: '{}'));
+
+        if ($tekst === null) {
+            $this->line('   ' . mb_substr(json_encode($out, JSON_UNESCAPED_UNICODE) ?: '', 0, 700));
+            return;
+        }
+
+        $this->line('   ' . mb_substr($tekst, 0, 700));
     }
 }
