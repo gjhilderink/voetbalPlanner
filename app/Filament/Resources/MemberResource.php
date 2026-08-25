@@ -19,6 +19,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Table;
+use Illuminate\Support\HtmlString;
 
 class MemberResource extends Resource
 {
@@ -34,6 +35,22 @@ class MemberResource extends Resource
     {
         return $schema->components([
             Section::make('Persoonsgegevens')->schema([
+                // Alleen tonen, niet bewerken: de pasfoto komt uit Sportlink en
+                // wordt bij elke ledensync opnieuw opgehaald. Wie hem hier zou
+                // kunnen wijzigen, ziet die wijziging de volgende sync verdwijnen.
+                Forms\Components\Placeholder::make('member_photo')
+                    ->label('Pasfoto')
+                    ->content(fn (?Member $record): HtmlString => new HtmlString(
+                        '<img src="' . e($record?->photoUrl() ?? '') . '" alt="" '
+                        . 'style="width:96px;height:96px;border-radius:9999px;object-fit:cover;'
+                        . 'border:1px solid rgb(var(--gray-200));">'
+                    ))
+                    ->helperText(fn (?Member $record): string => $record?->profile_photo
+                        ? 'Door het lid zelf in de app geüpload.'
+                        : 'Uit Sportlink, bijgewerkt bij de ledensync.')
+                    // Zonder foto liever niets dan een leeg kader.
+                    ->visible(fn (?Member $record): bool => (bool) $record?->photoUrl())
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('name')
                     ->label('Naam')
                     ->required()
@@ -224,6 +241,13 @@ class MemberResource extends Resource
     {
         return $table
             ->columns([
+                // photoUrl() levert een volledige URL; Filament neemt die
+                // ongewijzigd over. Een lid zonder foto krijgt een lege plek in
+                // plaats van een gebroken plaatje.
+                Tables\Columns\ImageColumn::make('foto')
+                    ->label('')
+                    ->circular()
+                    ->getStateUsing(fn (Member $record): ?string => $record->photoUrl() ?: null),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Naam')
                     ->searchable()
