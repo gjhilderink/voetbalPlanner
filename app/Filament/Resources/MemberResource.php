@@ -241,13 +241,6 @@ class MemberResource extends Resource
     {
         return $table
             ->columns([
-                // photoUrl() levert een volledige URL; Filament neemt die
-                // ongewijzigd over. Een lid zonder foto krijgt een lege plek in
-                // plaats van een gebroken plaatje.
-                Tables\Columns\ImageColumn::make('foto')
-                    ->label('')
-                    ->circular()
-                    ->getStateUsing(fn (Member $record): ?string => $record->photoUrl() ?: null),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Naam')
                     ->searchable()
