@@ -388,7 +388,46 @@ class SportlinkMcpService
             'teamcode'  => $teamCode !== null ? (string) $teamCode : null,
         ]);
 
-        return self::rijenUit($result);
+        // Alleen regels die ook echt een stand zijn. Zie isStandRij().
+        return array_values(array_filter(
+            self::rijenUit($result),
+            fn ($r) => is_array($r) && self::isStandRij($r),
+        ));
+    }
+
+    /**
+     * Ziet deze regel eruit als een standregel?
+     *
+     * get_standings accepteert een teamcode, maar antwoordt daarop met de póules
+     * van dat elftal in plaats van met een stand — een keurige lijst met
+     * poulenaam, competitienaam en poulecode erin. Zonder deze controle nemen we
+     * die aan als stand: standingForTeam is dan klaar en probeert de poulecode
+     * niet meer, en de app toont een tabel met lege getallen in plaats van te
+     * melden dat er nog geen stand is.
+     *
+     * Op de aanwezigheid van een sleutel en niet op de waarde: een elftal dat nog
+     * geen wedstrijd speelde staat met nullen in de stand, en dat is een geldige
+     * regel.
+     *
+     * @param  array<string, mixed>  $rij
+     */
+    private static function isStandRij(array $rij): bool
+    {
+        static $velden = [
+            'positie', 'plaats', 'rank',
+            'punten', 'ptn',
+            'gespeeld', 'gespeeldewedstrijden', 'wedstrijden', 'aantalwedstrijden',
+            'doelsaldo', 'saldo',
+            'gewonnen', 'verloren', 'gelijk',
+        ];
+
+        foreach (array_keys($rij) as $sleutel) {
+            if (in_array(mb_strtolower((string) $sleutel), $velden, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
