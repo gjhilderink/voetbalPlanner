@@ -181,6 +181,21 @@ class MembersImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
             $attributes['phone'] = $phone;
         }
 
+        // Een leeg vakje laat het huidige nummer staan; '-' of '0' haalt het weg,
+        // want anders kun je een verkeerd nummer nooit meer wissen via Excel.
+        $nummer = trim((string) ($row['rugnummer'] ?? ''));
+        if ($nummer !== '') {
+            if (in_array($nummer, ['-', '0'], true)) {
+                $attributes['shirt_number'] = null;
+            } elseif (ctype_digit($nummer) && (int) $nummer >= 1 && (int) $nummer <= 99) {
+                $attributes['shirt_number'] = (int) $nummer;
+            } else {
+                $this->errors[] = "Rij {$rowNum}: ongeldig rugnummer '{$nummer}' (1 t/m 99, of - om te wissen)";
+
+                return null;
+            }
+        }
+
         $dob = trim((string) ($row['geboortedatum'] ?? ''));
         if ($dob !== '') {
             $date = self::parseDate($dob);

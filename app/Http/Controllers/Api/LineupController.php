@@ -73,7 +73,9 @@ class LineupController extends Controller
         $rij = fn (LineupPlayer $p) => [
             'memberId'   => (string) $p->member_id,
             'naam'       => $p->member?->name ?? '',
-            'nummer'     => (string) ($p->shirt_number ?? ''),
+            // Het nummer van de speler wint van wat er ooit bij deze opstelling
+            // is opgeslagen: pas je het bij Leden aan, dan klopt het overal.
+            'nummer'     => (string) ($p->member?->shirt_number ?? $p->shirt_number ?? ''),
             // posX/posY en niet x/y: FlutterFlow weigert die veldnamen in een
             // struct omdat ze met een sleutelwoord botsen.
             'posX'       => (string) ($p->slot_x ?? ''),
@@ -118,7 +120,7 @@ class LineupController extends Controller
         return $leden->map(fn ($m) => [
             'memberId'   => (string) $m->id,
             'naam'       => $m->name,
-            'nummer'     => '',
+            'nummer'     => (string) ($m->shirt_number ?? ''),
             'posX'       => '',
             'posY'       => '',
             'isAfgemeld' => in_array($m->id, $afgemeld, true) ? 'true' : 'false',

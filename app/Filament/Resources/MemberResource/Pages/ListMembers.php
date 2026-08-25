@@ -68,7 +68,8 @@ class ListMembers extends ListRecords
                             'Laat de ID-kolom staan: daarop worden bestaande leden bijgewerkt. '
                             . 'Een rij zonder ID (en zonder relatiecode) maakt een nieuw lid aan; vul dan minstens Naam en Teams in. '
                             . 'Teams schrijf je als "JO11-1: Speler; JO13-2: Leider". '
-                            . 'Lege cellen laten de huidige waarde staan, en een lege Teams-cel laat de teamkoppelingen ongemoeid.'
+                            . 'Lege cellen laten de huidige waarde staan, en een lege Teams-cel laat de teamkoppelingen ongemoeid. '
+                            . 'Rugnummer is 1 t/m 99; zet er een - in om een nummer te wissen.'
                         ),
                 ])
                 ->action(function (array $data): void {

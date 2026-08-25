@@ -58,6 +58,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         return [
             'ID',
             'Naam',
+            'Rugnummer',
             'Geboortedatum',
             'Rol',
             'E-mail',
@@ -73,6 +74,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         return [
             $record->id,
             $record->name,
+            (string) ($record->shirt_number ?? ''),
             $record->date_of_birth?->format('d-m-Y') ?? '',
             self::roleLabel($record->role),
             $record->email ?? '',

@@ -38,6 +38,14 @@ class MemberResource extends Resource
                     ->label('Naam')
                     ->required()
                     ->maxLength(255),
+                // Hoort bij de speler en niet bij een opstelling: hetzelfde
+                // nummer het hele seizoen. De app zet het op de pion.
+                Forms\Components\TextInput::make('shirt_number')
+                    ->label('Rugnummer')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(99)
+                    ->helperText('Wordt in de app op het veld getoond.'),
                 Forms\Components\DatePicker::make('date_of_birth')
                     ->label('Geboortedatum'),
                 Forms\Components\Select::make('role')
@@ -220,6 +228,10 @@ class MemberResource extends Resource
                     ->label('Naam')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('shirt_number')
+                    ->label('Nr.')
+                    ->sortable()
+                    ->placeholder('-'),
                 Tables\Columns\TextColumn::make('teams.name')
                     ->label('Teams')
                     ->badge()

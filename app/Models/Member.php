@@ -37,6 +37,7 @@ class Member extends Model
     protected $fillable = [
         'external_id', 'user_id', 'name', 'last_name', 'email', 'phone',
         'date_of_birth', 'role', 'profile_photo', 'is_active', 'last_synced_at',
+        'shirt_number',
     ];
 
     protected function casts(): array
@@ -45,6 +46,7 @@ class Member extends Model
             'date_of_birth' => 'date',
             'is_active' => 'boolean',
             'last_synced_at' => 'datetime',
+            'shirt_number' => 'integer',
         ];
     }
 
