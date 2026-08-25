@@ -35951,9 +35951,17 @@ void _wireStandPage(FFProject project) {
     ),
   );
   // Alleen tonen als er echt een stand is: de melding-rij heeft geen teamnaam.
+  //
+  // De lege-lijst-check moet erbij. "eerste veld gevuld" leest het eerste item
+  // uit, en bij een lege lijst is dat null — dan is `null != ''` wáár, rendert
+  // de widget alsnog en klapt hij op de null. Zolang de API nog niet geantwoord
+  // heeft is de lijst precies dat: leeg.
   setConditionalVisibility(
     kaart,
-    variable: _firstFieldFilledVar(rowsVar, 'team'),
+    variable: andConditionsVar([
+      _listNotEmptyVar(rowsVar.deepCopy()),
+      _firstFieldFilledVar(rowsVar, 'team'),
+    ]).variable,
   );
 
   // De melding staat op elke rij mee; bij een probleem is er precies één rij en
@@ -35974,7 +35982,10 @@ void _wireStandPage(FFProject project) {
   );
   setConditionalVisibility(
     melding,
-    variable: _firstFieldFilledVar(rowsVar, 'melding'),
+    variable: andConditionsVar([
+      _listNotEmptyVar(rowsVar.deepCopy()),
+      _firstFieldFilledVar(rowsVar, 'melding'),
+    ]).variable,
   );
 
   final body = getPropertyChild(wc.node, 'body');
