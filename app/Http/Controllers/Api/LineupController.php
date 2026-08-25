@@ -112,7 +112,7 @@ class LineupController extends Controller
         // Kolommen kwalificeren: member_team heeft óók een is_active, en zonder
         // tabelnaam maakt MySQL daar "Column 'is_active' is ambiguous" van — een
         // 500 die er in de app uitzag als "kon de opstelling niet ophalen".
-        $leden = $match->team?->members()
+        $leden = $match->team?->playingMembers()
             ->where('members.is_active', true)
             ->orderBy('members.name')
             ->get() ?? collect();

@@ -187,7 +187,9 @@ class MatchController extends Controller
         $mag = $request->user()?->canManageLineup($match->team_id) ? 'true' : 'false';
 
         $rows = [];
-        foreach ($match->team?->members()->orderBy('name')->get() ?? collect() as $member) {
+        // Alleen spelers: een coach of leider staat niet in de opkomstlijst en
+        // meldt zich ook niet af voor een wedstrijd.
+        foreach ($match->team?->playingMembers()->orderBy('members.name')->get() ?? collect() as $member) {
             $afgemeld = $redenPerLid->has($member->id);
             $rows[] = [
                 'memberId' => $member->id,

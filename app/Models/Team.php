@@ -38,6 +38,32 @@ class Team extends Model
     }
 
     /**
+     * De leden van dit elftal die daadwerkelijk meespelen: coaches, trainers,
+     * leiders en overige staf vallen weg. Gebruikt voor de opstelling en voor
+     * af- en aanmelden bij een wedstrijd — een trainer staat niet in de basis en
+     * meldt zich ook niet af.
+     *
+     * Twee filters, want de functie staat op twee plekken: members.role is de
+     * hoofdrol in de club, member_team.role de functie binnen dít elftal. Iemand
+     * kan speler zijn in het ene team en leider in het andere.
+     *
+     * Een lege of onbekende functie telt als speler: NOT IN sluit NULL anders
+     * stilzwijgend uit, en dan zou een lid zonder ingevulde functie verdwijnen.
+     */
+    public function playingMembers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        $staf = [Member::ROLE_COACH, Member::ROLE_ASSISTANT, Member::ROLE_LEIDER];
+
+        return $this->members()
+            ->where(fn ($q) => $q
+                ->whereNull('members.role')
+                ->orWhereNotIn('members.role', ['coach', 'medical', 'staff']))
+            ->where(fn ($q) => $q
+                ->whereNull('member_team.role')
+                ->orWhereNotIn('member_team.role', $staf));
+    }
+
+    /**
      * User-accounts gekoppeld via user_team pivot. Wordt gebruikt om
      * app-gebruikers (zoals bardienst@..., coaches zonder Member-record,
      * staff-leiders) óók in de team-leden-API te tonen.
