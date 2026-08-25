@@ -273,6 +273,7 @@ abstract final class Structs {
       "memberId": ffai.string,
       "naam": ffai.string,
       "nummer": ffai.string,
+      "period": ffai.string,
       "posX": ffai.string,
       "posY": ffai.string,
     },

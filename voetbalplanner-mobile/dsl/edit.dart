@@ -33380,8 +33380,24 @@ class LineupBoard extends StatefulWidget {
 class _LineupBoardState extends State<LineupBoard> {
   bool get _mag => widget.canEdit ?? false;
 
-  List<LineupSlotStruct> get _veld => FFAppState().lineupField;
-  List<LineupSlotStruct> get _bank => FFAppState().lineupBench;
+  /// Welke speelperiode nu in beeld staat. Elke periode heeft zijn eigen
+  /// opstelling; het verschil tussen twee perioden is precies de wissel.
+  int _periode = 1;
+
+  int get _perioden {
+    final n = int.tryParse(FFAppState().lineupPeriods) ?? 2;
+    return (n == 4) ? 4 : 2;
+  }
+
+  int _periodeVan(LineupSlotStruct s) => int.tryParse(s.period) ?? 1;
+
+  List<LineupSlotStruct> _vanPeriode(List<LineupSlotStruct> alles, int periode) =>
+      alles.where((s) => _periodeVan(s) == periode).toList();
+
+  List<LineupSlotStruct> get _veld =>
+      _vanPeriode(FFAppState().lineupField, _periode);
+  List<LineupSlotStruct> get _bank =>
+      _vanPeriode(FFAppState().lineupBench, _periode);
 
   /// De rest van de selectie. Bij een nieuwe wedstrijd staat er nog niemand op
   /// het veld of de bank, en dan zou er zonder deze lijst niets te slepen zijn.
@@ -33397,15 +33413,26 @@ class _LineupBoardState extends State<LineupBoard> {
         .toList();
   }
 
+  /// Schrijft alleen de huidige periode terug; de andere perioden blijven staan
+  /// zoals ze waren.
   void _schrijf(List<LineupSlotStruct> veld, List<LineupSlotStruct> bank) {
+    final andereVeld = FFAppState()
+        .lineupField
+        .where((s) => _periodeVan(s) != _periode)
+        .toList();
+    final andereBank = FFAppState()
+        .lineupBench
+        .where((s) => _periodeVan(s) != _periode)
+        .toList();
+
     FFAppState().update(() {
-      FFAppState().lineupField = veld;
-      FFAppState().lineupBench = bank;
+      FFAppState().lineupField = [...andereVeld, ...veld];
+      FFAppState().lineupBench = [...andereBank, ...bank];
     });
   }
 
   LineupSlotStruct _kopie(LineupSlotStruct s,
-          {required String posX, required String posY}) =>
+          {required String posX, required String posY, int? periode}) =>
       LineupSlotStruct(
         memberId: s.memberId,
         naam: s.naam,
@@ -33413,6 +33440,7 @@ class _LineupBoardState extends State<LineupBoard> {
         posX: posX,
         posY: posY,
         isAfgemeld: s.isAfgemeld,
+        period: '${periode ?? _periode}',
       );
 
   /// Verplaatst een speler naar een plek op het veld. De coördinaten zijn
@@ -33494,12 +33522,22 @@ class _LineupBoardState extends State<LineupBoard> {
           return smal
               ? Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [veld, const SizedBox(height: 12), zijkant],
+                  children: [
+                    veld,
+                    _periodeStippen(theme),
+                    const SizedBox(height: 12),
+                    zijkant,
+                  ],
                 )
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: veld),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [veld, _periodeStippen(theme)],
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     SizedBox(width: 158, child: zijkant),
                   ],
@@ -33545,13 +33583,42 @@ class _LineupBoardState extends State<LineupBoard> {
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Text(
-                      'Houd een speler ingedrukt en sleep hem het veld op.',
-                      textAlign: TextAlign.center,
-                      style: theme.bodyMedium.override(
-                        fontFamily: theme.bodyMediumFamily,
-                        color: Colors.white,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Houd een speler ingedrukt en sleep hem het veld op.',
+                          textAlign: TextAlign.center,
+                          style: theme.bodyMedium.override(
+                            fontFamily: theme.bodyMediumFamily,
+                            color: Colors.white,
+                          ),
+                        ),
+                        // Meestal wisselen er maar een paar spelers; elke
+                        // periode opnieuw beginnen met een leeg veld zou onnodig
+                        // sleepwerk zijn.
+                        if (_mag && _periode > 1) ...[
+                          const SizedBox(height: 14),
+                          GestureDetector(
+                            onTap: _neemOver,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 9),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                'Neem de vorige periode over',
+                                style: theme.labelSmall.override(
+                                  fontFamily: theme.labelSmallFamily,
+                                  color: const Color(0xFF1E3A5F),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
@@ -33749,33 +33816,71 @@ class _LineupBoardState extends State<LineupBoard> {
   }
 
 
-  // ── Wisselschema ─────────────────────────────────────────────────────────
-  //
-  // Een wisselmoment is niet hetzelfde als een speelperiode: bij twee momenten
-  // heeft de wedstrijd drie perioden en wordt er twee keer gewisseld.
 
-  int get _blokken => int.tryParse(FFAppState().lineupBlocks) ?? 1;
-  List<LineupSubStruct> get _wissels => FFAppState().lineupSubs;
+  /// Stippen onder het veld om tussen de speelperioden te wisselen. Bij twee
+  /// perioden zijn dat helften, bij vier kwarten — de labels zeggen dat er ook
+  /// bij, want twee naamloze bolletjes vertellen niets.
+  Widget _periodeStippen(FlutterFlowTheme theme) {
+    final aantal = _perioden;
+    final woord = aantal == 4 ? 'Kwart' : 'Helft';
 
-  void _schrijfWissels(List<LineupSubStruct> lijst) {
-    FFAppState().update(() => FFAppState().lineupSubs = lijst);
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var p = 1; p <= aantal; p++)
+            GestureDetector(
+              onTap: () => setState(() => _periode = p),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _periode == p
+                      ? const Color(0xFF1E3A5F)
+                      : const Color(0xFFEFF1F5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '$woord $p',
+                  style: theme.labelSmall.override(
+                    fontFamily: theme.labelSmallFamily,
+                    color: _periode == p ? Colors.white : theme.secondaryText,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
-  /// Verdeelt de speeltijd zo gelijk mogelijk: bij elk wisselmoment gaan de
-  /// spelers eruit die tot dan toe het meest hebben gespeeld, en komen de
-  /// spelers erin die het minst aan bod kwamen.
-  ///
-  /// Het aantal wissels per moment is beperkt tot de omvang van de bank; met
-  /// drie wisselspelers wissel je er nooit vier tegelijk.
-  void _autoVerdeel() {
-    final blokken = _blokken;
-    var veld = List<LineupSlotStruct>.from(_veld);
-    var bank = List<LineupSlotStruct>.from(_bank);
+  /// Neemt de opstelling van de vorige periode over. Zonder dit begin je elke
+  /// periode met een leeg veld, terwijl er meestal maar een paar spelers
+  /// wisselen.
+  void _neemOver() {
+    if (_periode < 2) return;
+    final vorigeVeld = _vanPeriode(FFAppState().lineupField, _periode - 1);
+    final vorigeBank = _vanPeriode(FFAppState().lineupBench, _periode - 1);
+    if (vorigeVeld.isEmpty && vorigeBank.isEmpty) return;
 
-    if (blokken < 1 || veld.isEmpty || bank.isEmpty) {
-      _schrijfWissels(<LineupSubStruct>[]);
-      return;
-    }
+    _schrijf(
+      vorigeVeld.map((s) => _kopie(s, posX: s.posX, posY: s.posY)).toList(),
+      vorigeBank.map((s) => _kopie(s, posX: '', posY: '')).toList(),
+    );
+  }
+
+  /// Verdeelt de speeltijd over alle perioden zo gelijk mogelijk: wie het meest
+  /// heeft gespeeld gaat eruit, wie het minst aan bod kwam komt erin. Een
+  /// invaller neemt de plek over van degene die hij vervangt, zodat de
+  /// opstelling zijn vorm houdt.
+  ///
+  /// Periode 1 is het uitgangspunt en blijft zoals de coach hem heeft gezet.
+  void _autoVerdeel() {
+    var veld = _vanPeriode(FFAppState().lineupField, 1);
+    var bank = _vanPeriode(FFAppState().lineupBench, 1);
+    if (veld.isEmpty) return;
 
     final gespeeld = <String, int>{};
     for (final s in veld) {
@@ -33785,181 +33890,81 @@ class _LineupBoardState extends State<LineupBoard> {
       gespeeld[s.memberId] = 0;
     }
 
+    final nieuwVeld = <LineupSlotStruct>[...veld];
+    final nieuwBank = <LineupSlotStruct>[...bank];
     final aantal = bank.length < veld.length ? bank.length : veld.length;
-    final nieuw = <LineupSubStruct>[];
 
-    for (var blok = 1; blok <= blokken; blok++) {
-      veld.sort((a, b) =>
-          (gespeeld[b.memberId] ?? 0).compareTo(gespeeld[a.memberId] ?? 0));
-      bank.sort((a, b) =>
-          (gespeeld[a.memberId] ?? 0).compareTo(gespeeld[b.memberId] ?? 0));
+    for (var periode = 2; periode <= _perioden; periode++) {
+      if (aantal > 0) {
+        veld.sort((a, b) =>
+            (gespeeld[b.memberId] ?? 0).compareTo(gespeeld[a.memberId] ?? 0));
+        bank.sort((a, b) =>
+            (gespeeld[a.memberId] ?? 0).compareTo(gespeeld[b.memberId] ?? 0));
 
-      final uit = veld.take(aantal).toList();
-      final erin = bank.take(aantal).toList();
+        final eruit = veld.take(aantal).toList();
+        final erin = bank.take(aantal).toList();
 
-      for (var i = 0; i < aantal; i++) {
-        nieuw.add(LineupSubStruct(
-          block: '$blok',
-          outId: uit[i].memberId,
-          outNaam: uit[i].naam,
-          inId: erin[i].memberId,
-          inNaam: erin[i].naam,
-        ));
+        // De invaller erft de plek van degene die eruit gaat.
+        final vervangers = <LineupSlotStruct>[];
+        for (var i = 0; i < aantal; i++) {
+          vervangers.add(LineupSlotStruct(
+            memberId: erin[i].memberId,
+            naam: erin[i].naam,
+            nummer: erin[i].nummer,
+            posX: eruit[i].posX,
+            posY: eruit[i].posY,
+            isAfgemeld: erin[i].isAfgemeld,
+            period: '$periode',
+          ));
+        }
+
+        veld = [...veld.skip(aantal), ...vervangers];
+        bank = [...bank.skip(aantal), ...eruit];
       }
 
-      veld = [...veld.skip(aantal), ...erin];
-      bank = [...bank.skip(aantal), ...uit];
       for (final s in veld) {
         gespeeld[s.memberId] = (gespeeld[s.memberId] ?? 0) + 1;
       }
+
+      nieuwVeld.addAll(veld.map((s) => LineupSlotStruct(
+            memberId: s.memberId,
+            naam: s.naam,
+            nummer: s.nummer,
+            posX: s.posX,
+            posY: s.posY,
+            isAfgemeld: s.isAfgemeld,
+            period: '$periode',
+          )));
+      nieuwBank.addAll(bank.map((s) => LineupSlotStruct(
+            memberId: s.memberId,
+            naam: s.naam,
+            nummer: s.nummer,
+            posX: '',
+            posY: '',
+            isAfgemeld: s.isAfgemeld,
+            period: '$periode',
+          )));
     }
 
-    _schrijfWissels(nieuw);
+    FFAppState().update(() {
+      FFAppState().lineupField = nieuwVeld;
+      FFAppState().lineupBench = nieuwBank;
+    });
   }
 
-  /// Spelerkiezer. Retourneert null als er niets gekozen is.
-  Future<LineupSlotStruct?> _kiesSpeler(
-      String titel, List<LineupSlotStruct> uit) async {
-    if (uit.isEmpty) return null;
-
-    return showModalBottomSheet<LineupSlotStruct>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (ctx) {
-        final theme = FlutterFlowTheme.of(ctx);
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
-                child: Text(titel, style: theme.titleSmall),
-              ),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: uit.length,
-                  itemBuilder: (_, i) => ListTile(
-                    title: Text(uit[i].naam),
-                    subtitle: uit[i].nummer.isEmpty ? null : Text(uit[i].nummer),
-                    onTap: () => Navigator.of(ctx).pop(uit[i]),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _voegWisselToe(int blok) async {
-    // Wie op dit moment op het veld staat, gaat eruit; wie op de bank of nog
-    // niet ingedeeld is, komt erin. Bewust de begintoestand en niet de stand ná
-    // eerdere blokken: dat zou de coach moeten laten uitrekenen wie waar staat.
-    final uit = await _kiesSpeler('Wie gaat eruit?', _veld);
-    if (uit == null) return;
-
-    final erin = await _kiesSpeler(
-        'Wie komt erin?', [..._bank, ..._nietIngedeeld]);
-    if (erin == null) return;
-
-    _schrijfWissels([
-      ..._wissels,
-      LineupSubStruct(
-        block: '$blok',
-        outId: uit.memberId,
-        outNaam: uit.naam,
-        inId: erin.memberId,
-        inNaam: erin.naam,
-      ),
-    ]);
-  }
-
-  void _verwijderWissel(LineupSubStruct wissel) {
-    final lijst = List<LineupSubStruct>.from(_wissels);
-    lijst.removeWhere((w) =>
-        w.block == wissel.block &&
-        w.outId == wissel.outId &&
-        w.inId == wissel.inId);
-    _schrijfWissels(lijst);
-  }
-
+  /// Het wisselschema: wat er tussen twee perioden verandert. Alleen om te
+  /// lezen — je past het aan door de opstelling van een periode te wijzigen.
   Widget _wisselSchema(FlutterFlowTheme theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _aantalMomenten(theme),
         if (_mag) ...[
-          const SizedBox(height: 12),
           _autoKnop(theme),
+          const SizedBox(height: 14),
         ],
-        const SizedBox(height: 14),
-        if (_blokken < 1)
-          Text(
-            'Zonder wisselmomenten valt er niets te plannen.',
-            style: theme.bodySmall.override(
-              fontFamily: theme.bodySmallFamily,
-              color: theme.secondaryText,
-            ),
-          ),
-        for (var blok = 1; blok <= _blokken; blok++) _blokKaart(theme, blok),
-      ],
-    );
-  }
-
-  Widget _aantalMomenten(FlutterFlowTheme theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('Aantal wisselmomenten', style: theme.labelMedium),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final n in const [0, 1, 2, 3, 4])
-              GestureDetector(
-                onTap: !_mag
-                    ? null
-                    : () {
-                        FFAppState().update(() {
-                          FFAppState().lineupBlocks = '$n';
-                          // Wissels van weggevallen momenten meteen opruimen,
-                          // anders bewaren we een plan dat niemand meer ziet.
-                          FFAppState().lineupSubs = _wissels
-                              .where((w) => (int.tryParse(w.block) ?? 1) <= n)
-                              .toList();
-                        });
-                      },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _blokken == n
-                        ? const Color(0xFF1E3A5F)
-                        : const Color(0xFFEFF1F5),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '$n',
-                    style: theme.labelMedium.override(
-                      fontFamily: theme.labelMediumFamily,
-                      color: _blokken == n ? Colors.white : theme.primaryText,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+        for (var periode = 1; periode < _perioden; periode++)
+          _overgang(theme, periode),
       ],
     );
   }
@@ -33980,7 +33985,7 @@ class _LineupBoardState extends State<LineupBoard> {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Automatisch verdelen — iedereen ongeveer evenveel speeltijd',
+                'Speeltijd automatisch verdelen over alle perioden',
                 style: theme.labelSmall.override(
                   fontFamily: theme.labelSmallFamily,
                   color: const Color(0xFF1E3A5F),
@@ -33993,9 +33998,15 @@ class _LineupBoardState extends State<LineupBoard> {
     );
   }
 
-  Widget _blokKaart(FlutterFlowTheme theme, int blok) {
-    final vanDitBlok =
-        _wissels.where((w) => (int.tryParse(w.block) ?? 1) == blok).toList();
+  Widget _overgang(FlutterFlowTheme theme, int periode) {
+    final woord = _perioden == 4 ? 'kwart' : 'helft';
+    final nu = _vanPeriode(FFAppState().lineupField, periode);
+    final straks = _vanPeriode(FFAppState().lineupField, periode + 1);
+
+    final nuIds = nu.map((s) => s.memberId).toSet();
+    final straksIds = straks.map((s) => s.memberId).toSet();
+    final eruit = nu.where((s) => !straksIds.contains(s.memberId)).toList();
+    final erin = straks.where((s) => !nuIds.contains(s.memberId)).toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -34009,77 +34020,53 @@ class _LineupBoardState extends State<LineupBoard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Wisselmoment $blok', style: theme.titleSmall),
+          Text('Na $woord $periode', style: theme.titleSmall),
           const SizedBox(height: 8),
-          if (vanDitBlok.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Text(
-                'Nog geen wissels gepland.',
-                style: theme.bodySmall.override(
-                  fontFamily: theme.bodySmallFamily,
-                  color: theme.secondaryText,
+          if (straks.isEmpty)
+            Text(
+              'Voor $woord ${periode + 1} staat nog geen opstelling.',
+              style: theme.bodySmall.override(
+                fontFamily: theme.bodySmallFamily,
+                color: theme.secondaryText,
+              ),
+            )
+          else if (eruit.isEmpty && erin.isEmpty)
+            Text(
+              'Dezelfde elf blijven staan.',
+              style: theme.bodySmall.override(
+                fontFamily: theme.bodySmallFamily,
+                color: theme.secondaryText,
+              ),
+            )
+          else
+            for (var i = 0; i < (eruit.length > erin.length ? eruit.length : erin.length); i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    const Icon(Icons.arrow_downward,
+                        size: 16, color: Color(0xFFE11D2E)),
+                    Expanded(
+                      child: Text(
+                        i < eruit.length ? eruit[i].naam : '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.bodySmall,
+                      ),
+                    ),
+                    const Icon(Icons.arrow_upward,
+                        size: 16, color: Color(0xFF16A34A)),
+                    Expanded(
+                      child: Text(
+                        i < erin.length ? erin[i].naam : '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.bodySmall,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          for (final wissel in vanDitBlok) _wisselRij(theme, wissel),
-          if (_mag) ...[
-            const SizedBox(height: 6),
-            GestureDetector(
-              onTap: () => _voegWisselToe(blok),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.add, size: 18, color: Color(0xFF1E3A5F)),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Wissel toevoegen',
-                    style: theme.labelSmall.override(
-                      fontFamily: theme.labelSmallFamily,
-                      color: const Color(0xFF1E3A5F),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _wisselRij(FlutterFlowTheme theme, LineupSubStruct wissel) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          const Icon(Icons.arrow_downward, size: 16, color: Color(0xFFE11D2E)),
-          Expanded(
-            child: Text(
-              wissel.outNaam,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.bodySmall,
-            ),
-          ),
-          const Icon(Icons.arrow_upward, size: 16, color: Color(0xFF16A34A)),
-          Expanded(
-            child: Text(
-              wissel.inNaam,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.bodySmall,
-            ),
-          ),
-          if (_mag)
-            GestureDetector(
-              onTap: () => _verwijderWissel(wissel),
-              child: Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child:
-                    Icon(Icons.close, size: 18, color: theme.secondaryText),
-              ),
-            ),
         ],
       ),
     );
@@ -34136,7 +34123,9 @@ void _ensureLineupBoardStruct(FFProject project) {
     name: 'LineupSlot',
     description:
         'Eén speler op het opstellingsbord: naam, rugnummer, plek op het veld (0..1) en of hij zich heeft afgemeld.',
-    fields: const ['memberId', 'naam', 'nummer', 'posX', 'posY', 'isAfgemeld'],
+    fields: const [
+      'memberId', 'naam', 'nummer', 'posX', 'posY', 'isAfgemeld', 'period',
+    ],
   );
 
   _ensureFlatStringStruct(
@@ -34175,7 +34164,7 @@ void _ensureLineupBoardAppState(FFProject project) {
   }
 
   for (final naam in const [
-    'lineupBlocks',
+    'lineupPeriods',
     'lineupTab',
     'lineupFormation',
     'lineupPlayersOnField',
@@ -34228,6 +34217,7 @@ Future<String> loadLineupBoard(String? matchId) async {
               posX: '${m['posX'] ?? ''}',
               posY: '${m['posY'] ?? ''}',
               isAfgemeld: '${m['isAfgemeld'] ?? 'false'}',
+              period: '${m['period'] ?? '1'}',
             ))
         .toList();
   }
@@ -34261,7 +34251,7 @@ Future<String> loadLineupBoard(String? matchId) async {
       FFAppState().lineupField = lees(data['veld']);
       FFAppState().lineupBench = lees(data['bank']);
       FFAppState().lineupSelection = lees(data['selectie']);
-      FFAppState().lineupBlocks = '${data['blocks'] ?? '1'}';
+      FFAppState().lineupPeriods = '${data['periods'] ?? '2'}';
       FFAppState().lineupSubs = (data['wissels'] is List)
           ? (data['wissels'] as List)
               .whereType<Map>()
@@ -34314,6 +34304,7 @@ Future<String> saveLineupBoard(String? matchId) async {
         'member_id': s.memberId,
         'shirt_number': int.tryParse(s.nummer),
         'is_substitute': bank,
+        'period': int.tryParse(s.period) ?? 1,
         'slot_x': bank ? null : double.tryParse(s.posX),
         'slot_y': bank ? null : double.tryParse(s.posY),
       };
@@ -34336,15 +34327,9 @@ Future<String> saveLineupBoard(String? matchId) async {
         'players_on_field': int.tryParse(FFAppState().lineupPlayersOnField),
         'match_format': FFAppState().lineupMatchFormat,
         'players': spelers,
-        'substitution_blocks': int.tryParse(FFAppState().lineupBlocks) ?? 1,
-        'substitutions': FFAppState()
-            .lineupSubs
-            .map((w) => {
-                  'block': int.tryParse(w.block) ?? 1,
-                  'member_out_id': w.outId.isEmpty ? null : w.outId,
-                  'member_in_id': w.inId.isEmpty ? null : w.inId,
-                })
-            .toList(),
+        // Het wisselschema gaat niet mee: dat leidt de backend af uit het
+        // verschil tussen de perioden.
+        'periods': int.tryParse(FFAppState().lineupPeriods) ?? 2,
       }),
     );
     if (res.statusCode >= 200 && res.statusCode < 300) return '';
@@ -34752,6 +34737,7 @@ void _wireOpstellingPage(FFProject project) {
     required String label,
     required String appStateVeld,
     required List<String> opties,
+    Map<String, String> labels = const {},
   }) {
     final huidigVar = appVar(appStateVeld);
     final chips = <FFNode>[];
@@ -34768,7 +34754,7 @@ void _wireOpstellingPage(FFProject project) {
           innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 7),
           borderRadius: 12,
           color: actief ? UIColor.primary : UIColor.hex(0xFFEFF1F5),
-          child: UI.text(optie,
+          child: UI.text(labels[optie] ?? optie,
               name: '$naam${actief ? 'Aan' : 'Uit'}Label$i',
               style: UITextStyle.labelSmall,
               color: actief ? UIColor.white : UIColor.primaryText,
@@ -34840,11 +34826,14 @@ void _wireOpstellingPage(FFProject project) {
           appStateVeld: 'lineupFormation',
           opties: const ['2-3-1', '3-2-3', '3-3-2', '4-3-3', '4-4-2'],
         ),
+        // Twee helften of vier kwarten. Bepaalt hoeveel opstellingen je maakt:
+        // elke periode heeft er een, en het verschil ertussen is de wissel.
         keuzeRij(
-          naam: 'OpstellingFormaat',
+          naam: 'OpstellingPerioden',
           label: 'Wedstrijdformaat',
-          appStateVeld: 'lineupMatchFormat',
-          opties: const ['2 x 25 min', '2 x 30 min', '4 x 15 min', '4 x 20 min'],
+          appStateVeld: 'lineupPeriods',
+          opties: const ['2', '4'],
+          labels: const {'2': '2 helften', '4': '4 kwarten'},
         ),
       ],
     ),
