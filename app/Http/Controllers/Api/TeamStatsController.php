@@ -19,15 +19,18 @@ use Illuminate\Http\Request;
  * Seizoenscijfers voor het dashboard: één blok over het team en één over de
  * ingelogde gebruiker zelf.
  *
- * Alles wordt afgeleid uit gegevens die de app al bijhoudt (uitslagen, doelpunten,
- * assists, afmeldingen, trainingsschema's). Twee dingen uit het ontwerp kunnen
- * hier niet uit komen en ontbreken daarom bewust:
- *  - de positie in de competitie: daarvoor is de volledige standenlijst nodig,
- *    en de app kent alleen de eigen wedstrijden;
- *  - fair play: er worden geen kaarten geregistreerd.
+ * Het meeste wordt afgeleid uit gegevens die de app al bijhoudt (uitslagen,
+ * doelpunten, assists, afmeldingen, trainingsschema's). De competitiepositie kan
+ * daar niet uit komen — de app kent alleen de eigen wedstrijden — en komt daarom
+ * uit de poulestand. Die telt ook wedstrijden mee die de app niet kent, dus de
+ * cijfers uit de stand staan náást de eigen telling en niet in plaats daarvan.
  */
 class TeamStatsController extends Controller
 {
+    public function __construct(private readonly \App\Services\StandingService $standen)
+    {
+    }
+
     /** GET /v1/teams/{team}/stats */
     public function show(Request $request, Team $team): JsonResponse
     {
@@ -147,7 +150,54 @@ class TeamStatsController extends Controller
             'myAssists'      => (string) $assists,
             'myYellowCards'  => (string) ($kaarten[MatchEvent::CARD_YELLOW] ?? 0),
             'myRedCards'     => (string) ($kaarten[MatchEvent::CARD_RED] ?? 0),
-        ]);
+        ] + $this->standCijfers($team));
+    }
+
+    /**
+     * De officiële cijfers uit de poulestand.
+     *
+     * standingAvailable zegt of er iets te tonen valt; zonder die vlag zou het
+     * dashboard "positie 0 van 0" laten zien zodra de stand ontbreekt, en dat
+     * leest als een slechte seizoenstart in plaats van als ontbrekende data.
+     *
+     * @return array<string, string>
+     */
+    private function standCijfers(Team $team): array
+    {
+        $stand = $this->standen->forTeam($team);
+        $eigen = null;
+        foreach ($stand['rijen'] as $rij) {
+            if (($rij['isEigenTeam'] ?? 'false') === 'true') {
+                $eigen = $rij;
+                break;
+            }
+        }
+
+        if (! $eigen) {
+            return [
+                'standingAvailable'      => 'false',
+                'standingPosition'       => '',
+                'standingTeams'          => '',
+                'standingPlayed'         => '',
+                'standingPoints'         => '',
+                'standingGoalDifference' => '',
+                'standingMessage'        => $stand['melding'],
+            ];
+        }
+
+        $saldo = $eigen['doelsaldo'] ?? '';
+
+        return [
+            'standingAvailable'      => 'true',
+            'standingPosition'       => $eigen['positie'] ?? '',
+            'standingTeams'          => (string) count($stand['rijen']),
+            'standingPlayed'         => $eigen['gespeeld'] ?? '',
+            'standingPoints'         => $eigen['punten'] ?? '',
+            // Een plusteken erbij; zonder teken leest "3" als een aantal in
+            // plaats van als een saldo.
+            'standingGoalDifference' => ($saldo !== '' && (int) $saldo > 0) ? '+' . $saldo : $saldo,
+            'standingMessage'        => '',
+        ];
     }
 
     /** Voetbalseizoen loopt van 1 juli tot en met 30 juni. */
