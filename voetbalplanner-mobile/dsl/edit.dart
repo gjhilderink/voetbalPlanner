@@ -25907,14 +25907,49 @@ void _wireWedstrijdAfmelden(FFProject project) {
       dynamicVariables: dynVars,
       outputVariableName: '${btn.name}Out',
       nodeKey: btn.key,
-      onSuccess: (ctx) => Actions.chain([
-        Actions.snackBar(okMsg),
-        Actions.updatePageState(
-          project,
-          widgetClassName: 'WedstrijdDetailPage',
-          updates: [StateFieldUpdate.set('matchStatus', newStatus)],
-        ),
-      ]),
+      onSuccess: (ctx) {
+        final start = Actions.chain([
+          Actions.snackBar(okMsg),
+          Actions.updatePageState(
+            project,
+            widgetClassName: 'WedstrijdDetailPage',
+            updates: [StateFieldUpdate.set('matchStatus', newStatus)],
+          ),
+        ]);
+
+        // De opkomstlijst er meteen achteraan. Zonder dit stond je nog in de
+        // verkeerde sectie tot je de pagina had verlaten en opnieuw geopend —
+        // en dan lijkt het alsof je afmelding niet is aangekomen.
+        if (findApiEndpoint(project,
+                    name: 'GetMatchDeelnemers', groupName: 'VoetbalPlannerAPI') !=
+                null &&
+            _findAppStateFieldId(project, 'matchParticipants') != null) {
+          var staart = start;
+          while (staart.hasFollowUpAction()) {
+            staart = staart.followUpAction;
+          }
+          staart.followUpAction = Actions.apiCallNode(
+            project,
+            endpointName: 'GetMatchDeelnemers',
+            groupName: 'VoetbalPlannerAPI',
+            dynamicVariables: {
+              'token': varFromAppState(authTokenId.deepCopy()),
+              'matchId': varFromPageParam(matchId.deepCopy())
+                ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+            },
+            outputVariableName: '${btn.name}Deelnemers',
+            nodeKey: btn.key,
+            onSuccess: (c2) => Actions.chain([
+              Actions.updateAppState(project, updates: [
+                StateFieldUpdate.setFromVariable(
+                    'matchParticipants', c2.responseVar),
+              ]),
+            ]),
+          );
+        }
+
+        return start;
+      },
       onFailure: (ctx) => Actions.chain([
         Actions.snackBar('Er ging iets mis — probeer het opnieuw of controleer je verbinding.'),
       ]),
@@ -29637,8 +29672,21 @@ void _buildMatchAttendanceSection(FFProject project) {
   final partId = _findAppStateFieldId(project, 'matchParticipants');
   if (partId == null) return;
 
-  // Vers opbouwen elke push.
-  for (final n in findDescendants(wc.node, (x) => x.name == 'MatchAttendanceCard').toList()) {
+  // Vers opbouwen elke push. Ook de marge-wrapper meenemen: UI.container(margin:)
+  // maakt daar een eigen node voor, en die bleef anders als lege container
+  // achter — precies het gat dat er tussen de secties viel.
+  for (final n in findDescendants(
+          wc.node, (x) => (x.name ?? '').startsWith('MatchAttendanceCard'))
+      .toList()) {
+    removeByKey(wc.node, n.key);
+  }
+
+  // De oude afmeldingenlijst kan weg: deze kaart laat hetzelfde zien én wie er
+  // wél komt. Twee lijstjes onder elkaar die elkaar half overlappen roepen
+  // alleen de vraag op welke nu klopt.
+  for (final n in findDescendants(
+          wc.node, (x) => (x.name ?? '').startsWith('MatchAfmeldSection'))
+      .toList()) {
     removeByKey(wc.node, n.key);
   }
 
@@ -35002,7 +35050,10 @@ void _addOpstellingButton(FFProject project) {
   if (wc == null) return;
   if (findPage(project, name: 'OpstellingPage') == null) return;
 
-  for (final n in findDescendants(wc.node, (x) => x.name == 'MatchOpstellingButton').toList()) {
+  // Ook de marge-wrapper; zie MatchAttendanceCard.
+  for (final n in findDescendants(
+          wc.node, (x) => (x.name ?? '').startsWith('MatchOpstellingButton'))
+      .toList()) {
     removeByKey(wc.node, n.key);
   }
 
@@ -35300,7 +35351,10 @@ void _wirePlannedSubsOnLivePage(FFProject project) {
     ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
 
   // Vers opbouwen elke push.
-  for (final n in findDescendants(wc.node, (x) => x.name == 'LivePlannedSubs').toList()) {
+  // Ook de marge-wrapper; zie MatchAttendanceCard.
+  for (final n in findDescendants(
+          wc.node, (x) => (x.name ?? '').startsWith('LivePlannedSubs'))
+      .toList()) {
     removeByKey(wc.node, n.key);
   }
 
