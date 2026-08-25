@@ -35828,6 +35828,22 @@ void _restyleTeamMembersPage(FFProject project) {
   );
 
   lijst.children.add(kaart);
+
+  // De ListView staat op shrinkWrap (nodig om binnen een Column iets te tonen),
+  // maar de Column eromheen scrolde niet. Bij een team dat niet op één scherm
+  // past scrolde er dus helemaal niets. Zelfde oplossing als op ChatsPage: de
+  // omhullende kolom laten scrollen.
+  final kolom = findDescendants(
+    wc.node,
+    (n) =>
+        n.type == FFWidgetType.Column &&
+        findDescendants(n, (k) => k.key == lijst.key).isNotEmpty,
+  ).firstOrNull;
+  if (kolom != null && !kolom.props.column.scrollable) {
+    final kopie = kolom.props.column.deepCopy();
+    kopie.scrollable = true;
+    kolom.props.column = kopie;
+  }
 }
 
 // ── Poulestand ──────────────────────────────────────────────────────────────
