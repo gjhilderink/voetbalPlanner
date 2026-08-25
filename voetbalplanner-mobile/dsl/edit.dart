@@ -35755,8 +35755,8 @@ void _ensureStandingStruct(FFProject project) {
     description:
         'Eén regel uit de poulestand: positie, team, gespeeld, punten en doelcijfers.',
     fields: const [
-      'positie', 'team', 'gespeeld', 'punten', 'doelsaldo',
-      'voor', 'tegen', 'isEigenTeam', 'melding',
+      'positie', 'team', 'logo', 'gespeeld', 'gewonnen', 'gelijk', 'verloren',
+      'punten', 'doelsaldo', 'voor', 'tegen', 'isEigenTeam', 'melding',
     ],
   );
 }
@@ -35903,6 +35903,26 @@ void _wireStandPage(FFProject project) {
       crossAxisAlignment: UICrossAxisAlignment.center,
       children: [
         cel('StandPositie', 'positie', 26, gewicht: UIFontWeight.w700),
+        // Clublogo uit de bron; scheelt de rijen langslezen om je tegenstander
+        // te vinden.
+        FFNode(
+          key: generateRandomAlphaNumericString(),
+          type: FFWidgetType.CircleImage,
+          name: 'StandLogo',
+          props: FFWidgetProperties(
+            image: FFImage(
+              type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+              pathValue:
+                  FFStringValue(variable: generatorVarField(lijst.key, 'logo')),
+              fit: FFBoxFit.FF_BOX_FIT_CONTAIN,
+              cached: true,
+              dimensions: FFDimensions(
+                width: FFDim(pixelsValue: FFDoubleValue(inputValue: 22.0)),
+                height: FFDim(pixelsValue: FFDoubleValue(inputValue: 22.0)),
+              ),
+            ),
+          ),
+        ),
         teamNaam(eigen: true),
         teamNaam(eigen: false),
         cel('StandGespeeld', 'gespeeld', 28),
@@ -35928,6 +35948,9 @@ void _wireStandPage(FFProject project) {
       crossAxisAlignment: UICrossAxisAlignment.center,
       children: [
         kopCel('#', 26),
+        // Even breed als het logo in de rijen eronder, anders lopen de kolommen
+        // niet gelijk.
+        UI.container(name: 'StandKopLogo', width: 22),
         UI.expanded(UI.text('Team',
             name: 'StandKopTeam',
             style: UITextStyle.labelSmall,

@@ -75,49 +75,49 @@ abstract final class StandPageWidgets {
             name: "StandRootColumn",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Text_al1b9h2v",
+                key: "Text_ytl945cn",
                 type: "Text",
                 path: "StandPage.body[0].children[0]",
                 name: "StandMelding",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_ea60zols",
+                key: "Container_rz6j8ppf",
                 type: "Container",
                 path: "StandPage.body[0].children[1]",
                 name: "StandKaart Margin",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_6iveehg7",
+                    key: "Container_wxkxbyck",
                     type: "Container",
                     path: "StandPage.body[0].children[1].children[0]",
                     name: "StandKaart",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_pba4pxtb",
+                        key: "Column_0mhpv053",
                         type: "Column",
                         path: "StandPage.body[0].children[1].children[0].children[0]",
                         name: "StandKaartCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_d0sud8p8",
+                            key: "Container_f5wnnemp",
                             type: "Container",
                             path: "StandPage.body[0].children[1].children[0].children[0].children[0]",
                             name: "StandKopRij",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_d4tseyzu",
+                                key: "Row_2im6gfca",
                                 type: "Row",
                                 path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0]",
                                 name: "StandKopRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_remd7500",
+                                    key: "Container_na35fc68",
                                     type: "Container",
                                     path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[0]",
                                     name: "StandKop#",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_ypjqd10h",
+                                        key: "Text_z6vzmtcv",
                                         type: "Text",
                                         path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[0].children[0]",
                                         name: "StandKop#Tekst",
@@ -126,52 +126,58 @@ abstract final class StandPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_9qof4cgv",
-                                    type: "Text",
+                                    key: "Container_ndk1zi86",
+                                    type: "Container",
                                     path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[1]",
+                                    name: "StandKopLogo",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_fp9xrsei",
+                                    type: "Text",
+                                    path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[2]",
                                     name: "StandKopTeam",
                                     text: "Team",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_rabczkaa",
+                                    key: "Container_llrloo9e",
                                     type: "Container",
-                                    path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[2]",
+                                    path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[3]",
                                     name: "StandKopG",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_zmm9fd3h",
+                                        key: "Text_skygerc2",
                                         type: "Text",
-                                        path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[2].children[0]",
+                                        path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[3].children[0]",
                                         name: "StandKopGTekst",
                                         text: "G",
                                       ),
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_cd6epdgi",
+                                    key: "Container_dcxcutut",
                                     type: "Container",
-                                    path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[3]",
+                                    path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[4]",
                                     name: "StandKopDS",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_5ktvfzwv",
+                                        key: "Text_mtl0gw35",
                                         type: "Text",
-                                        path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[3].children[0]",
+                                        path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[4].children[0]",
                                         name: "StandKopDSTekst",
                                         text: "DS",
                                       ),
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_bh14calk",
+                                    key: "Container_tp7czcza",
                                     type: "Container",
-                                    path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[4]",
+                                    path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[5]",
                                     name: "StandKopP",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_72at7syn",
+                                        key: "Text_cwc2ia0d",
                                         type: "Text",
-                                        path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[4].children[0]",
+                                        path: "StandPage.body[0].children[1].children[0].children[0].children[0].children[0].children[5].children[0]",
                                         name: "StandKopPTekst",
                                         text: "P",
                                       ),
@@ -182,31 +188,31 @@ abstract final class StandPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "ListView_5ha33usx",
+                            key: "ListView_3e0y4vz5",
                             type: "ListView",
                             path: "StandPage.body[0].children[1].children[0].children[0].children[1]",
                             name: "StandList",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_qsg6f50x",
+                                key: "Container_wg5go1t2",
                                 type: "Container",
                                 path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0]",
                                 name: "StandRij",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_ssm1sxub",
+                                    key: "Row_5ldj5tjz",
                                     type: "Row",
                                     path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0]",
                                     name: "StandRijRow",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_06jzlkj4",
+                                        key: "Container_kbpzvwic",
                                         type: "Container",
                                         path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[0]",
                                         name: "StandPositieWrap",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_pr00hmy3",
+                                            key: "Text_czjh2dp2",
                                             type: "Text",
                                             path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[0].children[0]",
                                             name: "StandPositie",
@@ -214,55 +220,61 @@ abstract final class StandPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_0i320qk0",
-                                        type: "Text",
+                                        key: "22i019jb",
+                                        type: "CircleImage",
                                         path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[1]",
+                                        name: "StandLogo",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_essw8ue9",
+                                        type: "Text",
+                                        path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[2]",
                                         name: "StandTeamEigen",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_9mwzalhv",
+                                        key: "Text_bk1cpu8z",
                                         type: "Text",
-                                        path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[2]",
+                                        path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[3]",
                                         name: "StandTeamAnder",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_ec9k9v3p",
+                                        key: "Container_d0chkc0q",
                                         type: "Container",
-                                        path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[3]",
+                                        path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[4]",
                                         name: "StandGespeeldWrap",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_ggl9bvox",
+                                            key: "Text_0p0lls5r",
                                             type: "Text",
-                                            path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[3].children[0]",
+                                            path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[4].children[0]",
                                             name: "StandGespeeld",
                                           ),
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_v5mqnmm6",
+                                        key: "Container_wbp7knkw",
                                         type: "Container",
-                                        path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[4]",
+                                        path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[5]",
                                         name: "StandSaldoWrap",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_s1ueliff",
+                                            key: "Text_skrjzlph",
                                             type: "Text",
-                                            path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[4].children[0]",
+                                            path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[5].children[0]",
                                             name: "StandSaldo",
                                           ),
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_ku4zor10",
+                                        key: "Container_jxpm27tm",
                                         type: "Container",
-                                        path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[5]",
+                                        path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[6]",
                                         name: "StandPuntenWrap",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_ofp0vcsl",
+                                            key: "Text_w5h8ncnb",
                                             type: "Text",
-                                            path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[5].children[0]",
+                                            path: "StandPage.body[0].children[1].children[0].children[0].children[1].children[0].children[0].children[6].children[0]",
                                             name: "StandPunten",
                                           ),
                                         ],

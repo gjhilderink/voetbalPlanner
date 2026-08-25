@@ -104,7 +104,11 @@ class StandingController extends Controller
         return [[
             'positie'     => '',
             'team'        => '',
+            'logo'        => '',
             'gespeeld'    => '',
+            'gewonnen'    => '',
+            'gelijk'      => '',
+            'verloren'    => '',
             'punten'      => '',
             'doelsaldo'   => '',
             'voor'        => '',
@@ -136,17 +140,25 @@ class StandingController extends Controller
 
         $naam = $pak(['teamnaam', 'team', 'naam', 'ploeg']);
 
+        // De bron markeert de eigen ploeg zelf; die vlag wint van een
+        // naamsvergelijking, want die gaat mis zodra de schrijfwijze afwijkt.
+        $eigen = isset($r['eigenteam'])
+            ? filter_var($r['eigenteam'], FILTER_VALIDATE_BOOLEAN)
+            : $this->zelfdeTeam($naam, $eigenTeam);
+
         return [
-            'positie'      => $pak(['positie', 'plaats', 'stand', 'rank', 'nr']),
-            'team'         => $naam,
-            'gespeeld'     => $pak(['gespeeld', 'wedstrijden', 'aantalwedstrijden', 'gs']),
-            'punten'       => $pak(['punten', 'ptn', 'pt']),
-            'doelsaldo'    => $pak(['doelsaldo', 'saldo', 'ds']),
-            'voor'         => $pak(['doelpuntenvoor', 'voor', 'dv']),
-            'tegen'        => $pak(['doelpuntentegen', 'tegen', 'dt']),
-            // Zodat de app de eigen ploeg kan uitlichten zonder namen te
-            // vergelijken; dat gaat mis zodra de schrijfwijze net afwijkt.
-            'isEigenTeam'  => $this->zelfdeTeam($naam, $eigenTeam) ? 'true' : 'false',
+            'positie'   => $pak(['positie', 'plaats', 'stand', 'rank', 'nr']),
+            'team'      => $naam,
+            'logo'      => $pak(['clublogo', 'teamlogo', 'logo']),
+            'gespeeld'  => $pak(['gespeeldewedstrijden', 'gespeeld', 'wedstrijden', 'aantalwedstrijden', 'gs']),
+            'gewonnen'  => $pak(['gewonnen', 'winst', 'w']),
+            'gelijk'    => $pak(['gelijk', 'gelijkspel', 'g']),
+            'verloren'  => $pak(['verloren', 'verlies', 'v']),
+            'punten'    => $pak(['punten', 'ptn', 'pt']),
+            'doelsaldo' => $pak(['doelsaldo', 'saldo', 'ds']),
+            'voor'      => $pak(['doelpuntenvoor', 'voor', 'dv']),
+            'tegen'     => $pak(['doelpuntentegen', 'tegen', 'dt']),
+            'isEigenTeam' => $eigen ? 'true' : 'false',
         ];
     }
 
