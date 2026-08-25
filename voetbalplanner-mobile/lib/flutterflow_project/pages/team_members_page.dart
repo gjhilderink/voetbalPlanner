@@ -81,37 +81,37 @@ abstract final class TeamMembersPageWidgets {
                 name: "TeamMemberList",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_q0wr98av",
+                    key: "Container_bc0y234g",
                     type: "Container",
                     path: "TeamMembersPage.body[0].children[0].children[0]",
                     name: "TeamMemberCard Margin",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_4275d0i9",
+                        key: "Container_hysmp3yu",
                         type: "Container",
                         path: "TeamMembersPage.body[0].children[0].children[0].children[0]",
                         name: "TeamMemberCard",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_nwav9bog",
+                            key: "Row_68tlenuh",
                             type: "Row",
                             path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0]",
                             name: "TeamMemberRij",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "j9tuc488",
+                                key: "1mg0elfu",
                                 type: "CircleImage",
                                 path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "TeamMemberFoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Container_w7lp180p",
+                                key: "Container_ct737bql",
                                 type: "Container",
                                 path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "TeamMemberBadgeSpeler",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_t6622qxt",
+                                    key: "Text_3istb7nt",
                                     type: "Text",
                                     path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[1].children[0]",
                                     name: "TeamMemberBadgeSpelerTekst",
@@ -119,13 +119,13 @@ abstract final class TeamMembersPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Container_zl41rm4g",
+                                key: "Container_3yyzqg6y",
                                 type: "Container",
                                 path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[2]",
                                 name: "TeamMemberBadgeStaf",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_7fjcym7t",
+                                    key: "Text_l03zeg7e",
                                     type: "Text",
                                     path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[2].children[0]",
                                     name: "TeamMemberBadgeStafTekst",
@@ -133,31 +133,31 @@ abstract final class TeamMembersPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Column_pahvcwrk",
+                                key: "Column_cxcawd4m",
                                 type: "Column",
                                 path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3]",
                                 name: "TeamMemberNaamCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_axfoqddp",
+                                    key: "Text_cm0mt3n4",
                                     type: "Text",
                                     path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[0]",
                                     name: "TeamMemberNameText",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_0esjh5ka",
+                                    key: "Row_cwjb5b9s",
                                     type: "Row",
                                     path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1]",
                                     name: "TeamMemberOnderRij",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_busfc9jg",
+                                        key: "Container_h7rm067c",
                                         type: "Container",
                                         path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[0]",
                                         name: "TeamMemberRolSpeler",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_0v1l42mz",
+                                            key: "Text_rgl9elad",
                                             type: "Text",
                                             path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[0].children[0]",
                                             name: "TeamMemberRolSpelerTekst",
@@ -165,13 +165,13 @@ abstract final class TeamMembersPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_vdkzjrb0",
+                                        key: "Container_673bt7c0",
                                         type: "Container",
                                         path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[1]",
                                         name: "TeamMemberRolStaf",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_hesiv1il",
+                                            key: "Text_1i3d1enx",
                                             type: "Text",
                                             path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[1].children[0]",
                                             name: "TeamMemberRolStafTekst",
@@ -179,19 +179,19 @@ abstract final class TeamMembersPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_xa7na6t4",
+                                        key: "Row_ou61bkgz",
                                         type: "Row",
                                         path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[2]",
                                         name: "TeamMemberOffline",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_xs6d9mzq",
+                                            key: "Container_hk1oroz3",
                                             type: "Container",
                                             path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[2].children[0]",
                                             name: "TeamMemberOfflineStip",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_ccmoxpzd",
+                                            key: "Text_8d3unry6",
                                             type: "Text",
                                             path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[3].children[1].children[2].children[1]",
                                             name: "TeamMemberOfflineLabel",
@@ -204,13 +204,16 @@ abstract final class TeamMembersPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Container_m7ehnekz",
+                                key: "Container_cihuyb6z",
                                 type: "Container",
                                 path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[4]",
                                 name: "TeamMemberChatKnop",
+                                triggers: const <String>[
+                                  "ON_TAP",
+                                ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_q38rsbpc",
+                                    key: "Icon_4xa2v5lw",
                                     type: "Icon",
                                     path: "TeamMembersPage.body[0].children[0].children[0].children[0].children[0].children[4].children[0]",
                                     name: "Icon",

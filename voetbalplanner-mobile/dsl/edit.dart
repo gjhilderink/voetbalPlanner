@@ -35663,6 +35663,54 @@ void _restyleTeamMembersPage(FFProject project) {
     ).variable,
   );
 
+  // Eerst het gespreks-id berekenen, dan pas navigeren — anders opent de pagina
+  // op een leeg id en ziet iedereen dezelfde terugvalconversatie.
+  //
+  // Op externalId (lidnummer) en niet op e-mail: dat nummer is altijd uniek, ook
+  // als het Sportlink-adres afwijkt van waarmee iemand inlogt. Zo rekenen beide
+  // kanten hetzelfde id uit. Zelfde aanpak als de ledenstrip in de teamchat.
+  final navigeer = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: Actions.navigate(
+      project,
+      pageName: 'DirectChatPage',
+      params: {
+        'memberId':
+            VariableParamValue(generatorVarField(lijst.key, 'externalId')),
+        'memberName': VariableParamValue(generatorVarField(lijst.key, 'name')),
+      },
+    ),
+  );
+
+  final bereken = findCustomAction(project, name: 'ComputeDirectConvId');
+  if (bereken != null) {
+    final args = FFFunctionCallValues();
+    for (final arg in bereken.arguments) {
+      if (arg.identifier.name == 'other') {
+        args.arguments[arg.identifier.key] = FFFunctionCallValues_FFArgument(
+          value: FFValue(
+              variable: generatorVarField(lijst.key, 'externalId')),
+        );
+      }
+    }
+    Actions.onTapChain(
+      chatKnop,
+      FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: bereken.identifier.deepCopy(),
+            argumentValues: args,
+          ),
+        ),
+        followUpAction: navigeer,
+      ),
+    );
+  } else {
+    Actions.onTapChain(chatKnop, navigeer);
+  }
+
   final kaart = UI.container(
     name: 'TeamMemberCard',
     margin: UIEdgeInsets.only(left: 12, right: 12, top: 4, bottom: 4),
