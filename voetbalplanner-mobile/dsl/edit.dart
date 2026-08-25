@@ -28683,11 +28683,9 @@ void _wireDashboardActivities(FFProject project) {
 // SEIZOENSCIJFERS + TEAMSFEER (dashboardontwerp, onderste blokken)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// Twee cijfers uit het ontwerp bestaan niet en zitten hier bewust niet in:
-//  - competitiepositie: daarvoor is de volledige standenlijst nodig, de app kent
-//    alleen de eigen wedstrijden. Het grote getal op de teamkaart is daarom het
-//    puntentotaal.
-//  - fair play: er worden nergens kaarten geregistreerd.
+// De competitiepositie komt uit de poulestand en niet uit de eigen telling: de
+// app kent alleen de eigen wedstrijden. De standingVelden staan daarom náást de
+// eigen cijfers — de stand telt ook wedstrijden mee die hier niet in zitten.
 
 /// Struct met de seizoenscijfers van het team én van de gebruiker zelf.
 void _ensureTeamStatsStruct(FFProject project) {
@@ -28697,6 +28695,9 @@ void _ensureTeamStatsStruct(FFProject project) {
     'points', 'goalsFor', 'goalsAgainst', 'goalDifference',
     'myMatches', 'myTrainings', 'myAttendance', 'myGoals', 'myAssists',
     'myYellowCards', 'myRedCards',
+    'standingAvailable', 'standingPosition', 'standingTeams',
+    'standingPlayed', 'standingPoints', 'standingGoalDifference',
+    'standingMessage',
   ];
   _ensureFlatStringStruct(
     project,
@@ -28930,6 +28931,26 @@ FFNode _statTile({
 
 /// "Team statistieken": punten groot, daaronder gespeeld, doelsaldo en de
 /// winst-gelijk-verlies-reeks.
+/// Neemt de eerste waarde, en anders de tweede. Gebruikt om een cijfer uit de
+/// poulestand te tonen met de eigen telling als terugval.
+FFVariable _keuzeVar(FFVariable voorkeur, FFVariable terugval) => codeExpressionVar(
+      expression: "(a ?? '').trim().isEmpty ? (b ?? '') : a!",
+      arguments: [
+        CodeExpressionArg(
+          name: 'a',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: voorkeur),
+        ),
+        CodeExpressionArg(
+          name: 'b',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: terugval),
+        ),
+      ],
+      returnType:
+          FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    );
+
 FFNode? _dashTeamStatsCard(FFProject project, FFWidgetClass wc) {
   final statsId = _findAppStateFieldId(project, 'teamStats');
   if (statsId == null) return null;
@@ -28942,17 +28963,53 @@ FFNode? _dashTeamStatsCard(FFProject project, FFWidgetClass wc) {
           FFAccessDataStructField(fieldIdentifier: FFIdentifier(name: field)),
     ));
 
-  final points = UI.text('',
-      name: 'DashTeamStatsPoints',
-      style: UITextStyle.displaySmall,
-      fontSize: 34,
-      fontWeight: UIFontWeight.w700,
-      color: UIColor.primary,
-      textAlign: UITextAlign.center,
-      maxLines: 1);
-  points.props.text.textValue = FFStringValue(variable: stat('points'));
+  // Het grote getal is de plek in de poule, niet het puntentotaal: dat is waar
+  // iedereen als eerste naar kijkt. Is er geen stand, dan valt het terug op de
+  // punten uit onze eigen telling, want een lege kaart is nutteloos.
+  FFVariable heeftStand() =>
+      _equalsLiteral(stat('standingAvailable'), 'true');
 
-  return _dashCard(
+  FFNode grootGetal({required bool uitStand}) {
+    final t = UI.text('',
+        name: uitStand ? 'DashTeamStatsPositie' : 'DashTeamStatsPoints',
+        style: UITextStyle.displaySmall,
+        fontSize: 34,
+        fontWeight: UIFontWeight.w700,
+        color: UIColor.primary,
+        textAlign: UITextAlign.center,
+        maxLines: 1);
+    t.props.text.textValue = uitStand
+        ? interpolateVar([stat('standingPosition'), 'e'])
+        : FFStringValue(variable: stat('points'));
+    setConditionalVisibility(
+      t,
+      variable: uitStand
+          ? heeftStand()
+          : _equalsLiteral(stat('standingAvailable'), 'true', negate: true),
+    );
+    return t;
+  }
+
+  FFNode onderschrift({required bool uitStand}) {
+    final t = UI.text('',
+        name: uitStand ? 'DashTeamStatsPositieLabel' : 'DashTeamStatsPointsLabel',
+        style: UITextStyle.labelSmall,
+        color: UIColor.secondaryText,
+        textAlign: UITextAlign.center,
+        maxLines: 1);
+    t.props.text.textValue = uitStand
+        ? interpolateVar(['in de poule · ', stat('standingTeams'), ' teams'])
+        : FFStringValue(inputValue: 'Punten');
+    setConditionalVisibility(
+      t,
+      variable: uitStand
+          ? heeftStand()
+          : _equalsLiteral(stat('standingAvailable'), 'true', negate: true),
+    );
+    return t;
+  }
+
+  final kaart = _dashCard(
     name: 'DashTeamStatsCard',
     padding: UIEdgeInsets.all(14),
     child: UI.column(
@@ -28966,41 +29023,54 @@ FFNode? _dashTeamStatsCard(FFProject project, FFWidgetClass wc) {
           crossAxisAlignment: UICrossAxisAlignment.center,
           children: [
             UI.icon('leaderboard', size: 20, color: UIColor.primary),
-            UI.expanded(UI.text('Team statistieken',
+            UI.expanded(UI.text('Stand',
                 name: 'DashTeamStatsTitle',
                 style: UITextStyle.titleSmall,
                 maxLines: 2,
                 textOverflow: UITextOverflow.ellipsis)),
+            UI.icon('chevron_right', size: 20, color: UIColor.secondaryText),
           ],
         ),
-        points,
-        UI.text('Punten',
-            name: 'DashTeamStatsPointsLabel',
-            style: UITextStyle.labelSmall,
-            color: UIColor.secondaryText,
-            textAlign: UITextAlign.center),
+        grootGetal(uitStand: true),
+        grootGetal(uitStand: false),
+        onderschrift(uitStand: true),
+        onderschrift(uitStand: false),
         UI.row(
           name: 'DashTeamStatsRow',
           mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
           crossAxisAlignment: UICrossAxisAlignment.start,
           children: [
+            // Gespeeld en punten uit de stand als die er is; die telt ook
+            // wedstrijden mee die de app niet kent.
             _statTile(
                 name: 'DashTeamStatPlayed',
                 label: 'Gespeeld',
-                valueVar: stat('played')),
+                valueVar: _keuzeVar(stat('standingPlayed'), stat('played'))),
             _statTile(
-                name: 'DashTeamStatRecord',
-                label: 'W-G-V',
-                valueVar: stat('record')),
+                name: 'DashTeamStatPunten',
+                label: 'Punten',
+                valueVar: _keuzeVar(stat('standingPoints'), stat('points'))),
             _statTile(
                 name: 'DashTeamStatDiff',
                 label: 'Doelsaldo',
-                valueVar: stat('goalDifference')),
+                valueVar: _keuzeVar(
+                    stat('standingGoalDifference'), stat('goalDifference'))),
           ],
         ),
       ],
     ),
   );
+
+  // De hele kaart opent de stand; het pijltje rechtsboven maakt zichtbaar dat
+  // er meer achter zit.
+  if (project.getWidgetClassByName('StandPage') != null) {
+    Actions.onTap(
+      kaart,
+      Actions.navigate(project, pageName: 'StandPage', params: {}),
+    );
+  }
+
+  return kaart;
 }
 
 /// "Team sfeer": gemiddelde als smiley, plus vier knoppen om zelf te stemmen.
