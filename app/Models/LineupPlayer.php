@@ -12,7 +12,7 @@ class LineupPlayer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'lineup_id', 'member_id', 'position',
+        'lineup_id', 'period', 'member_id', 'position',
         'shirt_number', 'is_substitute', 'substituted_at_minute',
         'slot_x', 'slot_y', 'sort_order',
     ];

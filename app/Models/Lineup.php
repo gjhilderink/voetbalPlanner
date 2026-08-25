@@ -17,8 +17,7 @@ class Lineup extends Model
 
     protected $fillable = [
         'match_id', 'formation', 'tactical_notes',
-        'players_on_field', 'match_format', 'published_at',
-        'substitution_blocks',
+        'players_on_field', 'match_format', 'published_at', 'periods',
     ];
 
     protected function casts(): array
@@ -26,16 +25,54 @@ class Lineup extends Model
         return [
             'published_at'        => 'datetime',
             'players_on_field'    => 'integer',
-            'substitution_blocks' => 'integer',
+            'periods'             => 'integer',
         ];
     }
 
-    /** Het geplande wisselschema, op wisselmoment en daarbinnen op volgorde. */
-    public function substitutions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    /**
+     * De wissels tussen twee opeenvolgende perioden, afgeleid uit de opstelling.
+     *
+     * Niet opgeslagen: het verschil tussen periode 1 en 2 ís de wissel, en een
+     * tweede plek die hetzelfde beweert loopt vroeg of laat uit de pas.
+     *
+     * @return array<int, array{block: string, outId: string, outNaam: string, inId: string, inNaam: string}>
+     */
+    public function derivedSubstitutions(): array
     {
-        return $this->hasMany(LineupSubstitution::class)
-            ->orderBy('block')
-            ->orderBy('sort_order');
+        $perPeriode = $this->players
+            ->where('is_substitute', false)
+            ->groupBy('period');
+
+        $wissels = [];
+        for ($periode = 1; $periode < max(1, (int) $this->periods); $periode++) {
+            $nu     = $perPeriode->get($periode, collect());
+            $straks = $perPeriode->get($periode + 1, collect());
+
+            // Nog geen opstelling voor de volgende periode: dan valt er ook
+            // niets te wisselen, in plaats van "iedereen eruit".
+            if ($straks->isEmpty()) {
+                continue;
+            }
+
+            $eruit = $nu->whereNotIn('member_id', $straks->pluck('member_id'))->values();
+            $erin  = $straks->whereNotIn('member_id', $nu->pluck('member_id'))->values();
+
+            foreach ($eruit as $i => $speler) {
+                $vervanger = $erin->get($i);
+                if (! $vervanger) {
+                    break;
+                }
+                $wissels[] = [
+                    'block'   => (string) $periode,
+                    'outId'   => (string) $speler->member_id,
+                    'outNaam' => $speler->member?->name ?? '',
+                    'inId'    => (string) $vervanger->member_id,
+                    'inNaam'  => $vervanger->member?->name ?? '',
+                ];
+            }
+        }
+
+        return $wissels;
     }
 
     /** Mogen spelers deze opstelling al zien? */
