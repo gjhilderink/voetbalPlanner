@@ -65,7 +65,9 @@ class StandingController extends Controller
             $ruw = Cache::remember(
                 'standing_' . $team->id,
                 now()->addMinutes(self::CACHE_MINUTEN),
-                fn () => $service->standingForTeam($teamCode),
+                // Naam erbij: dient als terugval wanneer de opgeslagen teamcode
+                // bij een competitie zonder poule hoort. Zie standingForTeam().
+                fn () => $service->standingForTeam($teamCode, $team->name),
             );
         } catch (\Throwable $e) {
             report($e);

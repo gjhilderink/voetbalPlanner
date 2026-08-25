@@ -399,23 +399,80 @@ class SportlinkMcpService
      * zoeken we de poulecode op — eerst in get_poules, anders in de uitslagen van
      * dat team, want die dragen die code sinds kort mee.
      */
-    public function standingForTeam(string $teamCode): array
+    public function standingForTeam(string $teamCode, ?string $teamNaam = null): array
     {
         $tool = $this->standingTool();
         if (! $tool) {
             return [];
         }
 
-        if (in_array('teamcode', $this->toolArguments($tool), true)) {
-            $stand = $this->getStanding(teamCode: $teamCode);
-            if ($stand) {
-                return $stand;
+        // Eén elftal staat in get_teams één keer per competitie, elk met een
+        // eigen teamcode. De sync bewaart er daarvan één, en dat hoeft niet de
+        // competitie te zijn waar een poule aan hangt — dan antwoordt de MCP met
+        // "geen poule gevonden". Daarom alle codes van dit elftal langs.
+        $codes = [$teamCode];
+        if ($teamNaam !== null) {
+            foreach ($this->teamCodesVoorNaam($teamNaam) as $code) {
+                if (! in_array($code, $codes, true)) {
+                    $codes[] = $code;
+                }
             }
         }
 
-        $pouleCode = $this->pouleCodeVoorTeam($teamCode);
+        $kanOpTeamcode = in_array('teamcode', $this->toolArguments($tool), true);
 
-        return $pouleCode ? $this->getStanding(pouleCode: $pouleCode) : [];
+        foreach ($codes as $code) {
+            if ($kanOpTeamcode) {
+                $stand = $this->getStanding(teamCode: $code);
+                if ($stand) {
+                    return $stand;
+                }
+            }
+
+            $pouleCode = $this->pouleCodeVoorTeam($code);
+            if ($pouleCode) {
+                $stand = $this->getStanding(pouleCode: $pouleCode);
+                if ($stand) {
+                    return $stand;
+                }
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Alle teamcodes waaronder dit elftal in get_teams voorkomt.
+     *
+     * Losjes op naam vergelijken: hoofdletters en spaties verschillen nogal eens
+     * tussen wat er in de database staat en wat Sportlink teruggeeft.
+     *
+     * @return array<string>
+     */
+    public function teamCodesVoorNaam(string $naam): array
+    {
+        $normaliseer = fn (string $s) => preg_replace('/[^a-z0-9]/', '', mb_strtolower($s));
+        $doel = $normaliseer($naam);
+        if ($doel === '') {
+            return [];
+        }
+
+        $codes = [];
+        foreach ($this->getTeams() as $t) {
+            if (! is_array($t)) {
+                continue;
+            }
+            $code = (string) ($t['teamcode'] ?? '');
+            $naamUitBron = (string) ($t['teamnaam'] ?? $t['naam'] ?? '');
+            if ($code === '' || $naamUitBron === '') {
+                continue;
+            }
+            if ($normaliseer($naamUitBron) === $doel) {
+                $codes[] = $code;
+            }
+        }
+
+        return array_values(array_unique($codes));
     }
 
     /** Zoekt de poulecode van een elftal op. Null als hij nergens te vinden is. */

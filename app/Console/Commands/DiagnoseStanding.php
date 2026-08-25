@@ -55,6 +55,12 @@ class DiagnoseStanding extends Command
             $this->line("   {$naam}  →  {$args}");
         }
 
+        // 1b. Onder welke teamcodes staat dit elftal bekend?
+        $this->newLine();
+        $this->info('1b. teamcodes voor "' . $team->name . '" in get_teams');
+        $codes = $svc->teamCodesVoorNaam($team->name);
+        $this->line('   ' . ($codes ? implode(', ', $codes) : '(geen — naam wijkt af van Sportlink)'));
+
         // 2. Wat komt er uit get_poules?
         $this->newLine();
         $this->info('2. get_poules');
@@ -73,7 +79,7 @@ class DiagnoseStanding extends Command
         // 3. En uit de stand zelf?
         $this->newLine();
         $this->info('3. stand');
-        $rijen = $svc->standingForTeam((string) $team->external_id);
+        $rijen = $svc->standingForTeam((string) $team->external_id, $team->name);
         $this->line('   regels: ' . count($rijen));
 
         if (! $rijen) {
