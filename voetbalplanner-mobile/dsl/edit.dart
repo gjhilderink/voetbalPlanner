@@ -1518,10 +1518,12 @@ void buildEditFlow(App app) {
     _ensureLineupBoardActions(project);
     _ensureLineupBoardWidget(project);
     _wireOpstellingPage(project);
-    _addOpstellingButton(project);
     _ensurePlannedSubsWidget(project);
     _wireLiveMatchPage(project);
     _addLiveMatchButton(project);
+    // Ná _addLiveMatchButton: de opstellingsknop hangt zich onder dat blok, dus
+    // dat moet er eerst staan.
+    _addOpstellingButton(project);
     // Ná _addWedstrijdScoreSection, die de lijst opbouwt.
     _bindGoalsTabToAppState(project);
     // Derde tabblad: het bewaarde verslag van een gespeelde wedstrijd.
@@ -35004,7 +35006,12 @@ void _addOpstellingButton(FFProject project) {
     removeByKey(wc.node, n.key);
   }
 
-  final anker = findDescendants(wc.node, (n) => n.name == 'MatchAfmeldButton').firstOrNull;
+  // Direct onder de liveknoppen: opstelling maken en de wedstrijd volgen horen
+  // bij elkaar, en zo staat alles wat de coach vlak voor de aftrap nodig heeft
+  // bij elkaar. Valt dat blok weg, dan de afmeldknop als terugval.
+  final anker = findDescendants(wc.node, (n) => n.name == 'LiveMatchButtonWrap')
+          .firstOrNull ??
+      findDescendants(wc.node, (n) => n.name == 'MatchAfmeldButton').firstOrNull;
   if (anker == null) return;
   final kolom = findDescendants(wc.node, (_) => true)
       .where((n) => n.children.any((c) => identical(c, anker)))
