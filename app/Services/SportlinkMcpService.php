@@ -320,7 +320,7 @@ class SportlinkMcpService
     /** Hoe de stand-tool op deze server heet, of null als hij ontbreekt. */
     private function standingTool(): ?string
     {
-        return $this->resolveTool(['get_standing', 'get_staning', 'get_stand'], 'stan');
+        return $this->resolveTool(['get_standings', 'get_standing', 'get_staning', 'get_stand'], 'stan');
     }
 
     /** De poules waarin de club uitkomt. */
