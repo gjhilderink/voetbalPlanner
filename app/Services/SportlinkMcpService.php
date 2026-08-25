@@ -372,6 +372,14 @@ class SportlinkMcpService
      */
     private static function rijenUit($result): array
     {
+        // Soms komt het antwoord als JSON-tekst binnen in plaats van als array:
+        // dat gebeurt zodra de tool niet de gebruikelijke content-verpakking
+        // gebruikt en callTool de ruwe waarde teruggeeft.
+        if (is_string($result)) {
+            $decoded = json_decode($result, true);
+            $result = is_array($decoded) ? $decoded : [];
+        }
+
         if (! is_array($result)) {
             return [];
         }
@@ -381,7 +389,9 @@ class SportlinkMcpService
             return $result;
         }
 
-        // Object: de eerste sleutel met een lijst van rijen erin wint.
+        // Object: de eerste sleutel met een lijst van rijen erin wint. Een
+        // diagnose-blok ernaast valt vanzelf af — dat is geen lijst, en zijn
+        // veldnamenlijst bevat strings in plaats van rijen.
         foreach ($result as $waarde) {
             if (is_array($waarde) && array_is_list($waarde) && $waarde !== []
                 && is_array($waarde[0])) {
