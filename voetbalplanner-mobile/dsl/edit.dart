@@ -33657,6 +33657,11 @@ class _LineupBoardState extends State<LineupBoard> {
       FFAppState().lineupField = [...andereVeld, ...veld];
       FFAppState().lineupBench = [...andereBank, ...bank];
     });
+
+    // De widget leest FFAppState rechtstreeks en luistert er niet op; zonder dit
+    // verschijnt een via de knoppen ingedeelde speler pas na de volgende
+    // herbouw op het veld.
+    if (mounted) setState(() {});
   }
 
   LineupSlotStruct _kopie(LineupSlotStruct s,
@@ -33959,8 +33964,8 @@ class _LineupBoardState extends State<LineupBoard> {
     );
   }
 
-  /// Iedereen die nog nergens staat. Sleep naar het veld voor de basis, naar de
-  /// bank voor een wisselspeler.
+  /// Iedereen die nog nergens staat. Sleep naar het veld voor de basis of naar
+  /// de bank voor een wisselspeler - of gebruik de knoppen onder de naam.
   Widget _selectieWidget(FlutterFlowTheme theme) {
     final rest = _nietIngedeeld;
 
@@ -33978,14 +33983,56 @@ class _LineupBoardState extends State<LineupBoard> {
             padding: const EdgeInsets.only(bottom: 8, left: 2),
             child: Text('Nog niet ingedeeld', style: theme.titleSmall),
           ),
-          for (final speler in rest) _bankRij(theme, speler),
+          for (final speler in rest)
+            _bankRij(theme, speler, metKnoppen: true),
         ],
       ),
     );
   }
 
-  Widget _bankRij(FlutterFlowTheme theme, LineupSlotStruct speler) {
+  /// Eén regel in de bank- of selectielijst.
+  ///
+  /// metKnoppen zet er 'Wissel' en 'Opstellen' onder. Alleen bij de nog niet
+  /// ingedeelde spelers: slepen werkt, maar op een telefoon is het gepriegel, en
+  /// voor de eerste indeling wil je gewoon een lijst afwerken.
+  Widget _bankRij(FlutterFlowTheme theme, LineupSlotStruct speler,
+      {bool metKnoppen = false}) {
     final afgemeld = speler.isAfgemeld == 'true';
+
+    final kop = Row(
+      children: [
+        if (_mag)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Icon(Icons.drag_indicator, size: 18, color: theme.secondaryText),
+          ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                speler.nummer.isEmpty ? '–' : speler.nummer,
+                style: theme.labelMedium.override(
+                  fontFamily: theme.labelMediumFamily,
+                  fontWeight: FontWeight.w700,
+                  color: afgemeld ? const Color(0xFFB91C1C) : theme.primaryText,
+                ),
+              ),
+              Text(
+                speler.naam,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.bodySmall.override(
+                  fontFamily: theme.bodySmallFamily,
+                  color: theme.secondaryText,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
 
     final rij = Container(
       margin: const EdgeInsets.only(bottom: 6),
@@ -33994,40 +34041,30 @@ class _LineupBoardState extends State<LineupBoard> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        children: [
-          if (_mag)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(Icons.drag_indicator, size: 18, color: theme.secondaryText),
-            ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: (metKnoppen && _mag)
+          ? Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  speler.nummer.isEmpty ? '–' : speler.nummer,
-                  style: theme.labelMedium.override(
-                    fontFamily: theme.labelMediumFamily,
-                    fontWeight: FontWeight.w700,
-                    color: afgemeld ? const Color(0xFFB91C1C) : theme.primaryText,
-                  ),
-                ),
-                Text(
-                  speler.naam,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.bodySmall.override(
-                    fontFamily: theme.bodySmallFamily,
-                    color: theme.secondaryText,
-                  ),
+                kop,
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _actieKnop(theme, 'Wissel', Icons.event_seat,
+                          () => _zetOpBank(speler)),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _actieKnop(
+                          theme, 'Opstellen', Icons.sports_soccer,
+                          () => _zetOpEersteVrijePlek(speler),
+                          primair: true),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
+            )
+          : kop,
     );
 
     if (!_mag) return rij;
@@ -34041,6 +34078,76 @@ class _LineupBoardState extends State<LineupBoard> {
       childWhenDragging: Opacity(opacity: 0.3, child: rij),
       child: rij,
     );
+  }
+
+  Widget _actieKnop(FlutterFlowTheme theme, String tekst, IconData icoon,
+      VoidCallback bijTik,
+      {bool primair = false}) {
+    final kleur = primair ? Colors.white : const Color(0xFF1E3A5F);
+
+    return GestureDetector(
+      onTap: bijTik,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
+        decoration: BoxDecoration(
+          color: primair ? const Color(0xFF1E3A5F) : const Color(0xFFEFF1F5),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icoon, size: 14, color: kleur),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                tekst,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.labelSmall.override(
+                  fontFamily: theme.labelSmallFamily,
+                  color: kleur,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Vaste plekken op het veld, van achter naar voren: keeper, verdediging,
+  /// middenveld, aanval. Slepen vraagt om een coordinaat, de knop 'Opstellen'
+  /// moet er zelf een kiezen - en dan is een herkenbare opstelling beter dan een
+  /// hoop pionnen op een punt. De coach kan daarna nog slepen.
+  static const List<List<double>> _plekken = [
+    [0.50, 0.90],
+    [0.20, 0.74], [0.40, 0.74], [0.60, 0.74], [0.80, 0.74],
+    [0.20, 0.55], [0.40, 0.55], [0.60, 0.55], [0.80, 0.55],
+    [0.25, 0.36], [0.50, 0.36], [0.75, 0.36],
+    [0.35, 0.18], [0.65, 0.18],
+  ];
+
+  void _zetOpEersteVrijePlek(LineupSlotStruct speler) {
+    final bezet = _veld
+        .where((s) => s.memberId != speler.memberId)
+        .map((s) => Offset(_getal(s.posX, 0.5), _getal(s.posY, 0.5)))
+        .toList();
+
+    for (final plek in _plekken) {
+      final vrij = bezet.every((b) =>
+          (b.dx - plek[0]).abs() > 0.08 || (b.dy - plek[1]).abs() > 0.08);
+      if (vrij) {
+        _zetOpVeld(speler, plek[0], plek[1]);
+        return;
+      }
+    }
+
+    // Alle vaste plekken bezet - bij een groot team kan dat. Dan in het midden,
+    // iets verschoven, zodat ze niet exact op elkaar landen.
+    final n = _veld.length;
+    _zetOpVeld(speler, 0.5 + ((n % 3) - 1) * 0.09, 0.5 + ((n % 2) - 0.5) * 0.09);
   }
 
 
