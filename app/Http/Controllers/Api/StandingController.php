@@ -53,6 +53,14 @@ class StandingController extends Controller
             );
         }
 
+        // Onderscheid tussen "de koppeling kent geen stand" en "er is nog geen
+        // stand": bij het eerste zoek je in de verkeerde hoek naar de oorzaak.
+        if (! $service->hasStandingTool()) {
+            return response()->json(
+                self::alleenMelding('De koppeling levert geen standen aan.')
+            );
+        }
+
         try {
             $ruw = Cache::remember(
                 'standing_' . $team->id,

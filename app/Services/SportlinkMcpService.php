@@ -276,14 +276,72 @@ class SportlinkMcpService
         return $this->callTool($name, $args);
     }
 
+    /**
+     * De naam waaronder een tool op déze server staat.
+     *
+     * Namen verschillen per MCP-server en bevatten wel eens een typefout
+     * (get_staning). Opzoeken in plaats van vastleggen scheelt een aanpassing
+     * aan beide kanten zodra er iets hernoemd wordt.
+     *
+     * @param  array<string>  $kandidaten  exacte namen, in volgorde van voorkeur
+     * @param  string  $bevat  losse zoekterm als geen enkele kandidaat past
+     */
+    private function resolveTool(array $kandidaten, string $bevat): ?string
+    {
+        $beschikbaar = array_keys(Cache::remember(
+            'mcp_tool_args_' . md5($this->baseUrl),
+            now()->addMinutes(30),
+            function (): array {
+                $map = [];
+                foreach ($this->listTools() as $t) {
+                    if ($naam = $t['name'] ?? null) {
+                        $map[$naam] = array_keys($t['inputSchema']['properties'] ?? []);
+                    }
+                }
+                return $map;
+            },
+        ));
+
+        foreach ($kandidaten as $kandidaat) {
+            if (in_array($kandidaat, $beschikbaar, true)) {
+                return $kandidaat;
+            }
+        }
+
+        foreach ($beschikbaar as $naam) {
+            if (str_contains(strtolower($naam), $bevat)) {
+                return $naam;
+            }
+        }
+
+        return null;
+    }
+
+    /** Hoe de stand-tool op deze server heet, of null als hij ontbreekt. */
+    private function standingTool(): ?string
+    {
+        return $this->resolveTool(['get_standing', 'get_staning', 'get_stand'], 'stan');
+    }
+
     /** De poules waarin de club uitkomt. */
     public function getPoules(?string $teamCode = null): array
     {
-        $result = $this->callToolFiltered('get_poules', [
+        $tool = $this->resolveTool(['get_poules', 'get_poule'], 'poule');
+        if (! $tool) {
+            return [];
+        }
+
+        $result = $this->callToolFiltered($tool, [
             'teamcode' => $teamCode !== null ? (string) $teamCode : null,
         ]);
 
-        return is_array($result) ? $result : [];
+        return self::rijenUit($result);
+    }
+
+    /** Heeft deze server überhaupt een tool voor de stand? */
+    public function hasStandingTool(): bool
+    {
+        return $this->standingTool() !== null;
     }
 
     /**
@@ -292,12 +350,46 @@ class SportlinkMcpService
      */
     public function getStanding(?string $pouleCode = null, ?string $teamCode = null): array
     {
-        $result = $this->callToolFiltered('get_standing', [
+        $tool = $this->standingTool();
+        if (! $tool) {
+            return [];
+        }
+
+        $result = $this->callToolFiltered($tool, [
             'poulecode' => $pouleCode !== null ? (string) $pouleCode : null,
             'teamcode'  => $teamCode !== null ? (string) $teamCode : null,
         ]);
 
-        return is_array($result) ? $result : [];
+        return self::rijenUit($result);
+    }
+
+    /**
+     * Haalt de regels uit een antwoord. Een tool geeft soms een platte lijst en
+     * soms een object met de lijst eronder ({"poule": "...", "stand": [...]});
+     * dan zou een simpele is_array-check nul bruikbare regels opleveren.
+     *
+     * @param  mixed  $result
+     */
+    private static function rijenUit($result): array
+    {
+        if (! is_array($result)) {
+            return [];
+        }
+
+        // Platte lijst: eerste element is een rij.
+        if (array_is_list($result)) {
+            return $result;
+        }
+
+        // Object: de eerste sleutel met een lijst van rijen erin wint.
+        foreach ($result as $waarde) {
+            if (is_array($waarde) && array_is_list($waarde) && $waarde !== []
+                && is_array($waarde[0])) {
+                return $waarde;
+            }
+        }
+
+        return [];
     }
 
     /**
@@ -309,7 +401,12 @@ class SportlinkMcpService
      */
     public function standingForTeam(string $teamCode): array
     {
-        if (in_array('teamcode', $this->toolArguments('get_standing'), true)) {
+        $tool = $this->standingTool();
+        if (! $tool) {
+            return [];
+        }
+
+        if (in_array('teamcode', $this->toolArguments($tool), true)) {
             $stand = $this->getStanding(teamCode: $teamCode);
             if ($stand) {
                 return $stand;
