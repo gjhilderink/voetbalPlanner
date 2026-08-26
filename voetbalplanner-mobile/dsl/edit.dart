@@ -676,6 +676,7 @@ void buildEditFlow(App app) {
   app.raw((project) => _addSwapStructFields(project));
   // ProfielPage teamlijst — ná _addSwapStructFields zodat TeamOption.role bestaat.
   app.raw((project) => _addProfielTeamsList(project));
+  app.raw((project) => _addProfielGuardianLinks(project));
   app.raw((project) => _addSwapParamsToBarDutyCard(project));
 
   final swapMember = ff.Structs.swapMember;
@@ -37496,4 +37497,315 @@ void _wireMatchMediaTab(FFProject project) {
 
   tabBar.children.add(tab);
   tabBar.children.add(content);
+}
+
+// ── Koppelingen op het profiel ──────────────────────────────────────────────
+//
+// Wie aan jou gekoppeld is, beide kanten op: je kinderen én je ouders. Dat stond
+// alleen op de koppelpagina en dan nog maar één richting - een kind zag nergens
+// wie er meekeek.
+
+void _ensureGuardianLinkStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'GuardianLinkItem',
+    description:
+        'Eén koppeling met een ander lid: wie het is, welke kant het op wijst en of je hem mag intrekken.',
+    fields: const [
+      'id', 'name', 'photoUrl', 'relation', 'relationLabel',
+      'status', 'statusLabel', 'canRevoke', 'melding',
+    ],
+  );
+}
+
+void _ensureGuardianLinksAppState(FFProject project) {
+  final struct = findDataStruct(project, name: 'GuardianLinkItem');
+  if (struct == null) return;
+
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'guardianLinks')) return;
+
+  final param = FFParameter(
+    identifier:
+        FFIdentifier(name: 'guardianLinks', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+void _addGuardianLinksEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  if (findApiGroup(project, name: groupName) == null) return;
+
+  if (findApiEndpoint(project, name: 'GetGuardianLinks', groupName: groupName) == null) {
+    addEndpointToGroup(
+      project,
+      groupName: groupName,
+      name: 'GetGuardianLinks',
+      url: '/guardian/links',
+      method: FFApiEndpoint_CallType.GET,
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      variables: {
+        'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      headers: ['Authorization: Bearer [token]'],
+      responseDataStructName: 'GuardianLinkItem',
+      responseDataStructIsList: true,
+    );
+  }
+
+  // Intrekken stond op DELETE, en die methode wordt door de hosting geblokkeerd.
+  // De backend luistert nu op hetzelfde pad ook naar POST; dit zet de app om.
+  final revoke =
+      findApiEndpoint(project, name: 'RevokeGuardianLink', groupName: groupName);
+  if (revoke != null && revoke.callType != FFApiEndpoint_CallType.POST) {
+    revoke.callType = FFApiEndpoint_CallType.POST;
+  }
+}
+
+void _addProfielGuardianLinks(FFProject project) {
+  _ensureGuardianLinkStruct(project);
+  _ensureGuardianLinksAppState(project);
+  _addGuardianLinksEndpoint(project);
+
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+
+  final linksId = _findAppStateFieldId(project, 'guardianLinks');
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (linksId == null || authTokenId == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetGuardianLinks', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  final target =
+      findDescendants(wc.node, (n) => n.name == 'ProfielInfoContent').firstOrNull;
+  if (target == null || target.type != FFWidgetType.Column) return;
+
+  // Vers opbouwen bij elke push, net als de teamlijst hierboven.
+  for (final naam in const [
+    'ProfielKoppelLabel', 'ProfielKoppelList', 'ProfielKoppelLeeg',
+  ]) {
+    for (final n in findDescendants(wc.node, (x) => x.name == naam).toList()) {
+      removeByKey(wc.node, n.key);
+    }
+  }
+
+  final scaffoldKey = wc.node.key;
+  final linksVar = varFromAppState(linksId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final label = UI.text(
+    'Koppelingen',
+    name: 'ProfielKoppelLabel',
+    style: UITextStyle.labelSmall,
+    color: UIColor.secondaryText,
+  );
+
+  final lijst = UI.listView(
+    name: 'ProfielKoppelList',
+    shrinkWrap: true,
+    spacing: 8,
+    dynamicSource: DynamicSource(variable: linksVar, itemName: 'koppel'),
+  );
+
+  FFNode gebonden(String naam, String veld, UITextStyle stijl,
+      {UIColor? kleur, UIFontWeight? gewicht}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: 1,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijst.key, veld));
+    return t;
+  }
+
+  // Foto van de ander, als die er is. Zonder de zichtbaarheidsregel houdt
+  // iemand zonder pasfoto een leeg rondje over.
+  final foto = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.CircleImage,
+    name: 'ProfielKoppelFoto',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue:
+            FFStringValue(variable: generatorVarField(lijst.key, 'photoUrl')),
+        fit: FFBoxFit.FF_BOX_FIT_COVER,
+        cached: true,
+        dimensions: FFDimensions(
+          width: FFDim(pixelsValue: FFDoubleValue(inputValue: 38.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 38.0)),
+        ),
+      ),
+    ),
+  );
+  setConditionalVisibility(
+    foto,
+    variable: _equalsLiteral(
+        generatorVarField(lijst.key, 'photoUrl'), '',
+        negate: true),
+  );
+
+  final onderRij = UI.row(
+    name: 'ProfielKoppelOnder',
+    spacing: 5,
+    mainAxisMin: true,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      gebonden('ProfielKoppelRelatie', 'relationLabel', UITextStyle.labelSmall,
+          kleur: UIColor.secondaryText),
+      UI.text('·',
+          name: 'ProfielKoppelPunt',
+          style: UITextStyle.labelSmall,
+          color: UIColor.secondaryText),
+      gebonden('ProfielKoppelStatus', 'statusLabel', UITextStyle.labelSmall,
+          kleur: UIColor.secondaryText),
+    ],
+  );
+
+  // ── Intrekken ─────────────────────────────────────────────────────────────
+  final intrekKnop = UI.container(
+    name: 'ProfielKoppelIntrek',
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignment: UIAlignment.center,
+    color: UIColor.hex(0xFFFDE3E3),
+    child: UI.icon('link_off', size: 18, color: UIColor.error),
+  );
+  setConditionalVisibility(
+    intrekKnop,
+    variable: _equalsLiteral(generatorVarField(lijst.key, 'canRevoke'), 'true'),
+  );
+
+  // Na het intrekken de lijst opnieuw ophalen; anders blijft de regel staan en
+  // lijkt er niets gebeurd.
+  FFActionNode herlaad(String nodeKey, String output) => Actions.apiCallNode(
+        project,
+        endpointName: 'GetGuardianLinks',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+        },
+        outputVariableName: output,
+        nodeKey: nodeKey,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('guardianLinks', ctx.responseVar),
+          ]),
+        ]),
+      );
+
+  final intrekAanroep = Actions.apiCallNode(
+    project,
+    endpointName: 'RevokeGuardianLink',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'linkId': generatorVarField(lijst.key, 'id'),
+    },
+    outputVariableName: 'koppelIntrekResult',
+    nodeKey: intrekKnop.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.snackBar('Koppeling ingetrokken.'),
+    ]),
+    onFailure: (ctx) => Actions.chain([
+      Actions.snackBar('Intrekken is niet gelukt.'),
+    ]),
+  );
+
+  // Het herladen achter de aanroep hangen, niet in onSuccess: dan gebeurt het
+  // ook als de server al meldde dat de koppeling weg was.
+  var staart = intrekAanroep;
+  while (staart.hasFollowUpAction()) staart = staart.followUpAction;
+  staart.followUpAction = herlaad(intrekKnop.key, 'koppelHerlaad');
+
+  // Bevestiging ervoor: dit haalt iemands meekijken weg en dat wil je niet met
+  // een misgetikte vinger doen.
+  final intrekKeten = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      alertDialog: FFAlertDialogAction(
+        confirmDialog: FFConfirmDialogAction(
+          title: FFValue(
+              inputValue: FFParameterValue(serializedValue: 'Koppeling intrekken')),
+          message: FFValue(inputValue: FFParameterValue(
+              serializedValue:
+                  'De koppeling vervalt en jullie zien elkaars gegevens niet meer. Een nieuwe koppeling moet opnieuw worden aangevraagd.')),
+          confirmText:
+              FFValue(inputValue: FFParameterValue(serializedValue: 'Intrekken')),
+          dismissText:
+              FFValue(inputValue: FFParameterValue(serializedValue: 'Annuleren')),
+        ),
+      ),
+    ),
+    followUpAction: intrekAanroep,
+  );
+  Actions.addTriggerChain(intrekKnop, FFActionTriggerType.ON_TAP, intrekKeten);
+
+  lijst.children.add(_dashCard(
+    name: 'ProfielKoppelKaart',
+    padding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    child: UI.row(
+      name: 'ProfielKoppelRij',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        foto,
+        UI.expanded(UI.column(
+          name: 'ProfielKoppelCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 2,
+          children: [
+            gebonden('ProfielKoppelNaam', 'name', UITextStyle.bodyMedium,
+                gewicht: UIFontWeight.w600),
+            onderRij,
+          ],
+        )),
+        intrekKnop,
+      ],
+    ),
+  ));
+
+  // De melding rijdt op elke regel mee; is er niets, dan is er precies één
+  // regel en draagt alleen die de tekst.
+  final leeg = UI.text('',
+      name: 'ProfielKoppelLeeg',
+      style: UITextStyle.labelSmall,
+      color: UIColor.secondaryText,
+      maxLines: 2);
+  leeg.props.text.textValue =
+      FFStringValue(variable: _firstItemVar(linksVar, 'melding'));
+  setConditionalVisibility(
+    leeg,
+    variable: andConditionsVar([
+      _listNotEmptyVar(linksVar.deepCopy()),
+      _firstFieldFilledVar(linksVar, 'melding'),
+    ]).variable,
+  );
+
+  target.children.addAll([label, leeg, lijst]);
+
+  // Ophalen bij het openen van het profiel.
+  bool heeftAanroep(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasDatabase() &&
+        n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetGuardianLinks') {
+      return true;
+    }
+    return n.hasFollowUpAction() && heeftAanroep(n.followUpAction);
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && heeftAanroep(t.rootAction))) return;
+
+  _appendToFirstPageLoadChain(
+      wc.node, herlaad(wc.node.key, 'koppelLoad'));
 }

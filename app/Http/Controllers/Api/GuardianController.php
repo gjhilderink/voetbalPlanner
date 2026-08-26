@@ -321,6 +321,92 @@ class GuardianController extends Controller
      * - De ouder/verzorger zelf
      * - Een beheerder (super_admin / club_admin)
      */
+    /**
+     * GET /v1/guardian/links — met wie ben ik gekoppeld, in beide richtingen.
+     *
+     * Eén lijst en geen twee endpoints: op het profiel staat het onder elkaar, en
+     * met twee aanroepen zou de app twee lijsten moeten samenvoegen die hier al
+     * naast elkaar liggen. Welke kant het op wijst staat per regel in 'relation'.
+     *
+     * Alleen lopende en goedgekeurde koppelingen. Een geweigerde of eerder
+     * ingetrokken koppeling is geen koppeling meer; die hoort in de historie op
+     * de koppelpagina, niet in een overzicht van met wie je verbonden bent.
+     */
+    public function links(Request $request): JsonResponse
+    {
+        $member = $request->user()?->resolveMember();
+
+        if (! $member) {
+            return response()->json([self::leegLink('Je account is nog niet aan een lid gekoppeld.')]);
+        }
+
+        $actief = ['pending', 'approved'];
+
+        $alsOuder = GuardianLink::query()
+            ->where('guardian_member_id', $member->id)
+            ->whereIn('status', $actief)
+            ->with('child')
+            ->get()
+            ->map(fn (GuardianLink $l) => self::linkRij($l, $l->child, 'child'));
+
+        $alsKind = GuardianLink::query()
+            ->where('child_member_id', $member->id)
+            ->whereIn('status', $actief)
+            ->with('guardian')
+            ->get()
+            ->map(fn (GuardianLink $l) => self::linkRij($l, $l->guardian, 'guardian'));
+
+        $alles = $alsOuder->concat($alsKind)->filter()->values();
+
+        if ($alles->isEmpty()) {
+            return response()->json([self::leegLink('Je bent nog niet aan iemand gekoppeld.')]);
+        }
+
+        return response()->json($alles->all());
+    }
+
+    /**
+     * Eén regel van het koppeloverzicht.
+     *
+     * @return array<string, string>|null  null als de tegenpartij niet meer bestaat
+     */
+    private static function linkRij(GuardianLink $link, ?Member $ander, string $relatie): ?array
+    {
+        if (! $ander) {
+            return null;
+        }
+
+        return [
+            'id'            => (string) $link->id,
+            'name'          => (string) $ander->name,
+            'photoUrl'      => $ander->photoUrl(),
+            // 'child'    → deze persoon is jouw kind
+            // 'guardian' → deze persoon is jouw ouder/verzorger
+            'relation'      => $relatie,
+            'relationLabel' => $relatie === 'child' ? 'Jouw kind' : 'Jouw ouder/verzorger',
+            'status'        => (string) $link->status,
+            'statusLabel'   => self::guardianStatusLabel((string) $link->status),
+            'canRevoke'     => $link->isRevocable() ? 'true' : 'false',
+            'melding'       => '',
+        ];
+    }
+
+    /** @return array<string, string> */
+    private static function leegLink(string $melding): array
+    {
+        return [
+            'id'            => '',
+            'name'          => '',
+            'photoUrl'      => '',
+            'relation'      => '',
+            'relationLabel' => '',
+            'status'        => '',
+            'statusLabel'   => '',
+            'canRevoke'     => 'false',
+            'melding'       => $melding,
+        ];
+    }
+
     public function revoke(Request $request, GuardianLink $guardianLink): JsonResponse
     {
         $user   = $request->user();

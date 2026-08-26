@@ -179,6 +179,12 @@ abstract final class AppState {
     typeName: "List<String>",
     persisted: false,
   );
+  static const guardianLinks = ffai.ProjectAppStateFieldHandle(
+    name: "guardianLinks",
+    key: "8aqdamca",
+    typeName: "List<DataStruct<GuardianLinkItem>>",
+    persisted: false,
+  );
   static const guestInvitations = ffai.ProjectAppStateFieldHandle(
     name: "guestInvitations",
     key: "o8co6sch",
@@ -605,6 +611,7 @@ abstract final class AppState {
     directConvId,
     editingChatDocPath,
     groupMemberNames,
+    guardianLinks,
     guestInvitations,
     hasMultipleTeams,
     hasUnreadTeamChat,

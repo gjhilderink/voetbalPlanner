@@ -248,8 +248,13 @@ Route::prefix('v1')->group(function () {
             // Kind: reageren op een verzoek
             Route::post('/{guardianLink}/respond', [GuardianController::class, 'respond']);
 
-            // Kind / ouder / beheerder: koppeling intrekken
+            // Kind / ouder / beheerder: koppeling intrekken. Ook als POST,
+            // want de hosting blokkeert DELETE - de app gebruikt die variant.
             Route::delete('/{guardianLink}/revoke', [GuardianController::class, 'revoke']);
+            Route::post('/{guardianLink}/revoke', [GuardianController::class, 'revoke']);
+
+            // Met wie ben ik gekoppeld, in beide richtingen (voor het profiel)
+            Route::get('/links', [GuardianController::class, 'links']);
 
             // Ouder: eigen gekoppelde kinderen ophalen
             Route::get('/children', [GuardianController::class, 'children']);

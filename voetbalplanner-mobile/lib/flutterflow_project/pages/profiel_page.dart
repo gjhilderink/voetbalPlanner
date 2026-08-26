@@ -123,35 +123,136 @@ abstract final class ProfielPageWidgets {
                             name: "ProfielRelatiecode",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_dh60qca4",
+                            key: "Text_qwb92u9f",
                             type: "Text",
                             path: "ProfielPage.body[0].children[0].children[0].children[0].children[5]",
                             name: "ProfielTeamsLabel",
                             text: "Teams",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "ListView_evrqz0tf",
+                            key: "ListView_4u4b2tqf",
                             type: "ListView",
                             path: "ProfielPage.body[0].children[0].children[0].children[0].children[6]",
                             name: "ProfielTeamsList",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_yhyb6p8t",
+                                key: "Row_vtc1m0ij",
                                 type: "Row",
                                 path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0]",
                                 name: "ProfielTeamRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_1fq0ttwe",
+                                    key: "Icon_693rufhu",
                                     type: "Icon",
                                     path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0].children[0]",
                                     name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_8gxyeu6x",
+                                    key: "Text_00zsji17",
                                     type: "Text",
                                     path: "ProfielPage.body[0].children[0].children[0].children[0].children[6].children[0].children[1]",
                                     name: "ProfielTeamName",
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_nazvaul1",
+                            type: "Text",
+                            path: "ProfielPage.body[0].children[0].children[0].children[0].children[7]",
+                            name: "ProfielKoppelLabel",
+                            text: "Koppelingen",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_yg73jo6t",
+                            type: "Text",
+                            path: "ProfielPage.body[0].children[0].children[0].children[0].children[8]",
+                            name: "ProfielKoppelLeeg",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "ListView_yxhuw58k",
+                            type: "ListView",
+                            path: "ProfielPage.body[0].children[0].children[0].children[0].children[9]",
+                            name: "ProfielKoppelList",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_ga5e7zm4",
+                                type: "Container",
+                                path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0]",
+                                name: "ProfielKoppelKaart",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_vzed9ct3",
+                                    type: "Row",
+                                    path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0]",
+                                    name: "ProfielKoppelRij",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "wlhv8v7s",
+                                        type: "CircleImage",
+                                        path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0].children[0]",
+                                        name: "ProfielKoppelFoto",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Column_ow9utcxm",
+                                        type: "Column",
+                                        path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0].children[1]",
+                                        name: "ProfielKoppelCol",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_klerhn78",
+                                            type: "Text",
+                                            path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0].children[1].children[0]",
+                                            name: "ProfielKoppelNaam",
+                                          ),
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Row_f0v5pisf",
+                                            type: "Row",
+                                            path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0].children[1].children[1]",
+                                            name: "ProfielKoppelOnder",
+                                            children: <ffai.ProjectWidgetHandle>[
+                                              ffai.ProjectWidgetHandle(
+                                                key: "Text_dws6pk17",
+                                                type: "Text",
+                                                path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0].children[1].children[1].children[0]",
+                                                name: "ProfielKoppelRelatie",
+                                              ),
+                                              ffai.ProjectWidgetHandle(
+                                                key: "Text_ystkv64b",
+                                                type: "Text",
+                                                path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0].children[1].children[1].children[1]",
+                                                name: "ProfielKoppelPunt",
+                                                text: "·",
+                                              ),
+                                              ffai.ProjectWidgetHandle(
+                                                key: "Text_new2pl04",
+                                                type: "Text",
+                                                path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0].children[1].children[1].children[2]",
+                                                name: "ProfielKoppelStatus",
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_jhj2xjfl",
+                                        type: "Container",
+                                        path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0].children[2]",
+                                        name: "ProfielKoppelIntrek",
+                                        triggers: const <String>[
+                                          "ON_TAP",
+                                        ],
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Icon_6qoe5rj1",
+                                            type: "Icon",
+                                            path: "ProfielPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0].children[2].children[0]",
+                                            name: "Icon",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -247,7 +348,7 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Button_vq20pvtc",
+                    key: "Button_8jhn0bdx",
                     type: "Button",
                     path: "ProfielPage.body[0].children[0].children[4]",
                     name: "OnboardingResetButton",
@@ -257,7 +358,7 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Button_riwzrr1p",
+                    key: "Button_lg5zh67s",
                     type: "Button",
                     path: "ProfielPage.body[0].children[0].children[5]",
                     name: "DeleteAccountButton",
@@ -267,33 +368,33 @@ abstract final class ProfielPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_77wbupaz",
+                    key: "Container_jpna76o8",
                     type: "Container",
                     path: "ProfielPage.body[0].children[0].children[6]",
                     name: "DeleteAccountConfirmPanel",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_mkg2h7o7",
+                        key: "Column_peki7gtw",
                         type: "Column",
                         path: "ProfielPage.body[0].children[0].children[6].children[0]",
                         name: "DeleteAccountConfirmCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_koxmjyqx",
+                            key: "Text_stffuqx1",
                             type: "Text",
                             path: "ProfielPage.body[0].children[0].children[6].children[0].children[0]",
                             name: "DeleteAccountConfirmTitle",
                             text: "Account definitief verwijderen?",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_cslpkwd3",
+                            key: "Text_uqfylodn",
                             type: "Text",
                             path: "ProfielPage.body[0].children[0].children[6].children[0].children[1]",
                             name: "DeleteAccountConfirmText",
                             text: "Dit kan niet ongedaan worden gemaakt. Je profiel, je chatgeschiedenis en je team-, wedstrijd- en bardienstgegevens worden verwijderd.",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Button_ds27zrpc",
+                            key: "Button_raw326z6",
                             type: "Button",
                             path: "ProfielPage.body[0].children[0].children[6].children[0].children[2]",
                             name: "DeleteAccountConfirmButton",
@@ -303,7 +404,7 @@ abstract final class ProfielPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Button_ea6z89o7",
+                            key: "Button_8absrnij",
                             type: "Button",
                             path: "ProfielPage.body[0].children[0].children[6].children[0].children[3]",
                             name: "DeleteAccountCancelButton",

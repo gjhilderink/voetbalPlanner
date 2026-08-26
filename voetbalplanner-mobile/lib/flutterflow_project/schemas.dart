@@ -200,6 +200,21 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle guardianLinkItem = ffai.StructHandle(
+    "GuardianLinkItem",
+    <String, ffai.DslType>{
+      "canRevoke": ffai.string,
+      "id": ffai.string,
+      "melding": ffai.string,
+      "name": ffai.string,
+      "photoUrl": ffai.string,
+      "relation": ffai.string,
+      "relationLabel": ffai.string,
+      "status": ffai.string,
+      "statusLabel": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle guardianLinkSummary = ffai.StructHandle(
     "GuardianLinkSummary",
     <String, ffai.DslType>{
@@ -585,6 +600,7 @@ abstract final class Structs {
     footMatch,
     goalItem,
     guardianChild,
+    guardianLinkItem,
     guardianLinkSummary,
     guardianRequest,
     guardianRequestResult,
