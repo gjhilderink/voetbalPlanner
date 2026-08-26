@@ -15428,40 +15428,203 @@ void _convertDirectMembersToList(FFProject project) {
     strip.props.container = c;
   }
 
-  // Rebuild DirectMemberChip as a full-width row (avatar | name | chevron).
+  // De regel krijgt dezelfde opmaak als op de teamledenpagina: foto, een vakje
+  // met rugnummer of afkorting, de naam met functie eronder, en pas een chatknop
+  // wanneer iemand de app ook echt heeft geactiveerd. De velden komen uit
+  // dezelfde bron (/teams/{team}/members), dus ze zijn hier gewoon beschikbaar.
   final chip = findDescendants(wc.node, (n) => n.name == 'DirectMemberChip').firstOrNull;
-  if (chip == null) return;
+  if (chip == null || memberList == null) return;
 
-  // Remove fixed width so the chip fills the list item width.
+  final lijstKey = memberList.key;
+
+  // Vaste breedte weg: de regel vult de volle lijstbreedte.
   if (chip.props.container.hasDimensions()) {
     final c = chip.props.container.deepCopy();
     c.dimensions.clearWidth();
     chip.props.container = c;
   }
-  final tmpChipPad = UI.container(padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 14));
-  chip.props.padding = tmpChipPad.props.padding;
 
-  // Rebuild internals: column (avatar + name) → row (avatar | name | chevron).
+  final kaartStijl = UI.container(
+    name: 'DirectMemberChipStijl',
+    borderRadius: 14,
+    color: UIColor.secondaryBackground,
+    border: UIBorder.all(width: 1, color: UIColor.hex(0xFFE7E9EE)),
+  );
+  chip.props.container = kaartStijl.props.container;
+  chip.props.padding = UI
+      .container(padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 10))
+      .props
+      .padding;
+
   chip.children.clear();
 
-  final avatar = UI.container(name: 'DirectMemberAvatar', width: 40, height: 40, borderRadius: 20);
-  _setContainerColor(avatar, FFColorValue(inputValue: FFColor(themeColor: FFColor_ThemeColor.PRIMARY)));
-  avatar.children.add(UI.icon('person', size: 22, color: UIColor.primaryBackground));
-
-  final nameText = UI.text('', name: 'DirectMemberName', style: UITextStyle.labelMedium);
-  if (memberList != null) {
-    nameText.props.text.textValue = FFStringValue(
-      variable: generatorVarField(memberList.key, 'name'),
-    );
+  FFNode gebonden(String naam, String veld, UITextStyle stijl,
+      {UIColor? kleur, UIFontWeight? gewicht}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: 1,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijstKey, veld));
+    return t;
   }
+
+  final foto = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.CircleImage,
+    name: 'DirectMemberFoto',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue: FFStringValue(variable: generatorVarField(lijstKey, 'photoUrl')),
+        fit: FFBoxFit.FF_BOX_FIT_COVER,
+        cached: true,
+        dimensions: FFDimensions(
+          width: FFDim(pixelsValue: FFDoubleValue(inputValue: 44.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 44.0)),
+        ),
+      ),
+    ),
+  );
+  // Zonder foto liever niets dan een leeg rondje.
+  setConditionalVisibility(
+    foto,
+    variable:
+        _equalsLiteral(generatorVarField(lijstKey, 'photoUrl'), '', negate: true),
+  );
+
+  // Twee varianten omdat FlutterFlow een kleur niet aan een variabele kan
+  // binden: rood voor spelers, bijna zwart voor staf.
+  FFNode vakje({required bool staf}) {
+    final v = UI.container(
+      name: staf ? 'DirectMemberBadgeStaf' : 'DirectMemberBadgeSpeler',
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      alignment: UIAlignment.center,
+      color: staf ? UIColor.hex(0xFF1F2430) : UIColor.error,
+      child: gebonden('DirectMemberBadge${staf ? 'Staf' : 'Speler'}Tekst', 'badge',
+          UITextStyle.labelMedium,
+          kleur: UIColor.white, gewicht: UIFontWeight.w700),
+    );
+    setConditionalVisibility(
+      v,
+      variable: _equalsLiteral(generatorVarField(lijstKey, 'isStaff'), 'true',
+          negate: !staf),
+    );
+    return v;
+  }
+
+  FFNode label({required bool staf}) {
+    final l = UI.container(
+      name: staf ? 'DirectMemberRolStaf' : 'DirectMemberRolSpeler',
+      innerPadding: UIEdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      borderRadius: 6,
+      color: staf ? UIColor.hex(0xFF1F2430) : UIColor.hex(0xFFFDE3E3),
+      child: gebonden(
+          'DirectMemberRol${staf ? 'Staf' : 'Speler'}Tekst', 'roleLabel',
+          UITextStyle.labelSmall,
+          kleur: staf ? UIColor.white : UIColor.error),
+    );
+    setConditionalVisibility(
+      l,
+      variable: _equalsLiteral(generatorVarField(lijstKey, 'isStaff'), 'true',
+          negate: !staf),
+    );
+    return l;
+  }
+
+  final offline = UI.row(
+    name: 'DirectMemberOffline',
+    mainAxisMin: true,
+    spacing: 5,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      UI.container(
+        name: 'DirectMemberOfflineStip',
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        color: UIColor.secondaryText,
+      ),
+      UI.text('Nog niet online',
+          name: 'DirectMemberOfflineLabel',
+          style: UITextStyle.labelSmall,
+          color: UIColor.secondaryText,
+          maxLines: 1),
+    ],
+  );
+  setConditionalVisibility(
+    offline,
+    variable: conditionVar(
+      generatorVarField(lijstKey, 'hasAppAccount'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+    ).variable,
+  );
+
+  final chatKnop = UI.container(
+    name: 'DirectMemberChatKnop',
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignment: UIAlignment.center,
+    color: UIColor.secondaryBackground,
+    border: UIBorder.all(width: 1, color: UIColor.hex(0xFFE7E9EE)),
+    child: UI.icon('chat_bubble_outline', size: 20, color: UIColor.error),
+  );
+  setConditionalVisibility(
+    chatKnop,
+    variable: conditionVar(
+      generatorVarField(lijstKey, 'hasAppAccount'),
+      FFCondition_Relation.EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+    ).variable,
+  );
+
+  // De tik verhuist van de hele regel naar de chatknop. Wie de app nog niet
+  // heeft geactiveerd heeft geen gesprek om te openen; een tik die dan tóch een
+  // lege chat opent leest als een storing. De keten zelf blijft ongemoeid - die
+  // wordt door _fixMemberStripTapAction opgebouwd en gebruikt geen nodeKey.
+  final tikken = chip.triggerActions
+      .where((t) =>
+          t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP)
+      .toList();
+  for (final t in tikken) {
+    chatKnop.triggerActions.add(t.deepCopy());
+  }
+  chip.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP,
+  );
 
   chip.children.add(UI.row(
     name: 'DirectMemberRow',
-    spacing: 12,
+    spacing: 10,
+    crossAxisAlignment: UICrossAxisAlignment.center,
     children: [
-      avatar,
-      nameText,
-      UI.icon('chevron_right', size: 18, color: UIColor.secondaryText),
+      foto,
+      vakje(staf: false),
+      vakje(staf: true),
+      UI.expanded(UI.column(
+        name: 'DirectMemberNaamCol',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 5,
+        children: [
+          gebonden('DirectMemberName', 'name', UITextStyle.bodyLarge,
+              gewicht: UIFontWeight.w700),
+          UI.row(
+            name: 'DirectMemberOnderRij',
+            spacing: 8,
+            mainAxisMin: true,
+            crossAxisAlignment: UICrossAxisAlignment.center,
+            children: [label(staf: false), label(staf: true), offline],
+          ),
+        ],
+      )),
+      chatKnop,
     ],
   ));
 }
