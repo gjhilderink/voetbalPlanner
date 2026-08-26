@@ -304,6 +304,60 @@ class MatchController extends Controller
     }
 
     /**
+     * POST /v1/matches/{match}/rijder?memberId=..
+     *
+     * Zet een speler aan of uit als rijder. Een eigen endpoint en niet het
+     * update()-endpoint met driver_ids: dat is een PATCH met een array in de
+     * body, en de app kan geen van beide - de hosting blokkeert PATCH en
+     * FlutterFlow krijgt geen lijst in een URL. Omzetten per persoon past
+     * bovendien beter bij hoe het gaat: je vult de rijders één voor één aan.
+     */
+    public function toggleRijder(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je hebt geen rechten om de rijders te wijzigen.',
+            ], 403);
+        }
+
+        $memberId = trim((string) $request->input('memberId', ''));
+        if ($memberId === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Geen speler opgegeven.',
+            ], 422);
+        }
+
+        $member = Member::where('id', $memberId)
+            ->whereHas('teams', fn ($q) => $q->where('teams.id', $match->team_id))
+            ->first();
+
+        if (! $member) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Speler niet gevonden in dit team.',
+            ], 422);
+        }
+
+        // toggle() geeft terug wat er is aan- en losgekoppeld; daarmee weten we
+        // zonder tweede query welke kant het op ging.
+        $resultaat = $match->drivers()->toggle([$member->id]);
+        $toegevoegd = ! empty($resultaat['attached']);
+
+        return response()->json([
+            'success'  => true,
+            'data'     => [
+                'memberId' => $member->id,
+                'isDriver' => $toegevoegd ? 'true' : 'false',
+            ],
+            'message'  => $toegevoegd
+                ? $member->name . ' rijdt mee.'
+                : $member->name . ' rijdt niet meer mee.',
+        ]);
+    }
+
+    /**
      * POST /v1/matches/{match}/fruithero?memberId=..
      *
      * Coach kiest de fruitheld uit het team van de wedstrijd. Lege memberId

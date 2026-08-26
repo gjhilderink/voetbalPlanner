@@ -22894,6 +22894,21 @@ void _addGuestInviteEndpoints(FFProject project) {
         headers: ['Authorization: Bearer [bearerToken]']);
   }
 
+  // POST /matches/[matchId]/rijder?memberId=.. — coach zet een rijder aan of uit.
+  // Per persoon omzetten en niet de hele lijst opsturen: het PATCH-endpoint met
+  // driver_ids vraagt om een array in de body, en dat kan FlutterFlow niet.
+  const rijderUrl = '/matches/[matchId]/rijder?memberId=[memberId]';
+  if (has('SetMatchRijder')) {
+    updateApiEndpoint(project, name: 'SetMatchRijder', groupName: groupName,
+        url: rijderUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'SetMatchRijder',
+        url: rijderUrl, method: FFApiEndpoint_CallType.POST, bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str(), 'memberId': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
   // POST /matches/[matchId]/fruithero?memberId=.. — coach kiest de fruitheld.
   // Eigen endpoint en niet het PATCH-endpoint op de wedstrijd: shared hosting
   // blokkeert PATCH regelmatig. Zelfde vorm als de vlagger hierboven.
@@ -23261,7 +23276,11 @@ void _buildMatchActionsDialogBody(FFProject project) {
   }
   final menuView = UI.column(name: 'MaMenuView', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 10,
       children: [
-        menuBtn('Doelpunt toevoegen', 'goal'),
+        // Doelpunt toevoegen is hier weg. Dat kan nog steeds via het tabblad
+        // Doelpunten en via het live verslag; in dit menu stond het in de weg.
+        // De keuzelijst zelf (MaGoalView) blijft staan maar is niet meer
+        // bereikbaar - terugzetten is één regel.
+        menuBtn('Rijders toevoegen', 'drivers'),
         menuBtn('Vlagger kiezen', 'flag'),
         if (hasFruit) menuBtn('Fruitheld kiezen', 'fruit'),
         menuBtn('Gastspeler uitnodigen', 'invite'),
@@ -23376,6 +23395,71 @@ void _buildMatchActionsDialogBody(FFProject project) {
         ]);
     setConditionalVisibility(noteView, variable: viewIs('note'));
     root.children.add(noteView);
+  }
+
+  // ── Rijders (aan/uit per persoon) ──
+  //
+  // Tik = meteen omzetten, en de sheet blijft open: je vult de rijders in één
+  // keer aan en sluit daarna af met Klaar. Dat sluiten laat de FAB de wedstrijd
+  // opnieuw ophalen, zodat de namen op de detailpagina bijwerken.
+  //
+  // Geen vinkje in de lijst: wie er al rijdt weet deze lijst niet - die komt van
+  // /teams/{team}/members en draagt geen rijdersstatus. De melding van de server
+  // zegt per tik welke kant het op ging.
+  if (findApiEndpoint(project, name: 'SetMatchRijder', groupName: 'VoetbalPlannerAPI') != null) {
+    final rijderVar = appVar(membersScoreId!);
+    final rijderList = UI.listView(name: 'MaRijderList', shrinkWrap: true, spacing: 2,
+        dynamicSource: DynamicSource(variable: rijderVar, itemName: 'rm'));
+    final rijderName = UI.text('', name: 'MaRijderName', style: UITextStyle.bodyMedium);
+    rijderName.props.text.textValue =
+        FFStringValue(variable: generatorVarField(rijderList.key, 'name'));
+    final rijderRow = UI.container(name: 'MaRijderRow', width: double.infinity,
+        padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: rijderName);
+
+    rijderRow.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchRijder',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'matchId': appVar(matchIdId!),
+          'memberId': generatorVarField(rijderList.key, 'id'),
+        },
+        outputVariableName: 'maRijder', nodeKey: rijderRow.key,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.snackBar('Rijder bijgewerkt.'),
+        ]),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('Bijwerken mislukt — controleer je rechten.'),
+        ]))));
+
+    rijderList.children.add(rijderRow);
+    final rijderScroll = UI.container(name: 'MaRijderScroll', height: 220,
+        clipContent: true, child: rijderList);
+
+    final klaarBtn = UI.button('Klaar', name: 'MaRijderKlaarBtn', width: double.infinity);
+    klaarBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.updateAppState(project, updates: [
+          StateFieldUpdate.set('dialogView', 'menu'),
+        ]),
+        followUpAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.navigateBack(),
+        ),
+      )));
+
+    final rijderView = UI.column(name: 'MaRijderView',
+        crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
+        children: [
+          UI.text('Tik een naam aan om hem als rijder aan of uit te zetten.',
+              name: 'MaRijderLabel', style: UITextStyle.labelMedium,
+              color: UIColor.secondaryText),
+          rijderScroll, klaarBtn, backBtn(),
+        ]);
+    setConditionalVisibility(rijderView, variable: viewIs('drivers'));
+    root.children.add(rijderView);
   }
 
   // ── Vlagger-picker (iedereen uit het team van de wedstrijd) ──
