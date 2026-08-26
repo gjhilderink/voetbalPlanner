@@ -1514,6 +1514,8 @@ void buildEditFlow(App app) {
     _addMatchReportsEndpoint(project);
     _wireVerslagenPage(project);
     _wireVerslagPage(project);
+    // Als laatste: alle knoppen zijn dan gebouwd en herkleurd.
+    _setButtonTextSize(project);
     _wireMeerPage(project);
     _setupNavBarV2(project);
     _updateChatBadgeOverlayPosition(project);
@@ -10134,16 +10136,21 @@ void _wireGuardianSelfRegisterSubmit(FFProject project) {
         ),
         Actions.navigate(project, pageName: 'LoginPage'),
       ]),
+      // De echte melding van de server tonen in plaats van een vaste tekst.
+      // "Controleer de gegevens" stuurt iemand het verkeerde bos in als het
+      // probleem is dat het e-mailadres al in gebruik is of dat het lid nog aan
+      // geen enkel team hangt — dan valt er aan lidnummer en achternaam niets te
+      // controleren. Zelfde aanpak als op GuardianRequestPage.
       onFailure: (ctx) => Actions.chain([
         Actions.updatePageState(
           project,
           widgetClassName: 'GuardianSelfRegisterPage',
-          updates: [StateFieldUpdate.set(
+          updates: [StateFieldUpdate.setFromVariable(
             'errorMessage',
-            'Registratie mislukt. Controleer de gegevens en probeer opnieuw.',
+            _jsonBodyVar(ctx, r'$.message', submitBtn.key),
           )],
         ),
-        Actions.snackBar('Registratie mislukt.'),
+        Actions.snackBar('Registratie mislukt — zie de melding op het scherm.'),
       ]),
     ),
   );
@@ -36904,4 +36911,32 @@ void _wireVerslagPage(FFProject project) {
       ]),
     ),
   );
+}
+
+/// Geeft elke knop een expliciete lettergrootte.
+///
+/// FlutterFlow genereert de knoptekst als een kale TextStyle met alleen een
+/// kleur. Zonder lettergrootte erft AutoSizeText de omringende standaard en
+/// krimpt hij bovendien om te passen, waardoor knopteksten kleiner uitvallen dan
+/// de rest van de app. Met een vaste maat hangt het niet meer af van wat de
+/// codegenerator toevallig meegeeft.
+///
+/// 17pt: dat is labelLarge uit de eigen typografie, en labelLarge is in Material
+/// de maat voor knoptekst. Een knop die zelf al een maat meekreeg houdt die.
+void _setButtonTextSize(FFProject project) {
+  const maat = 17.0;
+
+  for (final wc in project.widgetClasses.values) {
+    for (final btn in findDescendants(wc.node, (n) => n.props.hasButton())) {
+      final proto = btn.props.button.deepCopy();
+      if (!proto.hasText()) continue;
+
+      final text = proto.text.deepCopy();
+      if (text.hasFontSizeValue() && text.fontSizeValue.hasInputValue()) continue;
+
+      text.fontSizeValue = FFDoubleValue(inputValue: maat);
+      proto.text = text;
+      btn.props.button = proto;
+    }
+  }
 }
