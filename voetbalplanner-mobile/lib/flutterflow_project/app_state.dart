@@ -83,6 +83,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<ActivityItem>>",
     persisted: false,
   );
+  static const dialogDriverNames = ffai.ProjectAppStateFieldHandle(
+    name: "dialogDriverNames",
+    key: "74mzhbid",
+    typeName: "String",
+    persisted: false,
+  );
   static const dialogFlaggerId = ffai.ProjectAppStateFieldHandle(
     name: "dialogFlaggerId",
     key: "i94o89ne",
@@ -607,6 +613,7 @@ abstract final class AppState {
     currentTeamId,
     currentTeamName,
     dashActivities,
+    dialogDriverNames,
     dialogFlaggerId,
     dialogFlaggerName,
     dialogFruitId,

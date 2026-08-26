@@ -562,6 +562,9 @@ void buildEditFlow(App app) {
   try { app.state('dialogFlaggerName',         string); } catch (_) {}
   try { app.state('dialogFruitId',             string); } catch (_) {}
   try { app.state('dialogFruitName',           string); } catch (_) {}
+  // De rijders van deze wedstrijd, zoals ze nu op de detailpagina staan. Gaat
+  // via app-state omdat een component geen pagina-state kan lezen.
+  try { app.state('dialogDriverNames',         string); } catch (_) {}
   try { app.state('dialogRijderId',            string); } catch (_) {}
   try { app.state('dialogRijderName',          string); } catch (_) {}
   try { app.state('dialogGuestId',             string); } catch (_) {}
@@ -23255,6 +23258,7 @@ void _buildMatchActionsDialogBody(FFProject project) {
   final flagNameId = _findAppStateFieldId(project, 'dialogFlaggerName');
   final fruitIdId   = _findAppStateFieldId(project, 'dialogFruitId');
   final fruitNameId = _findAppStateFieldId(project, 'dialogFruitName');
+  final driverNamesId = _findAppStateFieldId(project, 'dialogDriverNames');
   final rijderIdId   = _findAppStateFieldId(project, 'dialogRijderId');
   final rijderNameId = _findAppStateFieldId(project, 'dialogRijderName');
   final guestIdId   = _findAppStateFieldId(project, 'dialogGuestId');
@@ -23434,14 +23438,24 @@ void _buildMatchActionsDialogBody(FFProject project) {
 
     // Vinkje voor de naam die nu gekozen is, net als bij de doelpuntenlijst.
     // Zonder dat verandert er bij een tik niets zichtbaars in de lijst zelf.
+    // Drie dingen in één regel: een vinkje voor wie je nu hebt aangetikt, de
+    // naam, en "rijdt mee" achter wie al is toegewezen. Dat laatste is nodig om
+    // iemand er weer uit te kunnen halen - zonder die markering weet je niet
+    // wie je moet aantikken.
     final rijderName = UI.text('', name: 'MaRijderName', style: UITextStyle.bodyMedium);
     rijderName.props.text.textValue = FFStringValue(
         variable: codeExpressionVar(
-          expression: "((s ?? '') != '' && (s ?? '') == (n ?? '')) ? ('✓  ' + (n ?? '')) : (n ?? '')",
+          expression: "(((s ?? '') != '' && (s ?? '') == (n ?? '')) ? '✓  ' : '')"
+              " + (n ?? '')"
+              " + (((n ?? '') != '' && (d ?? '').contains(n ?? '')) ? '  ·  rijdt mee' : '')",
           arguments: [
             CodeExpressionArg(name: 's', dataType: str(), value: FFValue(variable: appVar(rijderNameId))),
             CodeExpressionArg(name: 'n', dataType: str(),
                 value: FFValue(variable: generatorVarField(rijderList.key, 'name'))),
+            CodeExpressionArg(name: 'd', dataType: str(),
+                value: FFValue(variable: driverNamesId != null
+                    ? appVar(driverNamesId)
+                    : varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING))),
           ],
           returnType: FFParameter(dataType: str())));
 
@@ -23524,7 +23538,9 @@ void _buildMatchActionsDialogBody(FFProject project) {
     final rijderView = UI.column(name: 'MaRijderView',
         crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
         children: [
-          UI.text('Kies een speler en zet hem aan of uit als rijder.',
+          UI.text(
+              'Kies een speler en zet hem aan of uit als rijder. '
+              'Wie al rijdt staat gemarkeerd; aantikken en bevestigen haalt hem er weer uit.',
               name: 'MaRijderLabel', style: UITextStyle.labelMedium,
               color: UIColor.secondaryText),
           rijderScroll, rijderConfirm, klaarBtn, backBtn(),
@@ -23823,6 +23839,13 @@ void _addWedstrijdActionsFab(FFProject project) {
       .cast<FFWidgetClassStateField?>()
       .firstWhere((x) => x?.parameter.identifier.name == 'matchNotes', orElse: () => null);
 
+  // Idem voor de rijders: de rijderslijst in de sheet markeert daarmee wie er al
+  // rijdt, zodat je weet wie je moet aantikken om hem er weer uit te halen.
+  final driversStateField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((x) => x?.parameter.identifier.name == 'matchDriverNames',
+          orElse: () => null);
+
   final resetNode = FFActionNode(key: generateRandomAlphaNumericString(),
     action: Actions.updateAppState(project, updates: [
       StateFieldUpdate.set('dialogView', 'menu'),
@@ -23830,6 +23853,12 @@ void _addWedstrijdActionsFab(FFProject project) {
         StateFieldUpdate.setFromVariable(
           'dialogNote',
           varFromPageState(notesStateField.parameter.identifier.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        ),
+      if (driversStateField != null)
+        StateFieldUpdate.setFromVariable(
+          'dialogDriverNames',
+          varFromPageState(driversStateField.parameter.identifier.deepCopy())
             ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
         ),
     ]));
