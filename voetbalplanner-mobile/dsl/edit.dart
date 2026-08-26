@@ -33948,6 +33948,128 @@ class _LineupBoardState extends State<LineupBoard> {
 
   double _getal(String v, double terugval) => double.tryParse(v) ?? terugval;
 
+  /// Haalt een speler helemaal uit de opstelling: niet op het veld en niet op de
+  /// bank, dus terug in de lijst met niet ingedeelde spelers.
+  void _haalUitOpstelling(LineupSlotStruct speler) {
+    final veld = List<LineupSlotStruct>.from(_veld)
+      ..removeWhere((s) => s.memberId == speler.memberId);
+    final bank = List<LineupSlotStruct>.from(_bank)
+      ..removeWhere((s) => s.memberId == speler.memberId);
+
+    _schrijf(veld, bank);
+  }
+
+  Widget _menuRegel(FlutterFlowTheme theme, IconData icoon, String titel,
+      String uitleg, VoidCallback bijTik) {
+    return InkWell(
+      onTap: bijTik,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+        child: Row(
+          children: [
+            Icon(icoon, size: 22, color: const Color(0xFF1E3A5F)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    titel,
+                    style: theme.bodyMedium.override(
+                      fontFamily: theme.bodyMediumFamily,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    uitleg,
+                    style: theme.labelSmall.override(
+                      fontFamily: theme.labelSmallFamily,
+                      color: theme.secondaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Keuzemenu bij een tik op een speler in het veld.
+  ///
+  /// Verslepen staat er als eerste in maar doet zelf niets: dat gebaar bestaat
+  /// al (ingedrukt houden en slepen). Zonder die regel is het een lijstje waarin
+  /// juist de gewoonste handeling ontbreekt, en dan gaat iemand zoeken.
+  void _pionMenu(LineupSlotStruct speler) {
+    final theme = FlutterFlowTheme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (blad) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD8DBE2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4, left: 4),
+              child: Text(
+                speler.naam.isEmpty ? 'Speler' : speler.naam,
+                style: theme.titleSmall,
+              ),
+            ),
+            _menuRegel(
+              theme,
+              Icons.open_with,
+              'Verslepen',
+              'Houd de speler ingedrukt en sleep hem naar een andere plek.',
+              () => Navigator.pop(blad),
+            ),
+            _menuRegel(
+              theme,
+              Icons.event_seat,
+              'Wissel',
+              'Zet hem op de bank.',
+              () {
+                Navigator.pop(blad);
+                _zetOpBank(speler);
+              },
+            ),
+            _menuRegel(
+              theme,
+              Icons.person_remove_outlined,
+              'Niet indelen',
+              'Terug naar de lijst met niet ingedeelde spelers.',
+              () {
+                Navigator.pop(blad);
+                _haalUitOpstelling(speler);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Alleen de roepnaam op de pion; een volledige naam past niet in een chip.
   String _kort(String naam) {
     final delen = naam.trim().split(RegExp(r'\s+'));
@@ -34157,7 +34279,12 @@ class _LineupBoardState extends State<LineupBoard> {
       data: speler,
       feedback: Material(color: Colors.transparent, child: _pionInhoud(theme, speler)),
       childWhenDragging: Opacity(opacity: 0.3, child: kern),
-      child: kern,
+      // Tik en lange druk bijten elkaar niet: de tik opent het menu, ingedrukt
+      // houden begint het slepen.
+      child: GestureDetector(
+        onTap: () => _pionMenu(speler),
+        child: kern,
+      ),
     );
   }
 
