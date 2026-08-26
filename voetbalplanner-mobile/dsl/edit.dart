@@ -33787,6 +33787,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/schema/structs/index.dart';
 import '/app_state.dart';
+import 'dart:math' as math;
 
 /// Veld + wisselbank. Sleep een speler over het veld om hem te verplaatsen, of
 /// naar de bank (en terug) om te wisselen. Alles in één widget, want slepen
@@ -34103,7 +34104,7 @@ class _LineupBoardState extends State<LineupBoard> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Houd een speler ingedrukt en sleep hem het veld op.',
+                          'Houd een speler ingedrukt en sleep hem op je eigen helft.',
                           textAlign: TextAlign.center,
                           style: theme.bodyMedium.override(
                             fontFamily: theme.bodyMediumFamily,
@@ -34724,6 +34725,16 @@ class _LineupBoardState extends State<LineupBoard> {
 }
 
 /// De belijning. Puur decoratief, maar zonder lijnen is het geen veld.
+/// Alleen de eigen helft: eigen doel onderin, middenlijn bovenin.
+///
+/// Een coach zet zijn elftal toch op de eigen helft neer, dus op een heel veld
+/// kroop alles in de onderste helft en stonden elf pionnen op elkaar. Dezelfde
+/// ruimte voor de helft waar het gebeurt geeft de dubbele afstand tussen de
+/// linies.
+///
+/// Niet op schaal: een echte helft is breder dan diep, en zo getekend zou het
+/// bord op een telefoon een lage strook worden. De hoogte blijft daarom staan;
+/// het gaat hier om plek voor pionnen, niet om een maatvaste plattegrond.
 class _VeldLijnen extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -34733,31 +34744,76 @@ class _VeldLijnen extends CustomPainter {
       ..strokeWidth = 2;
 
     const rand = 8.0;
-    canvas.drawRect(
-      Rect.fromLTWH(rand, rand, size.width - rand * 2, size.height - rand * 2),
-      kwast,
-    );
-    canvas.drawLine(
-      Offset(rand, size.height / 2),
-      Offset(size.width - rand, size.height / 2),
-      kwast,
-    );
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width * 0.16, kwast);
+    final links = rand;
+    final boven = rand;
+    final breedte = size.width - rand * 2;
+    final hoogte = size.height - rand * 2;
+    final onder = boven + hoogte;
+    final midX = size.width / 2;
 
-    // Strafschopgebieden boven en onder.
-    final gebiedBreedte = size.width * 0.55;
-    final gebiedHoogte = size.height * 0.14;
-    for (final boven in [true, false]) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          (size.width - gebiedBreedte) / 2,
-          boven ? rand : size.height - rand - gebiedHoogte,
-          gebiedBreedte,
-          gebiedHoogte,
-        ),
-        kwast,
-      );
-    }
+    // Buitenlijnen. De bovenrand ís de middenlijn.
+    canvas.drawRect(Rect.fromLTWH(links, boven, breedte, hoogte), kwast);
+
+    // Middencirkel: alleen de helft die op ons veld valt.
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(midX, boven), radius: breedte * 0.18),
+      0,
+      math.pi,
+      false,
+      kwast,
+    );
+    canvas.drawCircle(Offset(midX, boven), 3, kwast..style = PaintingStyle.fill);
+    kwast.style = PaintingStyle.stroke;
+
+    // Strafschopgebied en doelgebied, in verhoudingen van een echt veld:
+    // 40,3 m breed van 68 m, en 16,5 m diep van een helft van 52,5 m.
+    final strafBreedte = breedte * 0.59;
+    final strafDiepte = hoogte * 0.30;
+    canvas.drawRect(
+      Rect.fromLTWH((size.width - strafBreedte) / 2, onder - strafDiepte,
+          strafBreedte, strafDiepte),
+      kwast,
+    );
+
+    final doelgebiedBreedte = breedte * 0.27;
+    final doelgebiedDiepte = hoogte * 0.10;
+    canvas.drawRect(
+      Rect.fromLTWH((size.width - doelgebiedBreedte) / 2,
+          onder - doelgebiedDiepte, doelgebiedBreedte, doelgebiedDiepte),
+      kwast,
+    );
+
+    // Strafschopstip op 11 m van de doellijn.
+    canvas.drawCircle(
+      Offset(midX, onder - hoogte * 0.21),
+      3,
+      kwast..style = PaintingStyle.fill,
+    );
+    kwast.style = PaintingStyle.stroke;
+
+    // Het doel zelf, een klein stukje buiten de doellijn.
+    final doelBreedte = breedte * 0.18;
+    canvas.drawRect(
+      Rect.fromLTWH((size.width - doelBreedte) / 2, onder, doelBreedte, 5),
+      kwast,
+    );
+
+    // Hoekbogen, alleen bij de twee hoeken die op deze helft liggen.
+    final boog = breedte * 0.045;
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(links, onder), radius: boog),
+      -math.pi / 2,
+      math.pi / 2,
+      false,
+      kwast,
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(links + breedte, onder), radius: boog),
+      math.pi,
+      math.pi / 2,
+      false,
+      kwast,
+    );
   }
 
   @override
