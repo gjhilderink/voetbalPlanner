@@ -245,6 +245,15 @@ class MemberResource extends Resource
                     ->label('Naam')
                     ->searchable()
                     ->sortable(),
+                // Zoeken op relatiecode: bij een koppelverzoek of een vraag uit
+                // Sportlink heb je dat nummer, niet de schrijfwijze van de naam.
+                Tables\Columns\TextColumn::make('external_id')
+                    ->label('Lidnummer')
+                    ->searchable()
+                    ->sortable()
+                    ->copyable()
+                    ->placeholder('-')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('shirt_number')
                     ->label('Nr.')
                     ->sortable()
