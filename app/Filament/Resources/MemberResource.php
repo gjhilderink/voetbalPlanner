@@ -362,11 +362,24 @@ class MemberResource extends Resource
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
                 Actions\RestoreAction::make()->label('Herstellen'),
+                // Filament toont dit alleen bij een al verwijderd lid. Nodig om
+                // een relatiecode of e-mailadres echt vrij te geven: een
+                // soft-deleted rij blijft in de unieke index staan.
+                Actions\ForceDeleteAction::make()
+                    ->label('Definitief verwijderen')
+                    ->modalHeading(fn (Member $record) => 'Definitief verwijderen: ' . $record->name)
+                    ->modalDescription(
+                        'Dit lid wordt onherstelbaar verwijderd, samen met zijn '
+                        . 'ouder/verzorger-koppelingen. Daarna zijn het lidnummer en '
+                        . 'het e-mailadres weer vrij.'
+                    )
+                    ->modalSubmitActionLabel('Definitief verwijderen'),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make(),
                     Actions\RestoreBulkAction::make()->label('Herstellen'),
+                    Actions\ForceDeleteBulkAction::make()->label('Definitief verwijderen'),
                 ]),
             ])
             ->defaultSort('name');

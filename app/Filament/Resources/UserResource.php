@@ -19,6 +19,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UserResource extends Resource
@@ -205,9 +207,28 @@ class UserResource extends Resource
                     ->dateTime('d-m-Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                // Alleen gevuld bij een verwijderd account. Zichtbaar zodra je
+                // het Verwijderd-filter aanzet; anders staat de kolom leeg en
+                // hoeft hij niet in beeld.
+                Tables\Columns\TextColumn::make('deleted_at')
+                    ->label('Verwijderd op')
+                    ->dateTime('d-m-Y H:i')
+                    ->placeholder('-')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active')->label('Actief'),
+                // Verwijderde accounts waren alleen via de database te zien, en
+                // een verwijderd account houdt zijn e-mailadres bezet in de
+                // unieke index - dus zonder dit overzicht is niet te verklaren
+                // waarom datzelfde adres zich niet opnieuw laat registreren.
+                // Standaard uit, dus de lijst toont wat hij altijd toonde.
+                Tables\Filters\TrashedFilter::make()
+                    ->label('Verwijderd')
+                    ->placeholder('Zonder verwijderde')
+                    ->trueLabel('Inclusief verwijderde')
+                    ->falseLabel('Alleen verwijderde'),
             ])
             ->actions([
                 Actions\Action::make('impersonate')
@@ -227,10 +248,23 @@ class UserResource extends Resource
                     ->modalSubmitActionLabel('Inloggen als'),
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
+                Actions\RestoreAction::make()->label('Herstellen'),
+                // Definitief verwijderen kan alleen bij een al verwijderd
+                // account (Filament toont deze actie zelf alleen dan). De
+                // bevestiging noemt wat er meegaat: die koppelingen staan op
+                // cascade in de database, dus dat gebeurt sowieso - de vraag is
+                // of je het van tevoren weet.
+                Actions\ForceDeleteAction::make()
+                    ->label('Definitief verwijderen')
+                    ->modalHeading(fn (User $record) => 'Definitief verwijderen: ' . $record->name)
+                    ->modalDescription(fn (User $record) => self::cascadeSamenvatting($record))
+                    ->modalSubmitActionLabel('Definitief verwijderen'),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make(),
+                    Actions\RestoreBulkAction::make()->label('Herstellen'),
+                    Actions\ForceDeleteBulkAction::make()->label('Definitief verwijderen'),
                 ]),
             ])
             ->defaultSort('name');
@@ -238,7 +272,10 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query  = parent::getEloquentQuery();
+        // Zonder de soft-delete-scope kan het Verwijderd-filter zelf bepalen wat
+        // er te zien is; staat dat filter op de standaardstand, dan filtert het
+        // verwijderde accounts gewoon weer weg. Zelfde aanpak als bij leden.
+        $query  = parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
         $tenant = filament()->getTenant();
 
         if ($tenant) {
@@ -246,6 +283,46 @@ class UserResource extends Resource
         }
 
         return $query;
+    }
+
+    /**
+     * Wat er aan dit account vastzit en bij definitief verwijderen meegaat.
+     *
+     * Teamkoppelingen, afmeldingen en bardiensten staan in de database op
+     * cascade; leden en agenda-inschrijvingen houden hun rij maar raken de
+     * verwijzing kwijt. Dat onderscheid staat in de tekst, want "weg" betekent
+     * per soort iets anders.
+     */
+    private static function cascadeSamenvatting(User $record): string
+    {
+        $mee = [];
+        foreach ([
+            'user_team'     => 'teamkoppeling',
+            'absences'      => 'afmelding',
+            'bar_duty_user' => 'bardienst',
+        ] as $tabel => $woord) {
+            $aantal = DB::table($tabel)->where('user_id', $record->id)->count();
+            if ($aantal > 0) {
+                $mee[] = $aantal . ' ' . $woord . ($aantal === 1 ? '' : 'en');
+            }
+        }
+
+        $tekst = 'Dit account wordt onherstelbaar verwijderd.';
+
+        if ($mee) {
+            $tekst .= ' Mee weg: ' . implode(', ', $mee) . '.';
+        }
+
+        $leden = Member::withTrashed()->where('user_id', $record->id)->count();
+        if ($leden > 0) {
+            $tekst .= $leden === 1
+                ? ' Het gekoppelde lid blijft bestaan, maar raakt de koppeling kwijt.'
+                : ' De ' . $leden . ' gekoppelde leden blijven bestaan, maar raken de koppeling kwijt.';
+        }
+
+        $tekst .= ' Daarna is het e-mailadres weer vrij voor een nieuwe registratie.';
+
+        return $tekst;
     }
 
     public static function getRelations(): array
