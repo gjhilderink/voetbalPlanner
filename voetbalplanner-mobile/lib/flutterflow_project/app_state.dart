@@ -137,6 +137,18 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const dialogRijderId = ffai.ProjectAppStateFieldHandle(
+    name: "dialogRijderId",
+    key: "lq7yki7p",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogRijderName = ffai.ProjectAppStateFieldHandle(
+    name: "dialogRijderName",
+    key: "d2p1ml78",
+    typeName: "String",
+    persisted: false,
+  );
   static const dialogScorerName = ffai.ProjectAppStateFieldHandle(
     name: "dialogScorerName",
     key: "lo5mo6wj",
@@ -604,6 +616,8 @@ abstract final class AppState {
     dialogMatchId,
     dialogMembers,
     dialogNote,
+    dialogRijderId,
+    dialogRijderName,
     dialogScorerName,
     dialogTeamId,
     dialogTeams,

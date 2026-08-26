@@ -562,6 +562,8 @@ void buildEditFlow(App app) {
   try { app.state('dialogFlaggerName',         string); } catch (_) {}
   try { app.state('dialogFruitId',             string); } catch (_) {}
   try { app.state('dialogFruitName',           string); } catch (_) {}
+  try { app.state('dialogRijderId',            string); } catch (_) {}
+  try { app.state('dialogRijderName',          string); } catch (_) {}
   try { app.state('dialogGuestId',             string); } catch (_) {}
   try { app.state('dialogGuestName',           string); } catch (_) {}
 
@@ -23253,6 +23255,8 @@ void _buildMatchActionsDialogBody(FFProject project) {
   final flagNameId = _findAppStateFieldId(project, 'dialogFlaggerName');
   final fruitIdId   = _findAppStateFieldId(project, 'dialogFruitId');
   final fruitNameId = _findAppStateFieldId(project, 'dialogFruitName');
+  final rijderIdId   = _findAppStateFieldId(project, 'dialogRijderId');
+  final rijderNameId = _findAppStateFieldId(project, 'dialogRijderName');
   final guestIdId   = _findAppStateFieldId(project, 'dialogGuestId');
   final guestNameId = _findAppStateFieldId(project, 'dialogGuestName');
   if ([viewId, matchIdId, scorerId, teamIdId, membersScoreId, teamsId, membersId, authId,
@@ -23422,36 +23426,85 @@ void _buildMatchActionsDialogBody(FFProject project) {
   // Geen vinkje in de lijst: wie er al rijdt weet deze lijst niet - die komt van
   // /teams/{team}/members en draagt geen rijdersstatus. De melding van de server
   // zegt per tik welke kant het op ging.
-  if (findApiEndpoint(project, name: 'SetMatchRijder', groupName: 'VoetbalPlannerAPI') != null) {
+  if (findApiEndpoint(project, name: 'SetMatchRijder', groupName: 'VoetbalPlannerAPI') != null
+      && rijderIdId != null && rijderNameId != null) {
     final rijderVar = appVar(membersScoreId!);
     final rijderList = UI.listView(name: 'MaRijderList', shrinkWrap: true, spacing: 2,
         dynamicSource: DynamicSource(variable: rijderVar, itemName: 'rm'));
+
+    // Vinkje voor de naam die nu gekozen is, net als bij de doelpuntenlijst.
+    // Zonder dat verandert er bij een tik niets zichtbaars in de lijst zelf.
     final rijderName = UI.text('', name: 'MaRijderName', style: UITextStyle.bodyMedium);
-    rijderName.props.text.textValue =
-        FFStringValue(variable: generatorVarField(rijderList.key, 'name'));
+    rijderName.props.text.textValue = FFStringValue(
+        variable: codeExpressionVar(
+          expression: "((s ?? '') != '' && (s ?? '') == (n ?? '')) ? ('✓  ' + (n ?? '')) : (n ?? '')",
+          arguments: [
+            CodeExpressionArg(name: 's', dataType: str(), value: FFValue(variable: appVar(rijderNameId))),
+            CodeExpressionArg(name: 'n', dataType: str(),
+                value: FFValue(variable: generatorVarField(rijderList.key, 'name'))),
+          ],
+          returnType: FFParameter(dataType: str())));
+
     final rijderRow = UI.container(name: 'MaRijderRow', width: double.infinity,
         padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: rijderName);
 
+    // Tik = kiezen, nog niet opslaan. Zelfde volgorde als bij de vlagger: eerst
+    // zien wie je te pakken hebt, dan pas bevestigen.
     rijderRow.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: FFActionNode(key: generateRandomAlphaNumericString(),
+        action: Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('dialogRijderId', generatorVarField(rijderList.key, 'id')),
+          StateFieldUpdate.setFromVariable('dialogRijderName', generatorVarField(rijderList.key, 'name')),
+        ]))));
+
+    rijderList.children.add(rijderRow);
+    final rijderScroll = UI.container(name: 'MaRijderScroll', height: 200,
+        clipContent: true, child: rijderList);
+
+    final rijderSelText = UI.text('', name: 'MaRijderSelected',
+        style: UITextStyle.bodyMedium, color: UIColor.primary);
+    rijderSelText.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+        expression: "(n ?? '') == '' ? '' : 'Gekozen: ' + (n ?? '')",
+        arguments: [CodeExpressionArg(name: 'n', dataType: str(),
+            value: FFValue(variable: appVar(rijderNameId)))],
+        returnType: FFParameter(dataType: str())));
+
+    // De knop zet aan én uit; de server weet wat de huidige stand is en meldt
+    // welke kant het op ging. Eén knop dus, en geen aparte "verwijderen".
+    final addRijderBtn = UI.button('Rijder aan/uit zetten',
+        name: 'MaAddRijderBtn', width: double.infinity);
+    addRijderBtn.triggerActions.add(FFTriggerActions(
       trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
       rootAction: Actions.apiCallNode(project, endpointName: 'SetMatchRijder',
         groupName: 'VoetbalPlannerAPI',
         dynamicVariables: {
           'matchId': appVar(matchIdId!),
-          'memberId': generatorVarField(rijderList.key, 'id'),
+          'memberId': appVar(rijderIdId),
         },
-        outputVariableName: 'maRijder', nodeKey: rijderRow.key,
+        outputVariableName: 'maSetRijder', nodeKey: addRijderBtn.key,
+        // De keuze wordt gewist maar de weergave blijft open: zo loop je de
+        // rijders in één keer langs zonder telkens terug te moeten.
         onSuccess: (ctx) => Actions.chain([
-          Actions.snackBar('Rijder bijgewerkt.'),
+          Actions.snackBar('Rijders bijgewerkt.'),
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.set('dialogRijderId', ''),
+            StateFieldUpdate.set('dialogRijderName', ''),
+          ]),
         ]),
         onFailure: (ctx) => Actions.chain([
           Actions.snackBar('Bijwerken mislukt — controleer je rechten.'),
         ]))));
 
-    rijderList.children.add(rijderRow);
-    final rijderScroll = UI.container(name: 'MaRijderScroll', height: 220,
-        clipContent: true, child: rijderList);
+    final rijderConfirm = UI.column(name: 'MaRijderConfirm',
+        crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 4,
+        children: [rijderSelText, addRijderBtn]);
+    setConditionalVisibility(rijderConfirm, variable: conditionVar(
+        appVar(rijderIdId), FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
 
+    // Klaar sluit de sheet; dat laat de FAB de wedstrijd opnieuw ophalen, zodat
+    // de namen op de detailpagina bijwerken.
     final klaarBtn = UI.button('Klaar', name: 'MaRijderKlaarBtn', width: double.infinity);
     klaarBtn.triggerActions.add(FFTriggerActions(
       trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
@@ -23459,6 +23512,8 @@ void _buildMatchActionsDialogBody(FFProject project) {
         key: generateRandomAlphaNumericString(),
         action: Actions.updateAppState(project, updates: [
           StateFieldUpdate.set('dialogView', 'menu'),
+          StateFieldUpdate.set('dialogRijderId', ''),
+          StateFieldUpdate.set('dialogRijderName', ''),
         ]),
         followUpAction: FFActionNode(
           key: generateRandomAlphaNumericString(),
@@ -23469,10 +23524,10 @@ void _buildMatchActionsDialogBody(FFProject project) {
     final rijderView = UI.column(name: 'MaRijderView',
         crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
         children: [
-          UI.text('Tik een naam aan om hem als rijder aan of uit te zetten.',
+          UI.text('Kies een speler en zet hem aan of uit als rijder.',
               name: 'MaRijderLabel', style: UITextStyle.labelMedium,
               color: UIColor.secondaryText),
-          rijderScroll, klaarBtn, backBtn(),
+          rijderScroll, rijderConfirm, klaarBtn, backBtn(),
         ]);
     setConditionalVisibility(rijderView, variable: viewIs('drivers'));
     root.children.add(rijderView);
