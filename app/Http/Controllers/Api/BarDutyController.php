@@ -19,18 +19,27 @@ class BarDutyController extends Controller
         $duties = BarDuty::query()
             ->with(['team', 'members', 'users'])
             ->where('club_id', $user->club_id)
-            ->when(
-                !$user->hasAnyRole(['super_admin', 'club_admin', 'bar_commissie']),
-                function ($q) use ($user) {
-                    // Coaches: filter to managed teams; regular members: filter to their own team(s)
-                    $teamIds = $user->managedTeamIds()
-                        ->merge($user->member?->teams()->pluck('teams.id') ?? collect())
-                        ->unique();
-                    $teamIds->isNotEmpty()
-                        ? $q->whereIn('team_id', $teamIds)
-                        : $q->whereRaw('0 = 1');
+            // Alleen de diensten van de elftallen waar je bij hoort - en dan wel
+            // van al je elftallen. Dit gold eerder niet voor beheerders en de
+            // barcommissie, die kregen in de app de hele club te zien. Plannen
+            // gebeurt in de portal; hier gaat het om wat jou aangaat.
+            //
+            // accessibleTeams() en niet managedTeams + eigen lid: die eerste telt
+            // ook de elftallen van gekoppelde kinderen mee, en een ouder die voor
+            // zijn kind achter de bar staat hoort die dienst te zien.
+            ->where(function ($q) use ($user) {
+                $teamIds = $user->accessibleTeams()->pluck('id');
+
+                if ($teamIds->isNotEmpty()) {
+                    $q->whereIn('team_id', $teamIds);
+                } else {
+                    $q->whereRaw('0 = 1');
                 }
-            )
+
+                // Diensten zonder elftal zijn clubbreed; die gaan iedereen aan en
+                // zouden anders voor niemand meer zichtbaar zijn.
+                $q->orWhereNull('team_id');
+            })
             ->when($request->team_id, fn($q, $id) => $q->where('team_id', $id))
             // mine=1: alleen de bardiensten waarvoor deze gebruiker zelf is
             // ingedeeld. Het dashboard toont die als persoonlijke taak; zonder
