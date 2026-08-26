@@ -1125,7 +1125,8 @@ void buildEditFlow(App app) {
   app.editPageState(ff.Pages.wedstrijdDetailPage, (state) {
     for (final f in const [
       'matchOpponent', 'matchDatetime', 'matchLocation', 'matchArrivalTime',
-      'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames', 'matchNotes', 'apiStatus',
+      'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames',
+      'matchDriverNames', 'matchNotes', 'apiStatus',
       'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
       'matchTeamId', 'selectedScorerName', 'inviteTeamId', 'matchOpponentLogo',
     ]) {
@@ -11523,7 +11524,8 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
   // working code in FlutterFlow; storing individual strings is reliable.
   for (final name in const [
     'matchOpponent', 'matchDatetime', 'matchLocation',
-    'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames', 'matchNotes',
+    'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames',
+    'matchDriverNames', 'matchNotes',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
     'matchGoalsSummary', 'matchTeamId', 'selectedScorerName', 'matchOpponentLogo',
   ]) {
@@ -11556,6 +11558,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchFruitHeroName': r'$.fruitHeroName',
           'matchVlaggerName':   r'$.vlaggerName',
           'matchGuestNames':    r'$.guestNames',
+          'matchDriverNames':   r'$.driverNames',
           'matchNotes':         r'$.notes',
           'matchStatus':        r'$.mijn_status',
           'matchMagAfmelden':   r'$.mag_afmelden',
@@ -12028,6 +12031,7 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoItemVlagger'),
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchVlaggerName'),
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchGuestNames'),
+      ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchDriverNames'),
     ]) {
       final sp = findParentByKey(wc.node, stray.key);
       sp?.parent.children.removeWhere((c) => identical(c, stray));
@@ -12068,6 +12072,17 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
             stateVar('matchGuestNames')!, FFCondition_Relation.NOT_EQUAL_TO,
             varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
           list.children.insert(at, guestRow);
+          at++;
+        }
+        // Rijders alleen tonen als ze er zijn; een lege regel "Rijders: -"
+        // suggereert dat er nog iets moet gebeuren terwijl dat bij een
+        // thuiswedstrijd nergens op slaat.
+        if (stateVar('matchDriverNames') != null) {
+          final rijderRow = infoRow('Rijders', 'matchDriverNames');
+          setConditionalVisibility(rijderRow, variable: conditionVar(
+            stateVar('matchDriverNames')!, FFCondition_Relation.NOT_EQUAL_TO,
+            varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+          list.children.insert(at, rijderRow);
         }
       }
     }
@@ -12089,6 +12104,7 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     infoRow('Verzamelen', 'matchArrivalTime'),
     infoRow('Coach', 'matchCoachName'),
     infoRow('Fruitheid', 'matchFruitHeroName'),
+    infoRow('Rijders', 'matchDriverNames'),
     infoRow('Notities', 'matchNotes'),
   ]);
 }
@@ -23837,6 +23853,7 @@ void _addWedstrijdActionsFab(FFProject project) {
                     ('matchCoachName',     r'$.coachName'),
                     ('matchArrivalTime',   r'$.arrivalTime'),
                     ('matchGuestNames',    r'$.guestNames'),
+                    ('matchDriverNames',   r'$.driverNames'),
                     ('matchGoalsSummary',  r'$.goals_summary'),
                   ])
                     StateFieldUpdate.setFromVariable(
@@ -24678,6 +24695,7 @@ void _restyleMatchInfoRows(FFProject project) {
     'matchVlaggerName': 'sports_score',
     'fruitHeroName':  'restaurant',
     'matchGuestNames': 'person_add',
+    'matchDriverNames': 'directions_car',
     'notes':          'assignment',
   };
 
