@@ -364,6 +364,19 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle matchPhotoItem = ffai.StructHandle(
+    "MatchPhotoItem",
+    <String, ffai.DslType>{
+      "canDelete": ffai.string,
+      "dateLabel": ffai.string,
+      "id": ffai.string,
+      "melding": ffai.string,
+      "remaining": ffai.string,
+      "uploaderName": ffai.string,
+      "url": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle matchReportItem = ffai.StructHandle(
     "MatchReportItem",
     <String, ffai.DslType>{
@@ -585,6 +598,7 @@ abstract final class Structs {
     loginResponse,
     matchGoal,
     matchParticipant,
+    matchPhotoItem,
     matchReportItem,
     newsItem,
     onboardingSlide,
@@ -1381,6 +1395,7 @@ abstract final class CustomCode {
     "ComputeDirectConvId",
     "CreateChatGroup",
     "DeleteChatGroup",
+    "DeleteMatchPhoto",
     "DeleteMyChatData",
     "FilterChatMembersByConv",
     "FinishAutofill",
@@ -1405,6 +1420,7 @@ abstract final class CustomCode {
     "SubscribeToTeamTopic",
     "SyncUserRoles",
     "UnsubscribeFromTeamTopic",
+    "UploadMatchPhoto",
     "UploadProfilePhoto",
     "VerifyMagicLink",
     "WatchLiveMatch",

@@ -1514,6 +1514,12 @@ void buildEditFlow(App app) {
     _addMatchReportsEndpoint(project);
     _wireVerslagenPage(project);
     _wireVerslagPage(project);
+    _ensureMatchPhotoStruct(project);
+    _ensureMatchPhotosAppState(project);
+    _addMatchPhotosEndpoint(project);
+    _ensureMatchPhotoActions(project);
+    _wireMatchPhotosLoad(project);
+    _wireMatchMediaTab(project);
     // Als laatste: alle knoppen zijn dan gebouwd en herkleurd.
     _setButtonTextSize(project);
     _wireMeerPage(project);
@@ -36939,4 +36945,555 @@ void _setButtonTextSize(FFProject project) {
       btn.props.button = proto;
     }
   }
+}
+
+// ── Foto's bij een wedstrijd ────────────────────────────────────────────────
+//
+// Een tabblad Media naast Verslag. Uploaden loopt via een custom action en niet
+// via de ingebouwde upload-plus-API-keten: diezelfde keten stond ooit op de
+// profielfoto en werkte daar niet, en is toen vervangen door precies deze
+// aanpak. Zie _ensureUploadProfilePhotoCustomAction.
+
+void _ensureMatchPhotoStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'MatchPhotoItem',
+    description:
+        'Eén foto bij een wedstrijd: de afbeelding, wie hem plaatste en of je hem mag weghalen.',
+    fields: const [
+      'id', 'url', 'uploaderName', 'dateLabel', 'canDelete', 'remaining', 'melding',
+    ],
+  );
+}
+
+void _ensureMatchPhotosAppState(FFProject project) {
+  final struct = findDataStruct(project, name: 'MatchPhotoItem');
+  if (struct == null) return;
+
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'matchPhotos')) return;
+
+  final param = FFParameter(
+    identifier:
+        FFIdentifier(name: 'matchPhotos', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+void _addMatchPhotosEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  const name = 'GetMatchPhotos';
+  if (findApiGroup(project, name: groupName) == null) return;
+  if (findApiEndpoint(project, name: name, groupName: groupName) != null) return;
+
+  addEndpointToGroup(
+    project,
+    groupName: groupName,
+    name: name,
+    url: '/matches/[matchId]/photos',
+    method: FFApiEndpoint_CallType.GET,
+    bodyType: FFApiEndpoint_BodyType.NONE,
+    variables: {
+      'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'matchId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+    headers: ['Authorization: Bearer [token]'],
+    responseDataStructName: 'MatchPhotoItem',
+    responseDataStructIsList: true,
+  );
+}
+
+/// Twee custom actions: plaatsen en weghalen. Beide halen daarna de lijst zelf
+/// opnieuw op en schrijven hem in AppState, zodat het scherm meteen klopt zonder
+/// dat er een tweede aanroep aan de actieketen hoeft te hangen.
+void _ensureMatchPhotoActions(FFProject project) {
+  const basis = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/backend/schema/structs/index.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+''';
+
+  const herlaad = r'''
+const _basis = 'https://voetbalplanner.nubix.nl/api/v1';
+
+/// Haalt de fotolijst opnieuw op en zet hem in AppState.
+///
+/// Hier en niet in een losse API-node in de actieketen: dan zou elke plek die
+/// een foto plaatst of weghaalt zelf aan het verversen moeten denken.
+Future<void> _herlaadFotos(String matchId, String token) async {
+  final resp = await http.get(
+    Uri.parse('$_basis/matches/$matchId/photos'),
+    headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+  );
+  if (resp.statusCode != 200) return;
+
+  final rijen = jsonDecode(resp.body);
+  if (rijen is! List) return;
+
+  final lijst = <MatchPhotoItemStruct>[];
+  for (final r in rijen) {
+    final s = MatchPhotoItemStruct.maybeFromMap(r);
+    if (s != null) lijst.add(s);
+  }
+
+  FFAppState().update(() {
+    FFAppState().matchPhotos = lijst;
+  });
+}
+''';
+
+  // De import van image_picker gaat mee in de importsectie: Dart wil alle
+  // imports bovenaan, en 'basis' eindigt precies op de laatste import.
+  final uploadCode = basis +
+      r"""
+import 'package:image_picker/image_picker.dart';
+""" +
+      herlaad +
+      r'''
+Future<bool> uploadMatchPhoto(BuildContext context, String? matchId) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final id = matchId ?? '';
+  final token = FFAppState().authToken;
+
+  if (id.isEmpty || token.isEmpty) {
+    messenger.showSnackBar(const SnackBar(content: Text('Niet ingelogd.')));
+    return false;
+  }
+
+  try {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      // Ruimer dan bij een pasfoto: dit is een wedstrijdfoto die iemand wil
+      // kunnen bekijken, niet een rondje van 46 pixels.
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 85,
+    );
+    if (picked == null) return false;
+
+    // Bytes en niet fromPath: op web is XFile.path een blob-URL die het
+    // filesystem niet kan lezen.
+    final bytes = await picked.readAsBytes();
+
+    final request = http.MultipartRequest(
+        'POST', Uri.parse('$_basis/matches/$id/photos'))
+      ..headers['Authorization'] = 'Bearer $token'
+      ..headers['Accept'] = 'application/json'
+      ..files.add(http.MultipartFile.fromBytes(
+        'photo',
+        bytes,
+        filename: picked.name.isNotEmpty ? picked.name : 'wedstrijd.jpg',
+      ));
+
+    final response = await http.Response.fromStream(await request.send());
+
+    if (response.statusCode != 201) {
+      // De server weet waarom het niet mocht — bijvoorbeeld dat het maximum
+      // van vijf al bereikt is. Die tekst is bruikbaarder dan een foutcode.
+      String melding = 'Uploaden mislukt (HTTP ${response.statusCode}).';
+      try {
+        final body = jsonDecode(response.body);
+        if (body is Map && body['message'] is String) {
+          melding = body['message'] as String;
+        }
+      } catch (_) {}
+      messenger.showSnackBar(SnackBar(content: Text(melding)));
+      return false;
+    }
+
+    await _herlaadFotos(id, token);
+    messenger.showSnackBar(const SnackBar(content: Text('Foto geplaatst.')));
+    return true;
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('Fout bij uploaden: $e')));
+    return false;
+  }
+}
+''';
+
+  final deleteCode = basis + herlaad + r'''
+Future<bool> deleteMatchPhoto(
+    BuildContext context, String? matchId, String? photoId) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final id = matchId ?? '';
+  final foto = photoId ?? '';
+  final token = FFAppState().authToken;
+
+  if (id.isEmpty || foto.isEmpty || token.isEmpty) return false;
+
+  try {
+    // POST en geen DELETE: die methode is op deze hosting geblokkeerd.
+    final resp = await http.post(
+      Uri.parse('$_basis/matches/$id/photos/$foto/delete'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    );
+
+    if (resp.statusCode != 200) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('Verwijderen mislukt (HTTP ${resp.statusCode}).'),
+      ));
+      return false;
+    }
+
+    await _herlaadFotos(id, token);
+    messenger.showSnackBar(const SnackBar(content: Text('Foto verwijderd.')));
+    return true;
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('Fout bij verwijderen: $e')));
+    return false;
+  }
+}
+''';
+
+  void zet(String naam, String omschrijving, List<String> argumenten, String code) {
+    final args = argumenten
+        .map((a) => FFParameter(
+              identifier: FFIdentifier(name: a),
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            ))
+        .toList();
+
+    if (findCustomAction(project, name: naam) == null) {
+      addCustomAction(
+        project,
+        name: naam,
+        description: omschrijving,
+        arguments: args,
+        returnParameter: FFParameter(
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+        ),
+        includeContext: true,
+        code: code,
+      );
+    } else {
+      updateCustomAction(
+        project,
+        name: naam,
+        code: code,
+        arguments: args,
+        includeContext: true,
+      );
+    }
+  }
+
+  zet('UploadMatchPhoto', 'Kies een foto uit de galerij en plaats die bij de wedstrijd.',
+      ['matchId'], uploadCode);
+  zet('DeleteMatchPhoto', 'Haal een foto bij de wedstrijd weg.',
+      ['matchId', 'photoId'], deleteCode);
+
+  try { addPubDependency(project, name: 'image_picker', version: '^1.0.0'); } catch (_) {}
+  try { addPubDependency(project, name: 'http',         version: '^1.2.0'); } catch (_) {}
+}
+
+/// Haalt de foto's op bij het openen van de wedstrijd.
+void _wireMatchPhotosLoad(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (authTokenId == null) return;
+  if (_findAppStateFieldId(project, 'matchPhotos') == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetMatchPhotos', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return;
+
+  bool hasCall(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasDatabase() &&
+        n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetMatchPhotos') {
+      return true;
+    }
+    return n.hasFollowUpAction() && hasCall(n.followUpAction);
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && hasCall(t.rootAction))) return;
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMatchPhotos',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromPageParam(matchIdParam.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      },
+      outputVariableName: 'matchPhotosLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('matchPhotos', ctx.responseVar),
+        ]),
+      ]),
+    ),
+  );
+}
+
+/// Het tabblad Media. Vers opgebouwd bij elke push, net als Verslag.
+void _wireMatchMediaTab(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final photosId = _findAppStateFieldId(project, 'matchPhotos');
+  if (photosId == null) return;
+
+  final tabBar =
+      findDescendants(wc.node, (n) => n.name == 'MatchDetailTabs').firstOrNull;
+  if (tabBar == null) return;
+
+  for (final naam in const ['Tab: Media', 'Tab Content: Media']) {
+    for (final n in findDescendants(tabBar, (x) => x.name == naam).toList()) {
+      removeByKey(wc.node, n.key);
+    }
+  }
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+
+  final scaffoldKey = wc.node.key;
+  final photosVar = varFromAppState(photosId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final lijst = UI.listView(
+    name: 'MatchPhotoList',
+    shrinkWrap: true,
+    spacing: 12,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    dynamicSource: DynamicSource(variable: photosVar, itemName: 'foto'),
+  );
+
+  // De afbeelding zelf. Vaste hoogte: zonder dat moet FlutterFlow op de
+  // netwerkafbeelding wachten voor hij weet hoe hoog de rij wordt, en springt
+  // de lijst bij elke geladen foto.
+  final afbeelding = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.Image,
+    name: 'MatchPhotoImage',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue: FFStringValue(variable: generatorVarField(lijst.key, 'url')),
+        fit: FFBoxFit.FF_BOX_FIT_COVER,
+        cached: true,
+        borderRadius: FFBorderRadius(
+          topLeftValue: FFDoubleValue(inputValue: 12),
+          topRightValue: FFDoubleValue(inputValue: 12),
+          bottomLeftValue: FFDoubleValue(inputValue: 12),
+          bottomRightValue: FFDoubleValue(inputValue: 12),
+        ),
+        dimensions: FFDimensions(
+          width: FFDim(
+              percentOfContainingWidgetValue: FFDoubleValue(inputValue: 100.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 220)),
+        ),
+      ),
+    ),
+  );
+
+  FFNode gebonden(String naam, String veld, UITextStyle stijl,
+      {UIColor? kleur, UIFontWeight? gewicht}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: 1,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijst.key, veld));
+    return t;
+  }
+
+  // Weghalen: alleen bij je eigen foto, en de coach mag alles. De server rekent
+  // dat uit en zet het in canDelete; de app hoeft de rollen dan niet te kennen.
+  final wisKnop = UI.container(
+    name: 'MatchPhotoDelete',
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignment: UIAlignment.center,
+    color: UIColor.hex(0xFFFDE3E3),
+    child: UI.icon('delete_outline', size: 18, color: UIColor.error),
+  );
+  setConditionalVisibility(
+    wisKnop,
+    variable: _equalsLiteral(generatorVarField(lijst.key, 'canDelete'), 'true'),
+  );
+
+  final wisActie = findCustomAction(project, name: 'DeleteMatchPhoto');
+  if (wisActie != null && matchIdParam != null) {
+    Actions.onTapChain(
+      wisKnop,
+      FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: wisActie.identifier.deepCopy(),
+            argumentValues: _actieArgs(wisActie, {
+              'matchId': FFValue(
+                  variable: varFromPageParam(matchIdParam.deepCopy())
+                    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)),
+              'photoId':
+                  FFValue(variable: generatorVarField(lijst.key, 'id')),
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  final onderschrift = UI.row(
+    name: 'MatchPhotoOnder',
+    spacing: 8,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      UI.expanded(UI.column(
+        name: 'MatchPhotoOnderCol',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 2,
+        children: [
+          gebonden('MatchPhotoUploader', 'uploaderName', UITextStyle.bodyMedium,
+              gewicht: UIFontWeight.w600),
+          gebonden('MatchPhotoDatum', 'dateLabel', UITextStyle.labelSmall,
+              kleur: UIColor.secondaryText),
+        ],
+      )),
+      wisKnop,
+    ],
+  );
+
+  lijst.children.add(_dashCard(
+    name: 'MatchPhotoKaart',
+    padding: UIEdgeInsets.all(10),
+    child: UI.column(
+      name: 'MatchPhotoKaartCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [afbeelding, onderschrift],
+    ),
+  ));
+
+  // ── Knop en teller ────────────────────────────────────────────────────────
+  final uploadKnop = UI.button(
+    'Foto toevoegen',
+    name: 'MatchPhotoUploadButton',
+    iconName: 'add_a_photo',
+    width: double.infinity,
+    color: UIColor.primary,
+    textColor: UIColor.white,
+  );
+
+  final uploadActie = findCustomAction(project, name: 'UploadMatchPhoto');
+  if (uploadActie != null && matchIdParam != null) {
+    Actions.addTriggerChain(
+      uploadKnop,
+      FFActionTriggerType.ON_TAP,
+      FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: uploadActie.identifier.deepCopy(),
+            argumentValues: _actieArgs(uploadActie, {
+              'matchId': FFValue(
+                  variable: varFromPageParam(matchIdParam.deepCopy())
+                    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)),
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Hoeveel je er zelf nog kwijt kunt. Het getal rijdt op elke regel mee, dus de
+  // app hoeft de lijst niet te filteren en te tellen — dat kan FlutterFlow niet.
+  final teller = UI.text('',
+      name: 'MatchPhotoTeller',
+      style: UITextStyle.labelSmall,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center);
+  teller.props.text.textValue = interpolateVar([
+    'Je kunt er zelf nog ',
+    _firstItemVar(photosVar, 'remaining'),
+    ' van 5 plaatsen',
+  ]);
+  setConditionalVisibility(teller, variable: _listNotEmptyVar(photosVar.deepCopy()));
+
+  final leeg = UI.text('',
+      name: 'MatchPhotoLeeg',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center,
+      maxLines: 2);
+  leeg.props.text.textValue =
+      FFStringValue(variable: _firstItemVar(photosVar, 'melding'));
+  leeg.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 20),
+  );
+  setConditionalVisibility(
+    leeg,
+    variable: andConditionsVar([
+      _listNotEmptyVar(photosVar.deepCopy()),
+      _firstFieldFilledVar(photosVar, 'melding'),
+    ]).variable,
+  );
+
+  final tab = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.Tab,
+    name: 'Tab: Media',
+    props: FFWidgetProperties(
+      tab: FFTab(text: FFText(textValue: FFStringValue(inputValue: 'Media'))),
+    ),
+  );
+
+  final content = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.PlaceholderWidget,
+    name: 'Tab Content: Media',
+    props: FFWidgetProperties(placeholderWidget: FFPlaceholderWidget()),
+    children: [
+      UI.column(
+        name: 'MatchMediaCol',
+        crossAxisAlignment: UICrossAxisAlignment.stretch,
+        scrollable: true,
+        spacing: 6,
+        children: [
+          UI.container(
+            name: 'MatchPhotoKnopWrap',
+            innerPadding: UIEdgeInsets.only(left: 16, right: 16, top: 14),
+            child: uploadKnop,
+          ),
+          teller,
+          leeg,
+          lijst,
+        ],
+      ),
+    ],
+  );
+
+  tabBar.children.add(tab);
+  tabBar.children.add(content);
 }

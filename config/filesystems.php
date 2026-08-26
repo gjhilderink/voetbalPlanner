@@ -69,6 +69,18 @@ return [
             'report' => false,
         ],
 
+        // Wedstrijdfoto's. Zelfde keuze als bij member_photos: rechtstreeks
+        // in public/, want de storage-symlink is op deze hosting niet
+        // gegarandeerd te maken.
+        'match_photos' => [
+            'driver' => 'local',
+            'root'   => public_path('match_photos'),
+            'url'    => rtrim(env('APP_URL', 'http://localhost'), '/') . '/match_photos',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
