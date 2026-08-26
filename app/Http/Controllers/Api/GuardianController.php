@@ -16,6 +16,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class GuardianController extends Controller
@@ -491,35 +492,47 @@ class GuardianController extends Controller
 
         $email = strtolower($validated['email']);
 
-        // Controleer of het e-mailadres al in gebruik is
-        if (User::where('email', $email)->exists()) {
+        // withTrashed: users gebruikt SoftDeletes, maar de unieke index in de
+        // database doet dat niet. Zonder dit is een verwijderd account onzichtbaar
+        // voor deze controle en loopt het aanmaken verderop stuk op een
+        // sleutelbotsing - een 500 in plaats van een uitlegbare melding.
+        $bezet = User::withTrashed()->where('email', $email)->first();
+        if ($bezet) {
             return response()->json([
                 'success' => false,
                 'data'    => null,
-                'message' => 'Dit e-mailadres is al in gebruik. '
-                    . 'De ouder kan inloggen en vanuit zijn profiel een koppeling aanvragen.',
+                'message' => $bezet->trashed()
+                    ? 'Er bestaat een verwijderd account met dit e-mailadres. '
+                        . 'Neem contact op met de club om het te laten herstellen.'
+                    : 'Dit e-mailadres is al in gebruik. '
+                        . 'De ouder kan inloggen en vanuit zijn profiel een koppeling aanvragen.',
             ], 409);
         }
 
         // Maak een Member-record aan voor de ouder (geen club-lid, maar wel nodig voor koppeling)
-        $parentMember = Member::create([
-            'name'      => $validated['naam'],
-            'email'     => $email,
-            'is_active' => true,
-            'role'      => 'player',
-        ]);
+        // Alles of niets, net als bij selfRegister: klapt het account, dan hoort
+        // er geen ouderlid zonder account achter te blijven.
+        [$parentMember, $parentUser] = DB::transaction(function () use ($validated, $email, $user) {
+            $parentMember = Member::create([
+                'name'      => $validated['naam'],
+                'email'     => $email,
+                'is_active' => true,
+                'role'      => 'player',
+            ]);
 
-        // Maak een User-account aan (wachtwoord is willekeurig — ouder logt in via magic link)
-        $parentUser = User::create([
-            'name'      => $validated['naam'],
-            'email'     => $email,
-            'password'  => Str::random(32),
-            'club_id'   => $user->club_id,
-            'is_active' => true,
-        ]);
+            // Wachtwoord is willekeurig; de ouder logt in via de magic link.
+            $parentUser = User::create([
+                'name'      => $validated['naam'],
+                'email'     => $email,
+                'password'  => Str::random(32),
+                'club_id'   => $user->club_id,
+                'is_active' => true,
+            ]);
 
-        // Koppel User aan Member
-        $parentMember->update(['user_id' => $parentUser->id]);
+            $parentMember->update(['user_id' => $parentUser->id]);
+
+            return [$parentMember, $parentUser];
+        });
         // Rol 'guardian': dit account is geen clublid maar een ouder die
         // meekijkt via het gekoppelde kind. Zonder rol was het in het beheer
         // niet van een gewoon lid te onderscheiden.
@@ -572,12 +585,18 @@ class GuardianController extends Controller
 
         $email = strtolower($validated['email']);
 
-        // Controleer of het e-mailadres al in gebruik is.
-        if (User::where('email', $email)->exists()) {
+        // withTrashed: zie createParentAccount. Een verwijderd account blijft in
+        // de unieke index staan, dus zonder deze regel klapt User::create verderop
+        // op een sleutelbotsing en krijgt de ouder alleen 'Server Error'.
+        $bezet = User::withTrashed()->where('email', $email)->first();
+        if ($bezet) {
             return response()->json([
                 'success' => false,
                 'data'    => null,
-                'message' => 'Dit e-mailadres is al in gebruik. Log in met je bestaande account.',
+                'message' => $bezet->trashed()
+                    ? 'Er bestaat een verwijderd account met dit e-mailadres. '
+                        . 'Neem contact op met de club om het te laten herstellen.'
+                    : 'Dit e-mailadres is al in gebruik. Log in met je bestaande account.',
             ], 409);
         }
 
@@ -608,24 +627,30 @@ class GuardianController extends Controller
             ], 422);
         }
 
-        // Maak Member-record voor de ouder.
-        $parentMember = Member::create([
-            'name'      => $validated['naam'],
-            'email'     => $email,
-            'is_active' => true,
-            'role'      => 'player',
-        ]);
+        // Alles of niets. Het lid werd eerder los aangemaakt, en klapte het
+        // account daarna op een sleutelbotsing, dan bleef er bij elke mislukte
+        // poging een ouderlid zonder account achter.
+        [$parentMember, $parentUser] = DB::transaction(function () use ($validated, $email, $clubId, $child) {
+            $member = Member::create([
+                'name'      => $validated['naam'],
+                'email'     => $email,
+                'is_active' => true,
+                'role'      => 'player',
+            ]);
 
-        // Maak User-account voor de ouder (wachtwoord is willekeurig → magic link).
-        $parentUser = User::create([
-            'name'      => $validated['naam'],
-            'email'     => $email,
-            'password'  => Str::random(32),
-            'club_id'   => $clubId,
-            'is_active' => true,
-        ]);
+            // Wachtwoord is willekeurig; inloggen gaat via de magic link.
+            $user = User::create([
+                'name'      => $validated['naam'],
+                'email'     => $email,
+                'password'  => Str::random(32),
+                'club_id'   => $clubId,
+                'is_active' => true,
+            ]);
 
-        $parentMember->update(['user_id' => $parentUser->id]);
+            $member->update(['user_id' => $user->id]);
+
+            return [$member, $user];
+        });
         // Rol 'guardian': dit account is geen clublid maar een ouder die
         // meekijkt via het gekoppelde kind. Zonder rol was het in het beheer
         // niet van een gewoon lid te onderscheiden.
