@@ -27575,6 +27575,11 @@ FFNode _dashTasksCard(FFProject project, FFWidgetClass wc) {
     required UIColor iconColor,
     FFVariable? whenVar,
     FFVariable? subtitleVar,
+    // Waar deze taak vandaan komt. Zonder doorklik is de kaart een mededeling:
+    // je weet dát je moet vlaggen, maar niet tegen wie of hoe laat.
+    String? doelPagina,
+    String? doelParam,
+    FFVariable? doelIdVar,
   }) {
     final texts = <FFNode>[
       UI.text(label,
@@ -27593,6 +27598,9 @@ FFNode _dashTasksCard(FFProject project, FFWidgetClass wc) {
       sub.props.text.textValue = FFStringValue(variable: subtitleVar);
       texts.add(sub);
     }
+    final kanDoor =
+        doelPagina != null && doelParam != null && doelIdVar != null;
+
     final row = UI.row(
       name: name,
       spacing: 8,
@@ -27604,8 +27612,22 @@ FFNode _dashTasksCard(FFProject project, FFWidgetClass wc) {
           crossAxisAlignment: UICrossAxisAlignment.start,
           children: texts,
         )),
+        if (kanDoor)
+          UI.icon('chevron_right', size: 18, color: UIColor.secondaryText),
       ],
     );
+
+    if (kanDoor) {
+      Actions.onTap(
+        row,
+        Actions.navigate(
+          project,
+          pageName: doelPagina,
+          params: {doelParam: VariableParamValue(doelIdVar)},
+        ),
+      );
+    }
+
     if (whenVar != null) setConditionalVisibility(row, variable: whenVar);
     return row;
   }
@@ -27626,6 +27648,9 @@ FFNode _dashTasksCard(FFProject project, FFWidgetClass wc) {
       iconColor: UIColor.primary,
       whenVar: when,
       subtitleVar: _firstItemVar(driveVar, 'matchDatetime'),
+      doelPagina: 'WedstrijdDetailPage',
+      doelParam: 'matchId',
+      doelIdVar: _firstItemVar(driveVar, 'id'),
     ));
   }
 
@@ -27649,6 +27674,9 @@ FFNode _dashTasksCard(FFProject project, FFWidgetClass wc) {
       iconColor: UIColor.warning,
       whenVar: flagVar('isVlagger'),
       subtitleVar: _firstItemVar(matchesVar, 'matchDatetime'),
+      doelPagina: 'WedstrijdDetailPage',
+      doelParam: 'matchId',
+      doelIdVar: _firstItemVar(matchesVar, 'id'),
     ));
 
     conditions.add(flagVar('isFruitHero'));
@@ -27659,6 +27687,9 @@ FFNode _dashTasksCard(FFProject project, FFWidgetClass wc) {
       iconColor: UIColor.success,
       whenVar: flagVar('isFruitHero'),
       subtitleVar: _firstItemVar(matchesVar, 'matchDatetime'),
+      doelPagina: 'WedstrijdDetailPage',
+      doelParam: 'matchId',
+      doelIdVar: _firstItemVar(matchesVar, 'id'),
     ));
   }
 
@@ -27683,6 +27714,9 @@ FFNode _dashTasksCard(FFProject project, FFWidgetClass wc) {
       iconColor: UIColor.hex(0xFF8B5CF6),
       whenVar: when,
       subtitleVar: _firstItemVar(dutiesVar, 'date'),
+      doelPagina: 'BardienDetailPage',
+      doelParam: 'dutyId',
+      doelIdVar: _firstItemVar(dutiesVar, 'id'),
     ));
   }
 
