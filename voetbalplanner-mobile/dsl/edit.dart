@@ -26526,15 +26526,38 @@ FFNode _dashHeader(FFProject project, FFWidgetClass wc, FFNode? switcher) {
   );
   final fallbackAvatar =
       UI.icon('account_circle', size: 54, color: UIColor.hex(0x66FFFFFF));
+
+  // Een tik op de foto (of op het terugval-icoon) opent het profiel. Beide in
+  // een eigen container: die neemt de tik aan, een los Icon niet betrouwbaar.
+  FFNode tikbaar(String naam, FFNode kind) {
+    final c = UI.container(
+      name: naam,
+      width: 54,
+      height: 54,
+      alignment: UIAlignment.center,
+      child: kind,
+    );
+    Actions.onTap(
+      c,
+      Actions.navigate(project, pageName: 'ProfielPage', params: {}),
+    );
+    return c;
+  }
+
+  final fotoTik = tikbaar('DashHeaderPhotoTap', photo);
+  final fallbackTik = tikbaar('DashHeaderAvatarTap', fallbackAvatar);
+
+  // De zichtbaarheid hoort op de container en niet op de inhoud: anders houdt
+  // de onzichtbare variant zijn 54 pixels naast de zichtbare.
   if (photoVar != null) {
     setConditionalVisibility(
-      photo,
+      fotoTik,
       variable: conditionVar(photoVar.deepCopy(), FFCondition_Relation.NOT_EQUAL_TO,
               varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING))
           .variable,
     );
     setConditionalVisibility(
-      fallbackAvatar,
+      fallbackTik,
       variable: conditionVar(photoVar.deepCopy(), FFCondition_Relation.EQUAL_TO,
               varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING))
           .variable,
@@ -26564,8 +26587,8 @@ FFNode _dashHeader(FFProject project, FFWidgetClass wc, FFNode? switcher) {
     spacing: 12,
     crossAxisAlignment: UICrossAxisAlignment.center,
     children: [
-      photo,
-      fallbackAvatar,
+      fotoTik,
+      fallbackTik,
       UI.expanded(UI.column(
         name: 'DashHeaderGreetingCol',
         crossAxisAlignment: UICrossAxisAlignment.start,
