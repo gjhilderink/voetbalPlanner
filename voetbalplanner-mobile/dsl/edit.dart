@@ -1422,6 +1422,7 @@ void buildEditFlow(App app) {
   _buildLiveMatchPage(app);
   _buildOpstellingPage(app);
   _buildStandPage(app);
+  _buildVerslagenPages(app);
 
   // Force NavBar items LAST — after all other raw mutations that touch the scaffold.
   app.raw((project) => _forceDashboardNavBarItem(project));
@@ -1508,6 +1509,11 @@ void buildEditFlow(App app) {
     _ensureStandingAppState(project);
     _addStandingEndpoint(project);
     _wireStandPage(project);
+    _ensureMatchReportStruct(project);
+    _ensureMatchReportsAppState(project);
+    _addMatchReportsEndpoint(project);
+    _wireVerslagenPage(project);
+    _wireVerslagPage(project);
     _wireMeerPage(project);
     _setupNavBarV2(project);
     _updateChatBadgeOverlayPosition(project);
@@ -27957,6 +27963,8 @@ void _wireMeerPage(FFProject project) {
     tile('MeerTileTeam', 'Teamleden', 'groups', 'TeamMembersPage'),
     tile('MeerTileStand', 'Stand', 'leaderboard', 'StandPage',
         subtitle: 'De stand in de poule van je elftal'),
+    tile('MeerTileVerslagen', 'Wedstrijdverslagen', 'article', 'WedstrijdverslagenPage',
+        subtitle: 'Alle live bijgehouden verslagen'),
     tile('MeerTileWissels', 'Wisselverzoeken', 'swap_horiz', 'WisselVerzoekenPage'),
     tile('MeerTileNieuws', 'Nieuws', 'newspaper', 'NewsPage'),
     tile('MeerTileDocs', 'Handleiding', 'menu_book', 'DocumentatiePage'),
@@ -36441,6 +36449,458 @@ void _wireStandPage(FFProject project) {
       ]),
       onFailure: (ctx) => Actions.chain([
         Actions.snackBar('De stand kon niet worden opgehaald.'),
+      ]),
+    ),
+  );
+}
+
+// ── Wedstrijdverslagen ──────────────────────────────────────────────────────
+//
+// Een lijst van alle wedstrijden waarvan live een verslag is bijgehouden, met
+// zoeken, en per regel door naar het verslag zelf. Het verslag stond alleen op
+// het tabblad van één wedstrijd; wie een oude wedstrijd wilde teruglezen moest
+// die eerst in de agenda zien te vinden.
+
+void _ensureMatchReportStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'MatchReportItem',
+    description:
+        'Eén wedstrijd met een verslag: tegenstander, datum, uitslag en het aantal gebeurtenissen.',
+    fields: const [
+      'matchId', 'teamName', 'opponent', 'opponentLogo', 'isHome',
+      'dateLabel', 'score', 'resultLabel', 'eventCount', 'melding',
+    ],
+  );
+}
+
+void _ensureMatchReportsAppState(FFProject project) {
+  final struct = findDataStruct(project, name: 'MatchReportItem');
+  if (struct == null) return;
+
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'matchReports')) return;
+
+  final param = FFParameter(
+    identifier:
+        FFIdentifier(name: 'matchReports', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+void _addMatchReportsEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  const name = 'GetMatchReports';
+  if (findApiGroup(project, name: groupName) == null) return;
+  if (findApiEndpoint(project, name: name, groupName: groupName) != null) return;
+
+  addEndpointToGroup(
+    project,
+    groupName: groupName,
+    name: name,
+    // De zoekterm in de URL: FlutterFlow vult [var] alleen daar in.
+    url: '/match-reports?q=[zoek]',
+    method: FFApiEndpoint_CallType.GET,
+    bodyType: FFApiEndpoint_BodyType.NONE,
+    variables: {
+      'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'zoek': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+    headers: ['Authorization: Bearer [token]'],
+    responseDataStructName: 'MatchReportItem',
+    responseDataStructIsList: true,
+  );
+}
+
+void _buildVerslagenPages(App app) {
+  app.ensurePage(
+    'WedstrijdverslagenPage',
+    description:
+        'Alle wedstrijden waarvan een live verslag is bijgehouden, met zoeken op tegenstander of elftal.',
+    route: 'wedstrijdverslagen',
+    body: Scaffold(
+      appBar: AppBar(title: 'Wedstrijdverslagen'),
+      body: Column(
+        name: 'VerslagenRootColumn',
+        children: [
+          Container(name: 'VerslagenBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+
+  app.ensurePage(
+    'VerslagPage',
+    description: 'Het live verslag van één wedstrijd, van aftrap tot eindsignaal.',
+    route: 'verslag',
+    params: {
+      'matchId': string.withDefault(''),
+      'opponent': string.withDefault(''),
+      'teamName': string.withDefault(''),
+      'dateLabel': string.withDefault(''),
+      'score': string.withDefault(''),
+    },
+    body: Scaffold(
+      appBar: AppBar(title: 'Verslag'),
+      body: Column(
+        name: 'VerslagRootColumn',
+        children: [
+          Container(name: 'VerslagBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+}
+
+/// De lijst met verslagen. Vers opgebouwd bij elke push.
+void _wireVerslagenPage(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdverslagenPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final rowsId = _findAppStateFieldId(project, 'matchReports');
+  if (authTokenId == null || rowsId == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetMatchReports', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  final scaffoldKey = wc.node.key;
+  final rowsVar = varFromAppState(rowsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  // ── Zoekveld ──────────────────────────────────────────────────────────────
+  final zoekVeld = UI.textField(
+    hintText: 'Zoek op tegenstander of elftal',
+    name: 'VerslagenZoekVeld',
+  );
+  // Zoeken terwijl je typt, maar niet per aanslag: dat zou bij "Berghuizen" tien
+  // aanroepen kosten en de throttle van zestig per minuut opeten.
+  zoekVeld.props.ensureTextField().debounceTimeValue =
+      FFDoubleValue(inputValue: 400.0);
+
+  final lijst = UI.listView(
+    name: 'VerslagenList',
+    shrinkWrap: true,
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    dynamicSource: DynamicSource(variable: rowsVar, itemName: 'verslag'),
+  );
+
+  FFNode gebonden(String naam, String veld, UITextStyle stijl,
+      {UIColor? kleur, UIFontWeight? gewicht, int maxLines = 1}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: maxLines,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijst.key, veld));
+    return t;
+  }
+
+  // Drie varianten van hetzelfde vakje, want FlutterFlow kan een kleur niet aan
+  // een variabele binden: gewonnen groen, gelijk grijs, verloren rood. Zonder
+  // die kleur moet je elke regel lezen om te zien hoe het afliep.
+  FFNode uitslagVakje(String letter, UIColor kleur) {
+    final v = UI.container(
+      name: 'VerslagUitslag$letter',
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      alignment: UIAlignment.center,
+      color: kleur,
+      child: UI.text(letter,
+          name: 'VerslagUitslag${letter}Tekst',
+          style: UITextStyle.titleSmall,
+          color: UIColor.white,
+          fontWeight: UIFontWeight.w700),
+    );
+    setConditionalVisibility(
+      v,
+      variable:
+          _equalsLiteral(generatorVarField(lijst.key, 'resultLabel'), letter),
+    );
+    return v;
+  }
+
+  final onderRij = UI.row(
+    name: 'VerslagOnderRij',
+    spacing: 6,
+    mainAxisMin: true,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      gebonden('VerslagDatum', 'dateLabel', UITextStyle.labelSmall,
+          kleur: UIColor.secondaryText),
+      UI.text('·',
+          name: 'VerslagScheiding',
+          style: UITextStyle.labelSmall,
+          color: UIColor.secondaryText),
+      gebonden('VerslagTeam', 'teamName', UITextStyle.labelSmall,
+          kleur: UIColor.secondaryText),
+    ],
+  );
+
+  final kaart = _dashCard(
+    name: 'VerslagKaart',
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    child: UI.row(
+      name: 'VerslagRij',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        uitslagVakje('W', UIColor.hex(0xFF2E7D32)),
+        uitslagVakje('G', UIColor.hex(0xFF6B7280)),
+        uitslagVakje('V', UIColor.error),
+        UI.expanded(UI.column(
+          name: 'VerslagNaamCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 4,
+          children: [
+            gebonden('VerslagTegenstander', 'opponent', UITextStyle.bodyLarge,
+                gewicht: UIFontWeight.w700),
+            onderRij,
+          ],
+        )),
+        gebonden('VerslagScore', 'score', UITextStyle.titleSmall,
+            gewicht: UIFontWeight.w700),
+        UI.icon('chevron_right', size: 20, color: UIColor.secondaryText),
+      ],
+    ),
+  );
+
+  Actions.onTap(
+    kaart,
+    Actions.navigate(
+      project,
+      pageName: 'VerslagPage',
+      params: {
+        'matchId': VariableParamValue(generatorVarField(lijst.key, 'matchId')),
+        'opponent': VariableParamValue(generatorVarField(lijst.key, 'opponent')),
+        'teamName': VariableParamValue(generatorVarField(lijst.key, 'teamName')),
+        'dateLabel': VariableParamValue(generatorVarField(lijst.key, 'dateLabel')),
+        'score': VariableParamValue(generatorVarField(lijst.key, 'score')),
+      },
+    ),
+  );
+  lijst.children.add(kaart);
+
+  // De melding rijdt op elke regel mee; bij een probleem of een lege uitkomst is
+  // er precies één regel en draagt alleen die de tekst.
+  final melding = UI.text('',
+      name: 'VerslagenMelding',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center,
+      maxLines: 3);
+  melding.props.text.textValue =
+      FFStringValue(variable: _firstItemVar(rowsVar, 'melding'));
+  melding.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 28),
+  );
+  setConditionalVisibility(
+    melding,
+    variable: andConditionsVar([
+      _listNotEmptyVar(rowsVar.deepCopy()),
+      _firstFieldFilledVar(rowsVar, 'melding'),
+    ]).variable,
+  );
+
+  final body = getPropertyChild(wc.node, 'body');
+  if (body == null) return;
+  final kolom = body.type == FFWidgetType.Column
+      ? body
+      : body.children
+          .cast<FFNode?>()
+          .firstWhere((n) => n?.type == FFWidgetType.Column, orElse: () => null);
+  if (kolom == null) return;
+
+  kolom.children.clear();
+  final props = kolom.props.column.deepCopy();
+  props.scrollable = true;
+  kolom.props.column = props;
+  kolom.children.addAll([
+    UI.container(
+      name: 'VerslagenZoekWrap',
+      innerPadding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: zoekVeld,
+    ),
+    melding,
+    lijst,
+  ]);
+
+  // Ophalen bij het openen én bij elke wijziging van het zoekveld. Eén en
+  // dezelfde aanroep, alleen met een andere zoekterm.
+  FFActionNode haalOp(FFVariable zoekVar, String naam, String nodeKey) =>
+      Actions.apiCallNode(
+        project,
+        endpointName: 'GetMatchReports',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'zoek': zoekVar,
+        },
+        outputVariableName: naam,
+        nodeKey: nodeKey,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('matchReports', ctx.responseVar),
+          ]),
+        ]),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('De verslagen konden niet worden opgehaald.'),
+        ]),
+      );
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+  Actions.onPageLoadChain(
+    wc.node,
+    haalOp(varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+        'verslagenLoad', wc.node.key),
+  );
+
+  Actions.addTriggerChain(
+    zoekVeld,
+    FFActionTriggerType.ON_TEXTFIELD_CHANGE,
+    haalOp(varFromTextFieldValue(zoekVeld.key), 'verslagenZoek', zoekVeld.key),
+  );
+}
+
+/// Het verslag van één wedstrijd. Dezelfde tijdlijnrij als op het tabblad bij de
+/// wedstrijd zelf, zodat er één opmaak is en niet twee die uit elkaar groeien.
+void _wireVerslagPage(FFProject project) {
+  final wc = findPage(project, name: 'VerslagPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final eventsId = _findAppStateFieldId(project, 'matchReportEvents');
+  if (authTokenId == null || eventsId == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetMatchEvents', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  FFIdentifier? param(String naam) {
+    for (final p in wc.params.values) {
+      if (p.hasIdentifier() && p.identifier.name == naam) return p.identifier;
+    }
+    return null;
+  }
+
+  final matchIdParam = param('matchId');
+  if (matchIdParam == null) return;
+
+  final scaffoldKey = wc.node.key;
+  final eventsVar = varFromAppState(eventsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  FFNode paramTekst(String naam, String paramNaam, UITextStyle stijl,
+      {UIColor? kleur, UIFontWeight? gewicht}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: 2,
+        textOverflow: UITextOverflow.ellipsis);
+    final id = param(paramNaam);
+    if (id != null) {
+      t.props.text.textValue =
+          FFStringValue(variable: varFromPageParam(id.deepCopy()));
+    }
+    return t;
+  }
+
+  final kop = _dashCard(
+    name: 'VerslagKopKaart',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.row(
+      name: 'VerslagKopRij',
+      spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.expanded(UI.column(
+          name: 'VerslagKopCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 4,
+          children: [
+            paramTekst('VerslagKopTegenstander', 'opponent',
+                UITextStyle.titleSmall,
+                gewicht: UIFontWeight.w700),
+            paramTekst('VerslagKopTeam', 'teamName', UITextStyle.labelSmall,
+                kleur: UIColor.secondaryText),
+            paramTekst('VerslagKopDatum', 'dateLabel', UITextStyle.labelSmall,
+                kleur: UIColor.secondaryText),
+          ],
+        )),
+        paramTekst('VerslagKopScore', 'score', UITextStyle.headlineSmall,
+            gewicht: UIFontWeight.w700),
+      ],
+    ),
+  );
+
+  final lijst = UI.listView(
+    name: 'VerslagTijdlijn',
+    shrinkWrap: true,
+    spacing: 2,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    dynamicSource: DynamicSource(variable: eventsVar, itemName: 'geb'),
+  );
+  lijst.children.add(_timelineRow(lijst.key, 'VerslagTijdlijn'));
+
+  final leeg = UI.text('Van deze wedstrijd is geen verslag bijgehouden.',
+      name: 'VerslagLeeg',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center);
+  leeg.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 28),
+  );
+  setConditionalVisibility(leeg, variable: _listEmptyVar(eventsVar));
+
+  final body = getPropertyChild(wc.node, 'body');
+  if (body == null) return;
+  final kolom = body.type == FFWidgetType.Column
+      ? body
+      : body.children
+          .cast<FFNode?>()
+          .firstWhere((n) => n?.type == FFWidgetType.Column, orElse: () => null);
+  if (kolom == null) return;
+
+  kolom.children.clear();
+  final props = kolom.props.column.deepCopy();
+  props.scrollable = true;
+  kolom.props.column = props;
+  kolom.children.addAll([kop, leeg, lijst]);
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMatchEvents',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromPageParam(matchIdParam.deepCopy()),
+      },
+      outputVariableName: 'verslagLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('matchReportEvents', ctx.responseVar),
+        ]),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Het verslag kon niet worden opgehaald.'),
       ]),
     ),
   );

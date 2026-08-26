@@ -35,8 +35,10 @@ import 'pages/team_chat_page.dart' show teamChatPageHandle;
 import 'pages/team_members_page.dart' show teamMembersPageHandle;
 import 'pages/training_detail_page.dart' show trainingDetailPageHandle;
 import 'pages/trainingen_page.dart' show trainingenPageHandle;
+import 'pages/verslag_page.dart' show verslagPageHandle;
 import 'pages/wedstrijd_detail_page.dart' show wedstrijdDetailPageHandle;
 import 'pages/wedstrijden_page.dart' show wedstrijdenPageHandle;
+import 'pages/wedstrijdverslagen_page.dart' show wedstrijdverslagenPageHandle;
 import 'pages/wissel_aanvraag_page.dart' show wisselAanvraagPageHandle;
 import 'pages/wissel_verzoeken_page.dart' show wisselVerzoekenPageHandle;
 
@@ -73,8 +75,10 @@ abstract final class Pages {
   static final teamMembersPage = teamMembersPageHandle;
   static final trainingDetailPage = trainingDetailPageHandle;
   static final trainingenPage = trainingenPageHandle;
+  static final verslagPage = verslagPageHandle;
   static final wedstrijdDetailPage = wedstrijdDetailPageHandle;
   static final wedstrijdenPage = wedstrijdenPageHandle;
+  static final wedstrijdverslagenPage = wedstrijdverslagenPageHandle;
   static final wisselAanvraagPage = wisselAanvraagPageHandle;
   static final wisselVerzoekenPage = wisselVerzoekenPageHandle;
   static final all = <ffai.ProjectPageHandle>[
@@ -110,8 +114,10 @@ abstract final class Pages {
     teamMembersPage,
     trainingDetailPage,
     trainingenPage,
+    verslagPage,
     wedstrijdDetailPage,
     wedstrijdenPage,
+    wedstrijdverslagenPage,
     wisselAanvraagPage,
     wisselVerzoekenPage,
   ];

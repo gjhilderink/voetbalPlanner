@@ -364,6 +364,22 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle matchReportItem = ffai.StructHandle(
+    "MatchReportItem",
+    <String, ffai.DslType>{
+      "dateLabel": ffai.string,
+      "eventCount": ffai.string,
+      "isHome": ffai.string,
+      "matchId": ffai.string,
+      "melding": ffai.string,
+      "opponent": ffai.string,
+      "opponentLogo": ffai.string,
+      "resultLabel": ffai.string,
+      "score": ffai.string,
+      "teamName": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle newsItem = ffai.StructHandle(
     "NewsItem",
     <String, ffai.DslType>{
@@ -569,6 +585,7 @@ abstract final class Structs {
     loginResponse,
     matchGoal,
     matchParticipant,
+    matchReportItem,
     newsItem,
     onboardingSlide,
     staffGroupItem,

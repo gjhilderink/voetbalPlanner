@@ -175,6 +175,110 @@ class LiveMatchController extends Controller
         );
     }
 
+    /**
+     * GET /v1/match-reports — alle wedstrijden waarvan een verslag bestaat.
+     *
+     * Zoeken gebeurt hier en niet in de app. De app heeft alleen de regels die
+     * hij toevallig heeft opgehaald, dus filteren daar zou zoeken in een deel van
+     * de lijst zijn — en een lijst die elk seizoen aangroeit hoort niet in zijn
+     * geheel over de lijn.
+     *
+     * Alleen elftallen waar de gebruiker bij hoort. Een verslag is geen geheim,
+     * maar er is ook geen reden om de hele club te openen voor wie er één team in
+     * heeft.
+     */
+    public function reports(Request $request): JsonResponse
+    {
+        $teamIds = $request->user()?->accessibleTeams()->pluck('id') ?? collect();
+        if ($teamIds->isEmpty()) {
+            return response()->json([self::leegVerslag('Je bent nog niet aan een elftal gekoppeld.')]);
+        }
+
+        $zoek = trim((string) $request->query('q', ''));
+
+        $matches = FootballMatch::query()
+            ->whereIn('team_id', $teamIds)
+            ->whereHas('events')
+            ->when($zoek !== '', fn ($q) => $q->where(function ($sub) use ($zoek) {
+                $sub->where('opponent', 'like', '%' . $zoek . '%')
+                    // Qualificeren: team() joint teams, en dat heeft ook een
+                    // kolom name.
+                    ->orWhereHas('team', fn ($t) => $t->where('teams.name', 'like', '%' . $zoek . '%'));
+            }))
+            ->with(['team:id,name', 'events'])
+            ->orderByDesc('match_datetime')
+            // Een club speelt een paar honderd wedstrijden per seizoen. Verder
+            // dan dit scrollt niemand, en het houdt het antwoord klein.
+            ->limit(200)
+            ->get();
+
+        if ($matches->isEmpty()) {
+            return response()->json([self::leegVerslag(
+                $zoek !== ''
+                    ? 'Geen verslag gevonden voor "' . $zoek . '".'
+                    : 'Er zijn nog geen wedstrijdverslagen.'
+            )]);
+        }
+
+        // Alles als string: de app-struct typeert deze velden zo.
+        return response()->json($matches->map(function (FootballMatch $m) {
+            $stand = $m->liveScore();
+
+            return [
+                'matchId'      => (string) $m->id,
+                'teamName'     => (string) ($m->team?->name ?? ''),
+                'opponent'     => (string) ($m->opponent ?? ''),
+                'opponentLogo' => (string) ($m->opponent_logo ?? ''),
+                'isHome'       => $m->is_home ? 'true' : 'false',
+                'dateLabel'    => $m->match_datetime?->format('d-m-Y') ?? '',
+                'score'        => $stand['own'] . ' - ' . $stand['opponent'],
+                'resultLabel'  => self::resultaat($stand),
+                'eventCount'   => (string) $m->events->count(),
+                'melding'      => '',
+            ];
+        })->values());
+    }
+
+    /**
+     * Eén lege regel die alleen een melding draagt.
+     *
+     * Zelfde vorm als bij de poulestand: de app leest de melding van de eerste
+     * regel, want een structlijst uit een JSON-pad trekken is in FlutterFlow
+     * onnodig gedoe.
+     *
+     * @return array<string, string>
+     */
+    private static function leegVerslag(string $melding): array
+    {
+        return [
+            'matchId'      => '',
+            'teamName'     => '',
+            'opponent'     => '',
+            'opponentLogo' => '',
+            'isHome'       => 'false',
+            'dateLabel'    => '',
+            'score'        => '',
+            'resultLabel'  => '',
+            'eventCount'   => '',
+            'melding'      => $melding,
+        ];
+    }
+
+    /**
+     * W, G of V vanuit het eigen elftal. Kleurt de stip in de lijst; drie letters
+     * schelen een blik ten opzichte van twee cijfers uitrekenen.
+     *
+     * @param  array{own:int, opponent:int}  $stand
+     */
+    private static function resultaat(array $stand): string
+    {
+        return match (true) {
+            $stand['own'] > $stand['opponent'] => 'W',
+            $stand['own'] < $stand['opponent'] => 'V',
+            default                            => 'G',
+        };
+    }
+
     /** GET /v1/matches/{match}/live — toestand voor volgers (pollen). */
     public function show(Request $request, FootballMatch $match): JsonResponse
     {

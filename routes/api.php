@@ -185,6 +185,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/matches/{match}/live', [LiveMatchController::class, 'show']);
         // Bewaard verslag, ook lang na afloop terug te kijken.
         Route::get('/matches/{match}/events', [LiveMatchController::class, 'events']);
+        // Alle verslagen van de eigen elftallen, met zoeken op tegenstander of team.
+        Route::get('/match-reports', [LiveMatchController::class, 'reports']);
         Route::post('/matches/{match}/live/start', [LiveMatchController::class, 'start']);
         Route::post('/matches/{match}/live/event', [LiveMatchController::class, 'event']);
         Route::post('/matches/{match}/live/undo', [LiveMatchController::class, 'undo']);

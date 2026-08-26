@@ -84,19 +84,19 @@ abstract final class MeerPageWidgets {
                     name: "MeerTilesContainer",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_ijd1vb6q",
+                        key: "Column_k2h93ux4",
                         type: "Column",
                         path: "MeerPage.body[0].children[0].children[0].children[0]",
                         name: "MeerTilesCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_qskis5mx",
+                            key: "Container_5a4eyp8t",
                             type: "Container",
                             path: "MeerPage.body[0].children[0].children[0].children[0].children[0]",
                             name: "MeerTileRijschemaCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_k78az5yg",
+                                key: "Row_ychoy4im",
                                 type: "Row",
                                 path: "MeerPage.body[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "MeerTileRijschema",
@@ -105,13 +105,13 @@ abstract final class MeerPageWidgets {
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_gz9do09j",
+                                    key: "Container_uuxwn1x8",
                                     type: "Container",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[0].children[0].children[0]",
                                     name: "MeerTileRijschemaIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_be6ypxw1",
+                                        key: "Icon_34ym5qru",
                                         type: "Icon",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -119,20 +119,20 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_ihi16otk",
+                                    key: "Column_454lgcrq",
                                     type: "Column",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[0].children[0].children[1]",
                                     name: "MeerTileRijschemaCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_aanx5q21",
+                                        key: "Text_cf0itbq7",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[0].children[0].children[1].children[0]",
                                         name: "MeerTileRijschemaLabel",
                                         text: "Rijschema",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_5t38i758",
+                                        key: "Text_y65bxl8k",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[0].children[0].children[1].children[1]",
                                         name: "MeerTileRijschemaSub",
@@ -141,7 +141,7 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_c6ovwdx4",
+                                    key: "Icon_isehvrbw",
                                     type: "Icon",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[0].children[0].children[2]",
                                     name: "Icon",
@@ -151,13 +151,13 @@ abstract final class MeerPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_enyp0pys",
+                            key: "Container_xrhrmyk2",
                             type: "Container",
                             path: "MeerPage.body[0].children[0].children[0].children[0].children[1]",
                             name: "MeerTileBardienstCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_lrtr2u1u",
+                                key: "Row_mdm4emcv",
                                 type: "Row",
                                 path: "MeerPage.body[0].children[0].children[0].children[0].children[1].children[0]",
                                 name: "MeerTileBardienst",
@@ -166,13 +166,13 @@ abstract final class MeerPageWidgets {
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_j9gzeb5b",
+                                    key: "Container_8x4jj2d1",
                                     type: "Container",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[1].children[0].children[0]",
                                     name: "MeerTileBardienstIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_1lr7eq23",
+                                        key: "Icon_slp9qt1t",
                                         type: "Icon",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[1].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -180,20 +180,20 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_5q5xxd2d",
+                                    key: "Column_2frqz3ms",
                                     type: "Column",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[1].children[0].children[1]",
                                     name: "MeerTileBardienstCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_x2kc5e13",
+                                        key: "Text_9j86b1kv",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[1].children[0].children[1].children[0]",
                                         name: "MeerTileBardienstLabel",
                                         text: "Bardiensten",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_xdrv9c6j",
+                                        key: "Text_g7odln88",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[1].children[0].children[1].children[1]",
                                         name: "MeerTileBardienstSub",
@@ -202,7 +202,7 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_tmjo1kej",
+                                    key: "Icon_zt23ds38",
                                     type: "Icon",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[1].children[0].children[2]",
                                     name: "Icon",
@@ -212,13 +212,13 @@ abstract final class MeerPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_iwckr9uk",
+                            key: "Container_ni23iukx",
                             type: "Container",
                             path: "MeerPage.body[0].children[0].children[0].children[0].children[2]",
                             name: "MeerTileTeamCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_h23pdsqy",
+                                key: "Row_u1jdbylz",
                                 type: "Row",
                                 path: "MeerPage.body[0].children[0].children[0].children[0].children[2].children[0]",
                                 name: "MeerTileTeam",
@@ -227,13 +227,13 @@ abstract final class MeerPageWidgets {
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_ihzn9yqe",
+                                    key: "Container_8w5jhc3c",
                                     type: "Container",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[2].children[0].children[0]",
                                     name: "MeerTileTeamIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_8mk3gilv",
+                                        key: "Icon_3qebszjp",
                                         type: "Icon",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[2].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -241,13 +241,13 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_u5py3b29",
+                                    key: "Column_l3gzy31r",
                                     type: "Column",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[2].children[0].children[1]",
                                     name: "MeerTileTeamCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_1cv3hq3b",
+                                        key: "Text_dsf0v1rp",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[2].children[0].children[1].children[0]",
                                         name: "MeerTileTeamLabel",
@@ -256,7 +256,7 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_fbppi3gs",
+                                    key: "Icon_lfnwxmfi",
                                     type: "Icon",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[2].children[0].children[2]",
                                     name: "Icon",
@@ -266,13 +266,13 @@ abstract final class MeerPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_3bc075q0",
+                            key: "Container_oan5iyvb",
                             type: "Container",
                             path: "MeerPage.body[0].children[0].children[0].children[0].children[3]",
                             name: "MeerTileStandCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_54mqdfxp",
+                                key: "Row_ztkd5wie",
                                 type: "Row",
                                 path: "MeerPage.body[0].children[0].children[0].children[0].children[3].children[0]",
                                 name: "MeerTileStand",
@@ -281,13 +281,13 @@ abstract final class MeerPageWidgets {
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_a7qhtgwv",
+                                    key: "Container_m5a3ykt8",
                                     type: "Container",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[3].children[0].children[0]",
                                     name: "MeerTileStandIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_vsnj7hlg",
+                                        key: "Icon_yqa5244l",
                                         type: "Icon",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[3].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -295,20 +295,20 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_da8e69hs",
+                                    key: "Column_t1ev1ybg",
                                     type: "Column",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[3].children[0].children[1]",
                                     name: "MeerTileStandCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_kriw5g4d",
+                                        key: "Text_ynnn8id5",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[3].children[0].children[1].children[0]",
                                         name: "MeerTileStandLabel",
                                         text: "Stand",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_3wv1g929",
+                                        key: "Text_4q81xcrj",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[3].children[0].children[1].children[1]",
                                         name: "MeerTileStandSub",
@@ -317,7 +317,7 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_wtj57op9",
+                                    key: "Icon_co79izrg",
                                     type: "Icon",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[3].children[0].children[2]",
                                     name: "Icon",
@@ -327,28 +327,28 @@ abstract final class MeerPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_y85skcgz",
+                            key: "Container_0kr9p0ic",
                             type: "Container",
                             path: "MeerPage.body[0].children[0].children[0].children[0].children[4]",
-                            name: "MeerTileWisselsCard",
+                            name: "MeerTileVerslagenCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_vnxiuhp0",
+                                key: "Row_msi4571n",
                                 type: "Row",
                                 path: "MeerPage.body[0].children[0].children[0].children[0].children[4].children[0]",
-                                name: "MeerTileWissels",
+                                name: "MeerTileVerslagen",
                                 triggers: const <String>[
                                   "ON_TAP",
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_fbr44m60",
+                                    key: "Container_ygfqdq6i",
                                     type: "Container",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[4].children[0].children[0]",
-                                    name: "MeerTileWisselsIconWrap",
+                                    name: "MeerTileVerslagenIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_987mdw6e",
+                                        key: "Icon_nl5stm81",
                                         type: "Icon",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[4].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -356,22 +356,29 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_fgxc2azz",
+                                    key: "Column_rn5wr8pk",
                                     type: "Column",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[4].children[0].children[1]",
-                                    name: "MeerTileWisselsCol",
+                                    name: "MeerTileVerslagenCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_mwoibj13",
+                                        key: "Text_b7n1w5hm",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[4].children[0].children[1].children[0]",
-                                        name: "MeerTileWisselsLabel",
-                                        text: "Wisselverzoeken",
+                                        name: "MeerTileVerslagenLabel",
+                                        text: "Wedstrijdverslagen",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_6k250lla",
+                                        type: "Text",
+                                        path: "MeerPage.body[0].children[0].children[0].children[0].children[4].children[0].children[1].children[1]",
+                                        name: "MeerTileVerslagenSub",
+                                        text: "Alle live bijgehouden verslagen",
                                       ),
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_mgmu35k5",
+                                    key: "Icon_qsdpe4oh",
                                     type: "Icon",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[4].children[0].children[2]",
                                     name: "Icon",
@@ -381,28 +388,28 @@ abstract final class MeerPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_eg23otbz",
+                            key: "Container_4r5i3mqx",
                             type: "Container",
                             path: "MeerPage.body[0].children[0].children[0].children[0].children[5]",
-                            name: "MeerTileNieuwsCard",
+                            name: "MeerTileWisselsCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_l5j7vxxq",
+                                key: "Row_tuulcysc",
                                 type: "Row",
                                 path: "MeerPage.body[0].children[0].children[0].children[0].children[5].children[0]",
-                                name: "MeerTileNieuws",
+                                name: "MeerTileWissels",
                                 triggers: const <String>[
                                   "ON_TAP",
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_hg6ems5b",
+                                    key: "Container_u1z01aqm",
                                     type: "Container",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[5].children[0].children[0]",
-                                    name: "MeerTileNieuwsIconWrap",
+                                    name: "MeerTileWisselsIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_h0ov53eo",
+                                        key: "Icon_v7m3zw0r",
                                         type: "Icon",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[5].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -410,22 +417,22 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_0t1vayat",
+                                    key: "Column_ur7q50ti",
                                     type: "Column",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[5].children[0].children[1]",
-                                    name: "MeerTileNieuwsCol",
+                                    name: "MeerTileWisselsCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_rq75mqa9",
+                                        key: "Text_3tv9cbgf",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[5].children[0].children[1].children[0]",
-                                        name: "MeerTileNieuwsLabel",
-                                        text: "Nieuws",
+                                        name: "MeerTileWisselsLabel",
+                                        text: "Wisselverzoeken",
                                       ),
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_nrjzbvrl",
+                                    key: "Icon_3muj9juj",
                                     type: "Icon",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[5].children[0].children[2]",
                                     name: "Icon",
@@ -435,28 +442,28 @@ abstract final class MeerPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_tviq7fdg",
+                            key: "Container_gd76phhl",
                             type: "Container",
                             path: "MeerPage.body[0].children[0].children[0].children[0].children[6]",
-                            name: "MeerTileDocsCard",
+                            name: "MeerTileNieuwsCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_srgrg64j",
+                                key: "Row_c4khvj5l",
                                 type: "Row",
                                 path: "MeerPage.body[0].children[0].children[0].children[0].children[6].children[0]",
-                                name: "MeerTileDocs",
+                                name: "MeerTileNieuws",
                                 triggers: const <String>[
                                   "ON_TAP",
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_u72fc61u",
+                                    key: "Container_r7zcu1de",
                                     type: "Container",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[6].children[0].children[0]",
-                                    name: "MeerTileDocsIconWrap",
+                                    name: "MeerTileNieuwsIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_dhfeft2u",
+                                        key: "Icon_2bfdcnf8",
                                         type: "Icon",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[6].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -464,22 +471,22 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_l44mbx2d",
+                                    key: "Column_kvh8krhr",
                                     type: "Column",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[6].children[0].children[1]",
-                                    name: "MeerTileDocsCol",
+                                    name: "MeerTileNieuwsCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_0syp63wx",
+                                        key: "Text_b2wi03hg",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[6].children[0].children[1].children[0]",
-                                        name: "MeerTileDocsLabel",
-                                        text: "Handleiding",
+                                        name: "MeerTileNieuwsLabel",
+                                        text: "Nieuws",
                                       ),
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_2cjxbeco",
+                                    key: "Icon_sqw3vql5",
                                     type: "Icon",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[6].children[0].children[2]",
                                     name: "Icon",
@@ -489,28 +496,28 @@ abstract final class MeerPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_ecqsbbty",
+                            key: "Container_eslj1m5o",
                             type: "Container",
                             path: "MeerPage.body[0].children[0].children[0].children[0].children[7]",
-                            name: "MeerTileProfielCard",
+                            name: "MeerTileDocsCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_tpn9zjnf",
+                                key: "Row_bq8fwkta",
                                 type: "Row",
                                 path: "MeerPage.body[0].children[0].children[0].children[0].children[7].children[0]",
-                                name: "MeerTileProfiel",
+                                name: "MeerTileDocs",
                                 triggers: const <String>[
                                   "ON_TAP",
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_jx7xraem",
+                                    key: "Container_nrzadval",
                                     type: "Container",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[7].children[0].children[0]",
-                                    name: "MeerTileProfielIconWrap",
+                                    name: "MeerTileDocsIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_43xoc0be",
+                                        key: "Icon_xd402fbk",
                                         type: "Icon",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[7].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -518,22 +525,22 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_p54ttd1o",
+                                    key: "Column_h6rrhj05",
                                     type: "Column",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[7].children[0].children[1]",
-                                    name: "MeerTileProfielCol",
+                                    name: "MeerTileDocsCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_cvbi2ik5",
+                                        key: "Text_f8eqndhq",
                                         type: "Text",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[7].children[0].children[1].children[0]",
-                                        name: "MeerTileProfielLabel",
-                                        text: "Profiel",
+                                        name: "MeerTileDocsLabel",
+                                        text: "Handleiding",
                                       ),
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_svpxw09n",
+                                    key: "Icon_gohd88pa",
                                     type: "Icon",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[7].children[0].children[2]",
                                     name: "Icon",
@@ -543,28 +550,28 @@ abstract final class MeerPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_muit7qjk",
+                            key: "Container_bypdl5g0",
                             type: "Container",
                             path: "MeerPage.body[0].children[0].children[0].children[0].children[8]",
-                            name: "MeerTileBugCard",
+                            name: "MeerTileProfielCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_7ymfmz8b",
+                                key: "Row_1ku37nc1",
                                 type: "Row",
                                 path: "MeerPage.body[0].children[0].children[0].children[0].children[8].children[0]",
-                                name: "MeerTileBug",
+                                name: "MeerTileProfiel",
                                 triggers: const <String>[
                                   "ON_TAP",
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_y08fchup",
+                                    key: "Container_888dscyc",
                                     type: "Container",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[8].children[0].children[0]",
-                                    name: "MeerTileBugIconWrap",
+                                    name: "MeerTileProfielIconWrap",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_zg2mv7qj",
+                                        key: "Icon_vjgpieri",
                                         type: "Icon",
                                         path: "MeerPage.body[0].children[0].children[0].children[0].children[8].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -572,24 +579,78 @@ abstract final class MeerPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_4ou01zjl",
+                                    key: "Column_oiilyer8",
                                     type: "Column",
                                     path: "MeerPage.body[0].children[0].children[0].children[0].children[8].children[0].children[1]",
+                                    name: "MeerTileProfielCol",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_uuzxbxwd",
+                                        type: "Text",
+                                        path: "MeerPage.body[0].children[0].children[0].children[0].children[8].children[0].children[1].children[0]",
+                                        name: "MeerTileProfielLabel",
+                                        text: "Profiel",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Icon_86rbjf9q",
+                                    type: "Icon",
+                                    path: "MeerPage.body[0].children[0].children[0].children[0].children[8].children[0].children[2]",
+                                    name: "Icon",
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_eigtjyrj",
+                            type: "Container",
+                            path: "MeerPage.body[0].children[0].children[0].children[0].children[9]",
+                            name: "MeerTileBugCard",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_6rjupdmk",
+                                type: "Row",
+                                path: "MeerPage.body[0].children[0].children[0].children[0].children[9].children[0]",
+                                name: "MeerTileBug",
+                                triggers: const <String>[
+                                  "ON_TAP",
+                                ],
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Container_lb8z5uzr",
+                                    type: "Container",
+                                    path: "MeerPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0]",
+                                    name: "MeerTileBugIconWrap",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_gi8gthjj",
+                                        type: "Icon",
+                                        path: "MeerPage.body[0].children[0].children[0].children[0].children[9].children[0].children[0].children[0]",
+                                        name: "Icon",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_bwc9sr5g",
+                                    type: "Column",
+                                    path: "MeerPage.body[0].children[0].children[0].children[0].children[9].children[0].children[1]",
                                     name: "MeerTileBugCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_x30e9b5x",
+                                        key: "Text_ecfixhs3",
                                         type: "Text",
-                                        path: "MeerPage.body[0].children[0].children[0].children[0].children[8].children[0].children[1].children[0]",
+                                        path: "MeerPage.body[0].children[0].children[0].children[0].children[9].children[0].children[1].children[0]",
                                         name: "MeerTileBugLabel",
                                         text: "Probleem melden",
                                       ),
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_a9xxxjnz",
+                                    key: "Icon_fcnwgfck",
                                     type: "Icon",
-                                    path: "MeerPage.body[0].children[0].children[0].children[0].children[8].children[0].children[2]",
+                                    path: "MeerPage.body[0].children[0].children[0].children[0].children[9].children[0].children[2]",
                                     name: "Icon",
                                   ),
                                 ],
@@ -613,43 +674,43 @@ abstract final class MeerPageWidgets {
         ],
         "drawer": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "Drawer_u6k5x6q4",
+            key: "Drawer_vaz5dvhy",
             type: "Drawer",
             path: "MeerPage.drawer[0]",
             name: "AppDrawer",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_d6gmri8u",
+                key: "Column_kv6uym1j",
                 type: "Column",
                 path: "MeerPage.drawer[0].children[0]",
                 name: "DrawerMenuColumn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_aw5o1paw",
+                    key: "Container_pcobtlbn",
                     type: "Container",
                     path: "MeerPage.drawer[0].children[0].children[0]",
                     name: "DrawerHeader",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_jr8bfyh5",
+                        key: "Column_vnsnvqnm",
                         type: "Column",
                         path: "MeerPage.drawer[0].children[0].children[0].children[0]",
                         name: "DrawerHeaderColumn",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_knv40491",
+                            key: "Container_srgfrh2w",
                             type: "Container",
                             path: "MeerPage.drawer[0].children[0].children[0].children[0].children[0]",
                             name: "DrawerHeaderAvatar",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "h2bszsmt",
+                                key: "3gi4s4go",
                                 type: "CircleImage",
                                 path: "MeerPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "DrawerHeaderPhoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_qw92ipun",
+                                key: "Icon_t6n52ejq",
                                 type: "Icon",
                                 path: "MeerPage.drawer[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "Icon",
@@ -657,13 +718,13 @@ abstract final class MeerPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_l08vrqns",
+                            key: "Text_3g4exy27",
                             type: "Text",
                             path: "MeerPage.drawer[0].children[0].children[0].children[0].children[1]",
                             name: "DrawerHeaderName",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_3oa84adi",
+                            key: "Text_spfwz3yy",
                             type: "Text",
                             path: "MeerPage.drawer[0].children[0].children[0].children[0].children[2]",
                             name: "DrawerHeaderEmail",
@@ -673,7 +734,7 @@ abstract final class MeerPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_lgszao3q",
+                    key: "ListTile_87cbz827",
                     type: "ListTile",
                     path: "MeerPage.drawer[0].children[0].children[1]",
                     name: "DrawerTileHome",
@@ -682,7 +743,7 @@ abstract final class MeerPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_6071gd17",
+                    key: "ListTile_uwd8wy3r",
                     type: "ListTile",
                     path: "MeerPage.drawer[0].children[0].children[2]",
                     name: "DrawerTileNews",
@@ -691,7 +752,7 @@ abstract final class MeerPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_2uh7r4vt",
+                    key: "ListTile_l9ugzmu6",
                     type: "ListTile",
                     path: "MeerPage.drawer[0].children[0].children[3]",
                     name: "DrawerTileDocs",
@@ -700,7 +761,7 @@ abstract final class MeerPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_fo9puk64",
+                    key: "ListTile_499g32jv",
                     type: "ListTile",
                     path: "MeerPage.drawer[0].children[0].children[4]",
                     name: "DrawerTileProfiel",
@@ -709,7 +770,7 @@ abstract final class MeerPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_ctin6gsk",
+                    key: "ListTile_cla9deha",
                     type: "ListTile",
                     path: "MeerPage.drawer[0].children[0].children[5]",
                     name: "DrawerTileBug",
@@ -718,25 +779,25 @@ abstract final class MeerPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_5kgpsvks",
+                    key: "Container_y8bghdq7",
                     type: "Container",
                     path: "MeerPage.drawer[0].children[0].children[6]",
                     name: "DrawerFooterSpacer",
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_l769vau1",
+                    key: "Container_hnt818av",
                     type: "Container",
                     path: "MeerPage.drawer[0].children[0].children[7]",
                     name: "DrawerFooterLogoWrap",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Row_vxep7utt",
+                        key: "Row_bmqjexqw",
                         type: "Row",
                         path: "MeerPage.drawer[0].children[0].children[7].children[0]",
                         name: "DrawerFooterLogoRow",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "vfc3le45",
+                            key: "n3usr11z",
                             type: "Image",
                             path: "MeerPage.drawer[0].children[0].children[7].children[0].children[0]",
                             name: "DrawerFooterLogo",
