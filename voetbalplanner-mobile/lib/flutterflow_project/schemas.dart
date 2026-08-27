@@ -491,6 +491,22 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle teamDocumentItem = ffai.StructHandle(
+    "TeamDocumentItem",
+    <String, ffai.DslType>{
+      "dateLabel": ffai.string,
+      "description": ffai.string,
+      "extension": ffai.string,
+      "fileName": ffai.string,
+      "id": ffai.string,
+      "melding": ffai.string,
+      "scopeLabel": ffai.string,
+      "sizeLabel": ffai.string,
+      "title": ffai.string,
+      "url": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle teamMood = ffai.StructHandle(
     "TeamMood",
     <String, ffai.DslType>{
@@ -622,6 +638,7 @@ abstract final class Structs {
     standingRow,
     swapMember,
     swapRequest,
+    teamDocumentItem,
     teamMood,
     teamOption,
     teamStats,

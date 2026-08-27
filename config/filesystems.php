@@ -81,6 +81,19 @@ return [
             'report' => false,
         ],
 
+        // Teamdocumenten. Rechtstreeks in public/, net als de logo's en de
+        // foto's: de storage-symlink is op deze hosting niet gegarandeerd, en de
+        // link moet los van een sessie werken zodat hij in een appbericht of een
+        // mail te delen is.
+        'team_documents' => [
+            'driver' => 'local',
+            'root'   => public_path('team_documents'),
+            'url'    => rtrim(env('APP_URL', 'http://localhost'), '/') . '/team_documents',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

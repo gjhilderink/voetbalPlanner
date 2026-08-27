@@ -171,6 +171,8 @@ class SeedDemoClub extends Command
             $this->wis('members', fn ($q) => $q->whereIn('id', $memberIds));
             $this->wis('teams', fn ($q) => $q->where('club_id', $clubId));
 
+            $this->wis('team_documents', fn ($q) => $q->where('club_id', $clubId)
+                ->orWhereIn('team_id', $teamIds));
             $this->wis('news_items', fn ($q) => $q->where('club_id', $clubId));
             $this->wis('banners', fn ($q) => $q->where('club_id', $clubId));
             $this->wis('onboarding_slides', fn ($q) => $q->where('club_id', $clubId));

@@ -1430,6 +1430,7 @@ void buildEditFlow(App app) {
   _buildOpstellingPage(app);
   _buildStandPage(app);
   _buildVerslagenPages(app);
+  _buildDocumentenPage(app);
 
   // Force NavBar items LAST — after all other raw mutations that touch the scaffold.
   app.raw((project) => _forceDashboardNavBarItem(project));
@@ -1521,6 +1522,10 @@ void buildEditFlow(App app) {
     _addMatchReportsEndpoint(project);
     _wireVerslagenPage(project);
     _wireVerslagPage(project);
+    _ensureTeamDocumentStruct(project);
+    _ensureTeamDocumentsAppState(project);
+    _addTeamDocumentsEndpoint(project);
+    _wireDocumentenPage(project);
     _ensureMatchPhotoStruct(project);
     _ensureMatchPhotosAppState(project);
     _addMatchPhotosEndpoint(project);
@@ -28383,6 +28388,8 @@ void _wireMeerPage(FFProject project) {
     tile('MeerTileTeam', 'Teamleden', 'groups', 'TeamMembersPage'),
     tile('MeerTileStand', 'Stand', 'leaderboard', 'StandPage',
         subtitle: 'De stand in de poule van je elftal'),
+    tile('MeerTileDocumenten', 'Documenten', 'folder_open', 'DocumentenPage',
+        subtitle: 'Spelregels, formulieren en draaiboeken'),
     tile('MeerTileVerslagen', 'Wedstrijdverslagen', 'article', 'WedstrijdverslagenPage',
         subtitle: 'Alle live bijgehouden verslagen'),
     tile('MeerTileWissels', 'Wisselverzoeken', 'swap_horiz', 'WisselVerzoekenPage'),
@@ -38447,4 +38454,253 @@ void _addProfielGuardianLinks(FFProject project) {
 
   _appendToFirstPageLoadChain(
       wc.node, herlaad(wc.node.key, 'koppelLoad'));
+}
+
+// ── Documenten bij een elftal ───────────────────────────────────────────────
+//
+// Spelregels, formulieren, draaiboeken. Beheer zit in de portal; de app leest
+// alleen. Een tik opent het bestand in de browser van het toestel — dat kan met
+// een pdf, een Word- en een Excel-bestand overweg, en het spaart ons een eigen
+// weergave per bestandssoort.
+
+void _ensureTeamDocumentStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'TeamDocumentItem',
+    description:
+        'Eén document bij een elftal: titel, toelichting, bestandssoort en de link om het te openen.',
+    fields: const [
+      'id', 'title', 'description', 'url', 'fileName',
+      'extension', 'sizeLabel', 'scopeLabel', 'dateLabel', 'melding',
+    ],
+  );
+}
+
+void _ensureTeamDocumentsAppState(FFProject project) {
+  final struct = findDataStruct(project, name: 'TeamDocumentItem');
+  if (struct == null) return;
+
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'teamDocuments')) return;
+
+  final param = FFParameter(
+    identifier:
+        FFIdentifier(name: 'teamDocuments', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+void _addTeamDocumentsEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  const name = 'GetTeamDocuments';
+  if (findApiGroup(project, name: groupName) == null) return;
+  if (findApiEndpoint(project, name: name, groupName: groupName) != null) return;
+
+  addEndpointToGroup(
+    project,
+    groupName: groupName,
+    name: name,
+    url: '/teams/[teamId]/documents',
+    method: FFApiEndpoint_CallType.GET,
+    bodyType: FFApiEndpoint_BodyType.NONE,
+    variables: {
+      'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'teamId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+    headers: ['Authorization: Bearer [token]'],
+    responseDataStructName: 'TeamDocumentItem',
+    responseDataStructIsList: true,
+  );
+}
+
+void _buildDocumentenPage(App app) {
+  app.ensurePage(
+    'DocumentenPage',
+    description:
+        'Documenten bij je elftal en bij de club: spelregels, formulieren en draaiboeken.',
+    route: 'documenten',
+    body: Scaffold(
+      appBar: AppBar(title: 'Documenten'),
+      body: Column(
+        name: 'DocumentenRootColumn',
+        children: [
+          Container(name: 'DocumentenBodyPlaceholder'),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Vult de documentenpagina. Vers opgebouwd bij elke push.
+void _wireDocumentenPage(FFProject project) {
+  final wc = findPage(project, name: 'DocumentenPage');
+  if (wc == null) return;
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final teamId = _findAppStateFieldId(project, 'currentTeamId');
+  final docsId = _findAppStateFieldId(project, 'teamDocuments');
+  if (authTokenId == null || teamId == null || docsId == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetTeamDocuments', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  final scaffoldKey = wc.node.key;
+  final docsVar = varFromAppState(docsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final lijst = UI.listView(
+    name: 'DocumentenList',
+    shrinkWrap: true,
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    dynamicSource: DynamicSource(variable: docsVar, itemName: 'doc'),
+  );
+
+  FFNode gebonden(String naam, String veld, UITextStyle stijl,
+      {UIColor? kleur, UIFontWeight? gewicht, int maxLines = 1}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: maxLines,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijst.key, veld));
+    return t;
+  }
+
+  // Vakje met de bestandssoort. Eén vast vakje met de letters erin, en geen
+  // icoon per soort: FlutterFlow kan een icoon niet aan een variabele binden, en
+  // drie varianten met zichtbaarheidsregels is meer gedoe dan het waard is.
+  final soort = UI.container(
+    name: 'DocumentSoort',
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    alignment: UIAlignment.center,
+    color: UIColor.hex(0xFFFDE3E3),
+    child: gebonden('DocumentSoortTekst', 'extension', UITextStyle.labelSmall,
+        kleur: UIColor.error, gewicht: UIFontWeight.w700),
+  );
+
+  final onderRij = UI.row(
+    name: 'DocumentOnderRij',
+    spacing: 6,
+    mainAxisMin: true,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      gebonden('DocumentScope', 'scopeLabel', UITextStyle.labelSmall,
+          kleur: UIColor.secondaryText),
+      UI.text('·',
+          name: 'DocumentPunt',
+          style: UITextStyle.labelSmall,
+          color: UIColor.secondaryText),
+      gebonden('DocumentGrootte', 'sizeLabel', UITextStyle.labelSmall,
+          kleur: UIColor.secondaryText),
+    ],
+  );
+
+  final kaart = _dashCard(
+    name: 'DocumentKaart',
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    child: UI.row(
+      name: 'DocumentRij',
+      spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        soort,
+        UI.expanded(UI.column(
+          name: 'DocumentCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 3,
+          children: [
+            gebonden('DocumentTitel', 'title', UITextStyle.bodyLarge,
+                gewicht: UIFontWeight.w700),
+            gebonden('DocumentOmschrijving', 'description',
+                UITextStyle.labelSmall,
+                kleur: UIColor.secondaryText, maxLines: 2),
+            onderRij,
+          ],
+        )),
+        UI.icon('open_in_new', size: 20, color: UIColor.secondaryText),
+      ],
+    ),
+  );
+
+  // Openen in de browser van het toestel; die kan met pdf, Word en Excel
+  // overweg zonder dat wij per bestandssoort iets hoeven te bouwen.
+  Actions.onTap(
+    kaart,
+    FFAction(
+      launchUrl: FFLaunchUrlAction(
+        variable: generatorVarField(lijst.key, 'url'),
+      ),
+    ),
+  );
+
+  lijst.children.add(kaart);
+
+  final melding = UI.text('',
+      name: 'DocumentenMelding',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center,
+      maxLines: 3);
+  melding.props.text.textValue =
+      FFStringValue(variable: _firstItemVar(docsVar, 'melding'));
+  melding.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 28),
+  );
+  setConditionalVisibility(
+    melding,
+    variable: andConditionsVar([
+      _listNotEmptyVar(docsVar.deepCopy()),
+      _firstFieldFilledVar(docsVar, 'melding'),
+    ]).variable,
+  );
+
+  final body = getPropertyChild(wc.node, 'body');
+  if (body == null) return;
+  final kolom = body.type == FFWidgetType.Column
+      ? body
+      : body.children
+          .cast<FFNode?>()
+          .firstWhere((n) => n?.type == FFWidgetType.Column, orElse: () => null);
+  if (kolom == null) return;
+
+  kolom.children.clear();
+  final props = kolom.props.column.deepCopy();
+  props.scrollable = true;
+  kolom.props.column = props;
+  kolom.children.addAll([melding, lijst]);
+
+  wc.node.triggerActions.removeWhere(
+    (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
+  );
+  Actions.onPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetTeamDocuments',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'teamId': varFromAppState(teamId.deepCopy()),
+      },
+      outputVariableName: 'documentenLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('teamDocuments', ctx.responseVar),
+        ]),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('De documenten konden niet worden opgehaald.'),
+      ]),
+    ),
+  );
 }

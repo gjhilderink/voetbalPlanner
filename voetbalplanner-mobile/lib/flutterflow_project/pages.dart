@@ -14,6 +14,7 @@ import 'pages/create_group_page.dart' show createGroupPageHandle;
 import 'pages/dashboard_page.dart' show dashboardPageHandle;
 import 'pages/direct_chat_page.dart' show directChatPageHandle;
 import 'pages/documentatie_page.dart' show documentatiePageHandle;
+import 'pages/documenten_page.dart' show documentenPageHandle;
 import 'pages/group_chat_page.dart' show groupChatPageHandle;
 import 'pages/group_members_page.dart' show groupMembersPageHandle;
 import 'pages/guardian_create_parent_page.dart' show guardianCreateParentPageHandle;
@@ -54,6 +55,7 @@ abstract final class Pages {
   static final dashboardPage = dashboardPageHandle;
   static final directChatPage = directChatPageHandle;
   static final documentatiePage = documentatiePageHandle;
+  static final documentenPage = documentenPageHandle;
   static final groupChatPage = groupChatPageHandle;
   static final groupMembersPage = groupMembersPageHandle;
   static final guardianCreateParentPage = guardianCreateParentPageHandle;
@@ -93,6 +95,7 @@ abstract final class Pages {
     dashboardPage,
     directChatPage,
     documentatiePage,
+    documentenPage,
     groupChatPage,
     groupMembersPage,
     guardianCreateParentPage,

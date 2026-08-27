@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\StandingController;
 use App\Http\Controllers\Api\SwapRequestController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\TeamDocumentController;
 use App\Http\Controllers\Api\TeamMoodController;
 use App\Http\Controllers\Api\TeamStatsController;
 use Illuminate\Support\Facades\Route;
@@ -120,6 +121,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/teams', [TeamController::class, 'index']);
         Route::get('/teams/{team}', [TeamController::class, 'show']);
         Route::get('/teams/{team}/members', [TeamController::class, 'members']);
+        // Documenten bij een elftal; clubbrede documenten gaan mee.
+        Route::get('/teams/{team}/documents', [TeamDocumentController::class, 'index']);
         // Poulestand, live opgehaald bij de MCP-server (kort gecachet).
         Route::get('/teams/{team}/standing', [StandingController::class, 'show']);
         // Seizoenscijfers (team + jezelf) en teamsfeer voor het dashboard.
