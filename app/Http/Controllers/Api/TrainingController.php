@@ -201,6 +201,9 @@ class TrainingController extends Controller
         $rows = array_map(fn ($r) => $r + [
             'aantalAangemeld' => (string) $aangemeld,
             'aantalAfgemeld'  => (string) $afgemeld,
+            // Ook het totaal, zodat de kop "13 / 15" kan tonen zonder dat de
+            // app twee getallen uit strings hoeft op te tellen.
+            'aantalTotaal'    => (string) ($aangemeld + $afgemeld),
             'magBeheren'      => $mag,
         ], $rows);
 

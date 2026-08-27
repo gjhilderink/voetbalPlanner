@@ -371,6 +371,7 @@ abstract final class Structs {
     <String, ffai.DslType>{
       "aantalAangemeld": ffai.string,
       "aantalAfgemeld": ffai.string,
+      "aantalTotaal": ffai.string,
       "magBeheren": ffai.string,
       "memberId": ffai.string,
       "naam": ffai.string,
@@ -595,6 +596,7 @@ abstract final class Structs {
     <String, ffai.DslType>{
       "aantalAangemeld": ffai.string,
       "aantalAfgemeld": ffai.string,
+      "aantalTotaal": ffai.string,
       "magBeheren": ffai.string,
       "memberId": ffai.string,
       "naam": ffai.string,

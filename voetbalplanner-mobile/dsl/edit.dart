@@ -30089,7 +30089,7 @@ void _ensureTrainingParticipantStruct(FFProject project) {
     // om te zetten.
     fields: const [
       'naam', 'status', 'reden', 'aantalAangemeld', 'aantalAfgemeld',
-      'memberId', 'magBeheren',
+      'aantalTotaal', 'memberId', 'magBeheren',
     ],
   );
 }
@@ -30217,7 +30217,7 @@ void _ensureMatchParticipantStruct(FFProject project) {
         'Eén teamlid bij een wedstrijd: naam, status (aangemeld/afgemeld) en de opgegeven reden.',
     fields: const [
       'naam', 'status', 'reden', 'aantalAangemeld', 'aantalAfgemeld',
-      'memberId', 'magBeheren',
+      'aantalTotaal', 'memberId', 'magBeheren',
     ],
   );
 }
@@ -30368,11 +30368,14 @@ void _buildMatchAttendanceSection(FFProject project) {
   FFNode sectie({
     required String key,
     required String title,
+    required String subtitle,
     required String status,
     required String iconName,
     required UIColor color,
+    required UIColor tint,
     required String countField,
     bool withReason = false,
+    bool metTotaal = false,
   }) {
     final list = UI.listView(
       name: '${key}List',
@@ -30380,30 +30383,6 @@ void _buildMatchAttendanceSection(FFProject project) {
       spacing: 2,
       dynamicSource: DynamicSource(variable: partVar, itemName: key),
     );
-
-    final naam = UI.text('',
-        name: '${key}Naam',
-        style: UITextStyle.bodyMedium,
-        maxLines: 1,
-        textOverflow: UITextOverflow.ellipsis);
-    naam.props.text.textValue =
-        FFStringValue(variable: generatorVarField(list.key, 'naam'));
-
-    final rowChildren = <FFNode>[
-      UI.icon(iconName, size: 18, color: color),
-      UI.expanded(naam),
-    ];
-    if (withReason) {
-      final reden = UI.text('',
-          name: '${key}Reden',
-          style: UITextStyle.bodySmall,
-          color: UIColor.secondaryText,
-          maxLines: 1,
-          textOverflow: UITextOverflow.ellipsis);
-      reden.props.text.textValue =
-          FFStringValue(variable: generatorVarField(list.key, 'reden'));
-      rowChildren.add(reden);
-    }
 
     final toggle = (tokenId == null || matchIdParam == null)
         ? null
@@ -30423,19 +30402,15 @@ void _buildMatchAttendanceSection(FFProject project) {
                 ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
             },
           );
-    if (toggle != null) {
-      rowChildren.add(toggle);
-    }
 
-    final item = UI.container(
-      name: '${key}Item',
-      innerPadding: UIEdgeInsets.symmetric(vertical: 5),
-      child: UI.row(
-        name: '${key}Row',
-        spacing: 8,
-        crossAxisAlignment: UICrossAxisAlignment.center,
-        children: rowChildren,
-      ),
+    final item = _opkomstRij(
+      key: key,
+      listKey: list.key,
+      iconName: iconName,
+      color: color,
+      tint: tint,
+      withReason: withReason,
+      toggle: toggle,
     );
     setConditionalVisibility(
       item,
@@ -30443,27 +30418,20 @@ void _buildMatchAttendanceSection(FFProject project) {
     );
     list.children.add(item);
 
-    final heading =
-        UI.text(title, name: '${key}Title', style: UITextStyle.titleSmall);
-    heading.props.text.textValue = interpolateVar([
-      '$title (',
-      _firstItemVar(partVar, countField),
-      ')',
-    ]);
-
     return UI.column(
       name: key,
       crossAxisAlignment: UICrossAxisAlignment.stretch,
-      spacing: 6,
+      spacing: 10,
       children: [
-        UI.row(
-          name: '${key}Head',
-          spacing: 8,
-          crossAxisAlignment: UICrossAxisAlignment.center,
-          children: [
-            UI.icon(iconName, size: 20, color: color),
-            UI.expanded(heading),
-          ],
+        _opkomstKop(
+          key: key,
+          title: title,
+          subtitle: subtitle,
+          iconName: iconName,
+          color: color,
+          tint: tint,
+          aantal: _firstItemVar(partVar, countField),
+          totaal: metTotaal ? _firstItemVar(partVar, 'aantalTotaal') : null,
         ),
         list,
       ],
@@ -30481,17 +30449,22 @@ void _buildMatchAttendanceSection(FFProject project) {
         sectie(
           key: 'MatchAanwezig',
           title: 'Aanwezig',
+          subtitle: 'Deze spelers worden verwacht.',
           status: 'aangemeld',
           iconName: 'check_circle',
           color: UIColor.success,
+          tint: _kOpkomstGroenTint,
           countField: 'aantalAangemeld',
+          metTotaal: true,
         ),
         sectie(
           key: 'MatchAfwezig',
           title: 'Afgemeld',
+          subtitle: 'Deze spelers hebben zich afgemeld.',
           status: 'afgemeld',
           iconName: 'cancel',
           color: UIColor.error,
+          tint: _kOpkomstRoodTint,
           countField: 'aantalAfgemeld',
           withReason: true,
         ),
@@ -30505,6 +30478,162 @@ void _buildMatchAttendanceSection(FFProject project) {
 
   final idx = kolom.children.indexWhere((c) => identical(c, anker));
   kolom.children.insert(idx + 1, card);
+}
+
+/// Zachte achtergrondtinten voor de ronde badges en de teller. Los benoemd en
+/// niet per aanroep meegegeven, zodat de wedstrijd- en de trainingslijst er
+/// gegarandeerd hetzelfde uitzien.
+const _kOpkomstGroenTint = UIColor.hex(0xFFDCF5E4, dark: 0xFF16351F);
+const _kOpkomstRoodTint = UIColor.hex(0xFFFDE3E3, dark: 0xFF3A1B1B);
+
+/// De kop van een opkomstsectie: gevulde ronde met een vinkje of kruisje, de
+/// titel met het aantal, een regel uitleg en rechts de teller.
+///
+/// Gedeeld door de wedstrijd- en de trainingspagina. Die twee bouwden hun lijst
+/// eerst elk apart op met dezelfde code, en dan verandert er onvermijdelijk maar
+/// één als er iets aan de opmaak wordt gedaan.
+FFNode _opkomstKop({
+  required String key,
+  required String title,
+  required String subtitle,
+  required String iconName,
+  required UIColor color,
+  required UIColor tint,
+  required FFVariable aantal,
+  FFVariable? totaal,
+}) {
+  final ronde = UI.container(
+    name: '${key}HeadIcon',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    color: color,
+    alignment: UIAlignment.center,
+    child: UI.icon(iconName, size: 26, color: UIColor.hex(0xFFFFFFFF)),
+  );
+
+  final kop = UI.text(title,
+      name: '${key}Title',
+      style: UITextStyle.titleMedium,
+      fontWeight: UIFontWeight.w700,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  kop.props.text.textValue = interpolateVar(['$title (', aantal, ')']);
+
+  final uitleg = UI.text(subtitle,
+      name: '${key}Subtitle',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText,
+      maxLines: 2);
+
+  final kinderen = <FFNode>[
+    ronde,
+    UI.expanded(UI.column(
+      name: '${key}HeadCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 2,
+      children: [kop, uitleg],
+    )),
+  ];
+
+  // De teller staat alleen bij "Aanwezig": "2 / 15 afgemeld" leest als een doel
+  // dat nog niet gehaald is, en dat is het niet.
+  if (totaal != null) {
+    final tellerTekst = UI.text('',
+        name: '${key}CountText',
+        style: UITextStyle.labelMedium,
+        color: color,
+        fontWeight: UIFontWeight.w700,
+        maxLines: 1);
+    tellerTekst.props.text.textValue =
+        interpolateVar([aantal.deepCopy(), ' / ', totaal]);
+
+    kinderen.add(UI.container(
+      name: '${key}CountPill',
+      borderRadius: 14,
+      color: tint,
+      innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: tellerTekst,
+    ));
+  }
+
+  return UI.row(
+    name: '${key}Head',
+    spacing: 12,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: kinderen,
+  );
+}
+
+/// Eén naam in een opkomstsectie.
+///
+/// Naam en reden staan onder elkaar en niet naast elkaar. Naast elkaar nam
+/// "Afgemeld door de coach" de halve regel in beslag en werd de naam afgekapt —
+/// terwijl dat het enige is wat je hier wilt lezen. Twee regels voor de naam,
+/// want "Castilla Carrasco, J. (Juna)" past niet altijd op één.
+FFNode _opkomstRij({
+  required String key,
+  required String listKey,
+  required String iconName,
+  required UIColor color,
+  required UIColor tint,
+  required bool withReason,
+  FFNode? toggle,
+}) {
+  final badge = UI.container(
+    name: '${key}Badge',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    color: tint,
+    alignment: UIAlignment.center,
+    child: UI.icon(iconName, size: 17, color: color),
+  );
+
+  final naam = UI.text('',
+      name: '${key}Naam',
+      style: UITextStyle.bodyMedium,
+      fontWeight: UIFontWeight.w500,
+      maxLines: 2,
+      textOverflow: UITextOverflow.ellipsis);
+  naam.props.text.textValue =
+      FFStringValue(variable: generatorVarField(listKey, 'naam'));
+
+  FFNode naamBlok = naam;
+
+  if (withReason) {
+    final reden = UI.text('',
+        name: '${key}Reden',
+        style: UITextStyle.bodySmall,
+        color: UIColor.secondaryText,
+        maxLines: 2,
+        textOverflow: UITextOverflow.ellipsis);
+    reden.props.text.textValue =
+        FFStringValue(variable: generatorVarField(listKey, 'reden'));
+
+    naamBlok = UI.column(
+      name: '${key}NaamCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 2,
+      children: [naam, reden],
+    );
+  }
+
+  final kinderen = <FFNode>[badge, UI.expanded(naamBlok)];
+  if (toggle != null) {
+    kinderen.add(toggle);
+  }
+
+  return UI.container(
+    name: '${key}Item',
+    innerPadding: UIEdgeInsets.symmetric(vertical: 8),
+    child: UI.row(
+      name: '${key}Row',
+      spacing: 12,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: kinderen,
+    ),
+  );
 }
 
 /// Knopje achter een speler waarmee de trainer hem af- of aanmeldt.
@@ -30667,11 +30796,14 @@ void _buildTrainingAttendanceSection(FFProject project) {
   FFNode section({
     required String key,
     required String title,
+    required String subtitle,
     required String status,
     required String iconName,
     required UIColor color,
+    required UIColor tint,
     required String countField,
     bool withReason = false,
+    bool metTotaal = false,
   }) {
     final list = UI.listView(
       name: '${key}List',
@@ -30679,30 +30811,6 @@ void _buildTrainingAttendanceSection(FFProject project) {
       spacing: 2,
       dynamicSource: DynamicSource(variable: partVar, itemName: key),
     );
-
-    final naam = UI.text('',
-        name: '${key}Naam',
-        style: UITextStyle.bodyMedium,
-        maxLines: 1,
-        textOverflow: UITextOverflow.ellipsis);
-    naam.props.text.textValue =
-        FFStringValue(variable: generatorVarField(list.key, 'naam'));
-
-    final rowChildren = <FFNode>[
-      UI.icon(iconName, size: 18, color: color),
-      UI.expanded(naam),
-    ];
-    if (withReason) {
-      final reden = UI.text('',
-          name: '${key}Reden',
-          style: UITextStyle.bodySmall,
-          color: UIColor.secondaryText,
-          maxLines: 1,
-          textOverflow: UITextOverflow.ellipsis);
-      reden.props.text.textValue =
-          FFStringValue(variable: generatorVarField(list.key, 'reden'));
-      rowChildren.add(reden);
-    }
 
     // De trainer zet een speler zelf om. Bewust zonder invulveld voor de reden:
     // dat kost tikken langs de lijn, en "Afgemeld door de trainer" zegt genoeg.
@@ -30747,19 +30855,14 @@ void _buildTrainingAttendanceSection(FFProject project) {
         };
       },
     );
-    if (toggle != null) {
-      rowChildren.add(toggle);
-    }
-
-    final item = UI.container(
-      name: '${key}Item',
-      innerPadding: UIEdgeInsets.symmetric(vertical: 5),
-      child: UI.row(
-        name: '${key}Row',
-        spacing: 8,
-        crossAxisAlignment: UICrossAxisAlignment.center,
-        children: rowChildren,
-      ),
+    final item = _opkomstRij(
+      key: key,
+      listKey: list.key,
+      iconName: iconName,
+      color: color,
+      tint: tint,
+      withReason: withReason,
+      toggle: toggle,
     );
     // Eén lijst over álle deelnemers; per regel bepaalt de status of hij in
     // deze sectie hoort. Zo is er maar één bron en blijven de tellingen kloppen.
@@ -30769,29 +30872,22 @@ void _buildTrainingAttendanceSection(FFProject project) {
     );
     list.children.add(item);
 
-    // "Aanwezig (11)". De telling staat op elke regel mee; de app kan een
-    // gefilterde lijst niet zelf tellen, dus we lezen die van het eerste item.
-    final heading = UI.text(title,
-        name: '${key}Title', style: UITextStyle.titleSmall);
-    heading.props.text.textValue = interpolateVar([
-      '$title (',
-      _firstItemVar(partVar, countField),
-      ')',
-    ]);
-
+    // De telling staat op elke regel mee; de app kan een gefilterde lijst niet
+    // zelf tellen, dus we lezen die van het eerste item.
     return UI.column(
       name: key,
       crossAxisAlignment: UICrossAxisAlignment.stretch,
-      spacing: 6,
+      spacing: 10,
       children: [
-        UI.row(
-          name: '${key}Head',
-          spacing: 8,
-          crossAxisAlignment: UICrossAxisAlignment.center,
-          children: [
-            UI.icon(iconName, size: 20, color: color),
-            UI.expanded(heading),
-          ],
+        _opkomstKop(
+          key: key,
+          title: title,
+          subtitle: subtitle,
+          iconName: iconName,
+          color: color,
+          tint: tint,
+          aantal: _firstItemVar(partVar, countField),
+          totaal: metTotaal ? _firstItemVar(partVar, 'aantalTotaal') : null,
         ),
         list,
       ],
@@ -30809,17 +30905,22 @@ void _buildTrainingAttendanceSection(FFProject project) {
         section(
           key: 'TrainAanwezig',
           title: 'Aanwezig',
+          subtitle: 'Deze spelers worden verwacht.',
           status: 'aangemeld',
           iconName: 'check_circle',
           color: UIColor.success,
+          tint: _kOpkomstGroenTint,
           countField: 'aantalAangemeld',
+          metTotaal: true,
         ),
         section(
           key: 'TrainAfwezig',
           title: 'Afgemeld',
+          subtitle: 'Deze spelers hebben zich afgemeld.',
           status: 'afgemeld',
           iconName: 'cancel',
           color: UIColor.error,
+          tint: _kOpkomstRoodTint,
           countField: 'aantalAfgemeld',
           withReason: true,
         ),
