@@ -1472,6 +1472,9 @@ void buildEditFlow(App app) {
   // controle stuurt daarna naar het inlogscherm. Moet ná de refresh-wiring,
   // anders hangt de controle vóór de call die het token wist.
   app.raw((project) => _addSessionExpiryGuard(project, 'ProfielPage'));
+  // De koppelingen ophalen ná de sessiecontrole, zodat de aanroep in de tak
+  // belandt die alleen draait wanneer je bent ingelogd.
+  app.raw((project) => _wireProfielGuardianLinksLoad(project));
   app.raw((project) => _addSessionExpiryGuard(project, 'DashboardPage'));
   // Inlogvelden herkenbaar maken voor de wachtwoordbeheerders van iOS/Android.
   app.raw((project) => _addLoginAutofillHints(project));
@@ -38911,8 +38914,28 @@ void _addProfielGuardianLinks(FFProject project) {
   );
 
   target.children.addAll([label, leeg, lijst]);
+}
 
-  // Ophalen bij het openen van het profiel.
+/// Haalt de koppelingen op bij het openen van het profiel.
+///
+/// Apart van het blok hierboven, en pas aan het eind van de opbouw. Eerder in de
+/// rij werd deze aanroep niet meegenomen: het blok stond wel op de pagina, maar
+/// de lijst bleef leeg omdat hij nooit werd geladen — en dan lijkt het alsof je
+/// aan niemand gekoppeld bent.
+void _wireProfielGuardianLinksLoad(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+
+  final linksId = _findAppStateFieldId(project, 'guardianLinks');
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (linksId == null || authTokenId == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetGuardianLinks', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  // Ook door de takken van een voorwaarde heen kijken. De sessiecontrole zet de
+  // hele keten in zijn false-tak, en een zoektocht die alleen followUpAction
+  // volgt ziet daar niets van — dan komt de aanroep er elke push nog een keer bij.
   bool heeftAanroep(FFActionNode n) {
     if (n.hasAction() &&
         n.action.hasDatabase() &&
@@ -38921,14 +38944,36 @@ void _addProfielGuardianLinks(FFProject project) {
         n.action.database.apiCall.endpointIdentifier.name == 'GetGuardianLinks') {
       return true;
     }
-    return n.hasFollowUpAction() && heeftAanroep(n.followUpAction);
+    if (n.hasFollowUpAction() && heeftAanroep(n.followUpAction)) return true;
+    if (n.hasConditionActions()) {
+      final ca = n.conditionActions;
+      if (ca.hasFalseAction() && heeftAanroep(ca.falseAction)) return true;
+      for (final t in ca.trueActions) {
+        if (t.hasTrueAction() && heeftAanroep(t.trueAction)) return true;
+      }
+    }
+    return false;
   }
 
   if (wc.node.triggerActions
       .any((t) => t.hasRootAction() && heeftAanroep(t.rootAction))) return;
 
   _appendToFirstPageLoadChain(
-      wc.node, herlaad(wc.node.key, 'koppelLoad'));
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetGuardianLinks',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+      outputVariableName: 'koppelLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('guardianLinks', ctx.responseVar),
+        ]),
+      ]),
+    ),
+  );
 }
 
 // ── Documenten bij een elftal ───────────────────────────────────────────────
