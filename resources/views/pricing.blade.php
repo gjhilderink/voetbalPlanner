@@ -16,6 +16,17 @@
     // maakt de drempel navolgbaar: een kleine club ziet dan meteen waaróm er
     // € 595 staat en niet leden x tarief.
     $drempel = $perLid > 0 ? (int) ceil($minimum / $perLid) : 0;
+
+    // Als losse variabele en niet als array rechtstreeks in @json: die
+    // directive knipt zijn expressie op komma's om de optionele flags- en
+    // depth-argumenten te vinden, en snijdt een array met meer dan twee
+    // sleutels dus middendoor.
+    $rekenwaarden = [
+        'perLid'  => $perLid,
+        'opstart' => $opstart,
+        'minimum' => $minimum,
+        'drempel' => $drempel,
+    ];
 @endphp
 <!DOCTYPE html>
 <html lang="nl">
@@ -232,7 +243,7 @@
     (function () {
         // De bedragen komen uit dezelfde instellingen als de kaartjes hierboven,
         // zodat de calculator er niet zijn eigen waarheid op na kan houden.
-        var T = @json(['perLid' => $perLid, 'opstart' => $opstart, 'minimum' => $minimum, 'drempel' => $drempel]);
+        var T = @json($rekenwaarden);
 
         var euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' });
 
