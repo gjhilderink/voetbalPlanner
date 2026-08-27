@@ -35443,6 +35443,7 @@ void _ensureLineupBoardAppState(FFProject project) {
     'lineupCanManage',
     'lineupPublished',
     'lineupMessage',
+    'lineupTeamId',
   ]) {
     if (heeft(naam)) continue;
     project.appState.fields.add(FFAppStateField(
@@ -35473,9 +35474,14 @@ import 'package:http/http.dart' as http;
 
 /// Haalt het opstellingsbord op en zet het in AppState. Retourneert '' bij
 /// succes, anders een korte melding.
-Future<String> loadLineupBoard(String? matchId) async {
+///
+/// Met een teamId haalt hij de standaardopstelling van dat elftal op in plaats
+/// van de opstelling van een wedstrijd. Beide leveren hetzelfde bord, dus het
+/// scherm hoeft er niets van te weten.
+Future<String> loadLineupBoard(String? matchId, String? teamId) async {
   final id = (matchId ?? '').trim();
-  if (id.isEmpty) return 'Geen wedstrijd gekozen.';
+  final team = (teamId ?? '').trim();
+  if (id.isEmpty && team.isEmpty) return 'Geen wedstrijd gekozen.';
 
   List<LineupSlotStruct> lees(dynamic lijst) {
     if (lijst is! List) return <LineupSlotStruct>[];
@@ -35495,7 +35501,9 @@ Future<String> loadLineupBoard(String? matchId) async {
 
   try {
     final res = await http.get(
-      Uri.parse('https://voetbalplanner.nubix.nl/api/v1/matches/$id/lineup/board'),
+      Uri.parse(team.isNotEmpty
+          ? 'https://voetbalplanner.nubix.nl/api/v1/teams/$team/default-lineup'
+          : 'https://voetbalplanner.nubix.nl/api/v1/matches/$id/lineup/board'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer ${FFAppState().authToken}',
@@ -35541,6 +35549,14 @@ Future<String> loadLineupBoard(String? matchId) async {
       FFAppState().lineupCanManage = '${data['magBeheren'] ?? 'false'}';
       FFAppState().lineupPublished = '${data['isVrijgegeven'] ?? 'false'}';
       FFAppState().lineupMessage = '${data['melding'] ?? ''}';
+      // Bij een wedstrijd zegt de server bij welk elftal die hoort; vandaar kan
+      // de coach naar de standaardopstelling. Bij het sjabloon zelf staat het
+      // elftal al vast, dus dan houden we wat er stond.
+      if (team.isNotEmpty) {
+        FFAppState().lineupTeamId = team;
+      } else if (data['teamId'] != null) {
+        FFAppState().lineupTeamId = '${data['teamId']}';
+      }
     });
     return '';
   } catch (_) {
@@ -35567,9 +35583,10 @@ import 'package:http/http.dart' as http;
 /// Slaat het hele bord in één keer op. Eén call en niet per speler: bij het
 /// slepen verandert er van alles tegelijk, en een half opgeslagen opstelling is
 /// erger dan geen. Retourneert '' bij succes, anders een korte melding.
-Future<String> saveLineupBoard(String? matchId) async {
+Future<String> saveLineupBoard(String? matchId, String? teamId) async {
   final id = (matchId ?? '').trim();
-  if (id.isEmpty) return 'Geen wedstrijd gekozen.';
+  final team = (teamId ?? '').trim();
+  if (id.isEmpty && team.isEmpty) return 'Geen wedstrijd gekozen.';
 
   Map<String, dynamic> rij(LineupSlotStruct s, bool bank) => {
         'member_id': s.memberId,
@@ -35587,7 +35604,9 @@ Future<String> saveLineupBoard(String? matchId) async {
 
   try {
     final res = await http.post(
-      Uri.parse('https://voetbalplanner.nubix.nl/api/v1/matches/$id/lineup/board'),
+      Uri.parse(team.isNotEmpty
+          ? 'https://voetbalplanner.nubix.nl/api/v1/teams/$team/default-lineup'
+          : 'https://voetbalplanner.nubix.nl/api/v1/matches/$id/lineup/board'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -35614,6 +35633,75 @@ Future<String> saveLineupBoard(String? matchId) async {
     return 'Kon de opstelling niet opslaan.';
   } catch (_) {
     return 'Kon de opstelling niet opslaan.';
+  }
+}
+""";
+
+  const standaardCode = r"""
+// Automatic FlutterFlow imports
+import '/backend/schema/structs/index.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+/// Zet de standaardopstelling van het elftal in deze wedstrijd en leest het
+/// bord meteen opnieuw in.
+///
+/// Geeft de tekst van de server terug, ook als het lukte: daar staat in hoeveel
+/// spelers zijn overgeslagen omdat ze zijn afgemeld of niet meer bij het elftal
+/// horen. Een gat in de opstelling dat je niet verwacht is erger dan een gat
+/// waarvan je weet dat het er is.
+Future<String> loadDefaultLineup(BuildContext context, String? matchId) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final id = (matchId ?? '').trim();
+  if (id.isEmpty) return 'Geen wedstrijd gekozen.';
+
+  void meld(String tekst) {
+    if (tekst.isEmpty) return;
+    messenger.showSnackBar(SnackBar(content: Text(tekst)));
+  }
+
+  try {
+    final res = await http.post(
+      Uri.parse(
+          'https://voetbalplanner.nubix.nl/api/v1/matches/$id/lineup/load-default'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ${FFAppState().authToken}',
+      },
+    );
+
+    String melding = '';
+    try {
+      final data = jsonDecode(res.body);
+      if (data is Map && data['message'] is String) {
+        melding = data['message'] as String;
+      }
+    } catch (_) {}
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      final fout = melding.isEmpty
+          ? 'Kon de standaardopstelling niet inladen.'
+          : melding;
+      meld(fout);
+      return fout;
+    }
+
+    // Meteen opnieuw inlezen; anders staat het bord nog op de oude opstelling
+    // terwijl de server de nieuwe al heeft.
+    await loadLineupBoard(id, '');
+
+    meld(melding);
+    return melding;
+  } catch (_) {
+    meld('Kon de standaardopstelling niet inladen.');
+    return 'Kon de standaardopstelling niet inladen.';
   }
 }
 """;
@@ -35664,7 +35752,8 @@ Future<String> publishLineup(String? matchId, bool? published) async {
 }
 """;
 
-  void borg(String naam, String omschrijving, List<FFParameter> args, String code) {
+  void borg(String naam, String omschrijving, List<FFParameter> args, String code,
+      {bool metContext = false}) {
     if (findCustomAction(project, name: naam) == null) {
       addCustomAction(
         project,
@@ -35674,22 +35763,34 @@ Future<String> publishLineup(String? matchId, bool? published) async {
         returnParameter: FFParameter(
           dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
         ),
+        includeContext: metContext,
         code: code,
       );
     } else {
-      updateCustomAction(project, name: naam, code: code);
+      // Ook de argumenten bijwerken. Zonder dat blijft een actie die er een
+      // argument bij krijgt op de oude lijst staan, en dan komt de nieuwe
+      // waarde nergens aan.
+      updateCustomAction(project,
+          name: naam, code: code, arguments: args, includeContext: metContext);
     }
   }
 
   FFParameter tekst(String naam) => FFParameter(
-        identifier: FFIdentifier(name: naam),
+        identifier:
+            FFIdentifier(name: naam, key: generateRandomAlphaNumericString()),
         dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
       );
 
   borg('LoadLineupBoard', 'Haalt het opstellingsbord op en zet het in AppState.',
-      [tekst('matchId')], laadCode);
+      [tekst('matchId'), tekst('teamId')], laadCode);
   borg('SaveLineupBoard', 'Slaat het hele opstellingsbord in één keer op.',
-      [tekst('matchId')], bewaarCode);
+      [tekst('matchId'), tekst('teamId')], bewaarCode);
+  // Met context: deze actie toont zelf wat de server terugmeldt, inclusief het
+  // aantal overgeslagen spelers. Die tekst met een aparte snackbar-actie langs
+  // de knop leiden kan niet: FlutterFlow geeft de uitkomst van een custom action
+  // niet door aan een volgende stap.
+  borg('LoadDefaultLineup', 'Zet de standaardopstelling van het elftal in deze wedstrijd.',
+      [tekst('matchId')], standaardCode, metContext: true);
   borg(
     'PublishLineup',
     'Zet de opstelling bij de spelers, of haalt hem daar weer weg.',
@@ -35781,6 +35882,10 @@ void _buildOpstellingPage(App app) {
     params: {
       'matchId': string.withDefault(''),
       'teamName': string.withDefault(''),
+      // Gevuld = deze pagina toont de standaardopstelling van dat elftal in
+      // plaats van de opstelling van een wedstrijd. Hetzelfde bord, dezelfde
+      // knoppen; alleen vrijgeven en inladen horen er dan niet bij.
+      'teamId': string.withDefault(''),
     },
     state: {
       // Welk tabblad open staat: 'veld', 'wissels' of 'instellingen'.
@@ -35806,6 +35911,7 @@ void _wireOpstellingPage(FFProject project) {
   final laadActie = findCustomAction(project, name: 'LoadLineupBoard');
   final bewaarActie = findCustomAction(project, name: 'SaveLineupBoard');
   final vrijgeefActie = findCustomAction(project, name: 'PublishLineup');
+  final standaardActie = findCustomAction(project, name: 'LoadDefaultLineup');
   if (widget == null || laadActie == null || bewaarActie == null || vrijgeefActie == null) {
     return;
   }
@@ -35824,6 +35930,56 @@ void _wireOpstellingPage(FFProject project) {
       .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
       ?.identifier;
   if (matchIdParam == null) return;
+
+  // ensurePage maakt de parameters alleen aan bij een nieuwe pagina; deze
+  // bestond al, dus hier idempotent erbij.
+  if (!wc.params.values
+      .any((p) => p.hasIdentifier() && p.identifier.name == 'teamId')) {
+    final id =
+        FFIdentifier(name: 'teamId', key: generateRandomAlphaNumericString());
+    wc.params[id.key] = FFParameter(
+      identifier: id,
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    );
+  }
+
+  final teamIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'teamId', orElse: () => null)
+      ?.identifier;
+
+  final teamNaamParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'teamName', orElse: () => null)
+      ?.identifier;
+
+  /// Leeg bij een wedstrijd, gevuld bij de standaardopstelling.
+  FFValue teamIdWaarde() => teamIdParam == null
+      ? FFValue(
+          variable:
+              varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING))
+      : FFValue(
+          variable: varFromPageParam(teamIdParam.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey));
+
+  /// Staat deze pagina op de standaardopstelling? Bepaalt welke knoppen er
+  /// horen: vrijgeven en inladen gaan over een wedstrijd, niet over een sjabloon.
+  FFVariable? isSjabloonVar() => teamIdParam == null
+      ? null
+      : _equalsLiteral(
+          varFromPageParam(teamIdParam.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+          '',
+          negate: true,
+        );
+
+  FFVariable? isWedstrijdVar() => teamIdParam == null
+      ? null
+      : _equalsLiteral(
+          varFromPageParam(teamIdParam.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+          '',
+        );
 
   FFVariable matchIdVar() => varFromPageParam(matchIdParam.deepCopy())
     ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
@@ -36216,7 +36372,10 @@ void _wireOpstellingPage(FFProject project) {
         key: generateRandomAlphaNumericString(),
         customAction: FFCustomActionCall(
           customActionIdentifier: bewaarActie.identifier.deepCopy(),
-          argumentValues: _actieArgs(bewaarActie, {'matchId': FFValue(variable: matchIdVar())}),
+          argumentValues: _actieArgs(bewaarActie, {
+            'matchId': FFValue(variable: matchIdVar()),
+            'teamId': teamIdWaarde(),
+          }),
         ),
       ),
       followUpAction: FFActionNode(
@@ -36272,6 +36431,73 @@ void _wireOpstellingPage(FFProject project) {
     return knop;
   }
 
+  // ── Standaardopstelling ──────────────────────────────────────────────────
+  //
+  // Twee knoppen die alleen bij een wedstrijd horen. Op het sjabloon zelf zou
+  // "standaard laden" hem over zichzelf heen zetten en "standaard opstelling"
+  // je naar de pagina brengen waar je al staat.
+  final naarStandaard = UI.button(
+    'Standaard opstelling',
+    name: 'OpstellingNaarStandaard',
+    variant: UIButtonVariant.outlined,
+    width: double.infinity,
+  );
+  final teamIdApp = appVar('lineupTeamId');
+  if (teamIdApp != null && teamNaamParam != null) {
+    Actions.onTapChain(
+      naarStandaard,
+      FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.navigate(
+          project,
+          pageName: 'OpstellingPage',
+          params: {
+            // Zonder wedstrijd en mét elftal: dan toont dezelfde pagina het
+            // sjabloon. De server gaf het elftal mee bij het laden van het bord.
+            'matchId': StaticParamValue(''),
+            'teamId': VariableParamValue(teamIdApp.deepCopy()),
+            // De naam gaat mee zodat de kop op het sjabloon hetzelfde elftal
+            // noemt als de wedstrijd waar je vandaan komt.
+            'teamName': VariableParamValue(
+                varFromPageParam(teamNaamParam!.deepCopy())
+                  ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)),
+          },
+        ),
+      ),
+    );
+  }
+
+  final standaardLaden = UI.button(
+    'Standaard opstelling laden',
+    name: 'OpstellingStandaardLaden',
+    variant: UIButtonVariant.outlined,
+    width: double.infinity,
+  );
+  if (standaardActie != null) {
+    Actions.onTapChain(
+      standaardLaden,
+      FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: standaardActie.identifier.deepCopy(),
+            argumentValues: _actieArgs(standaardActie, {
+              'matchId': FFValue(variable: matchIdVar()),
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  final alleenWedstrijd = isWedstrijdVar();
+  for (final knop in [naarStandaard, standaardLaden]) {
+    if (alleenWedstrijd != null) {
+      setConditionalVisibility(knop, variable: alleenWedstrijd.deepCopy());
+    }
+  }
+
   final knoppen = UI.column(
     name: 'OpstellingKnoppen',
     crossAxisAlignment: UICrossAxisAlignment.stretch,
@@ -36279,6 +36505,8 @@ void _wireOpstellingPage(FFProject project) {
     padding: UIEdgeInsets.only(left: 16, right: 16, top: 16, bottom: 28),
     children: [
       opslaan,
+      standaardLaden,
+      naarStandaard,
       vrijgeefKnop(vrijgeven: true),
       vrijgeefKnop(vrijgeven: false),
     ],
@@ -36322,7 +36550,10 @@ void _wireOpstellingPage(FFProject project) {
         key: generateRandomAlphaNumericString(),
         customAction: FFCustomActionCall(
           customActionIdentifier: laadActie.identifier.deepCopy(),
-          argumentValues: _actieArgs(laadActie, {'matchId': FFValue(variable: matchIdVar())}),
+          argumentValues: _actieArgs(laadActie, {
+            'matchId': FFValue(variable: matchIdVar()),
+            'teamId': teamIdWaarde(),
+          }),
         ),
       ),
     ),
@@ -36396,6 +36627,9 @@ void _addOpstellingButton(FFProject project) {
           'teamName': VariableParamValue(
               varFromAppState(_findAppStateFieldId(project, 'currentTeamName')!.deepCopy())
                 ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
+        // Leeg: deze knop opent de opstelling van déze wedstrijd, niet het
+        // sjabloon van het elftal.
+        'teamId': StaticParamValue(''),
       },
     ),
   );
@@ -36719,7 +36953,13 @@ void _wirePlannedSubsOnLivePage(FFProject project) {
         customAction: FFCustomActionCall(
           customActionIdentifier: laadActie.identifier.deepCopy(),
           argumentValues:
-              _actieArgs(laadActie, {'matchId': FFValue(variable: matchIdVar())}),
+              _actieArgs(laadActie, {
+                'matchId': FFValue(variable: matchIdVar()),
+                // De livepagina toont altijd een wedstrijd, nooit het sjabloon.
+                'teamId': FFValue(
+                    variable: varFromConstant(
+                        FFConstantsVariable_ConstantValue.EMPTY_STRING)),
+              }),
         ),
       ),
     ),

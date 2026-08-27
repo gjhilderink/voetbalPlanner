@@ -1452,6 +1452,7 @@ abstract final class CustomCode {
     "GetTrainings",
     "InitializeGroupConversation",
     "InitializeTeamConversation",
+    "LoadDefaultLineup",
     "LoadGroupMemberNames",
     "LoadLineupBoard",
     "LoginWithCredentials",

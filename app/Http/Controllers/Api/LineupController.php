@@ -93,6 +93,10 @@ class LineupController extends Controller
 
         return response()->json([
             'magBeheren'     => $magBeheren ? 'true' : 'false',
+            // Het elftal erbij, zodat de app vanaf hier naar de
+            // standaardopstelling kan. De coach kan een wedstrijd van een ander
+            // elftal openen dan het elftal dat hij op dat moment volgt.
+            'teamId'         => (string) $match->team_id,
             'isVrijgegeven'  => $vrijgegeven ? 'true' : 'false',
             'formation'      => (string) ($lineup?->formation ?? ''),
             'playersOnField' => (string) ($lineup?->players_on_field ?? 11),

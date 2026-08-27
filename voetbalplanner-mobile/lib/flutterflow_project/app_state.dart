@@ -299,6 +299,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const lineupTeamId = ffai.ProjectAppStateFieldHandle(
+    name: "lineupTeamId",
+    key: "dutxayg8",
+    typeName: "String",
+    persisted: false,
+  );
   static const liveEvents = ffai.ProjectAppStateFieldHandle(
     name: "liveEvents",
     key: "3e6p9wim",
@@ -661,6 +667,7 @@ abstract final class AppState {
     lineupSelection,
     lineupSubs,
     lineupTab,
+    lineupTeamId,
     liveEvents,
     liveMatchId,
     liveMatches,
