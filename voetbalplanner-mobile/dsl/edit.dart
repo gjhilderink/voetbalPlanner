@@ -34862,6 +34862,24 @@ class _LineupBoardState extends State<LineupBoard> {
             ],
           ),
         ),
+        // Met zoveel woorden erbij. Alleen een rood cijfer laat de coach raden
+        // waarom deze speler anders is dan de rest van de lijst.
+        if (afgemeld)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFDE3E3),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              'Afgemeld',
+              style: theme.labelSmall.override(
+                fontFamily: theme.labelSmallFamily,
+                color: const Color(0xFFB91C1C),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
       ],
     );
 

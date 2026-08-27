@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Concerns\ManagesAttendance;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MatchResource;
 use App\Models\Absence;
+use App\Models\LineupPlayer;
 use App\Models\FootballMatch;
 use App\Models\Member;
 use Illuminate\Http\JsonResponse;
@@ -138,6 +139,8 @@ class MatchController extends Controller
             ]);
         }
 
+        $this->haalUitOpstelling($match, $leden);
+
         return response()->json([
             'success' => true,
             'message' => $this->attendanceMessage($request, $leden, 'afgemeld', 'deze wedstrijd'),
@@ -169,6 +172,44 @@ class MatchController extends Controller
             'success' => true,
             'message' => $this->attendanceMessage($request, $leden, 'weer aangemeld', 'deze wedstrijd'),
         ]);
+    }
+
+    /**
+     * Haalt afgemelde spelers uit de opstelling.
+     *
+     * Ze werden alleen rood gekleurd, en bleven zo een plek bezetten. Op het
+     * veld leek het dan alsof er elf man stonden terwijl er tien konden spelen,
+     * en de coach moest zelf bedenken dat hij iemand moest weghalen voor hij de
+     * vervanger kwijt kon.
+     *
+     * Alle perioden ineens: een speler die er niet is, is er in geen enkele
+     * periode. Meldt hij zich later weer aan, dan komt hij niet vanzelf terug op
+     * zijn oude plek - die is dan misschien al door een ander ingenomen, en dat
+     * is een keuze van de coach en niet van de administratie.
+     *
+     * @param  array<int, ?\App\Models\Member>  $leden
+     */
+    private function haalUitOpstelling(FootballMatch $match, array $leden): void
+    {
+        $ids = collect($leden)
+            ->filter()
+            ->map(fn ($lid) => $lid->id)
+            ->all();
+
+        if (! $ids) {
+            return;
+        }
+
+        $lineup = $match->lineup()->first();
+
+        if (! $lineup) {
+            return;
+        }
+
+        LineupPlayer::query()
+            ->where('lineup_id', $lineup->id)
+            ->whereIn('member_id', $ids)
+            ->delete();
     }
 
     /**
