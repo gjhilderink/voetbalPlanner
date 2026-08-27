@@ -24,8 +24,13 @@ class BarDutyResource extends JsonResource
             ? $r->name . ' (' . (int) $r->pivot->spots . ' personen)'
             : $r->name;
 
-        $names = ($this->members?->map($naam) ?? collect())
-            ->merge($this->users?->map($naam) ?? collect());
+        // Beide kanten eerst naar een gewone array: map() op een lege
+        // Eloquent-collectie geeft er weer een Eloquent-collectie terug, en merge()
+        // daarop roept getKey() aan op elke waarde — wat op strings stukloopt.
+        // Dat gebeurt precies bij een dienst waar wel accounts maar geen leden op
+        // staan, en dan valt de hele lijst om met een 500.
+        $names = collect($this->members?->map($naam)->all() ?? [])
+            ->merge($this->users?->map($naam)->all() ?? []);
 
         // Telling in plekken, niet in aanmeldingen.
         $memberCount = $this->filledCount();
