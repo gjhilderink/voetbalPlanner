@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\SwapRequestController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\TeamDocumentController;
+use App\Http\Controllers\Api\TeamLineupController;
 use App\Http\Controllers\Api\TeamMoodController;
 use App\Http\Controllers\Api\TeamStatsController;
 use Illuminate\Support\Facades\Route;
@@ -179,6 +180,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/matches/{match}/lineup/board', [LineupController::class, 'board']);
         Route::post('/matches/{match}/lineup/board', [LineupController::class, 'saveBoard']);
         Route::post('/matches/{match}/lineup/publish', [LineupController::class, 'publish']);
+        // Standaardopstelling: onderhouden bij het elftal, inladen bij een
+        // wedstrijd. POST voor het inladen, want het schrijft.
+        Route::get('/teams/{team}/default-lineup', [TeamLineupController::class, 'show']);
+        Route::post('/teams/{team}/default-lineup', [TeamLineupController::class, 'store']);
+        Route::post('/matches/{match}/lineup/load-default', [TeamLineupController::class, 'load']);
 
         // Goals
         Route::get('/matches/{match}/goals', [GoalController::class, 'index']);
