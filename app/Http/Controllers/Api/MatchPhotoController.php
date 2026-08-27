@@ -9,6 +9,7 @@ use App\Models\FootballMatch;
 use App\Models\MatchPhoto;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -91,15 +92,35 @@ class MatchPhotoController extends Controller
      * POST en geen DELETE: de hosting blokkeert die methode, zoals overal in
      * deze API.
      */
-    public function destroy(Request $request, FootballMatch $match, MatchPhoto $photo): JsonResponse
+    public function destroy(Request $request, FootballMatch $match, string $photo): JsonResponse
     {
         $user = $request->user();
 
-        if ($photo->match_id !== $match->id) {
-            return response()->json(['success' => false, 'message' => 'Onbekende foto.'], 404);
+        // Zelf opzoeken in plaats van via route-model-binding. Het model gebruikt
+        // HasUuids, en die binding gooit een kale 404 zodra de meegegeven waarde
+        // niet de vorm van een UUID heeft. Op de app is dat niet te onderscheiden
+        // van "die route bestaat niet", en dat kostte een avond zoeken.
+        $foto = MatchPhoto::query()
+            ->where('match_id', $match->id)
+            ->where('id', $photo)
+            ->first();
+
+        if (! $foto) {
+            // Wat er binnenkwam wél vastleggen: als de app iets anders meestuurt
+            // dan het foto-id is dit de enige plek waar dat te zien is.
+            Log::warning('Foto verwijderen: onbekend id ontvangen', [
+                'match' => $match->id,
+                'photo' => $photo,
+                'user'  => $user?->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Deze foto staat niet (meer) bij deze wedstrijd.',
+            ], 404);
         }
 
-        $magWeg = $photo->user_id === $user?->id
+        $magWeg = $foto->user_id === $user?->id
             || (bool) $user?->canManageLineup($match->team_id);
 
         if (! $magWeg) {
@@ -109,8 +130,8 @@ class MatchPhotoController extends Controller
             ], 403);
         }
 
-        Storage::disk(self::DISK)->delete($photo->path);
-        $photo->delete();
+        Storage::disk(self::DISK)->delete($foto->path);
+        $foto->delete();
 
         return response()->json(['success' => true, 'message' => 'Foto verwijderd.']);
     }
