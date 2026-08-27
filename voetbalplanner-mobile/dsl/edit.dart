@@ -1263,8 +1263,9 @@ void buildEditFlow(App app) {
   app.raw((project) => _addWedstrijdScoreSection(project));
   app.raw((project) => _addWedstrijdGuestInviteSection(project));
   app.raw((project) => _addWedstrijdActionsFab(project));
-  // Rood telbolletje met het aantal doelpunten op de Doelpunten-tab.
-  app.raw((project) => _addGoalsTabBadge(project));
+  // Het telbolletje hoorde bij de Doelpunten-tab; die is Statistiek geworden.
+  // Eerder toegevoegde exemplaren worden hier weer uitgepakt.
+  app.raw((project) => _removeGoalsTabBadge(project));
   // De inline coach-secties zijn vervangen door de FAB-dialoog: van de pagina af.
   app.raw((project) => _removeInlineCoachSections(project));
   // Fix ListView generator variable names (same codegen bug as existing pages).
@@ -1522,6 +1523,10 @@ void buildEditFlow(App app) {
     _addMatchReportsEndpoint(project);
     _wireVerslagenPage(project);
     _wireVerslagPage(project);
+    _ensureMatchStatStruct(project);
+    _ensureMatchStatsAppState(project);
+    _addMatchStatsEndpoint(project);
+    _wireMatchStatsTab(project);
     _ensureTeamDocumentStruct(project);
     _ensureTeamDocumentsAppState(project);
     _addTeamDocumentsEndpoint(project);
@@ -38700,6 +38705,262 @@ void _wireDocumentenPage(FFProject project) {
       ]),
       onFailure: (ctx) => Actions.chain([
         Actions.snackBar('De documenten konden niet worden opgehaald.'),
+      ]),
+    ),
+  );
+}
+
+// ── Statistiek bij een wedstrijd ────────────────────────────────────────────
+//
+// Het tabblad Doelpunten toonde een lijstje losse doelpunten. Dat stond naast
+// het live verslag, dat dezelfde doelpunten al bijhoudt én ook kaarten en
+// wissels kent. Nu één tabblad Statistiek dat de cijfers uit dat verslag haalt.
+//
+// De server levert platte regels (kop of regel, label, waarde). Zo kan er een
+// categorie bij zonder dat de app mee hoeft te veranderen.
+
+void _ensureMatchStatStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'MatchStatRow',
+    description:
+        'Eén regel uit de wedstrijdstatistiek: een kop of een label met een waarde.',
+    fields: const ['kind', 'label', 'value', 'melding'],
+  );
+}
+
+void _ensureMatchStatsAppState(FFProject project) {
+  final struct = findDataStruct(project, name: 'MatchStatRow');
+  if (struct == null) return;
+
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'matchStats')) return;
+
+  final param = FFParameter(
+    identifier:
+        FFIdentifier(name: 'matchStats', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+void _addMatchStatsEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  const name = 'GetMatchStats';
+  if (findApiGroup(project, name: groupName) == null) return;
+  if (findApiEndpoint(project, name: name, groupName: groupName) != null) return;
+
+  addEndpointToGroup(
+    project,
+    groupName: groupName,
+    name: name,
+    url: '/matches/[matchId]/stats',
+    method: FFApiEndpoint_CallType.GET,
+    bodyType: FFApiEndpoint_BodyType.NONE,
+    variables: {
+      'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'matchId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+    headers: ['Authorization: Bearer [token]'],
+    responseDataStructName: 'MatchStatRow',
+    responseDataStructIsList: true,
+  );
+}
+
+/// Pakt het telbolletje weer uit dat ooit om de TabBar heen is gezet.
+///
+/// Het hing aan het aantal doelpunten en hoorde bij de oude tab. Zonder deze
+/// stap blijft de Stack in het project staan en telt hij een lijst die er niet
+/// meer is.
+void _removeGoalsTabBadge(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+
+  final stack =
+      findDescendants(wc.node, (n) => n.name == 'MatchGoalsBadgeStack').firstOrNull;
+  if (stack == null) return;
+
+  final tabbar =
+      findDescendants(stack, (n) => n.name == 'MatchDetailTabs').firstOrNull;
+  if (tabbar == null) return;
+
+  final ouder = findParentByKey(wc.node, stack.key);
+  if (ouder == null) return;
+
+  _replaceChildRef(ouder.parent, stack, tabbar);
+}
+
+/// Zet de Doelpunten-tab om naar Statistiek en vult hem opnieuw.
+void _wireMatchStatsTab(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final statsId = _findAppStateFieldId(project, 'matchStats');
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (statsId == null || authTokenId == null) return;
+
+  final tabBar =
+      findDescendants(wc.node, (n) => n.name == 'MatchDetailTabs').firstOrNull;
+  if (tabBar == null) return;
+
+  // De tab zoeken op zijn opschrift. Bij een tweede push heet hij al
+  // Statistiek; beide namen dus, anders bouwt hij zichzelf maar één keer.
+  int index = -1;
+  for (var i = 0; i < tabBar.children.length; i++) {
+    final n = tabBar.children[i];
+    if (n.type != FFWidgetType.Tab || !n.props.hasTab()) continue;
+    final tekst = n.props.tab.text.textValue.inputValue;
+    if (tekst == 'Doelpunten' || tekst == 'Statistiek') {
+      index = i;
+      break;
+    }
+  }
+  if (index < 0 || index + 1 >= tabBar.children.length) return;
+
+  final tab = tabBar.children[index];
+  final inhoud = tabBar.children[index + 1];
+
+  final tabProps = tab.props.tab.deepCopy();
+  tabProps.text = FFText(textValue: FFStringValue(inputValue: 'Statistiek'));
+  tab.props.tab = tabProps;
+
+  final scaffoldKey = wc.node.key;
+  final statsVar = varFromAppState(statsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final lijst = UI.listView(
+    name: 'MatchStatsList',
+    shrinkWrap: true,
+    spacing: 2,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    dynamicSource: DynamicSource(variable: statsVar, itemName: 'stat'),
+  );
+
+  FFNode gebonden(String naam, String veld, UITextStyle stijl,
+      {UIColor? kleur, UIFontWeight? gewicht}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: 2,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijst.key, veld));
+    return t;
+  }
+
+  // Een kop en een gewone regel zien er anders uit, en FlutterFlow kan een
+  // tekststijl niet aan een variabele binden. Dus twee varianten die elkaar
+  // uitsluiten op het veld 'kind'.
+  final kop = UI.container(
+    name: 'MatchStatKop',
+    innerPadding: UIEdgeInsets.only(top: 14, bottom: 4),
+    child: gebonden('MatchStatKopTekst', 'label', UITextStyle.labelMedium,
+        kleur: UIColor.secondaryText, gewicht: UIFontWeight.w700),
+  );
+  setConditionalVisibility(
+    kop,
+    variable: _equalsLiteral(generatorVarField(lijst.key, 'kind'), 'kop'),
+  );
+
+  final regel = UI.container(
+    name: 'MatchStatRegel',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    borderRadius: 10,
+    color: UIColor.secondaryBackground,
+    child: UI.row(
+      name: 'MatchStatRegelRij',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.expanded(gebonden('MatchStatLabel', 'label', UITextStyle.bodyMedium)),
+        gebonden('MatchStatWaarde', 'value', UITextStyle.bodyMedium,
+            gewicht: UIFontWeight.w700),
+      ],
+    ),
+  );
+  setConditionalVisibility(
+    regel,
+    variable: _equalsLiteral(generatorVarField(lijst.key, 'kind'), 'regel'),
+  );
+
+  lijst.children.add(UI.column(
+    name: 'MatchStatItem',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    children: [kop, regel],
+  ));
+
+  final melding = UI.text('',
+      name: 'MatchStatsMelding',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center,
+      maxLines: 3);
+  melding.props.text.textValue =
+      FFStringValue(variable: _firstItemVar(statsVar, 'melding'));
+  melding.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 28),
+  );
+  setConditionalVisibility(
+    melding,
+    variable: andConditionsVar([
+      _listNotEmptyVar(statsVar.deepCopy()),
+      _firstFieldFilledVar(statsVar, 'melding'),
+    ]).variable,
+  );
+
+  inhoud.children.clear();
+  inhoud.children.add(UI.column(
+    name: 'MatchStatsCol',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    scrollable: true,
+    children: [melding, lijst],
+  ));
+
+  // Ophalen bij het openen van de wedstrijd.
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetMatchStats', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  bool heeft(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasDatabase() &&
+        n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetMatchStats') {
+      return true;
+    }
+    return n.hasFollowUpAction() && heeft(n.followUpAction);
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && heeft(t.rootAction))) return;
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetMatchStats',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromPageParam(matchIdParam.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      },
+      outputVariableName: 'matchStatsLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('matchStats', ctx.responseVar),
+        ]),
       ]),
     ),
   );

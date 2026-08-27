@@ -389,6 +389,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<MatchReportItem>>",
     persisted: false,
   );
+  static const matchStats = ffai.ProjectAppStateFieldHandle(
+    name: "matchStats",
+    key: "z1nr5xgm",
+    typeName: "List<DataStruct<MatchStatRow>>",
+    persisted: false,
+  );
   static const myGuardianRequests = ffai.ProjectAppStateFieldHandle(
     name: "myGuardianRequests",
     key: "bahsc5ea",
@@ -670,6 +676,7 @@ abstract final class AppState {
     matchPhotos,
     matchReportEvents,
     matchReports,
+    matchStats,
     myGuardianRequests,
     myRoles,
     onboardingSeen,

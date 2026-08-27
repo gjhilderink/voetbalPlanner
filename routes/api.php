@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
 use App\Http\Controllers\Api\LiveMatchController;
 use App\Http\Controllers\Api\MatchPhotoController;
+use App\Http\Controllers\Api\MatchStatsController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\TrainingController;
@@ -191,6 +192,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/matches/{match}/live', [LiveMatchController::class, 'show']);
         // Bewaard verslag, ook lang na afloop terug te kijken.
         Route::get('/matches/{match}/events', [LiveMatchController::class, 'events']);
+        // Cijfers van een wedstrijd, afgeleid uit het live verslag.
+        Route::get('/matches/{match}/stats', [MatchStatsController::class, 'show']);
         // Foto's bij een wedstrijd. POST voor verwijderen: de hosting
         // blokkeert DELETE, zoals overal in deze API.
         Route::get('/matches/{match}/photos', [MatchPhotoController::class, 'index']);
