@@ -83,6 +83,10 @@ class LineupController extends Controller
             'posX'       => (string) ($p->slot_x ?? ''),
             'posY'       => (string) ($p->slot_y ?? ''),
             'isAfgemeld' => in_array($p->member_id, $afgemeld, true) ? 'true' : 'false',
+            // De periode hoort er ook bij. Zonder dit veld leest de app elke
+            // speler als periode 1: een opstelling met twee helften kwam dan
+            // terug als dubbele pionnen in de eerste en een lege tweede.
+            'period'     => (string) ($p->period ?? 1),
         ];
 
         $spelers = $lineup?->players ?? collect();

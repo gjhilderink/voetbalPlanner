@@ -52,6 +52,7 @@ class TeamLineupController extends Controller
             'posX'       => (string) ($s['slot_x'] ?? ''),
             'posY'       => (string) ($s['slot_y'] ?? ''),
             'isAfgemeld' => 'false',
+            'period'     => (string) ($s['period'] ?? 1),
         ];
 
         // Wie intussen weg is bij het elftal valt af; anders staat er een naamloze
@@ -106,6 +107,7 @@ class TeamLineupController extends Controller
             'players.*.is_substitute' => 'nullable|boolean',
             'players.*.slot_x'        => 'nullable|numeric|between:0,1',
             'players.*.slot_y'        => 'nullable|numeric|between:0,1',
+            'players.*.period'        => 'nullable|integer|min:1|max:4',
         ]);
 
         $leden = $this->ledenVan($team);
@@ -119,6 +121,10 @@ class TeamLineupController extends Controller
                 'is_substitute' => (bool) ($s['is_substitute'] ?? false),
                 'slot_x'        => $s['slot_x'] ?? null,
                 'slot_y'        => $s['slot_y'] ?? null,
+                // De periode gaat mee. Zou het sjabloon alleen de eerste helft
+                // bewaren, dan verdween de tweede bij het inladen zonder dat
+                // iemand het merkte.
+                'period'        => (int) ($s['period'] ?? 1),
             ])
             ->values()
             ->all();
@@ -176,9 +182,9 @@ class TeamLineupController extends Controller
             ->pluck('member_id')
             ->all();
 
-        $overgeslagen = 0;
+        $gemist = [];
 
-        DB::transaction(function () use ($match, $opslag, $spelers, $leden, $afgemeld, &$overgeslagen) {
+        DB::transaction(function () use ($match, $opslag, $spelers, $leden, $afgemeld, &$gemist) {
             $lineup = Lineup::updateOrCreate(
                 ['match_id' => $match->id],
                 [
@@ -198,19 +204,16 @@ class TeamLineupController extends Controller
             foreach ($spelers as $speler) {
                 $id = $speler['member_id'] ?? null;
 
-                if (! $id || ! isset($leden[$id])) {
-                    $overgeslagen++;
-                    continue;
-                }
-
-                if (in_array($id, $afgemeld, true)) {
-                    $overgeslagen++;
+                if (! $id || ! isset($leden[$id]) || in_array($id, $afgemeld, true)) {
+                    // Per speler tellen en niet per rij: wie in twee perioden
+                    // stond zou anders als twee overgeslagen spelers gelden.
+                    $gemist[$id ?? ''] = true;
                     continue;
                 }
 
                 LineupPlayer::create([
                     'lineup_id'     => $lineup->id,
-                    'period'        => 1,
+                    'period'        => (int) ($speler['period'] ?? 1),
                     'member_id'     => $id,
                     'position'      => 'player',
                     'shirt_number'  => $leden[$id]->shirt_number,
@@ -225,6 +228,7 @@ class TeamLineupController extends Controller
         // Het aantal overgeslagen spelers erbij: een gat in de opstelling dat je
         // niet verwacht is erger dan een gat waarvan je weet dat het er is.
         $melding = 'De standaardopstelling staat klaar.';
+        $overgeslagen = count($gemist);
 
         if ($overgeslagen === 1) {
             $melding .= ' Eén speler is overgeslagen: afgemeld of niet meer bij dit elftal.';
