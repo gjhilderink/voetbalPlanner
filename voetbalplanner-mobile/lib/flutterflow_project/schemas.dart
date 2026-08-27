@@ -521,6 +521,7 @@ abstract final class Structs {
     "TeamMood",
     <String, ffai.DslType>{
       "average": ffai.string,
+      "canVote": ffai.string,
       "count": ffai.string,
       "hasVoted": ffai.string,
       "label": ffai.string,
