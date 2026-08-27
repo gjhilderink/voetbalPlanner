@@ -23,10 +23,13 @@
             </svg>
             <span class="text-xl font-bold text-gray-900 tracking-tight">VoetbalPlanner</span>
         </div>
-        <a href="/admin/login"
-           class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
-            Inloggen
-        </a>
+        <div class="flex items-center gap-5">
+            <a href="{{ route('pricing') }}" class="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">Tarieven</a>
+            <a href="/admin/login"
+               class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
+                Inloggen
+            </a>
+        </div>
     </div>
 </nav>
 
@@ -276,6 +279,7 @@
         </div>
         <span>&copy; {{ date('Y') }} VoetbalPlanner. Alle rechten voorbehouden.</span>
         <div class="flex items-center gap-5">
+            <a href="{{ route('pricing') }}" class="hover:text-white transition-colors">Tarieven</a>
             <a href="{{ route('privacy') }}" class="hover:text-white transition-colors">Privacyverklaring</a>
             <a href="/admin/login" class="hover:text-white transition-colors">Inloggen</a>
         </div>

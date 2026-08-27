@@ -32,6 +32,12 @@ Route::get('/privacy', function () {
     ]);
 })->name('privacy');
 
+// Tarieven. Bedragen en teksten komen uit de instellingen, zodat de super-admin
+// ze in de portal kan bijstellen zonder deploy.
+Route::get('/tarieven', function () {
+    return view('pricing', ['inhoud' => \App\Services\PricingContent::all()]);
+})->name('pricing');
+
 Route::get('/aanmelden', [ClubRequestController::class, 'create'])->name('club-request.create');
 Route::post('/aanmelden', [ClubRequestController::class, 'store'])->name('club-request.store');
 Route::get('/aanmelden/bedankt', [ClubRequestController::class, 'success'])->name('club-request.success');
