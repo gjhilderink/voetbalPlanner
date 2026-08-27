@@ -47,7 +47,7 @@ class BarDutyController extends Controller
             ->when(
                 $request->boolean('mine'),
                 function ($q) use ($user) {
-                    $memberId = $user->member?->id;
+                    $memberId = $user->resolveMember()?->id;
                     $q->where(function ($sub) use ($user, $memberId) {
                         $sub->whereHas('users', fn($u) => $u->where('users.id', $user->id));
                         if ($memberId) {

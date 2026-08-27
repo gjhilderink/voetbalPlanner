@@ -18,7 +18,7 @@ class SwapRequestController extends Controller
     /** GET /swap-requests/incoming — pending requests where I am the requestee. */
     public function incoming(Request $request): JsonResponse
     {
-        $member = $request->user()->member;
+        $member = $request->user()->resolveMember();
         if (!$member) {
             return response()->json(['success' => true, 'data' => [], 'message' => '']);
         }
@@ -37,7 +37,7 @@ class SwapRequestController extends Controller
     /** POST /swap-requests — request a swap. */
     public function store(Request $request): JsonResponse
     {
-        $member = $request->user()->member;
+        $member = $request->user()->resolveMember();
         if (!$member) {
             return response()->json([
                 'success' => false, 'data' => null,
@@ -96,7 +96,7 @@ class SwapRequestController extends Controller
     /** PATCH /swap-requests/{id}/accept */
     public function accept(Request $request, SwapRequest $swapRequest): JsonResponse
     {
-        $member = $request->user()->member;
+        $member = $request->user()->resolveMember();
         if (!$member || $member->id !== $swapRequest->requestee_id) {
             return response()->json([
                 'success' => false, 'data' => null,
@@ -125,7 +125,7 @@ class SwapRequestController extends Controller
     /** PATCH /swap-requests/{id}/decline */
     public function decline(Request $request, SwapRequest $swapRequest): JsonResponse
     {
-        $member = $request->user()->member;
+        $member = $request->user()->resolveMember();
         if (!$member || $member->id !== $swapRequest->requestee_id) {
             return response()->json([
                 'success' => false, 'data' => null,

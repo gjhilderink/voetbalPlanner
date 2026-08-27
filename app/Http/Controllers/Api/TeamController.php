@@ -51,7 +51,7 @@ class TeamController extends Controller
 
     public function members(Request $request, Team $team): JsonResponse
     {
-        $myMemberId = $request->user()?->member?->id;
+        $myMemberId = $request->user()?->resolveMember()?->id;
         $myUserId   = $request->user()?->id;
 
         // Bij de doelpunt-maker-keuze (?include_self=1) moet de volledige selectie

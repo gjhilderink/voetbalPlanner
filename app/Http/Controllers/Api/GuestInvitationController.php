@@ -63,7 +63,7 @@ class GuestInvitationController extends Controller
             ], 422);
         }
 
-        if ($member->id === $user->member?->id) {
+        if ($member->id === $user->resolveMember()?->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Je kunt jezelf niet als gastspeler uitnodigen.',
@@ -92,7 +92,7 @@ class GuestInvitationController extends Controller
         $guestEmail = $member->user?->email;
         if (! empty($guestEmail)) {
             try {
-                $inviter = $user->member?->name ?: $user->name;
+                $inviter = $user->resolveMember()?->name ?: $user->name;
                 $when    = $match->match_datetime?->format('d-m H:i');
                 $topic   = 'user_' . FcmService::sanitizeTopicEmail($guestEmail);
                 app(FcmService::class)->sendToTopic(
@@ -145,7 +145,7 @@ class GuestInvitationController extends Controller
      */
     public function myInvitations(Request $request): JsonResponse
     {
-        $member = $request->user()->member;
+        $member = $request->user()->resolveMember();
         if (! $member) {
             return response()->json([]);
         }

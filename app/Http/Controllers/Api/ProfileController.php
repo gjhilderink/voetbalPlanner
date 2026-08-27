@@ -35,7 +35,7 @@ class ProfileController extends Controller
             'photo' => ['required', 'image', 'mimes:jpeg,png,webp', 'max:5120'],
         ]);
 
-        $member = $user->member;
+        $member = $user->resolveMember();
 
         // Verwijder oude foto's (zowel user als member) als die bestaan.
         $disk = Storage::disk('public');

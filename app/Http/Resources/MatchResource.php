@@ -29,7 +29,7 @@ class MatchResource extends JsonResource
     public function toArray(Request $request): array
     {
         $rawStatus  = $this->status ?? '';
-        $myMemberId = $request->user()?->member?->id;
+        $myMemberId = $request->user()?->resolveMember()?->id;
 
         return [
             'id'             => $this->id,

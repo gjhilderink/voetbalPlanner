@@ -25,7 +25,7 @@ class StaffGroupController extends Controller
                 function ($q) use ($user) {
                     // Regular users only see groups they belong to — either as a
                     // member (Member) or as a directly linked account (User).
-                    $memberId = $user->member?->id;
+                    $memberId = $user->resolveMember()?->id;
                     $q->where(function ($sub) use ($user, $memberId) {
                         $sub->whereHas('users', fn($u) => $u->where('users.id', $user->id));
                         if ($memberId) {
@@ -183,7 +183,7 @@ class StaffGroupController extends Controller
         // (Member) of als direct gekoppeld account (User).
         if (!$user->hasAnyRole(['super_admin', 'club_admin'])) {
             $isLinkedUser = $staffGroup->users()->where('users.id', $user->id)->exists();
-            $memberId     = $user->member?->id;
+            $memberId     = $user->resolveMember()?->id;
             $isMember     = $memberId && $staffGroup->members()->where('members.id', $memberId)->exists();
             if (!$isLinkedUser && !$isMember) {
                 abort(403, 'Geen toegang.');

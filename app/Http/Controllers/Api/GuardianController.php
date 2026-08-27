@@ -60,7 +60,7 @@ class GuardianController extends Controller
     public function request(Request $request): JsonResponse
     {
         $user = $request->user();
-        $guardian = $user->member;
+        $guardian = $user->resolveMember();
 
         if (! $guardian) {
             return response()->json([
@@ -198,7 +198,7 @@ class GuardianController extends Controller
      */
     public function pendingForMe(Request $request): JsonResponse
     {
-        $member = $request->user()->member;
+        $member = $request->user()->resolveMember();
 
         if (! $member) {
             return response()->json([]);
@@ -230,7 +230,7 @@ class GuardianController extends Controller
      */
     public function respond(Request $request, GuardianLink $guardianLink): JsonResponse
     {
-        $member = $request->user()->member;
+        $member = $request->user()->resolveMember();
 
         // Alleen het kind/lid waarop het verzoek betrekking heeft mag reageren
         if (! $member || $member->id !== $guardianLink->child_member_id) {
@@ -410,7 +410,7 @@ class GuardianController extends Controller
     public function revoke(Request $request, GuardianLink $guardianLink): JsonResponse
     {
         $user   = $request->user();
-        $member = $user->member;
+        $member = $user->resolveMember();
 
         $isChild    = $member && $member->id === $guardianLink->child_member_id;
         $isGuardian = $member && $member->id === $guardianLink->guardian_member_id;
@@ -463,7 +463,7 @@ class GuardianController extends Controller
      */
     public function children(Request $request): JsonResponse
     {
-        $member = $request->user()->member;
+        $member = $request->user()->resolveMember();
 
         if (! $member) {
             return response()->json([]);
@@ -495,7 +495,7 @@ class GuardianController extends Controller
      */
     public function myRequests(Request $request): JsonResponse
     {
-        $member = $request->user()->member;
+        $member = $request->user()->resolveMember();
 
         if (! $member) {
             return response()->json([]);
@@ -519,7 +519,7 @@ class GuardianController extends Controller
      */
     public function childData(Request $request, Member $member): JsonResponse
     {
-        $guardian = $request->user()->member;
+        $guardian = $request->user()->resolveMember();
 
         if (! $guardian) {
             return response()->json([
@@ -561,7 +561,7 @@ class GuardianController extends Controller
     public function createParentAccount(Request $request): JsonResponse
     {
         $user  = $request->user();
-        $child = $user->member;
+        $child = $user->resolveMember();
 
         if (! $child) {
             return response()->json([
