@@ -36335,59 +36335,6 @@ void _wireOpstellingPage(FFProject project) {
     ]).variable,
   );
 
-  // ── De notitie terugzien bij het veld ────────────────────────────────────
-  //
-  // Onder het veld, op hetzelfde tabblad, en alleen voor wie de opstelling
-  // beheert: dit zijn aantekeningen van de coach, geen mededeling aan het team.
-  // Verschijnt alleen als er iets staat - een leeg kopje zegt niets en kost een
-  // halve schermhoogte.
-  final notitieTekst = UI.text('',
-      name: 'OpstellingNotitieTekst',
-      style: UITextStyle.bodyMedium,
-      maxLines: 12);
-  if (notitieId != null) {
-    notitieTekst.props.text.textValue = FFStringValue(
-      variable: varFromAppState(notitieId.deepCopy())
-        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
-    );
-  }
-
-  final notitieKaart = _dashCard(
-    name: 'OpstellingNotitieKaart',
-    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
-    child: UI.column(
-      name: 'OpstellingNotitieCol',
-      crossAxisAlignment: UICrossAxisAlignment.stretch,
-      spacing: 8,
-      children: [
-        UI.row(
-          name: 'OpstellingNotitieKop',
-          spacing: 8,
-          crossAxisAlignment: UICrossAxisAlignment.center,
-          children: [
-            UI.icon('sticky_note_2', size: 20, color: UIColor.primary),
-            UI.expanded(UI.text('Jouw notitie',
-                name: 'OpstellingNotitieTitel', style: UITextStyle.titleSmall)),
-          ],
-        ),
-        notitieTekst,
-      ],
-    ),
-  );
-
-  if (notitieId != null) {
-    final notitieVar = varFromAppState(notitieId.deepCopy())
-      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
-    setConditionalVisibility(
-      notitieKaart,
-      variable: andConditionsVar([
-        _equalsLiteral(notitieVar, '', negate: true),
-        tabIs('veld'),
-        magBeheren(),
-      ]).variable,
-    );
-  }
-
   // ── Wisselschema ─────────────────────────────────────────────────────────
   final wisselBord = UI.customWidget(
     widget,
@@ -36619,9 +36566,6 @@ void _wireOpstellingPage(FFProject project) {
           opties: const ['2', '4'],
           labels: const {'2': '2 helften', '4': '4 kwarten'},
         ),
-        notitieLabel,
-        notitieVeld,
-        notitieUitleg,
       ],
     ),
   );
@@ -36798,6 +36742,9 @@ void _wireOpstellingPage(FFProject project) {
     spacing: 10,
     padding: UIEdgeInsets.only(left: 16, right: 16, top: 16, bottom: 28),
     children: [
+      notitieLabel,
+      notitieVeld,
+      notitieUitleg,
       opslaan,
       standaardLaden,
       naarStandaard,
@@ -36826,7 +36773,6 @@ void _wireOpstellingPage(FFProject project) {
     meldingKaart,
     tabBalk,
     bordWrap,
-    notitieKaart,
     wisselWrap,
     alleenLezen,
     instellingen,
