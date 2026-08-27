@@ -35478,6 +35478,7 @@ void _ensureLineupBoardAppState(FFProject project) {
     'lineupPublished',
     'lineupMessage',
     'lineupTeamId',
+    'lineupNotes',
   ]) {
     if (heeft(naam)) continue;
     project.appState.fields.add(FFAppStateField(
@@ -35580,6 +35581,7 @@ Future<String> loadLineupBoard(String? matchId, String? teamId) async {
       FFAppState().lineupFormation = '${data['formation'] ?? ''}';
       FFAppState().lineupPlayersOnField = '${data['playersOnField'] ?? ''}';
       FFAppState().lineupMatchFormat = '${data['matchFormat'] ?? ''}';
+      FFAppState().lineupNotes = '${data['notes'] ?? ''}';
       FFAppState().lineupCanManage = '${data['magBeheren'] ?? 'false'}';
       FFAppState().lineupPublished = '${data['isVrijgegeven'] ?? 'false'}';
       FFAppState().lineupMessage = '${data['melding'] ?? ''}';
@@ -35650,6 +35652,7 @@ Future<String> saveLineupBoard(String? matchId, String? teamId) async {
         'formation': FFAppState().lineupFormation,
         'players_on_field': int.tryParse(FFAppState().lineupPlayersOnField),
         'match_format': FFAppState().lineupMatchFormat,
+        'notes': FFAppState().lineupNotes,
         'players': spelers,
         // Het wisselschema gaat niet mee: dat leidt de backend af uit het
         // verschil tussen de perioden.
@@ -36018,6 +36021,9 @@ void _wireOpstellingPage(FFProject project) {
   FFVariable matchIdVar() => varFromPageParam(matchIdParam.deepCopy())
     ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
 
+  // Vroeg opgezocht: zowel het invoerveld als de kaart eronder gebruiken hem.
+  final notitieId = _findAppStateFieldId(project, 'lineupNotes');
+
   final magVar = appVar('lineupCanManage');
   final meldingVar = appVar('lineupMessage');
   if (magVar == null || meldingVar == null) return;
@@ -36185,6 +36191,59 @@ void _wireOpstellingPage(FFProject project) {
     ]).variable,
   );
 
+  // ── De notitie terugzien bij het veld ────────────────────────────────────
+  //
+  // Onder het veld, op hetzelfde tabblad, en alleen voor wie de opstelling
+  // beheert: dit zijn aantekeningen van de coach, geen mededeling aan het team.
+  // Verschijnt alleen als er iets staat - een leeg kopje zegt niets en kost een
+  // halve schermhoogte.
+  final notitieTekst = UI.text('',
+      name: 'OpstellingNotitieTekst',
+      style: UITextStyle.bodyMedium,
+      maxLines: 12);
+  if (notitieId != null) {
+    notitieTekst.props.text.textValue = FFStringValue(
+      variable: varFromAppState(notitieId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+    );
+  }
+
+  final notitieKaart = _dashCard(
+    name: 'OpstellingNotitieKaart',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.column(
+      name: 'OpstellingNotitieCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        UI.row(
+          name: 'OpstellingNotitieKop',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon('sticky_note_2', size: 20, color: UIColor.primary),
+            UI.expanded(UI.text('Jouw notitie',
+                name: 'OpstellingNotitieTitel', style: UITextStyle.titleSmall)),
+          ],
+        ),
+        notitieTekst,
+      ],
+    ),
+  );
+
+  if (notitieId != null) {
+    final notitieVar = varFromAppState(notitieId.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+    setConditionalVisibility(
+      notitieKaart,
+      variable: andConditionsVar([
+        _equalsLiteral(notitieVar, '', negate: true),
+        tabIs('veld'),
+        magBeheren(),
+      ]).variable,
+    );
+  }
+
   // ── Wisselschema ─────────────────────────────────────────────────────────
   final wisselBord = UI.customWidget(
     widget,
@@ -36325,6 +36384,60 @@ void _wireOpstellingPage(FFProject project) {
       color: UIColor.secondaryText,
       maxLines: 2);
 
+  // ── Notitie bij de opstelling ────────────────────────────────────────────
+  //
+  // Staat bij de instellingen en niet los onder het veld: het hoort bij het
+  // maken van de opstelling, en daar heb je toch al de rust om te typen. Voor
+  // de spelers verschijnt hij onder het veld, zodra de coach hem heeft ingevuld.
+  final notitieLabel = UI.text('Notitie bij de opstelling',
+      name: 'OpstellingNotitieLabel',
+      style: UITextStyle.labelMedium,
+      fontWeight: UIFontWeight.w600);
+
+  final notitieVeld = UI.textField(
+    hintText: 'Bijv. verzamelen om 8:15, of afspraken over de vaste opbouw.',
+    name: 'OpstellingNotitieVeld',
+    maxLines: 5,
+  );
+
+  final notitieUitleg = UI.text(
+      'Alleen zichtbaar voor de coach en de leiders van dit elftal.',
+      name: 'OpstellingNotitieUitleg',
+      style: UITextStyle.labelSmall,
+      color: UIColor.secondaryText,
+      maxLines: 2);
+
+  if (notitieId != null) {
+    // Beginwaarde uit AppState, en bij elke wijziging terug naar AppState. Dat
+    // laatste apart, want alleen de lokale waarde is niet altijd bijgewerkt op
+    // het moment dat je op Opslaan tikt.
+    notitieVeld.props.ensureTextField().debounceTimeValue =
+        FFDoubleValue(inputValue: 0.0);
+    notitieVeld.props.textField.localStateValue = true;
+    notitieVeld.props.textField.initialText = FFText(
+      textValue: FFStringValue(
+        variable: varFromAppState(notitieId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+      ),
+    );
+
+    notitieVeld.triggerActions.removeWhere((t) =>
+        t.hasTrigger() &&
+        t.trigger.triggerType == FFActionTriggerType.ON_TEXTFIELD_CHANGE);
+
+    notitieVeld.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(
+          triggerType: FFActionTriggerType.ON_TEXTFIELD_CHANGE),
+      rootAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable(
+              'lineupNotes', varFromTextFieldValue(notitieVeld.key)),
+        ]),
+      ),
+    ));
+  }
+
   final instellingen = _dashCard(
     name: 'OpstellingInstellingen',
     margin: UIEdgeInsets.only(left: 16, right: 16, top: 14),
@@ -36362,6 +36475,9 @@ void _wireOpstellingPage(FFProject project) {
           opties: const ['2', '4'],
           labels: const {'2': '2 helften', '4': '4 kwarten'},
         ),
+        notitieLabel,
+        notitieVeld,
+        notitieUitleg,
       ],
     ),
   );
@@ -36566,6 +36682,7 @@ void _wireOpstellingPage(FFProject project) {
     meldingKaart,
     tabBalk,
     bordWrap,
+    notitieKaart,
     wisselWrap,
     alleenLezen,
     instellingen,

@@ -67,6 +67,7 @@ class TeamLineupController extends Controller
             'formation'      => (string) ($opslag['formation'] ?? ''),
             'playersOnField' => (string) ($opslag['players_on_field'] ?? 11),
             'matchFormat'    => (string) ($opslag['match_format'] ?? ''),
+            'notes'          => (string) ($opslag['notes'] ?? ''),
             'periods'        => (string) ($opslag['periods'] ?? 2),
             'veld'           => $spelers
                 ->filter(fn ($s) => ! ($s['is_substitute'] ?? false))
@@ -101,6 +102,7 @@ class TeamLineupController extends Controller
             'formation'               => 'nullable|string|max:20',
             'players_on_field'        => 'nullable|integer|min:1|max:11',
             'match_format'            => 'nullable|string|max:40',
+            'notes'                   => 'nullable|string|max:2000',
             'periods'                 => 'nullable|integer|in:2,4',
             'players'                 => 'present|array',
             'players.*.member_id'     => 'required|uuid|exists:members,id',
@@ -134,6 +136,7 @@ class TeamLineupController extends Controller
                 'formation'        => $validated['formation'] ?? null,
                 'players_on_field' => $validated['players_on_field'] ?? 11,
                 'match_format'     => $validated['match_format'] ?? null,
+                'notes'            => $validated['notes'] ?? null,
                 'periods'          => $validated['periods'] ?? 2,
                 'players'          => $spelers,
             ],
@@ -191,6 +194,8 @@ class TeamLineupController extends Controller
                     'formation'        => $opslag['formation'] ?? null,
                     'players_on_field' => $opslag['players_on_field'] ?? 11,
                     'match_format'     => $opslag['match_format'] ?? null,
+                    // De notitie hoort bij de opstelling, dus die komt mee.
+                    'tactical_notes'   => $opslag['notes'] ?? null,
                     'periods'          => $opslag['periods'] ?? 2,
                 ],
             );
@@ -263,6 +268,7 @@ class TeamLineupController extends Controller
             'formation'      => '',
             'playersOnField' => '',
             'matchFormat'    => '',
+            'notes'          => '',
             'periods'        => '',
             'veld'           => [],
             'bank'           => [],

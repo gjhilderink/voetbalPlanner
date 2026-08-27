@@ -53,6 +53,7 @@ class LineupController extends Controller
                 'formation'     => '',
                 'playersOnField' => '',
                 'matchFormat'   => '',
+                'notes'         => '',
                 'periods'       => '',
                 'veld'          => [],
                 'bank'          => [],
@@ -101,6 +102,10 @@ class LineupController extends Controller
             'formation'      => (string) ($lineup?->formation ?? ''),
             'playersOnField' => (string) ($lineup?->players_on_field ?? 11),
             'matchFormat'    => (string) ($lineup?->match_format ?? ''),
+            // Notitie van de coach: alleen voor wie de opstelling beheert. Hem
+            // meesturen en in de app verbergen is geen afscherming - dan staat
+            // hij in het antwoord dat elke speler kan opvragen.
+            'notes'          => $magBeheren ? (string) ($lineup?->tactical_notes ?? '') : '',
             'periods'        => (string) ($lineup?->periods ?? 2),
             'veld'           => $spelers->where('is_substitute', false)
                 ->sortBy('sort_order')->values()->map($rij)->all(),
@@ -160,6 +165,7 @@ class LineupController extends Controller
             'formation'          => 'nullable|string|max:20',
             'players_on_field'   => 'nullable|integer|min:1|max:11',
             'match_format'       => 'nullable|string|max:40',
+            'notes'              => 'nullable|string|max:2000',
             'players'            => 'present|array',
             'players.*.member_id'     => 'required|uuid|exists:members,id',
             'players.*.shirt_number'  => 'nullable|integer|min:1|max:99',
@@ -179,6 +185,7 @@ class LineupController extends Controller
                     'formation'           => $validated['formation'] ?? null,
                     'players_on_field'    => $validated['players_on_field'] ?? 11,
                     'match_format'        => $validated['match_format'] ?? null,
+                    'tactical_notes'      => $validated['notes'] ?? null,
                     'periods'             => $validated['periods'] ?? 2,
                 ],
             );

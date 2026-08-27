@@ -263,6 +263,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const lineupNotes = ffai.ProjectAppStateFieldHandle(
+    name: "lineupNotes",
+    key: "v2gw0w4n",
+    typeName: "String",
+    persisted: false,
+  );
   static const lineupPeriods = ffai.ProjectAppStateFieldHandle(
     name: "lineupPeriods",
     key: "t6x4a6qz",
@@ -661,6 +667,7 @@ abstract final class AppState {
     lineupFormation,
     lineupMatchFormat,
     lineupMessage,
+    lineupNotes,
     lineupPeriods,
     lineupPlayersOnField,
     lineupPublished,
