@@ -35591,8 +35591,24 @@ void _ensureLineupBoardWidget(FFProject project) {
 
 /// Argumenten voor een custom action. De sleutel is de *key* van het argument
 /// zoals het in de actie staat, niet de naam — vandaar de omweg langs de actie.
+/// Koppelt waarden aan de argumenten van een custom action, op naam.
+///
+/// Eerst krijgt elk argument een eigen sleutel. Zonder sleutel houden ze
+/// allemaal de lege string, en omdat de waarden op sleutel worden
+/// weggeschreven blijft alleen de laatste over — FlutterFlow zet die dan op
+/// elke plek in de aanroep. Bij één argument valt dat niet op; bij twee wel.
+/// Het verwijderen van een wedstrijdfoto stuurde zo het foto-id mee als
+/// wedstrijd-id, en gaf een 404 die nergens op sloeg.
 FFFunctionCallValues _actieArgs(
     FFCustomAction actie, Map<String, FFValue> waarden) {
+  final sleutels = <String>{};
+  for (final arg in actie.arguments) {
+    if (arg.identifier.key.isEmpty || !sleutels.add(arg.identifier.key)) {
+      arg.identifier.key = generateRandomAlphaNumericString();
+      sleutels.add(arg.identifier.key);
+    }
+  }
+
   final args = FFFunctionCallValues();
   for (final arg in actie.arguments) {
     final waarde = waarden[arg.identifier.name];
@@ -37845,9 +37861,16 @@ Future<bool> deleteMatchPhoto(
     );
 
     if (resp.statusCode != 200) {
-      messenger.showSnackBar(SnackBar(
-        content: Text('Verwijderen mislukt (HTTP ${resp.statusCode}).'),
-      ));
+      // De server schrijft op waarom het niet mocht. Die zin is bruikbaarder
+      // dan een foutcode, en scheelt een avond zoeken in het log.
+      String melding = 'Verwijderen mislukt (HTTP ${resp.statusCode}).';
+      try {
+        final body = jsonDecode(resp.body);
+        if (body is Map && body['message'] is String) {
+          melding = body['message'] as String;
+        }
+      } catch (_) {}
+      messenger.showSnackBar(SnackBar(content: Text(melding)));
       return false;
     }
 
@@ -37864,7 +37887,8 @@ Future<bool> deleteMatchPhoto(
   void zet(String naam, String omschrijving, List<String> argumenten, String code) {
     final args = argumenten
         .map((a) => FFParameter(
-              identifier: FFIdentifier(name: a),
+              identifier:
+                  FFIdentifier(name: a, key: generateRandomAlphaNumericString()),
               dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
             ))
         .toList();
