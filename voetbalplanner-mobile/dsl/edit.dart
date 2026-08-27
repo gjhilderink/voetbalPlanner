@@ -13092,6 +13092,12 @@ FFNode _buildBannerImageNode(
 /// en de sessiecontrole — en die zetten de rest in hun false-tak. Zonder deze
 /// afdaling zou een nieuwe laadactie ná zo'n poortje komen te hangen en dus ook
 /// draaien wanneer het poortje juist zei dat het niet moest.
+///
+/// Alleen bij een kaal poortje afdalen, dus een knooppunt zónder eigen actie.
+/// Een API-aanroep heeft óók twee takken, maar daar is de false-tak de
+/// foutafhandeling: daar iets achteraan hangen betekent dat het alleen draait
+/// wanneer de aanroep mislukt. Zo verdwenen de spelerslijst, de foto's en de
+/// statistiek van de wedstrijdpagina: ze stonden in de tak van "kon niet laden".
 FFActionNode _ketenStaart(FFActionNode start) {
   var last = start;
 
@@ -13100,12 +13106,37 @@ FFActionNode _ketenStaart(FFActionNode start) {
       last = last.followUpAction;
       continue;
     }
-    if (last.hasConditionActions() && last.conditionActions.hasFalseAction()) {
+    if (!last.hasAction() &&
+        last.hasConditionActions() &&
+        last.conditionActions.hasFalseAction()) {
       last = last.conditionActions.falseAction;
       continue;
     }
     return last;
   }
+}
+
+/// Hangt een actie achter de staart van een keten.
+///
+/// Eindigt die keten op een leeg knooppunt — geen actie, geen voorwaarde — dan
+/// wordt dat knooppunt gevuld in plaats van dat er iets achter komt. Zo'n leeg
+/// eindpunt blijkt bij het genereren te verdwijnen, en alles wat eraan hangt
+/// verdwijnt mee. Zo raakte de wedstrijdpagina zijn spelerslijst, foto's en
+/// statistiek kwijt: de aanroepen stonden in de opstelling, maar kwamen nooit in
+/// de app terecht.
+void _hangAchteraan(FFActionNode staart, FFActionNode nieuw) {
+  if (staart.hasAction() ||
+      staart.hasConditionActions() ||
+      staart.hasFollowUpAction()) {
+    staart.followUpAction = nieuw;
+    return;
+  }
+
+  // De sleutel van het bestaande knooppunt houden: daar kan elders naar
+  // verwezen worden.
+  if (nieuw.hasAction()) staart.action = nieuw.action;
+  if (nieuw.hasConditionActions()) staart.conditionActions = nieuw.conditionActions;
+  if (nieuw.hasFollowUpAction()) staart.followUpAction = nieuw.followUpAction;
 }
 
 void _appendToFirstPageLoadChain(FFNode node, FFActionNode actionToAppend) {
@@ -13122,7 +13153,7 @@ void _appendToFirstPageLoadChain(FFNode node, FFActionNode actionToAppend) {
   // DeepCopy so we never mutate a potentially-frozen proto.
   final chainCopy = existingTrigger.rootAction.deepCopy();
 
-  _ketenStaart(chainCopy).followUpAction = actionToAppend;
+  _hangAchteraan(_ketenStaart(chainCopy), actionToAppend);
 
   node.triggerActions[existingIdx] = FFTriggerActions(
     trigger: existingTrigger.trigger.deepCopy(),
