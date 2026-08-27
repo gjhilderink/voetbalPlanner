@@ -12,15 +12,7 @@
         <script src="https://cdn.tailwindcss.com"></script>
     @endif
 
-    {{-- Google tag (gtag.js) --}}
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TE1WR606CN"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-TE1WR606CN');
-    </script>
+    @include('partials.analytics')
 </head>
 <body class="bg-white text-gray-900 antialiased font-sans">
 

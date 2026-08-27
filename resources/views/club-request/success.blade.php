@@ -10,6 +10,8 @@
     @else
         <script src="https://cdn.tailwindcss.com"></script>
     @endif
+
+    @include('partials.analytics')
 </head>
 <body class="bg-gray-50 text-gray-900 antialiased font-sans min-h-screen flex flex-col">
 

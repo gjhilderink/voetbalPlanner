@@ -11,6 +11,8 @@
         <script src="https://cdn.tailwindcss.com"></script>
     @endif
 
+    @include('partials.analytics')
+
     @if (($recaptchaEnabled ?? false) && ($recaptchaSiteKey ?? ''))
         <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     @endif
