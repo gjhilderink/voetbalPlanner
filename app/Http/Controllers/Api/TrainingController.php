@@ -63,6 +63,14 @@ class TrainingController extends Controller
         $myMemberId = $request->user()?->resolveMember()?->id;
         $myUserId   = $request->user()?->id;
 
+        // Wiens status staat er op de kaart? Voor een speler die van hemzelf,
+        // voor een ouder die van zijn kinderen in dit elftal. Eén keer bepaald
+        // en niet per training, want het kost twee queries.
+        $benLid  = $request->user()?->belongsToTeam($teamId) ?? false;
+        $kindIds = $benLid
+            ? collect()
+            : $this->attendanceChildren($request, $teamId)->pluck('id');
+
         // Aantal teamleden (voor 'aangemeld' = leden - afmeldingen). Eén query;
         // alle schema's horen bij hetzelfde team (team_id-filter).
         //
@@ -91,10 +99,9 @@ class TrainingController extends Controller
                     'location'      => $schedule->location ?? '',
                     'dressing_room' => $schedule->dressing_room ?? '',
                     'team_name'   => $schedule->team?->name ?? '',
-                    'mijn_status' => $abs->first(fn ($a) =>
-                        ($myMemberId && $a->member_id === $myMemberId) ||
-                        ($myUserId && $a->user_id === $myUserId)
-                    ) ? 'afgemeld' : 'aangemeld',
+                    'mijn_status' => self::statusVoor(
+                        $abs, $benLid, $myMemberId, $myUserId, $kindIds
+                    ),
                     // Telling voor de status-iconen op de kaart.
                     'afgemeld'    => (string) $abs->count(),
                     'aangemeld'   => (string) max(0, $memberCount - $abs->count()),
@@ -211,29 +218,29 @@ class TrainingController extends Controller
             'member_id' => 'nullable|uuid',
         ]);
 
-        [$member, $fout] = $this->attendanceTarget($request, $schedule->team_id);
+        [$leden, $fout] = $this->attendanceTargets($request, $schedule->team_id);
         if ($fout) {
             return $fout;
         }
 
         $day = Carbon::parse($date)->toDateString();
 
-        // Een lid hangt aan member_id; een los account (User zonder lidnummer)
-        // aan user_id.
-        $match = $this->attendanceKey([
-            'type'                 => Absence::TYPE_TRAINING,
-            'training_schedule_id' => $schedule->id,
-            'training_date'        => $day,
-        ], $member, $request);
-
-        Absence::updateOrCreate($match, [
-            'club_id' => $schedule->club_id,
-            'reason'  => $validated['reason'],
-        ]);
+        foreach ($leden as $lid) {
+            // Een lid hangt aan member_id; een los account (User zonder
+            // lidnummer) aan user_id.
+            Absence::updateOrCreate($this->attendanceKey([
+                'type'                 => Absence::TYPE_TRAINING,
+                'training_schedule_id' => $schedule->id,
+                'training_date'        => $day,
+            ], $lid, $request), [
+                'club_id' => $schedule->club_id,
+                'reason'  => $validated['reason'],
+            ]);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => $this->attendanceMessage($request, $member, 'afgemeld', 'deze training'),
+            'message' => $this->attendanceMessage($request, $leden, 'afgemeld', 'deze training'),
         ]);
     }
 
@@ -244,22 +251,24 @@ class TrainingController extends Controller
     {
         $request->validate(['member_id' => 'nullable|uuid']);
 
-        [$member, $fout] = $this->attendanceTarget($request, $schedule->team_id);
+        [$leden, $fout] = $this->attendanceTargets($request, $schedule->team_id);
         if ($fout) {
             return $fout;
         }
 
-        Absence::query()
-            ->where($this->attendanceKey([
-                'type'                 => Absence::TYPE_TRAINING,
-                'training_schedule_id' => $schedule->id,
-            ], $member, $request))
-            ->whereDate('training_date', Carbon::parse($date)->toDateString())
-            ->delete();
+        foreach ($leden as $lid) {
+            Absence::query()
+                ->where($this->attendanceKey([
+                    'type'                 => Absence::TYPE_TRAINING,
+                    'training_schedule_id' => $schedule->id,
+                ], $lid, $request))
+                ->whereDate('training_date', Carbon::parse($date)->toDateString())
+                ->delete();
+        }
 
         return response()->json([
             'success' => true,
-            'message' => $this->attendanceMessage($request, $member, 'weer aangemeld', 'deze training'),
+            'message' => $this->attendanceMessage($request, $leden, 'weer aangemeld', 'deze training'),
         ]);
     }
 }

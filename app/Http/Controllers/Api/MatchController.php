@@ -68,10 +68,14 @@ class MatchController extends Controller
         $myMemberId = $request->user()?->resolveMember()?->id;
         $myUserId   = $request->user()?->id;
 
-        $data['mijn_status'] = $absences->first(fn ($a) =>
-            ($myMemberId && $a->member_id === $myMemberId) ||
-            ($myUserId && $a->user_id === $myUserId)
-        ) ? 'afgemeld' : 'aangemeld';
+        $benLid  = $request->user()?->belongsToTeam($match->team_id) ?? false;
+        $kindIds = $benLid
+            ? collect()
+            : $this->attendanceChildren($request, $match->team_id)->pluck('id');
+
+        $data['mijn_status'] = self::statusVoor(
+            $absences, $benLid, $myMemberId, $myUserId, $kindIds
+        );
         $data['afmeldingen'] = $absences->map(fn ($a) => [
             'naam'  => $a->member?->name ?? $a->user?->name ?? '',
             'reden' => $a->reason,
@@ -119,24 +123,24 @@ class MatchController extends Controller
             'member_id' => 'nullable|uuid',
         ]);
 
-        [$member, $fout] = $this->attendanceTarget($request, $match->team_id);
+        [$leden, $fout] = $this->attendanceTargets($request, $match->team_id);
         if ($fout) {
             return $fout;
         }
 
-        $matchAttrs = $this->attendanceKey([
-            'type'     => Absence::TYPE_MATCH,
-            'match_id' => $match->id,
-        ], $member, $request);
-
-        Absence::updateOrCreate($matchAttrs, [
-            'club_id' => $user->club_id,
-            'reason'  => $validated['reason'],
-        ]);
+        foreach ($leden as $lid) {
+            Absence::updateOrCreate($this->attendanceKey([
+                'type'     => Absence::TYPE_MATCH,
+                'match_id' => $match->id,
+            ], $lid, $request), [
+                'club_id' => $user->club_id,
+                'reason'  => $validated['reason'],
+            ]);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => $this->attendanceMessage($request, $member, 'afgemeld', 'deze wedstrijd'),
+            'message' => $this->attendanceMessage($request, $leden, 'afgemeld', 'deze wedstrijd'),
         ]);
     }
 
@@ -147,21 +151,23 @@ class MatchController extends Controller
     {
         $request->validate(['member_id' => 'nullable|uuid']);
 
-        [$member, $fout] = $this->attendanceTarget($request, $match->team_id);
+        [$leden, $fout] = $this->attendanceTargets($request, $match->team_id);
         if ($fout) {
             return $fout;
         }
 
-        Absence::query()
-            ->where($this->attendanceKey([
-                'type'     => Absence::TYPE_MATCH,
-                'match_id' => $match->id,
-            ], $member, $request))
-            ->delete();
+        foreach ($leden as $lid) {
+            Absence::query()
+                ->where($this->attendanceKey([
+                    'type'     => Absence::TYPE_MATCH,
+                    'match_id' => $match->id,
+                ], $lid, $request))
+                ->delete();
+        }
 
         return response()->json([
             'success' => true,
-            'message' => $this->attendanceMessage($request, $member, 'weer aangemeld', 'deze wedstrijd'),
+            'message' => $this->attendanceMessage($request, $leden, 'weer aangemeld', 'deze wedstrijd'),
         ]);
     }
 

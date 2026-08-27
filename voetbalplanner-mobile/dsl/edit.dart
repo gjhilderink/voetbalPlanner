@@ -12541,6 +12541,23 @@ FFVariable _jsonBodyVar(dynamic ctx, String jsonPath, String nodeKey) {
   return v;
 }
 
+/// Snackbar met de tekst die de server teruggaf.
+///
+/// Een vaste tekst als "Je bent afgemeld voor deze training" klopt niet meer
+/// zodra een ouder zijn kind afmeldt: dan hoort er "Sterre is afgemeld" te
+/// staan. Voor wie het gold weet alleen de server, want die kent de
+/// koppelingen; de app stuurt maar één verzoek en zou het moeten raden.
+FFAction _snackBarUitAntwoord(dynamic ctx, String nodeKey) => FFAction(
+      key: generateRandomAlphaNumericString(),
+      snackBar: FFSnackBarAction(
+        textMessage: FFValue(
+          variable:
+              interpolateVar([_jsonBodyVar(ctx, r'$.message', nodeKey)]).variable,
+        ),
+        durationMillis: 6000,
+      ),
+    );
+
 // ─── Banner feature ───────────────────────────────────────────────────────────
 
 void _addBannerEndpoint(FFProject project) {
@@ -25950,7 +25967,7 @@ void _wireTrainingDetailPage(FFProject project) {
   setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
   setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
 
-  void wireButton(FFNode btn, String endpoint, String okMsg, {required bool needsReason}) {
+  void wireButton(FFNode btn, String endpoint, {required bool needsReason}) {
     // Via een NATIVE FF-endpoint (server-side geproxied -> geen browser-CORS).
     // Bij succes: melding + pagina sluiten. Bij mislukken: foutmelding, blijven.
     final dynVars = <String, FFVariable>{
@@ -25973,7 +25990,7 @@ void _wireTrainingDetailPage(FFProject project) {
       // direct kloppen) -> pagina sluiten. Mislukt: foutmelding, blijven.
       onSuccess: (ctx) => FFActionNode(
         key: gen(),
-        action: Actions.snackBar(okMsg),
+        action: _snackBarUitAntwoord(ctx, btn.key),
         followUpAction: Actions.apiCallNode(
           project,
           endpointName: 'GetTrainingsList',
@@ -26033,8 +26050,8 @@ void _wireTrainingDetailPage(FFProject project) {
     ));
   }
 
-  wireButton(afmeldBtn, 'AfmeldenTrainingApi', 'Je bent afgemeld voor deze training.', needsReason: true);
-  wireButton(aanmeldBtn, 'AanmeldenTrainingApi', 'Je bent weer aangemeld voor deze training.', needsReason: false);
+  wireButton(afmeldBtn, 'AfmeldenTrainingApi', needsReason: true);
+  wireButton(aanmeldBtn, 'AanmeldenTrainingApi', needsReason: false);
 
   // Afmeldlijst (naam + reden) — gevuld vanuit de afmeldingen-param.
   final afmeldChildren = <FFNode>[];
@@ -26372,7 +26389,7 @@ void _wireWedstrijdAfmelden(FFProject project) {
   setConditionalVisibility(afmeldBtn, variable: showWhen('aangemeld'));
   setConditionalVisibility(aanmeldBtn, variable: showWhen('afgemeld'));
 
-  void wireButton(FFNode btn, String endpoint, String newStatus, String okMsg, {required bool needsReason}) {
+  void wireButton(FFNode btn, String endpoint, String newStatus, {required bool needsReason}) {
     // Via een NATIVE FF-endpoint (server-side geproxied -> geen browser-CORS).
     // Bij succes: melding + status bijwerken; bij mislukken: foutmelding, status blijft.
     final dynVars = <String, FFVariable>{
@@ -26392,7 +26409,7 @@ void _wireWedstrijdAfmelden(FFProject project) {
       nodeKey: btn.key,
       onSuccess: (ctx) {
         final start = Actions.chain([
-          Actions.snackBar(okMsg),
+          _snackBarUitAntwoord(ctx, btn.key),
           Actions.updatePageState(
             project,
             widgetClassName: 'WedstrijdDetailPage',
@@ -26472,8 +26489,8 @@ void _wireWedstrijdAfmelden(FFProject project) {
     ));
   }
 
-  wireButton(afmeldBtn, 'AfmeldenMatchApi', 'afgemeld', 'Je bent afgemeld voor deze wedstrijd.', needsReason: true);
-  wireButton(aanmeldBtn, 'AanmeldenMatchApi', 'aangemeld', 'Je bent weer aangemeld voor deze wedstrijd.', needsReason: false);
+  wireButton(afmeldBtn, 'AfmeldenMatchApi', 'afgemeld', needsReason: true);
+  wireButton(aanmeldBtn, 'AanmeldenMatchApi', 'aangemeld', needsReason: false);
 
   infoColumn.children.addAll([
     UI.text('Af-/aanmelden', name: 'MatchAfmeldHeader', style: UITextStyle.titleSmall),
