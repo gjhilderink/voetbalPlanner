@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\VerifiesRecaptcha;
 use App\Models\ClubRequest;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
@@ -13,19 +14,21 @@ use Illuminate\View\View;
 
 class ClubRequestController extends Controller
 {
+    use VerifiesRecaptcha;
+
     public function create(): View
     {
         return view('club-request.create', [
-            'recaptchaEnabled' => Setting::get('recaptcha_enabled', '0', null) === '1',
-            'recaptchaSiteKey' => Setting::get('recaptcha_site_key', '', null),
+            'recaptchaEnabled' => $this->recaptchaIngeschakeld(),
+            'recaptchaSiteKey' => $this->recaptchaSleutel(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         // Anti-spam: verifieer Google reCAPTCHA als die is ingeschakeld.
-        if (Setting::get('recaptcha_enabled', '0', null) === '1') {
-            if (! $this->verifyRecaptcha($request)) {
+        if ($this->recaptchaIngeschakeld()) {
+            if (! $this->recaptchaGoedgekeurd($request)) {
                 return back()
                     ->withInput()
                     ->withErrors(['captcha' => 'Bevestig dat je geen robot bent en probeer het opnieuw.']);
@@ -67,32 +70,5 @@ class ClubRequestController extends Controller
     public function success(): View
     {
         return view('club-request.success');
-    }
-
-    /**
-     * Verifieert het reCAPTCHA-token bij Google met de ingestelde secret key.
-     */
-    private function verifyRecaptcha(Request $request): bool
-    {
-        $secret = Setting::get('recaptcha_secret_key', '', null);
-        $token  = (string) $request->input('g-recaptcha-response', '');
-        if ($secret === '' || $token === '') {
-            return false;
-        }
-
-        try {
-            $response = \Illuminate\Support\Facades\Http::asForm()
-                ->timeout(10)
-                ->post('https://www.google.com/recaptcha/api/siteverify', [
-                    'secret'   => $secret,
-                    'response' => $token,
-                    'remoteip' => $request->ip(),
-                ])
-                ->json();
-
-            return ($response['success'] ?? false) === true;
-        } catch (\Throwable $e) {
-            return false;
-        }
     }
 }

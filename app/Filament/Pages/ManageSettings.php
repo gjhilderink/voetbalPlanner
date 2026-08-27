@@ -55,6 +55,8 @@ class ManageSettings extends Page
         $this->form->fill([
             'registration_notification_email'    => Setting::get('registration_notification_email', '', null),
             'registration_notification_subject'  => Setting::get('registration_notification_subject', '', null),
+            'demo_request_notification_email'   => Setting::get('demo_request_notification_email', '', null),
+            'demo_request_notification_subject' => Setting::get('demo_request_notification_subject', '', null),
             'recaptcha_enabled'    => Setting::get('recaptcha_enabled', '0', null) === '1',
             'recaptcha_site_key'   => Setting::get('recaptcha_site_key', '', null),
             'recaptcha_secret_key' => Setting::get('recaptcha_secret_key', '', null),
@@ -116,9 +118,20 @@ class ManageSettings extends Page
                             ->placeholder('Nieuwe clubaanvraag: {club_naam}')
                             ->helperText('Gebruik {club_naam} als variabele. Leeg = standaard onderwerp.'),
 
+                        TextInput::make('demo_request_notification_email')
+                            ->label('E-mail voor demo-aanvragen')
+                            ->email()
+                            ->maxLength(255)
+                            ->helperText('Naar dit adres gaat een melding bij elke vrijblijvende demo-aanvraag via /demo. Leeg = naar het adres voor clubaanvragen hierboven, zodat een aanvraag nooit stil blijft liggen.'),
+                        TextInput::make('demo_request_notification_subject')
+                            ->label('Onderwerp van de demo-melding')
+                            ->maxLength(255)
+                            ->placeholder('Demo-aanvraag: {club_naam}')
+                            ->helperText('Gebruik {club_naam} als variabele. Leeg = standaard onderwerp.'),
+
                         Toggle::make('recaptcha_enabled')
-                            ->label('Anti-spam (Google reCAPTCHA) op aanmeldformulier')
-                            ->helperText('Beschermt het clubaanvraag-formulier tegen spam. Vul hieronder de site- en secret-key in (reCAPTCHA v2 "Ik ben geen robot").'),
+                            ->label('Anti-spam (Google reCAPTCHA) op de openbare formulieren')
+                            ->helperText('Beschermt het clubaanvraag- en het demo-formulier tegen spam. Vul hieronder de site- en secret-key in (reCAPTCHA v2 "Ik ben geen robot").'),
                         TextInput::make('recaptcha_site_key')
                             ->label('reCAPTCHA site key')
                             ->maxLength(255),
@@ -388,6 +401,8 @@ class ManageSettings extends Page
         if (auth()->user()?->hasRole('super_admin')) {
             Setting::set('registration_notification_email',   $data['registration_notification_email'] ?? '', 'system', false, null);
             Setting::set('registration_notification_subject', $data['registration_notification_subject'] ?? '', 'system', false, null);
+            Setting::set('demo_request_notification_email',   $data['demo_request_notification_email'] ?? '', 'system', false, null);
+            Setting::set('demo_request_notification_subject', $data['demo_request_notification_subject'] ?? '', 'system', false, null);
             Setting::set('recaptcha_enabled',    !empty($data['recaptcha_enabled']) ? '1' : '0', 'system', false, null);
             Setting::set('recaptcha_site_key',   $data['recaptcha_site_key'] ?? '', 'system', false, null);
             Setting::set('recaptcha_secret_key', $data['recaptcha_secret_key'] ?? '', 'system', true, null);

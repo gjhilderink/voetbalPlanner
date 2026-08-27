@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ClubRequestController;
+use App\Http\Controllers\DemoRequestController;
 use App\Models\Club;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +42,12 @@ Route::get('/tarieven', function () {
 Route::get('/aanmelden', [ClubRequestController::class, 'create'])->name('club-request.create');
 Route::post('/aanmelden', [ClubRequestController::class, 'store'])->name('club-request.store');
 Route::get('/aanmelden/bedankt', [ClubRequestController::class, 'success'])->name('club-request.success');
+
+// Vrijblijvend een demo aanvragen. Aparte weg dan /aanmelden: wie eerst wil
+// kijken hoort niet om zijn Sportlink-wachtwoord gevraagd te worden.
+Route::get('/demo', [DemoRequestController::class, 'create'])->name('demo-request.create');
+Route::post('/demo', [DemoRequestController::class, 'store'])->name('demo-request.store');
+Route::get('/demo/bedankt', [DemoRequestController::class, 'success'])->name('demo-request.success');
 
 Route::get('/dashboard', fn() => redirect('/'));
 

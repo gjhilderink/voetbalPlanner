@@ -210,14 +210,24 @@
 <section class="bg-green-700 py-16 px-6 text-white text-center">
     <div class="max-w-2xl mx-auto">
         <h2 class="text-3xl font-bold mb-4">Klaar om te starten?</h2>
-        <p class="text-green-100 text-lg mb-8">Meld uw club aan en wij nemen binnen twee werkdagen contact op.</p>
-        <a href="{{ route('club-request.create') }}"
-           class="inline-flex items-center gap-2 bg-white text-green-700 font-semibold px-8 py-3.5 rounded-xl hover:bg-green-50 transition-colors text-base shadow-lg">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-            </svg>
-            Club aanmelden
-        </a>
+        <p class="text-green-100 text-lg mb-8">Meld uw club aan, of kijk eerst vrijblijvend mee in een demo. Wij nemen binnen twee werkdagen contact op.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{{ route('club-request.create') }}"
+               class="inline-flex items-center justify-center gap-2 bg-white text-green-700 font-semibold px-8 py-3.5 rounded-xl hover:bg-green-50 transition-colors text-base shadow-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                </svg>
+                Club aanmelden
+            </a>
+            <a href="{{ route('demo-request.create') }}"
+               class="inline-flex items-center justify-center gap-2 bg-green-900/50 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-xl hover:bg-green-900/70 transition-colors text-base">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Vrijblijvend demo aanvragen
+            </a>
+        </div>
     </div>
 </section>
 
