@@ -36,7 +36,19 @@ trait ManagesAttendance
 
         // Niets meegegeven, of je eigen lidnummer: gewoon jezelf.
         if ($memberId === '') {
-            return [$user?->resolveMember(), null];
+            // Maar alleen als je zelf bij het elftal hoort. Een ouder ziet de
+            // trainingen van het elftal van zijn kind, en zonder deze controle
+            // meldde hij bij een tik op Afmelden zichzélf af — op een elftal
+            // waar hij niet in zit. Het kind bleef verwacht, de coach zag er
+            // niets van, en het scherm zei "Je bent afgemeld".
+            if (! $user?->belongsToTeam($teamId)) {
+                return [null, response()->json([
+                    'success' => false,
+                    'message' => 'Je hoort niet bij dit elftal, dus je kunt je hier niet af- of aanmelden.',
+                ], 403)];
+            }
+
+            return [$user->resolveMember(), null];
         }
 
         if (! $user?->canManageLineup($teamId)) {
