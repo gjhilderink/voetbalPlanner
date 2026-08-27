@@ -157,11 +157,15 @@ class TeamDocumentResource extends Resource
                     ->toggleable(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('team')
+                // Op team_id met een vaste optielijst, niet via relationship():
+                // die laatste kon de relatie hier niet oplossen en gaf een 500 op
+                // de hele pagina. TeamFilter::options() bestaat precies hiervoor,
+                // en de twee andere resources die op een belongsTo-elftal filteren
+                // (bardiensten, stafgroepen) doen het net zo.
+                Tables\Filters\SelectFilter::make('team_id')
                     ->label('Elftal')
-                    ->relationship('team', 'name', modifyQueryUsing: fn (Builder $q) => TeamFilter::scopeQuery($q))
+                    ->options(fn (): array => TeamFilter::options())
                     ->searchable()
-                    ->preload()
                     ->placeholder('Alle'),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Zichtbaar'),
             ])
