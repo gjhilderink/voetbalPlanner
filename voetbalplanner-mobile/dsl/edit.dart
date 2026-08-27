@@ -5326,6 +5326,17 @@ void _addLoginAutofillHints(FFProject project) {
 //
 // Bewust gekoppeld aan het lege token en niet aan een mislukte API-call: een
 // haperend netwerk mag geen mensen uitloggen.
+/// Stuurt naar het inlogscherm zodra er geen sessie is.
+///
+/// De controle staat vóór de laadacties en niet erachter. Stond hij erachter,
+/// dan vuurden eerst alle aanroepen van de pagina — die zonder token stuk voor
+/// stuk mislukken en elk hun eigen foutmelding tonen. Je kreeg dus een rij
+/// meldingen te zien voordat de app zei waar het werkelijk aan lag.
+///
+/// En zonder melding erbij: "je sessie is verlopen" klopt alleen als er ooit een
+/// sessie wás. Wie de app opent zonder ingelogd te zijn, of binnenkomt via een
+/// inloglink uit een mail, krijgt dan een foutmelding over iets wat niet is
+/// gebeurd. Het inlogscherm spreekt voor zich.
 void _addSessionExpiryGuard(FFProject project, String pageName) {
   final wc = findPage(project, name: pageName);
   if (wc == null) return;
@@ -5334,31 +5345,59 @@ void _addSessionExpiryGuard(FFProject project, String pageName) {
   final loginPage = findPage(project, name: 'LoginPage');
   if (authTokenId == null || loginPage == null) return;
 
-  // Idempotent: één guard per pagina.
-  bool hasGuard(FFActionNode n) {
-    if (n.hasAction() && n.action.hasNavigate() &&
-        n.action.navigate.hasPageNodeKeyRef() &&
-        n.action.navigate.pageNodeKeyRef.key == loginPage.node.key) {
-      return true;
-    }
-    if (n.hasFollowUpAction() && hasGuard(n.followUpAction)) return true;
-    // conditionActions zit op de node, niet op de action.
-    if (n.hasConditionActions()) {
-      for (final t in n.conditionActions.trueActions) {
-        if (t.hasTrueAction() && hasGuard(t.trueAction)) return true;
-      }
-    }
-    return false;
-  }
+  bool navigeertNaarLogin(FFActionNode n) =>
+      n.hasAction() &&
+      n.action.hasNavigate() &&
+      n.action.navigate.hasPageNodeKeyRef() &&
+      n.action.navigate.pageNodeKeyRef.key == loginPage.node.key;
 
   for (final trigger in wc.node.triggerActions) {
+    if (!trigger.hasTrigger() ||
+        trigger.trigger.triggerType != FFActionTriggerType.ON_INIT_STATE) {
+      continue;
+    }
     if (!trigger.hasRootAction()) continue;
-    if (hasGuard(trigger.rootAction)) continue;
 
-    // Achteraan de keten hangen: eerst de bestaande laadacties, dan de controle.
-    var tail = trigger.rootAction;
-    while (tail.hasFollowUpAction()) {
-      tail = tail.followUpAction;
+    var wortel = trigger.rootAction;
+
+    // De vorige versie hing de controle achteraan de keten. Die eruit knippen,
+    // anders blijft hij daar staan met zijn onterechte melding erbij.
+    bool isOudeControle(FFActionNode n) {
+      if (!n.hasConditionActions()) return false;
+      final tak = n.conditionActions.trueActions.isNotEmpty
+          ? n.conditionActions.trueActions.first.trueAction
+          : null;
+      if (tak == null) return false;
+      var stap = tak;
+      while (true) {
+        if (navigeertNaarLogin(stap)) return true;
+        if (!stap.hasFollowUpAction()) return false;
+        stap = stap.followUpAction;
+      }
+    }
+
+    var loper = wortel;
+    while (loper.hasFollowUpAction()) {
+      if (isOudeControle(loper.followUpAction)) {
+        final erna = loper.followUpAction;
+        if (erna.hasFollowUpAction()) {
+          loper.followUpAction = erna.followUpAction;
+        } else {
+          loper.clearFollowUpAction();
+        }
+        continue;
+      }
+      loper = loper.followUpAction;
+    }
+
+    // Een eerder geplaatste controle er eerst afhalen, zodat we vers wrappen en
+    // hem niet elke push een laag dieper begraven.
+    if (wortel.hasConditionActions()) {
+      final ca = wortel.conditionActions;
+      final tak = ca.trueActions.isNotEmpty ? ca.trueActions.first.trueAction : null;
+      if (tak != null && navigeertNaarLogin(tak) && ca.hasFalseAction()) {
+        wortel = ca.falseAction;
+      }
     }
 
     final tokenLeeg = conditionVar(
@@ -5368,17 +5407,15 @@ void _addSessionExpiryGuard(FFProject project, String pageName) {
       varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
     ).variable;
 
-    tail.followUpAction = Actions.conditional(
+    trigger.rootAction = Actions.conditional(
       condition: tokenLeeg,
       trueActions: FFActionNode(
         key: generateRandomAlphaNumericString(),
-        action: Actions.snackBar('Je sessie is verlopen. Log opnieuw in.'),
-        followUpAction: FFActionNode(
-          key: generateRandomAlphaNumericString(),
-          action: Actions.navigate(project, pageName: 'LoginPage', replaceRoute: true),
-        ),
+        action: Actions.navigate(project, pageName: 'LoginPage', replaceRoute: true),
       ),
+      falseActions: wortel,
     );
+
     break; // alleen de eerste (page load) keten
   }
 }
@@ -13029,6 +13066,28 @@ FFNode _buildBannerImageNode(
 // addTriggerChain() always adds a NEW trigger — FlutterFlow codegen only processes
 // the first ON_INIT_STATE trigger and silently drops all subsequent ones.
 // This helper instead walks followUpAction links to find the tail, then appends there.
+/// Het einde van de keten waar het echte werk in zit.
+///
+/// Een pagina kan voorwaardelijke poortjes vooraan hebben staan — de onboarding
+/// en de sessiecontrole — en die zetten de rest in hun false-tak. Zonder deze
+/// afdaling zou een nieuwe laadactie ná zo'n poortje komen te hangen en dus ook
+/// draaien wanneer het poortje juist zei dat het niet moest.
+FFActionNode _ketenStaart(FFActionNode start) {
+  var last = start;
+
+  while (true) {
+    if (last.hasFollowUpAction()) {
+      last = last.followUpAction;
+      continue;
+    }
+    if (last.hasConditionActions() && last.conditionActions.hasFalseAction()) {
+      last = last.conditionActions.falseAction;
+      continue;
+    }
+    return last;
+  }
+}
+
 void _appendToFirstPageLoadChain(FFNode node, FFActionNode actionToAppend) {
   final existingIdx = node.triggerActions.indexWhere(
     (t) => t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE,
@@ -13043,11 +13102,7 @@ void _appendToFirstPageLoadChain(FFNode node, FFActionNode actionToAppend) {
   // DeepCopy so we never mutate a potentially-frozen proto.
   final chainCopy = existingTrigger.rootAction.deepCopy();
 
-  var last = chainCopy;
-  while (last.hasFollowUpAction()) {
-    last = last.followUpAction;
-  }
-  last.followUpAction = actionToAppend;
+  _ketenStaart(chainCopy).followUpAction = actionToAppend;
 
   node.triggerActions[existingIdx] = FFTriggerActions(
     trigger: existingTrigger.trigger.deepCopy(),
