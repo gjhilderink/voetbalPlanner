@@ -473,38 +473,85 @@ class DemoClubSeeder extends Seeder
     // ── Bardiensten ─────────────────────────────────────────────────────────
 
     /**
-     * De shift-sleutel moet bij de weekdag horen: BarDuty::SHIFTS kent alleen
-     * za_* (zaterdag) en zo_* (zondag).
+     * Zeven bardiensten over drie weekenden.
+     *
+     * Genoeg om het rooster echt te zien werken: een dienst op naam van het
+     * demo-account (zodat "Mijn taken" op het dashboard gevuld is), een paar
+     * volle diensten, een paar die nog open staan zodat je je kunt aanmelden, en
+     * één handmatige dienst met een eigen tijd en bezetting.
+     *
+     * De shift-sleutel moet bij de weekdag van de datum horen: BarDuty::SHIFTS
+     * kent alleen za_* (zaterdag) en zo_* (zondag), in de Carbon-conventie met
+     * zondag = 0. Dat is een andere telling dan training_schedules.weekday, dat
+     * ISO 1–7 gebruikt.
      */
     private function bardiensten(Club $club, Team $team, array $leden, User $beheerder): void
     {
         $zaterdag = Carbon::now()->next(Carbon::SATURDAY)->startOfDay();
         $zondag   = Carbon::now()->next(Carbon::SUNDAY)->startOfDay();
 
+        // [datum, shift, wie erop staat, notitie]
+        // 'ik'   = het demo-account, zodat het dashboard een taak toont
+        // 'staf' = twee stafleden; die vullen een dienst helemaal
+        // 'half' = één lid op een dienst voor drie, dus nog plek over
+        // 'leeg' = niemand; hierop kun je jezelf aanmelden in de app
         $rijen = [
-            [$zaterdag, 'za_ochtend', true],
-            [$zaterdag, 'za_middag', false],
-            [$zondag,   'zo_middag1', false],
+            [$zaterdag,                        'za_ochtend', 'ik',   null],
+            [$zaterdag,                        'za_middag',  'staf', null],
+            [$zaterdag,                        'za_avond1',  'half', 'Na afloop opruimen met het team.'],
+            [$zondag,                          'zo_ochtend', 'leeg', null],
+            [$zondag,                          'zo_middag1', 'staf', null],
+            [$zaterdag->copy()->addWeek(),     'za_ochtend', 'leeg', null],
+            [$zaterdag->copy()->addWeeks(2),   'za_middag',  'half', null],
         ];
 
-        foreach ($rijen as [$datum, $shift, $vanBeheerder]) {
+        foreach ($rijen as [$datum, $shift, $bezetting, $notitie]) {
             $dienst = BarDuty::firstOrCreate(
                 ['club_id' => $club->id, 'date' => $datum->toDateString(), 'shift' => $shift],
-                ['team_id' => $team->id, 'status' => 'open'],
+                ['team_id' => $team->id, 'status' => 'open', 'notes' => $notitie],
             );
 
-            // Eén dienst op naam van het demo-account, zodat "Mijn taken" op het
-            // dashboard gevuld is.
-            if ($vanBeheerder) {
-                $dienst->users()->syncWithoutDetaching([$beheerder->id => ['spots' => 1]]);
-            } else {
-                $dienst->members()->syncWithoutDetaching([
-                    $leden['staf-leider']->id => ['spots' => 2],
-                ]);
-            }
+            match ($bezetting) {
+                'ik' => $dienst->users()->syncWithoutDetaching([$beheerder->id => ['spots' => 1]]),
+                'staf' => $dienst->members()->syncWithoutDetaching([
+                    $leden['staf-coach']->id  => ['spots' => 2],
+                    $leden['staf-leider']->id => ['spots' => 1],
+                ]),
+                'half' => $dienst->members()->syncWithoutDetaching([
+                    $leden['staf-leider']->id => ['spots' => 1],
+                ]),
+                default => null,
+            };
 
+            // Zet open of bevestigd op basis van de bezetting; 'vervuld' blijft
+            // staan als iemand die status handmatig heeft gezet.
             $dienst->refreshStatus();
         }
+
+        // Eén handmatige dienst: eigen label, eigen tijd en eigen bezetting.
+        // Die tak van het rooster werkt anders dan de vaste dagdelen en is
+        // zonder voorbeeld niet te zien.
+        $toernooi = BarDuty::firstOrCreate(
+            [
+                'club_id' => $club->id,
+                'date'    => $zaterdag->copy()->addWeeks(3)->toDateString(),
+                'shift'   => BarDuty::SHIFT_CUSTOM,
+            ],
+            [
+                'team_id'        => $team->id,
+                'custom_label'   => 'Toernooidag',
+                'start_time'     => '08:30',
+                'end_time'       => '18:00',
+                'required_count' => 4,
+                'status'         => 'open',
+                'notes'          => 'Lange dag; we wisselen halverwege.',
+            ],
+        );
+
+        $toernooi->members()->syncWithoutDetaching([
+            $leden['staf-coach']->id => ['spots' => 1],
+        ]);
+        $toernooi->refreshStatus();
     }
 
     // ── Stafgroep ───────────────────────────────────────────────────────────
