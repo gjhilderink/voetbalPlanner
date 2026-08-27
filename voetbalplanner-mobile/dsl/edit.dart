@@ -35791,6 +35791,10 @@ void _wireOpstellingPage(FFProject project) {
     required String appStateVeld,
     required List<String> opties,
     Map<String, String> labels = const {},
+    // Bij het aantal spelers hoort een passende opstelling. Zonder dit blijft
+    // na het omzetten de oude staan, en dan telt 4-4-2 bij zeven spelers.
+    String? tevensVeld,
+    Map<String, String> tevensWaarden = const {},
   }) {
     final huidigVar = appVar(appStateVeld);
     final chips = <FFNode>[];
@@ -35833,6 +35837,8 @@ void _wireOpstellingPage(FFProject project) {
         paar,
         Actions.updateAppState(project, updates: [
           StateFieldUpdate.set(appStateVeld, optie),
+          if (tevensVeld != null && tevensWaarden[optie] != null)
+            StateFieldUpdate.set(tevensVeld, tevensWaarden[optie]!),
         ]),
       );
       chips.add(paar);
@@ -35848,6 +35854,52 @@ void _wireOpstellingPage(FFProject project) {
       ],
     );
   }
+
+  // Het aantal spelers en de opstelling horen bij elkaar. De cijfers van een
+  // opstelling zijn de veldspelers; de keeper komt daar nog bij. 4-4-2 is dus
+  // tien plus de keeper is elf, en 3-3-2 is acht plus de keeper is negen.
+  //
+  // Per aantal een eigen rijtje, en alleen dat rijtje is zichtbaar. Een vrije
+  // keuze uit één lange lijst levert onvermijdelijk combinaties op die niet
+  // kunnen, en die zijn achteraf lastig te herkennen.
+  const formatiesPerAantal = <String, List<String>>{
+    '6':  ['3-0-2', '2-1-2', '2-2-1'],
+    '8':  ['3-3-1', '2-3-2', '3-2-2'],
+    '9':  ['3-2-3', '3-3-2', '4-3-1', '2-3-3'],
+    '11': ['4-3-3', '4-4-2', '4-2-3-1', '4-1-3-2', '4-5-1', '3-4-3'],
+  };
+
+  // Wat er klaargezet wordt zodra je het aantal omzet: de meest gangbare
+  // opstelling voor dat aantal.
+  const standaardFormatie = <String, String>{
+    '6': '2-2-1', '8': '3-3-1', '9': '3-3-2', '11': '4-3-3',
+  };
+
+  final aantalVar = appVar('lineupPlayersOnField');
+
+  final formatieRijen = <FFNode>[];
+  formatiesPerAantal.forEach((aantal, opties) {
+    final rij = keuzeRij(
+      naam: 'OpstellingFormatie$aantal',
+      label: 'Opstelling',
+      appStateVeld: 'lineupFormation',
+      opties: opties,
+    );
+    if (aantalVar != null) {
+      setConditionalVisibility(
+        rij,
+        variable: _equalsLiteral(aantalVar.deepCopy(), aantal),
+      );
+    }
+    formatieRijen.add(rij);
+  });
+
+  final formatieUitleg = UI.text(
+      'De cijfers zijn de veldspelers; de keeper komt daar nog bij.',
+      name: 'OpstellingFormatieUitleg',
+      style: UITextStyle.labelSmall,
+      color: UIColor.secondaryText,
+      maxLines: 2);
 
   final instellingen = _dashCard(
     name: 'OpstellingInstellingen',
@@ -35872,13 +35924,11 @@ void _wireOpstellingPage(FFProject project) {
           label: 'Aantal spelers op het veld',
           appStateVeld: 'lineupPlayersOnField',
           opties: const ['6', '8', '9', '11'],
+          tevensVeld: 'lineupFormation',
+          tevensWaarden: standaardFormatie,
         ),
-        keuzeRij(
-          naam: 'OpstellingFormatie',
-          label: 'Opstelling',
-          appStateVeld: 'lineupFormation',
-          opties: const ['2-3-1', '3-2-3', '3-3-2', '4-3-3', '4-4-2'],
-        ),
+        ...formatieRijen,
+        formatieUitleg,
         // Twee helften of vier kwarten. Bepaalt hoeveel opstellingen je maakt:
         // elke periode heeft er een, en het verschil ertussen is de wissel.
         keuzeRij(

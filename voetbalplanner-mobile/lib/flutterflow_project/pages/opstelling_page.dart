@@ -87,25 +87,25 @@ abstract final class OpstellingPageWidgets {
             name: "OpstellingRootColumn",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Text_wir0y3eg",
+                key: "Text_o2n13cco",
                 type: "Text",
                 path: "OpstellingPage.body[0].children[0]",
                 name: "OpstellingTeamNaam",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_qeh4yzbh",
+                key: "Container_dzjxxhqj",
                 type: "Container",
                 path: "OpstellingPage.body[0].children[1]",
                 name: "OpstellingMeldingKaart Margin",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_f4vjqdrb",
+                    key: "Container_9up799ls",
                     type: "Container",
                     path: "OpstellingPage.body[0].children[1].children[0]",
                     name: "OpstellingMeldingKaart",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_e8kaq3cx",
+                        key: "Text_y3ymh7sz",
                         type: "Text",
                         path: "OpstellingPage.body[0].children[1].children[0].children[0]",
                         name: "OpstellingMelding",
@@ -115,13 +115,13 @@ abstract final class OpstellingPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Row_uejp9t5c",
+                key: "Row_w9itvo7q",
                 type: "Row",
                 path: "OpstellingPage.body[0].children[2]",
                 name: "OpstellingTabs",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_ttu8g8jx",
+                    key: "Column_z70ugo30",
                     type: "Column",
                     path: "OpstellingPage.body[0].children[2].children[0]",
                     name: "OpstellingTabveld",
@@ -130,25 +130,25 @@ abstract final class OpstellingPageWidgets {
                     ],
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_33gv4dby",
+                        key: "Container_64sbbffc",
                         type: "Container",
                         path: "OpstellingPage.body[0].children[2].children[0].children[0]",
                         name: "OpstellingTabveldAan",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_s137eze0",
+                            key: "Row_eh0yp0ti",
                             type: "Row",
                             path: "OpstellingPage.body[0].children[2].children[0].children[0].children[0]",
                             name: "OpstellingTabveldAanRow",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_67l2dyyg",
+                                key: "Icon_2g2mjda8",
                                 type: "Icon",
                                 path: "OpstellingPage.body[0].children[2].children[0].children[0].children[0].children[0]",
                                 name: "Icon",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_152rhgrt",
+                                key: "Text_pttsb9cc",
                                 type: "Text",
                                 path: "OpstellingPage.body[0].children[2].children[0].children[0].children[0].children[1]",
                                 name: "OpstellingTabveldAanLabel",
@@ -159,25 +159,25 @@ abstract final class OpstellingPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_udyeis0e",
+                        key: "Container_zye0xd2i",
                         type: "Container",
                         path: "OpstellingPage.body[0].children[2].children[0].children[1]",
                         name: "OpstellingTabveldUit",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_yp580vff",
+                            key: "Row_rj6r6oau",
                             type: "Row",
                             path: "OpstellingPage.body[0].children[2].children[0].children[1].children[0]",
                             name: "OpstellingTabveldUitRow",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_7blh79t4",
+                                key: "Icon_l4e7ryit",
                                 type: "Icon",
                                 path: "OpstellingPage.body[0].children[2].children[0].children[1].children[0].children[0]",
                                 name: "Icon",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_21vzhgki",
+                                key: "Text_jhegn8ve",
                                 type: "Text",
                                 path: "OpstellingPage.body[0].children[2].children[0].children[1].children[0].children[1]",
                                 name: "OpstellingTabveldUitLabel",
@@ -190,7 +190,7 @@ abstract final class OpstellingPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Column_is2bxkgv",
+                    key: "Column_mvyjjote",
                     type: "Column",
                     path: "OpstellingPage.body[0].children[2].children[1]",
                     name: "OpstellingTabwissels",
@@ -199,25 +199,25 @@ abstract final class OpstellingPageWidgets {
                     ],
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_p5cot9ag",
+                        key: "Container_gv3fyo9h",
                         type: "Container",
                         path: "OpstellingPage.body[0].children[2].children[1].children[0]",
                         name: "OpstellingTabwisselsAan",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_dk1jz0of",
+                            key: "Row_sbrzvdkp",
                             type: "Row",
                             path: "OpstellingPage.body[0].children[2].children[1].children[0].children[0]",
                             name: "OpstellingTabwisselsAanRow",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_krv008qo",
+                                key: "Icon_0zmizea1",
                                 type: "Icon",
                                 path: "OpstellingPage.body[0].children[2].children[1].children[0].children[0].children[0]",
                                 name: "Icon",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_3x5fm1tr",
+                                key: "Text_1sdyncbb",
                                 type: "Text",
                                 path: "OpstellingPage.body[0].children[2].children[1].children[0].children[0].children[1]",
                                 name: "OpstellingTabwisselsAanLabel",
@@ -228,25 +228,25 @@ abstract final class OpstellingPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_r8nc4ajl",
+                        key: "Container_ojzeruvf",
                         type: "Container",
                         path: "OpstellingPage.body[0].children[2].children[1].children[1]",
                         name: "OpstellingTabwisselsUit",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_64hssnlj",
+                            key: "Row_0d0lfw0z",
                             type: "Row",
                             path: "OpstellingPage.body[0].children[2].children[1].children[1].children[0]",
                             name: "OpstellingTabwisselsUitRow",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_6c1003tn",
+                                key: "Icon_drw3xcdm",
                                 type: "Icon",
                                 path: "OpstellingPage.body[0].children[2].children[1].children[1].children[0].children[0]",
                                 name: "Icon",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_ocq2dkku",
+                                key: "Text_3lv3auja",
                                 type: "Text",
                                 path: "OpstellingPage.body[0].children[2].children[1].children[1].children[0].children[1]",
                                 name: "OpstellingTabwisselsUitLabel",
@@ -259,7 +259,7 @@ abstract final class OpstellingPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Column_6v6ybsim",
+                    key: "Column_r493s965",
                     type: "Column",
                     path: "OpstellingPage.body[0].children[2].children[2]",
                     name: "OpstellingTabinstellingen",
@@ -268,25 +268,25 @@ abstract final class OpstellingPageWidgets {
                     ],
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_7tknbtej",
+                        key: "Container_u8ol7ydf",
                         type: "Container",
                         path: "OpstellingPage.body[0].children[2].children[2].children[0]",
                         name: "OpstellingTabinstellingenAan",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_b11l5jdq",
+                            key: "Row_dyzqgbe0",
                             type: "Row",
                             path: "OpstellingPage.body[0].children[2].children[2].children[0].children[0]",
                             name: "OpstellingTabinstellingenAanRow",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_gv1hgqq9",
+                                key: "Icon_5fpn1svi",
                                 type: "Icon",
                                 path: "OpstellingPage.body[0].children[2].children[2].children[0].children[0].children[0]",
                                 name: "Icon",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_ljo1vmsx",
+                                key: "Text_tqhzfk1v",
                                 type: "Text",
                                 path: "OpstellingPage.body[0].children[2].children[2].children[0].children[0].children[1]",
                                 name: "OpstellingTabinstellingenAanLabel",
@@ -297,25 +297,25 @@ abstract final class OpstellingPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_mtlh493p",
+                        key: "Container_b9a172eq",
                         type: "Container",
                         path: "OpstellingPage.body[0].children[2].children[2].children[1]",
                         name: "OpstellingTabinstellingenUit",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_r94oundm",
+                            key: "Row_6zlbjsnr",
                             type: "Row",
                             path: "OpstellingPage.body[0].children[2].children[2].children[1].children[0]",
                             name: "OpstellingTabinstellingenUitRow",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_7hjp3058",
+                                key: "Icon_kvf8rway",
                                 type: "Icon",
                                 path: "OpstellingPage.body[0].children[2].children[2].children[1].children[0].children[0]",
                                 name: "Icon",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_1k2pr1gu",
+                                key: "Text_5w1yxf62",
                                 type: "Text",
                                 path: "OpstellingPage.body[0].children[2].children[2].children[1].children[0].children[1]",
                                 name: "OpstellingTabinstellingenUitLabel",
@@ -330,13 +330,13 @@ abstract final class OpstellingPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_hfwliwpe",
+                key: "Container_7v2rumiw",
                 type: "Container",
                 path: "OpstellingPage.body[0].children[3]",
                 name: "OpstellingBordWrap",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_fgba9tj4",
+                    key: "Container_8197hx6n",
                     type: "Container",
                     path: "OpstellingPage.body[0].children[3].children[0]",
                     name: "OpstellingBord",
@@ -344,13 +344,13 @@ abstract final class OpstellingPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_msq2585w",
+                key: "Container_itx453is",
                 type: "Container",
                 path: "OpstellingPage.body[0].children[4]",
                 name: "OpstellingWisselWrap",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_7xod6875",
+                    key: "Container_uv1oqqpc",
                     type: "Container",
                     path: "OpstellingPage.body[0].children[4].children[0]",
                     name: "OpstellingWissels",
@@ -358,44 +358,44 @@ abstract final class OpstellingPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Text_xo5ct7f9",
+                key: "Text_vc8yvmgi",
                 type: "Text",
                 path: "OpstellingPage.body[0].children[5]",
                 name: "OpstellingAlleenLezen",
                 text: "Je kunt deze opstelling bekijken, maar niet aanpassen.",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_dvuq0lnu",
+                key: "Container_iji1uds8",
                 type: "Container",
                 path: "OpstellingPage.body[0].children[6]",
                 name: "OpstellingInstellingen Margin",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_v7izz8gb",
+                    key: "Container_50dlim48",
                     type: "Container",
                     path: "OpstellingPage.body[0].children[6].children[0]",
                     name: "OpstellingInstellingen",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_p39ao6zm",
+                        key: "Column_zlccram5",
                         type: "Column",
                         path: "OpstellingPage.body[0].children[6].children[0].children[0]",
                         name: "OpstellingInstellingenCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_4hq4yjhx",
+                            key: "Row_xiq4tc4c",
                             type: "Row",
                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[0]",
                             name: "OpstellingInstellingenKop",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_m6pup5ly",
+                                key: "Icon_yqgcz33b",
                                 type: "Icon",
                                 path: "OpstellingPage.body[0].children[6].children[0].children[0].children[0].children[0]",
                                 name: "Icon",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_e0k49c4k",
+                                key: "Text_lu37ikl9",
                                 type: "Text",
                                 path: "OpstellingPage.body[0].children[6].children[0].children[0].children[0].children[1]",
                                 name: "OpstellingInstellingenTitel",
@@ -404,26 +404,26 @@ abstract final class OpstellingPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Column_hlklv3re",
+                            key: "Column_97i0klwj",
                             type: "Column",
                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1]",
                             name: "OpstellingAantalCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_953j7rkx",
+                                key: "Text_evbh1xt6",
                                 type: "Text",
                                 path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[0]",
                                 name: "OpstellingAantalLabel",
                                 text: "Aantal spelers op het veld",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_zg5iu3zv",
+                                key: "Row_ymfwtg72",
                                 type: "Row",
                                 path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1]",
                                 name: "OpstellingAantalChips",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_s0o7twgy",
+                                    key: "Row_jnrw25lf",
                                     type: "Row",
                                     path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[0]",
                                     name: "OpstellingAantal0",
@@ -432,13 +432,13 @@ abstract final class OpstellingPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_k1nkkhi3",
+                                        key: "Container_2mbxq9bs",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[0].children[0]",
                                         name: "OpstellingAantalAan0",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_2e0wm205",
+                                            key: "Text_gjc46d70",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[0].children[0].children[0]",
                                             name: "OpstellingAantalAanLabel0",
@@ -447,13 +447,13 @@ abstract final class OpstellingPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_w0d1g0lz",
+                                        key: "Container_r5xop5fv",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[0].children[1]",
                                         name: "OpstellingAantalUit0",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_b29f8tq6",
+                                            key: "Text_d5pv4wsu",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[0].children[1].children[0]",
                                             name: "OpstellingAantalUitLabel0",
@@ -464,7 +464,7 @@ abstract final class OpstellingPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_q3vgegvr",
+                                    key: "Row_ami4cjbt",
                                     type: "Row",
                                     path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[1]",
                                     name: "OpstellingAantal1",
@@ -473,13 +473,13 @@ abstract final class OpstellingPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_vgyskul6",
+                                        key: "Container_up89y1qe",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[1].children[0]",
                                         name: "OpstellingAantalAan1",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_vseb3b7p",
+                                            key: "Text_3oqpjgyd",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[1].children[0].children[0]",
                                             name: "OpstellingAantalAanLabel1",
@@ -488,13 +488,13 @@ abstract final class OpstellingPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_aed77tnr",
+                                        key: "Container_k5ow2gy1",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[1].children[1]",
                                         name: "OpstellingAantalUit1",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_v4mqns56",
+                                            key: "Text_5a8msyzy",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[1].children[1].children[0]",
                                             name: "OpstellingAantalUitLabel1",
@@ -505,7 +505,7 @@ abstract final class OpstellingPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_m0cm9o8r",
+                                    key: "Row_hgh9w5en",
                                     type: "Row",
                                     path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[2]",
                                     name: "OpstellingAantal2",
@@ -514,13 +514,13 @@ abstract final class OpstellingPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_ksrugg39",
+                                        key: "Container_rkw46067",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[2].children[0]",
                                         name: "OpstellingAantalAan2",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_ge5334k0",
+                                            key: "Text_wwo5wk0h",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[2].children[0].children[0]",
                                             name: "OpstellingAantalAanLabel2",
@@ -529,13 +529,13 @@ abstract final class OpstellingPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_0h1pju0m",
+                                        key: "Container_uh6cqcss",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[2].children[1]",
                                         name: "OpstellingAantalUit2",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_bif6t6w1",
+                                            key: "Text_uk2boao0",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[2].children[1].children[0]",
                                             name: "OpstellingAantalUitLabel2",
@@ -546,7 +546,7 @@ abstract final class OpstellingPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_zrz42tut",
+                                    key: "Row_z4yz3urx",
                                     type: "Row",
                                     path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[3]",
                                     name: "OpstellingAantal3",
@@ -555,13 +555,13 @@ abstract final class OpstellingPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_5cfov4op",
+                                        key: "Container_47svaqxu",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[3].children[0]",
                                         name: "OpstellingAantalAan3",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_ylu325o5",
+                                            key: "Text_am1jski8",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[3].children[0].children[0]",
                                             name: "OpstellingAantalAanLabel3",
@@ -570,13 +570,13 @@ abstract final class OpstellingPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_ufesp0nh",
+                                        key: "Container_m2cw3fyj",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[3].children[1]",
                                         name: "OpstellingAantalUit3",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_0s2jge93",
+                                            key: "Text_01vgw4j1",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[1].children[1].children[3].children[1].children[0]",
                                             name: "OpstellingAantalUitLabel3",
@@ -591,224 +591,142 @@ abstract final class OpstellingPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Column_eilek54y",
+                            key: "Column_mibxkd3j",
                             type: "Column",
                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2]",
-                            name: "OpstellingFormatieCol",
+                            name: "OpstellingFormatie6Col",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_0f1vf907",
+                                key: "Text_lyh6a941",
                                 type: "Text",
                                 path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[0]",
-                                name: "OpstellingFormatieLabel",
+                                name: "OpstellingFormatie6Label",
                                 text: "Opstelling",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_8bkn5n18",
+                                key: "Row_j11jax5a",
                                 type: "Row",
                                 path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1]",
-                                name: "OpstellingFormatieChips",
+                                name: "OpstellingFormatie6Chips",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_x90jr0k5",
+                                    key: "Row_jv9icndy",
                                     type: "Row",
                                     path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[0]",
-                                    name: "OpstellingFormatie0",
+                                    name: "OpstellingFormatie60",
                                     triggers: const <String>[
                                       "ON_TAP",
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_zv1drde0",
+                                        key: "Container_qbo3bsvy",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[0].children[0]",
-                                        name: "OpstellingFormatieAan0",
+                                        name: "OpstellingFormatie6Aan0",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_yj4fnc4m",
+                                            key: "Text_hjqdzfra",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[0].children[0].children[0]",
-                                            name: "OpstellingFormatieAanLabel0",
-                                            text: "2-3-1",
+                                            name: "OpstellingFormatie6AanLabel0",
+                                            text: "3-0-2",
                                           ),
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_kumh0vfe",
+                                        key: "Container_kbmnf44s",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[0].children[1]",
-                                        name: "OpstellingFormatieUit0",
+                                        name: "OpstellingFormatie6Uit0",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_cs4trp5a",
+                                            key: "Text_gyh5g6m3",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[0].children[1].children[0]",
-                                            name: "OpstellingFormatieUitLabel0",
-                                            text: "2-3-1",
+                                            name: "OpstellingFormatie6UitLabel0",
+                                            text: "3-0-2",
                                           ),
                                         ],
                                       ),
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_bzvnk07r",
+                                    key: "Row_dalxets6",
                                     type: "Row",
                                     path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[1]",
-                                    name: "OpstellingFormatie1",
+                                    name: "OpstellingFormatie61",
                                     triggers: const <String>[
                                       "ON_TAP",
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_ayhsaqfb",
+                                        key: "Container_5dmcr5wd",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[1].children[0]",
-                                        name: "OpstellingFormatieAan1",
+                                        name: "OpstellingFormatie6Aan1",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_0fa26el9",
+                                            key: "Text_kvlqem2l",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[1].children[0].children[0]",
-                                            name: "OpstellingFormatieAanLabel1",
-                                            text: "3-2-3",
+                                            name: "OpstellingFormatie6AanLabel1",
+                                            text: "2-1-2",
                                           ),
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_gn2zdilb",
+                                        key: "Container_mpo5n50q",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[1].children[1]",
-                                        name: "OpstellingFormatieUit1",
+                                        name: "OpstellingFormatie6Uit1",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_lfpmzpxy",
+                                            key: "Text_qmqw34of",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[1].children[1].children[0]",
-                                            name: "OpstellingFormatieUitLabel1",
-                                            text: "3-2-3",
+                                            name: "OpstellingFormatie6UitLabel1",
+                                            text: "2-1-2",
                                           ),
                                         ],
                                       ),
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_dq4tkpwe",
+                                    key: "Row_yojqevlu",
                                     type: "Row",
                                     path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[2]",
-                                    name: "OpstellingFormatie2",
+                                    name: "OpstellingFormatie62",
                                     triggers: const <String>[
                                       "ON_TAP",
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_d30q1140",
+                                        key: "Container_x8fux2oq",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[2].children[0]",
-                                        name: "OpstellingFormatieAan2",
+                                        name: "OpstellingFormatie6Aan2",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_e6vhicw5",
+                                            key: "Text_f71hok09",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[2].children[0].children[0]",
-                                            name: "OpstellingFormatieAanLabel2",
-                                            text: "3-3-2",
+                                            name: "OpstellingFormatie6AanLabel2",
+                                            text: "2-2-1",
                                           ),
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_yigmed5s",
+                                        key: "Container_sj8gp689",
                                         type: "Container",
                                         path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[2].children[1]",
-                                        name: "OpstellingFormatieUit2",
+                                        name: "OpstellingFormatie6Uit2",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_1jb5goxf",
+                                            key: "Text_kst8m6rx",
                                             type: "Text",
                                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[2].children[1].children[0]",
-                                            name: "OpstellingFormatieUitLabel2",
-                                            text: "3-3-2",
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Row_x6wexhhn",
-                                    type: "Row",
-                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[3]",
-                                    name: "OpstellingFormatie3",
-                                    triggers: const <String>[
-                                      "ON_TAP",
-                                    ],
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Container_pvtv30tk",
-                                        type: "Container",
-                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[3].children[0]",
-                                        name: "OpstellingFormatieAan3",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_gq86dppl",
-                                            type: "Text",
-                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[3].children[0].children[0]",
-                                            name: "OpstellingFormatieAanLabel3",
-                                            text: "4-3-3",
-                                          ),
-                                        ],
-                                      ),
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Container_bxxpvnpb",
-                                        type: "Container",
-                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[3].children[1]",
-                                        name: "OpstellingFormatieUit3",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_74ujt14s",
-                                            type: "Text",
-                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[3].children[1].children[0]",
-                                            name: "OpstellingFormatieUitLabel3",
-                                            text: "4-3-3",
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Row_dwht84s6",
-                                    type: "Row",
-                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[4]",
-                                    name: "OpstellingFormatie4",
-                                    triggers: const <String>[
-                                      "ON_TAP",
-                                    ],
-                                    children: <ffai.ProjectWidgetHandle>[
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Container_2hicdtjv",
-                                        type: "Container",
-                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[4].children[0]",
-                                        name: "OpstellingFormatieAan4",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_kilvrytu",
-                                            type: "Text",
-                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[4].children[0].children[0]",
-                                            name: "OpstellingFormatieAanLabel4",
-                                            text: "4-4-2",
-                                          ),
-                                        ],
-                                      ),
-                                      ffai.ProjectWidgetHandle(
-                                        key: "Container_6fxgz0mh",
-                                        type: "Container",
-                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[4].children[1]",
-                                        name: "OpstellingFormatieUit4",
-                                        children: <ffai.ProjectWidgetHandle>[
-                                          ffai.ProjectWidgetHandle(
-                                            key: "Text_nackvnfw",
-                                            type: "Text",
-                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[2].children[1].children[4].children[1].children[0]",
-                                            name: "OpstellingFormatieUitLabel4",
-                                            text: "4-4-2",
+                                            name: "OpstellingFormatie6UitLabel2",
+                                            text: "2-2-1",
                                           ),
                                         ],
                                       ),
@@ -819,58 +737,667 @@ abstract final class OpstellingPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Column_qqifg6xi",
+                            key: "Column_gm4yeqqt",
                             type: "Column",
                             path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3]",
+                            name: "OpstellingFormatie8Col",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_htly9i0o",
+                                type: "Text",
+                                path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[0]",
+                                name: "OpstellingFormatie8Label",
+                                text: "Opstelling",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_ut6hj2ma",
+                                type: "Row",
+                                path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1]",
+                                name: "OpstellingFormatie8Chips",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_7o0wa71c",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[0]",
+                                    name: "OpstellingFormatie80",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_mwcl0pla",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[0].children[0]",
+                                        name: "OpstellingFormatie8Aan0",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_mfkms5et",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[0].children[0].children[0]",
+                                            name: "OpstellingFormatie8AanLabel0",
+                                            text: "3-3-1",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_bh9813an",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[0].children[1]",
+                                        name: "OpstellingFormatie8Uit0",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_gu32z0vt",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[0].children[1].children[0]",
+                                            name: "OpstellingFormatie8UitLabel0",
+                                            text: "3-3-1",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_c7tbg9l4",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[1]",
+                                    name: "OpstellingFormatie81",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_y7t1uqrn",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[1].children[0]",
+                                        name: "OpstellingFormatie8Aan1",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_x7m4j4a3",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[1].children[0].children[0]",
+                                            name: "OpstellingFormatie8AanLabel1",
+                                            text: "2-3-2",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_uup3ou6x",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[1].children[1]",
+                                        name: "OpstellingFormatie8Uit1",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_jzm4z7g6",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[1].children[1].children[0]",
+                                            name: "OpstellingFormatie8UitLabel1",
+                                            text: "2-3-2",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_ub9qwdxy",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[2]",
+                                    name: "OpstellingFormatie82",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_f1a5uyxy",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[2].children[0]",
+                                        name: "OpstellingFormatie8Aan2",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_2w7sea40",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[2].children[0].children[0]",
+                                            name: "OpstellingFormatie8AanLabel2",
+                                            text: "3-2-2",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_g4wpfjqf",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[2].children[1]",
+                                        name: "OpstellingFormatie8Uit2",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_3hqp0z5t",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[2].children[1].children[0]",
+                                            name: "OpstellingFormatie8UitLabel2",
+                                            text: "3-2-2",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Column_iuc2dpkl",
+                            type: "Column",
+                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4]",
+                            name: "OpstellingFormatie9Col",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_zf47wczh",
+                                type: "Text",
+                                path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[0]",
+                                name: "OpstellingFormatie9Label",
+                                text: "Opstelling",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_wynqqzju",
+                                type: "Row",
+                                path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1]",
+                                name: "OpstellingFormatie9Chips",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_wuud6f7r",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[0]",
+                                    name: "OpstellingFormatie90",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_6jw4z6a0",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[0].children[0]",
+                                        name: "OpstellingFormatie9Aan0",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_6svgjsha",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[0].children[0].children[0]",
+                                            name: "OpstellingFormatie9AanLabel0",
+                                            text: "3-2-3",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_4wglrfwq",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[0].children[1]",
+                                        name: "OpstellingFormatie9Uit0",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_6z2976c9",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[0].children[1].children[0]",
+                                            name: "OpstellingFormatie9UitLabel0",
+                                            text: "3-2-3",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_0l0t1t3e",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[1]",
+                                    name: "OpstellingFormatie91",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_ggr3c47v",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[1].children[0]",
+                                        name: "OpstellingFormatie9Aan1",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_lsvbae8r",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[1].children[0].children[0]",
+                                            name: "OpstellingFormatie9AanLabel1",
+                                            text: "3-3-2",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_5426kfhz",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[1].children[1]",
+                                        name: "OpstellingFormatie9Uit1",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_huvjqa7q",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[1].children[1].children[0]",
+                                            name: "OpstellingFormatie9UitLabel1",
+                                            text: "3-3-2",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_wpo308wr",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[2]",
+                                    name: "OpstellingFormatie92",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_cr4lo9vp",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[2].children[0]",
+                                        name: "OpstellingFormatie9Aan2",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_ijl0tc8i",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[2].children[0].children[0]",
+                                            name: "OpstellingFormatie9AanLabel2",
+                                            text: "4-3-1",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_bh05rovf",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[2].children[1]",
+                                        name: "OpstellingFormatie9Uit2",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_9hkt2enp",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[2].children[1].children[0]",
+                                            name: "OpstellingFormatie9UitLabel2",
+                                            text: "4-3-1",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_0ht1r2o0",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[3]",
+                                    name: "OpstellingFormatie93",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_ioha6miw",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[3].children[0]",
+                                        name: "OpstellingFormatie9Aan3",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_tn99f7yt",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[3].children[0].children[0]",
+                                            name: "OpstellingFormatie9AanLabel3",
+                                            text: "2-3-3",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_xi78bvln",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[3].children[1]",
+                                        name: "OpstellingFormatie9Uit3",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_ye1e1vmn",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[4].children[1].children[3].children[1].children[0]",
+                                            name: "OpstellingFormatie9UitLabel3",
+                                            text: "2-3-3",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Column_7ztqa3ss",
+                            type: "Column",
+                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5]",
+                            name: "OpstellingFormatie11Col",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Text_2nbpj7s8",
+                                type: "Text",
+                                path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[0]",
+                                name: "OpstellingFormatie11Label",
+                                text: "Opstelling",
+                              ),
+                              ffai.ProjectWidgetHandle(
+                                key: "Row_nkiml48q",
+                                type: "Row",
+                                path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1]",
+                                name: "OpstellingFormatie11Chips",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_iq87z6ne",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[0]",
+                                    name: "OpstellingFormatie110",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_r2keasw8",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[0].children[0]",
+                                        name: "OpstellingFormatie11Aan0",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_6j5ew2iz",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[0].children[0].children[0]",
+                                            name: "OpstellingFormatie11AanLabel0",
+                                            text: "4-3-3",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_ir7j97in",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[0].children[1]",
+                                        name: "OpstellingFormatie11Uit0",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_y5m0183n",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[0].children[1].children[0]",
+                                            name: "OpstellingFormatie11UitLabel0",
+                                            text: "4-3-3",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_dp680cv7",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[1]",
+                                    name: "OpstellingFormatie111",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_k1vrp928",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[1].children[0]",
+                                        name: "OpstellingFormatie11Aan1",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_adwl3v0m",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[1].children[0].children[0]",
+                                            name: "OpstellingFormatie11AanLabel1",
+                                            text: "4-4-2",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_6hhorq1g",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[1].children[1]",
+                                        name: "OpstellingFormatie11Uit1",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_lipi38r0",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[1].children[1].children[0]",
+                                            name: "OpstellingFormatie11UitLabel1",
+                                            text: "4-4-2",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_jocmv9qh",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[2]",
+                                    name: "OpstellingFormatie112",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_yf7klfjw",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[2].children[0]",
+                                        name: "OpstellingFormatie11Aan2",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_lnv6phwb",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[2].children[0].children[0]",
+                                            name: "OpstellingFormatie11AanLabel2",
+                                            text: "4-2-3-1",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_ckaox4lh",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[2].children[1]",
+                                        name: "OpstellingFormatie11Uit2",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_6f6itng7",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[2].children[1].children[0]",
+                                            name: "OpstellingFormatie11UitLabel2",
+                                            text: "4-2-3-1",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_hhp9claw",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[3]",
+                                    name: "OpstellingFormatie113",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_a7v2ftt2",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[3].children[0]",
+                                        name: "OpstellingFormatie11Aan3",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_y5vdstou",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[3].children[0].children[0]",
+                                            name: "OpstellingFormatie11AanLabel3",
+                                            text: "4-1-3-2",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_fke7ghn2",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[3].children[1]",
+                                        name: "OpstellingFormatie11Uit3",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_jqqiqh4j",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[3].children[1].children[0]",
+                                            name: "OpstellingFormatie11UitLabel3",
+                                            text: "4-1-3-2",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_q8w4qdl9",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[4]",
+                                    name: "OpstellingFormatie114",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_tqz2l8cf",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[4].children[0]",
+                                        name: "OpstellingFormatie11Aan4",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_jhhxtoqe",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[4].children[0].children[0]",
+                                            name: "OpstellingFormatie11AanLabel4",
+                                            text: "4-5-1",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_tp45wukx",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[4].children[1]",
+                                        name: "OpstellingFormatie11Uit4",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_f405zwjz",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[4].children[1].children[0]",
+                                            name: "OpstellingFormatie11UitLabel4",
+                                            text: "4-5-1",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_l015ka2s",
+                                    type: "Row",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[5]",
+                                    name: "OpstellingFormatie115",
+                                    triggers: const <String>[
+                                      "ON_TAP",
+                                    ],
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_45jbnxka",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[5].children[0]",
+                                        name: "OpstellingFormatie11Aan5",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_1fgvss8e",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[5].children[0].children[0]",
+                                            name: "OpstellingFormatie11AanLabel5",
+                                            text: "3-4-3",
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Container_8prn0ma8",
+                                        type: "Container",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[5].children[1]",
+                                        name: "OpstellingFormatie11Uit5",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_k1q97igd",
+                                            type: "Text",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[5].children[1].children[5].children[1].children[0]",
+                                            name: "OpstellingFormatie11UitLabel5",
+                                            text: "3-4-3",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_1bfqfqk0",
+                            type: "Text",
+                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[6]",
+                            name: "OpstellingFormatieUitleg",
+                            text: "De cijfers zijn de veldspelers; de keeper komt daar nog bij.",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Column_z6pnhixe",
+                            type: "Column",
+                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7]",
                             name: "OpstellingPeriodenCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_0oquaro5",
+                                key: "Text_18zdqi78",
                                 type: "Text",
-                                path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[0]",
+                                path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[0]",
                                 name: "OpstellingPeriodenLabel",
                                 text: "Wedstrijdformaat",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_0dpk4ggx",
+                                key: "Row_uc7bwx12",
                                 type: "Row",
-                                path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1]",
+                                path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1]",
                                 name: "OpstellingPeriodenChips",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_5aeohxx5",
+                                    key: "Row_wc4xy9hc",
                                     type: "Row",
-                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[0]",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1].children[0]",
                                     name: "OpstellingPerioden0",
                                     triggers: const <String>[
                                       "ON_TAP",
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_dbibqv2l",
+                                        key: "Container_4egxffbc",
                                         type: "Container",
-                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[0].children[0]",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1].children[0].children[0]",
                                         name: "OpstellingPeriodenAan0",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_z3we77n3",
+                                            key: "Text_m25y9bdz",
                                             type: "Text",
-                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[0].children[0].children[0]",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1].children[0].children[0].children[0]",
                                             name: "OpstellingPeriodenAanLabel0",
                                             text: "2 helften",
                                           ),
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_vzgvbith",
+                                        key: "Container_cm9qk1g5",
                                         type: "Container",
-                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[0].children[1]",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1].children[0].children[1]",
                                         name: "OpstellingPeriodenUit0",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_tpdljk8p",
+                                            key: "Text_ohi1rf82",
                                             type: "Text",
-                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[0].children[1].children[0]",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1].children[0].children[1].children[0]",
                                             name: "OpstellingPeriodenUitLabel0",
                                             text: "2 helften",
                                           ),
@@ -879,39 +1406,39 @@ abstract final class OpstellingPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_td7po4f2",
+                                    key: "Row_1dcyo1em",
                                     type: "Row",
-                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[1]",
+                                    path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1].children[1]",
                                     name: "OpstellingPerioden1",
                                     triggers: const <String>[
                                       "ON_TAP",
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_r77yxc8o",
+                                        key: "Container_3rmc2apb",
                                         type: "Container",
-                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[1].children[0]",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1].children[1].children[0]",
                                         name: "OpstellingPeriodenAan1",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_7cnrseuc",
+                                            key: "Text_0xbt8793",
                                             type: "Text",
-                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[1].children[0].children[0]",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1].children[1].children[0].children[0]",
                                             name: "OpstellingPeriodenAanLabel1",
                                             text: "4 kwarten",
                                           ),
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_xwt15emh",
+                                        key: "Container_eitm6df6",
                                         type: "Container",
-                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[1].children[1]",
+                                        path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1].children[1].children[1]",
                                         name: "OpstellingPeriodenUit1",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_1yfrkodc",
+                                            key: "Text_o2c35g7v",
                                             type: "Text",
-                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[3].children[1].children[1].children[1].children[0]",
+                                            path: "OpstellingPage.body[0].children[6].children[0].children[0].children[7].children[1].children[1].children[1].children[0]",
                                             name: "OpstellingPeriodenUitLabel1",
                                             text: "4 kwarten",
                                           ),
@@ -930,13 +1457,13 @@ abstract final class OpstellingPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Column_y4a4kujv",
+                key: "Column_ol24rbos",
                 type: "Column",
                 path: "OpstellingPage.body[0].children[7]",
                 name: "OpstellingKnoppen",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Button_dc1v5xca",
+                    key: "Button_pnykpc6r",
                     type: "Button",
                     path: "OpstellingPage.body[0].children[7].children[0]",
                     name: "OpstellingOpslaan",
@@ -946,7 +1473,7 @@ abstract final class OpstellingPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Button_07s17dkv",
+                    key: "Button_sfz9vpba",
                     type: "Button",
                     path: "OpstellingPage.body[0].children[7].children[1]",
                     name: "OpstellingVrijgeven",
@@ -956,7 +1483,7 @@ abstract final class OpstellingPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Button_ggopuva9",
+                    key: "Button_cbvyf2dl",
                     type: "Button",
                     path: "OpstellingPage.body[0].children[7].children[2]",
                     name: "OpstellingVerbergen",

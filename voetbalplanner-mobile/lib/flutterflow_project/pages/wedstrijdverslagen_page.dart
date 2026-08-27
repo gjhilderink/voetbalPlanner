@@ -75,13 +75,13 @@ abstract final class WedstrijdverslagenPageWidgets {
             name: "VerslagenRootColumn",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Container_11qtn6iz",
+                key: "Container_7q8gb54c",
                 type: "Container",
                 path: "WedstrijdverslagenPage.body[0].children[0]",
                 name: "VerslagenZoekWrap",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "TextField_8pq94es8",
+                    key: "TextField_b5huq25s",
                     type: "TextField",
                     path: "WedstrijdverslagenPage.body[0].children[0].children[0]",
                     name: "VerslagenZoekVeld",
@@ -93,19 +93,19 @@ abstract final class WedstrijdverslagenPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Text_d41nk8vn",
+                key: "Text_ov5cusxx",
                 type: "Text",
                 path: "WedstrijdverslagenPage.body[0].children[1]",
                 name: "VerslagenMelding",
               ),
               ffai.ProjectWidgetHandle(
-                key: "ListView_w09my47i",
+                key: "ListView_7g27gu7j",
                 type: "ListView",
                 path: "WedstrijdverslagenPage.body[0].children[2]",
                 name: "VerslagenList",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_lk2zrkse",
+                    key: "Container_efotnwbp",
                     type: "Container",
                     path: "WedstrijdverslagenPage.body[0].children[2].children[0]",
                     name: "VerslagKaart",
@@ -114,19 +114,19 @@ abstract final class WedstrijdverslagenPageWidgets {
                     ],
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Row_y85o5k2x",
+                        key: "Row_teqkxhdx",
                         type: "Row",
                         path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0]",
                         name: "VerslagRij",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_kac62t3w",
+                            key: "Container_te32rdep",
                             type: "Container",
                             path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[0]",
                             name: "VerslagUitslagW",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_gnek1fao",
+                                key: "Text_mds6dbjg",
                                 type: "Text",
                                 path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[0].children[0]",
                                 name: "VerslagUitslagWTekst",
@@ -135,13 +135,13 @@ abstract final class WedstrijdverslagenPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_rm16a3s6",
+                            key: "Container_9xcbbjkx",
                             type: "Container",
                             path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[1]",
                             name: "VerslagUitslagG",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_pbqene9g",
+                                key: "Text_bcrhyyyj",
                                 type: "Text",
                                 path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[1].children[0]",
                                 name: "VerslagUitslagGTekst",
@@ -150,13 +150,13 @@ abstract final class WedstrijdverslagenPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_f3y5g1iy",
+                            key: "Container_r55ow2aq",
                             type: "Container",
                             path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[2]",
                             name: "VerslagUitslagV",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_jm7pq8af",
+                                key: "Text_gwzrqi7u",
                                 type: "Text",
                                 path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[2].children[0]",
                                 name: "VerslagUitslagVTekst",
@@ -165,38 +165,38 @@ abstract final class WedstrijdverslagenPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Column_aoo43bm7",
+                            key: "Column_2vgt9lx0",
                             type: "Column",
                             path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[3]",
                             name: "VerslagNaamCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_4go8mcbc",
+                                key: "Text_a27tmteq",
                                 type: "Text",
                                 path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[3].children[0]",
                                 name: "VerslagTegenstander",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_j3jeu37n",
+                                key: "Row_art7mwfp",
                                 type: "Row",
                                 path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[3].children[1]",
                                 name: "VerslagOnderRij",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_1gle25l5",
+                                    key: "Text_odk6y95f",
                                     type: "Text",
                                     path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[3].children[1].children[0]",
                                     name: "VerslagDatum",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_6p1froj2",
+                                    key: "Text_yrzvjk7a",
                                     type: "Text",
                                     path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[3].children[1].children[1]",
                                     name: "VerslagScheiding",
                                     text: "·",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_rufhg31z",
+                                    key: "Text_icer26rg",
                                     type: "Text",
                                     path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[3].children[1].children[2]",
                                     name: "VerslagTeam",
@@ -206,13 +206,13 @@ abstract final class WedstrijdverslagenPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_65sx7hkq",
+                            key: "Text_qy2kg6np",
                             type: "Text",
                             path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[4]",
                             name: "VerslagScore",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Icon_anxcsyeu",
+                            key: "Icon_6ovxz8yf",
                             type: "Icon",
                             path: "WedstrijdverslagenPage.body[0].children[2].children[0].children[0].children[5]",
                             name: "Icon",
