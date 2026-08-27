@@ -601,6 +601,162 @@ class ReleaseNotesSeeder extends Seeder
                     . 'De tijdlijn is een lijn met ronde iconen; doelpunten, kaarten en het eindsignaal springen eruit. '
                     . 'In de app hebben de livepagina en het tabblad "Verslag" dezelfde opmaak gekregen.',
             ],
+
+            // ── Ronde van eind augustus ──────────────────────────────────────
+            [
+                'type'        => 'feature',
+                'title'       => 'Pasfoto bij je teamgenoten',
+                'description' => 'De ledenlijst van je elftal toont nu de pasfoto uit Sportlink, zodat je bij een '
+                    . 'naam meteen een gezicht hebt. Heb je zelf een foto in de app gezet, dan blijft die staan — '
+                    . 'die wordt niet overschreven door de clubfoto. Wie geen foto heeft, houdt gewoon zijn '
+                    . 'rugnummer of rolafkorting.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'De stand van je poule',
+                'description' => 'Onder "Meer" staat nu "Stand": de volledige poulestand van je elftal, met je eigen '
+                    . 'ploeg dikgedrukt. De cijfers op het dashboard komen daar ook vandaan, dus positie, punten en '
+                    . 'doelsaldo kloppen met de officiële stand en niet alleen met de wedstrijden die de app kent. '
+                    . 'Tik op het blok en je gaat er direct naartoe.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Wedstrijdverslagen teruglezen',
+                'description' => 'Een live verslag stond alleen bij die ene wedstrijd, en was een maand later niet '
+                    . 'meer terug te vinden. Onder "Meer" staat nu "Wedstrijdverslagen": alle bijgehouden verslagen '
+                    . 'onder elkaar, nieuwste eerst, met de uitslag in kleur. Zoeken kan op tegenstander of elftal.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => "Foto's bij een wedstrijd",
+                'description' => 'Bij elke wedstrijd staat een tabblad "Media". Iedereen uit het elftal kan er foto\'s '
+                    . 'bij zetten — maximaal vijf per persoon — en onder elke foto staat wie hem heeft geplaatst. Je '
+                    . 'eigen foto\'s kun je weer weghalen; de coach kan alles weghalen.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Statistiek in plaats van doelpunten',
+                'description' => 'Het tabblad "Doelpunten" bij een wedstrijd is "Statistiek" geworden. Je ziet nu de '
+                    . 'eindstand, doelpunten voor en tegen, wie er scoorden en wie de assists gaven, de kaarten met '
+                    . 'namen erbij en het aantal wissels — allemaal uit het live verslag. Is er geen verslag '
+                    . 'bijgehouden, dan staat dat er, in plaats van een scherm vol nullen.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Documenten bij je elftal',
+                'description' => 'Spelregels, formulieren en draaiboeken gingen rond als bijlage in een appgroep en '
+                    . 'waren later niet meer te vinden. Onder "Meer" staat nu "Documenten", met de documenten van je '
+                    . 'eigen elftal én die van de hele club. De club plaatst ze in de portal en kan er een link van '
+                    . 'delen die het ook in een appbericht of een mail doet.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Opstelling maken op je eigen helft',
+                'description' => 'Het opstellingsbord toont nu alleen je eigen helft, zodat elf spelers er ruim op '
+                    . 'passen in plaats van op elkaar te kruipen. Bij de nog niet ingedeelde spelers staan de knoppen '
+                    . '"Wissel" en "Opstellen", zodat je ze zonder slepen kunt indelen. Tik je op een speler in het '
+                    . 'veld, dan kies je tussen verslepen, naar de bank, of helemaal uit de opstelling.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Opstelling houdt de telling bij',
+                'description' => 'Bij de instellingen hoort de opstelling nu bij het aantal spelers: kies je negen, '
+                    . 'dan zie je alleen opstellingen die op negen uitkomen. Staan er meer spelers in het veld dan is '
+                    . 'ingesteld, dan verschijnt daar een waarschuwing over — je wordt niet geblokkeerd, want tijdens '
+                    . 'het schuiven klopt het even niet. Afgemelde spelers kun je niet meer indelen.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Rijders aanwijzen in de app',
+                'description' => 'In het plusmenu bij een wedstrijd staat nu "Rijders toevoegen". Je tikt een naam '
+                    . 'aan, bevestigt, en wie al rijdt is in de lijst gemarkeerd zodat je hem er ook weer uit kunt '
+                    . 'halen. De rijders staan daarna bij de wedstrijdgegevens. "Doelpunt toevoegen" is uit dit menu '
+                    . 'verdwenen; dat kan nog via het live verslag.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Zie met wie je gekoppeld bent',
+                'description' => 'Op je profiel staat nu een blok "Koppelingen": met wie je verbonden bent, beide '
+                    . 'kanten op. Een ouder ziet zijn kinderen, en een speler ziet eindelijk ook wie er meekijkt. '
+                    . 'Intrekken kan met de knop ernaast, met een bevestiging ervoor.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Chatten met je teamgenoten',
+                'description' => 'De lijst om iemand direct te appen ziet er nu uit als de teamledenpagina: foto, '
+                    . 'rugnummer en functie. Bij wie de app nog niet heeft geactiveerd staat "Nog niet online" en '
+                    . 'ontbreekt de chatknop — een gesprek beginnen dat nooit gelezen wordt heeft geen zin.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Sneller bij je taken en je profiel',
+                'description' => 'De taken op het dashboard — rijden, vlaggen, fruit, bardienst — zijn nu '
+                    . 'aanklikbaar en brengen je naar de wedstrijd of de dienst waar het om gaat. Een tik op je foto '
+                    . 'in de kop opent je profiel.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Alleen de bardiensten die jou aangaan',
+                'description' => 'De bardienstenlijst toonde voor sommige rollen alle diensten van de hele club. Je '
+                    . 'ziet nu alleen de diensten van de elftallen waar je bij hoort — en dan wel van al je '
+                    . 'elftallen, ook die van je kinderen.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Knopteksten weer leesbaar',
+                'description' => 'De tekst op knoppen was overal kleiner dan de rest van de app, waardoor inloggen '
+                    . 'en uitloggen slecht te lezen waren. Alle knoppen hebben nu een vaste, grotere lettergrootte.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Teamledenlijst was niet te scrollen',
+                'description' => 'Bij een elftal dat niet op één scherm paste, kon je niet verder naar beneden: de '
+                    . 'lijst liep gewoon van het scherm af. Nu scrollt de pagina zoals overal elders.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Cijfers wisselden niet mee met je elftal',
+                'description' => 'Schakelde je op het dashboard naar een ander elftal, dan bleven de teamcijfers die '
+                    . 'van het vorige team tonen tot je het dashboard sloot en opnieuw opende. Wedstrijden en '
+                    . 'trainingen wisselden wel al mee; de cijfers doen dat nu ook.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Stand bleef leeg',
+                'description' => 'Bij sommige elftallen bleef de standpagina leeg of toonde hij een tabel zonder '
+                    . 'cijfers. De koppeling gaf in dat geval de poules terug in plaats van de stand, en dat werd '
+                    . 'klakkeloos aangenomen. Is er nog geen stand — bijvoorbeeld omdat de competitie nog moet '
+                    . 'beginnen — dan staat dat er nu, in plaats van lege vakjes.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Bardiensten konden helemaal wegvallen',
+                'description' => 'Stond er op een bardienst iemand die geen ledenprofiel heeft, dan gaf de hele '
+                    . 'bardienstenlijst een foutmelding — niet alleen die ene dienst. Dat is verholpen.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Registreren als ouder gaf een serverfout',
+                'description' => 'Was er ooit een account met hetzelfde e-mailadres aangemaakt en later verwijderd, '
+                    . 'dan liep het registreren vast op "Server Error" zonder verdere uitleg. Nu krijg je te horen '
+                    . 'wat er aan de hand is, en blijft er niets halfs achter als er iets misgaat.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Koppeling intrekken werkte niet',
+                'description' => 'De knop om een ouder/verzorger-koppeling in te trekken deed niets: het verzoek '
+                    . 'werd verstuurd op een manier die de server weigert. Dat is rechtgezet, en na het intrekken '
+                    . 'verdwijnt de regel meteen uit de lijst.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Geen foutmeldingen meer als je niet bent ingelogd',
+                'description' => 'Opende je de app zonder actieve sessie, dan probeerde het scherm eerst van alles '
+                    . 'op te halen — wat allemaal mislukte — en kreeg je een rij foutmeldingen te zien, gevolgd door '
+                    . '"je sessie is verlopen". Nu wordt eerst gekeken of je bent ingelogd, en zo niet, dan kom je '
+                    . 'gewoon op het inlogscherm. Ook wie via een inloglink binnenkomt krijgt die melding niet meer, '
+                    . 'want die had nog helemaal geen sessie.',
+            ],
         ];
 
         $sort = 0;
