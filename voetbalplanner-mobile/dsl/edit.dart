@@ -678,6 +678,20 @@ void buildEditFlow(App app) {
   app.raw((project) => _addOnboardingClubLogo(project));
 
   // ─── Wissel (swap) feature ────────────────────────────────────────────────
+  // Eerst opruimen wat er ooit in de fouttakken van de laadketen is beland;
+  // daarna hangt de gewone bedrading hieronder alles weer op zijn plek.
+  app.raw((project) {
+    _ruimLaadaanroepenUitFouttakken(project, 'WedstrijdDetailPage', const {
+      'GetMatchDeelnemers', 'GetMatchPhotos', 'GetMatchStats',
+      'GetMatchEvents', 'GetMatchGoalsList', 'GetScorerMembers',
+      'GetGuestInviteTeams', 'GetMatchGuestsList', 'GetMatchAfmeldingen',
+    });
+    _ruimLaadaanroepenUitFouttakken(project, 'ProfielPage', const {'GetGuardianLinks'});
+    _ruimLaadaanroepenUitFouttakken(project, 'DashboardPage', const {
+      'GetTeamStats', 'GetTeamMood', 'GetDashboardMatches',
+    });
+  });
+
   app.raw((project) => _addSwapStructFields(project));
   // ProfielPage teamlijst — ná _addSwapStructFields zodat TeamOption.role bestaat.
   app.raw((project) => _addProfielTeamsList(project));
@@ -13101,19 +13115,39 @@ FFNode _buildBannerImageNode(
 FFActionNode _ketenStaart(FFActionNode start) {
   var last = start;
 
-  while (true) {
-    if (last.hasFollowUpAction()) {
-      last = last.followUpAction;
-      continue;
-    }
-    if (!last.hasAction() &&
-        last.hasConditionActions() &&
-        last.conditionActions.hasFalseAction()) {
-      last = last.conditionActions.falseAction;
-      continue;
-    }
-    return last;
+  // Hooguit één poortje, en alleen helemaal vooraan. Verderop niet meer
+  // afdalen: de twee takken van een API-aanroep zijn "gelukt" en "mislukt", en
+  // die zien er structureel precies zo uit als een poortje. Wie daar afdaalt,
+  // hangt de volgende laadactie in de foutafhandeling van de vorige — en dan
+  // draait de hele reeks alleen nog wanneer de eerste aanroep mislukt.
+  if (_isPoortje(last)) {
+    last = last.conditionActions.falseAction;
   }
+
+  while (last.hasFollowUpAction()) {
+    last = last.followUpAction;
+  }
+
+  return last;
+}
+
+/// Een voorwaarde die de gebruiker wegstuurt, met de rest van de keten in de
+/// andere tak. Dat is de sessiecontrole, en niets anders: een API-aanroep
+/// vervolgt zijn keten via followUpAction en navigeert niet.
+bool _isPoortje(FFActionNode n) {
+  if (n.hasAction() ||
+      n.hasFollowUpAction() ||
+      !n.hasConditionActions() ||
+      !n.conditionActions.hasFalseAction() ||
+      n.conditionActions.trueActions.isEmpty) {
+    return false;
+  }
+
+  final tak = n.conditionActions.trueActions.first;
+
+  return tak.hasTrueAction() &&
+      tak.trueAction.hasAction() &&
+      tak.trueAction.action.hasNavigate();
 }
 
 /// Hangt een actie achter de staart van een keten.
@@ -13137,6 +13171,116 @@ void _hangAchteraan(FFActionNode staart, FFActionNode nieuw) {
   if (nieuw.hasAction()) staart.action = nieuw.action;
   if (nieuw.hasConditionActions()) staart.conditionActions = nieuw.conditionActions;
   if (nieuw.hasFollowUpAction()) staart.followUpAction = nieuw.followUpAction;
+}
+
+/// Haalt laadaanroepen uit de fouttakken waar ze ooit terecht zijn gekomen.
+///
+/// Ze stonden daar door de fout hierboven: elke volgende aanroep werd in de
+/// "mislukt"-tak van de vorige gehangen, waardoor de wedstrijdpagina zijn
+/// spelerslijst, foto's, statistiek en verslag pas ophaalde wanneer het laden
+/// van de wedstrijd zelf stukliep. Ze weghalen is niet genoeg om ze terug te
+/// krijgen — dat doet de gewone bedrading — maar zonder opruimen blijven ze
+/// naast de herstelde aanroep bestaan en draaien ze dubbel zodra er iets
+/// misgaat.
+void _ruimLaadaanroepenUitFouttakken(FFProject project, String pageName,
+    Set<String> endpoints) {
+  final wc = findPage(project, name: pageName);
+  if (wc == null) return;
+
+  bool isLaadaanroep(FFActionNode n) =>
+      n.hasAction() &&
+      n.action.hasDatabase() &&
+      n.action.database.hasApiCall() &&
+      n.action.database.apiCall.hasEndpointIdentifier() &&
+      endpoints.contains(n.action.database.apiCall.endpointIdentifier.name);
+
+  /// Geeft de keten terug zonder de te verwijderen knopen.
+  FFActionNode? schoon(FFActionNode? n) {
+    if (n == null) return null;
+
+    if (isLaadaanroep(n)) {
+      // De rest van de keten schuift op zijn plek.
+      return schoon(n.hasFollowUpAction() ? n.followUpAction : null);
+    }
+
+    if (n.hasFollowUpAction()) {
+      final rest = schoon(n.followUpAction);
+      if (rest == null) {
+        n.clearFollowUpAction();
+      } else {
+        n.followUpAction = rest;
+      }
+    }
+
+    if (n.hasConditionActions()) {
+      final ca = n.conditionActions;
+      if (ca.hasFalseAction()) {
+        final tak = schoon(ca.falseAction);
+        if (tak == null) {
+          ca.clearFalseAction();
+        } else {
+          ca.falseAction = tak;
+        }
+      }
+      for (final t in ca.trueActions) {
+        if (t.hasTrueAction()) {
+          final tak = schoon(t.trueAction);
+          if (tak == null) {
+            t.clearTrueAction();
+          } else {
+            t.trueAction = tak;
+          }
+        }
+      }
+    }
+
+    return n;
+  }
+
+  for (var i = 0; i < wc.node.triggerActions.length; i++) {
+    final t = wc.node.triggerActions[i];
+    if (!t.hasTrigger() ||
+        t.trigger.triggerType != FFActionTriggerType.ON_INIT_STATE ||
+        !t.hasRootAction()) {
+      continue;
+    }
+
+    // Alleen binnen de takken opruimen; de aanroepen die gewoon in de rechte
+    // keten staan horen daar thuis en blijven staan.
+    final kopie = t.rootAction.deepCopy();
+    var loopt = kopie;
+    while (loopt.hasFollowUpAction()) {
+      final volgende = loopt.followUpAction;
+      if (volgende.hasConditionActions()) {
+        final ca = volgende.conditionActions;
+        if (ca.hasFalseAction()) {
+          final tak = schoon(ca.falseAction);
+          if (tak == null) {
+            ca.clearFalseAction();
+          } else {
+            ca.falseAction = tak;
+          }
+        }
+      }
+      loopt = volgende;
+    }
+    if (loopt.hasConditionActions()) {
+      final ca = loopt.conditionActions;
+      if (ca.hasFalseAction()) {
+        final tak = schoon(ca.falseAction);
+        if (tak == null) {
+          ca.clearFalseAction();
+        } else {
+          ca.falseAction = tak;
+        }
+      }
+    }
+
+    wc.node.triggerActions[i] = FFTriggerActions(
+      trigger: t.trigger.deepCopy(),
+      rootAction: kopie,
+    );
+  }
 }
 
 void _appendToFirstPageLoadChain(FFNode node, FFActionNode actionToAppend) {
