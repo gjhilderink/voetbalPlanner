@@ -205,6 +205,26 @@ class User extends Authenticatable implements FilamentUser, HasTenants
     /** Per-request memoisatie (voorkomt N+1 als een Resource dit per item aanroept). */
     protected ?\Illuminate\Support\Collection $accessibleTeamsCache = null;
 
+    /**
+     * Hoort dit account zelf bij het elftal?
+     *
+     * accessibleTeams() telt ook de elftallen van je kinderen mee — daarmee
+     * mag je meekijken, maar je bent er geen lid van. Voor alles waar je aan
+     * deelneemt in plaats van naar kijkt is dat het verkeerde antwoord.
+     */
+    public function belongsToTeam(?string $teamId): bool
+    {
+        if ($teamId === null) {
+            return false;
+        }
+
+        if ($this->managedTeams()->where('teams.id', $teamId)->exists()) {
+            return true;
+        }
+
+        return (bool) $this->resolveMember()?->teams->contains('id', $teamId);
+    }
+
     public function accessibleTeams(): \Illuminate\Support\Collection
     {
         if ($this->accessibleTeamsCache !== null) {

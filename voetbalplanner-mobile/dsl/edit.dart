@@ -29245,9 +29245,9 @@ void _ensureTeamMoodStruct(FFProject project) {
     project,
     name: 'TeamMood',
     description:
-        'Teamsfeer van deze week: gemiddelde score, aantal reacties en de eigen stem.',
+        'Teamsfeer van deze week: gemiddelde score, aantal reacties, de eigen stem en of je mag stemmen.',
     fields: const [
-      'week', 'count', 'average', 'score', 'label', 'myScore', 'hasVoted',
+      'week', 'count', 'average', 'score', 'label', 'myScore', 'hasVoted', 'canVote',
     ],
   );
 }
@@ -29705,6 +29705,31 @@ FFNode? _dashTeamMoodCard(FFProject project, FFWidgetClass wc) {
     return btn;
   }
 
+  // Een ouder of verzorger ziet de sfeer van het elftal van zijn kind, maar
+  // bepaalt hem niet mee. De server zegt of het mag: die kent de rol per
+  // elftal, en een ouder die daarnaast coach is van een ander team krijgt het
+  // zo op beide plekken goed.
+  final stemrij = UI.row(
+    name: 'DashMoodVoteRow',
+    mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      voteButton('1', 'sentiment_very_dissatisfied', UIColor.hex(0xFFEF4444)),
+      voteButton('2', 'sentiment_dissatisfied', UIColor.hex(0xFFF59E0B)),
+      voteButton('3', 'sentiment_satisfied', UIColor.hex(0xFF84CC16)),
+      voteButton('4', 'sentiment_very_satisfied', UIColor.hex(0xFF16A34A)),
+    ],
+  );
+  // Verbergen bij een uitdrukkelijke 'false', niet 'tonen bij true'. Een
+  // app-build kan eerder bij de gebruiker zijn dan de serverdeploy, en dan
+  // is het veld leeg. Andersom zouden op dat moment alle teamleden hun
+  // knoppen kwijt zijn; nu ziet hooguit een ouder er even een die de server
+  // toch weigert.
+  setConditionalVisibility(
+    stemrij,
+    variable: _equalsLiteral(mood('canVote'), 'false', negate: true),
+  );
+
   return _dashCard(
     name: 'DashTeamMoodCard',
     padding: UIEdgeInsets.all(14),
@@ -29729,17 +29754,7 @@ FFNode? _dashTeamMoodCard(FFProject project, FFWidgetClass wc) {
         label,
         face,
         count,
-        UI.row(
-          name: 'DashMoodVoteRow',
-          mainAxisAlignment: UIMainAxisAlignment.spaceBetween,
-          crossAxisAlignment: UICrossAxisAlignment.center,
-          children: [
-            voteButton('1', 'sentiment_very_dissatisfied', UIColor.hex(0xFFEF4444)),
-            voteButton('2', 'sentiment_dissatisfied', UIColor.hex(0xFFF59E0B)),
-            voteButton('3', 'sentiment_satisfied', UIColor.hex(0xFF84CC16)),
-            voteButton('4', 'sentiment_very_satisfied', UIColor.hex(0xFF16A34A)),
-          ],
-        ),
+        stemrij,
       ],
     ),
   );

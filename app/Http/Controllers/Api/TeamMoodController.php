@@ -37,6 +37,16 @@ class TeamMoodController extends Controller
             return response()->json(['message' => 'Geen toegang tot dit team.'], 403);
         }
 
+        // Een ouder of verzorger ziet de sfeer van het elftal van zijn kind,
+        // maar bepaalt hem niet mee: het gaat over hoe het in de ploeg zelf
+        // gaat. De app verbergt de knoppen al; hier staat de regel zelf, want
+        // een verborgen knop is geen afscherming.
+        if (! $user->belongsToTeam($team->id)) {
+            return response()->json([
+                'message' => 'Alleen leden van dit elftal kunnen de sfeer aangeven.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'score' => 'required|integer|min:1|max:4',
         ]);
@@ -72,7 +82,8 @@ class TeamMoodController extends Controller
         // Afronden naar de dichtstbijzijnde smiley; zonder stemmen geen smiley.
         $rounded = $count > 0 ? (int) round($average) : 0;
 
-        $mine = $votes->firstWhere('user_id', $request->user()?->id);
+        $user = $request->user();
+        $mine = $votes->firstWhere('user_id', $user?->id);
 
         return [
             'week'         => $week,
@@ -82,6 +93,10 @@ class TeamMoodController extends Controller
             'label'        => TeamMood::LABELS[$rounded] ?? 'Nog geen reacties',
             'myScore'      => (string) ($mine?->score ?? 0),
             'hasVoted'     => $mine ? 'true' : 'false',
+            // De server rekent uit of je mag stemmen. Zou de app dat zelf doen,
+            // dan had hij de rol per elftal nodig — en een ouder die daarnaast
+            // coach is van een ander team zou het alsnog verkeerd krijgen.
+            'canVote'      => $user?->belongsToTeam($team->id) ? 'true' : 'false',
         ];
     }
 }
