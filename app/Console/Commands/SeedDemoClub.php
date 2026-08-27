@@ -169,10 +169,14 @@ class SeedDemoClub extends Command
                 ->orWhereIn('user_id', $userIds));
 
             $this->wis('members', fn ($q) => $q->whereIn('id', $memberIds));
+            // Koppelingen van documenten vóór de elftallen, en de documenten
+            // zelf erna: team_documents hangt aan de club, de koppeltabel aan
+            // beide.
+            $this->wis('team_document_team', fn ($q) => $q->whereIn('team_id', $teamIds));
+
             $this->wis('teams', fn ($q) => $q->where('club_id', $clubId));
 
-            $this->wis('team_documents', fn ($q) => $q->where('club_id', $clubId)
-                ->orWhereIn('team_id', $teamIds));
+            $this->wis('team_documents', fn ($q) => $q->where('club_id', $clubId));
             $this->wis('news_items', fn ($q) => $q->where('club_id', $clubId));
             $this->wis('banners', fn ($q) => $q->where('club_id', $clubId));
             $this->wis('onboarding_slides', fn ($q) => $q->where('club_id', $clubId));

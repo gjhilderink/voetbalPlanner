@@ -56,10 +56,12 @@ class TeamDocumentResource extends Resource
         // hele club — die gaan hem net zo goed aan.
         if ($user && ! $user->isAdmin()) {
             $teamIds = $user->managedTeamIds();
-            $query->where(fn ($q) => $q->whereIn('team_id', $teamIds)->orWhereNull('team_id'));
+            $query->where(fn ($q) => $q
+                ->whereHas('teams', fn ($t) => $t->whereIn('teams.id', $teamIds))
+                ->orWhereDoesntHave('teams'));
         }
 
-        return $query->with('team');
+        return $query->with('teams');
     }
 
     public static function form(Schema $schema): Schema
@@ -84,14 +86,18 @@ class TeamDocumentResource extends Resource
                     ->columnSpanFull()
                     ->placeholder('Bijvoorbeeld: geldig vanaf 1 januari'),
 
-                Forms\Components\Select::make('team_id')
-                    ->label('Elftal')
-                    ->options(fn () => TeamFilter::options())
+                // Meerdere elftallen tegelijk: een draaiboek voor de
+                // zaterdagjeugd geldt vaak voor drie of vier elftallen, en dat
+                // was anders hetzelfde bestand meerdere keren uploaden.
+                Forms\Components\Select::make('teams')
+                    ->label('Elftallen')
+                    ->multiple()
+                    ->relationship('teams', 'name', modifyQueryUsing: fn (Builder $query) => TeamFilter::scopeQuery($query))
                     ->searchable()
                     ->preload()
                     ->placeholder('Hele club')
-                    ->helperText('Leeg laten betekent: zichtbaar voor de hele club.')
-                    ->columnSpan(1),
+                    ->helperText('Niets kiezen betekent: zichtbaar voor de hele club.')
+                    ->columnSpanFull(),
 
                 Forms\Components\TextInput::make('sort_order')
                     ->label('Volgorde')
@@ -131,11 +137,11 @@ class TeamDocumentResource extends Resource
                     ->sortable()
                     ->description(fn (TeamDocument $record): ?string => $record->description),
 
-                Tables\Columns\TextColumn::make('team.name')
-                    ->label('Elftal')
+                Tables\Columns\TextColumn::make('teams.name')
+                    ->label('Elftallen')
                     ->badge()
-                    ->placeholder('Hele club')
-                    ->sortable(),
+                    ->separator(',')
+                    ->placeholder('Hele club'),
 
                 Tables\Columns\TextColumn::make('original_name')
                     ->label('Bestand')
@@ -157,16 +163,18 @@ class TeamDocumentResource extends Resource
                     ->toggleable(),
             ])
             ->filters([
-                // Op team_id met een vaste optielijst, niet via relationship():
-                // die laatste kon de relatie hier niet oplossen en gaf een 500 op
-                // de hele pagina. TeamFilter::options() bestaat precies hiervoor,
-                // en de twee andere resources die op een belongsTo-elftal filteren
-                // (bardiensten, stafgroepen) doen het net zo.
-                Tables\Filters\SelectFilter::make('team_id')
+                // Eigen query in plaats van relationship(): die laatste kon de
+                // relatie hier eerder niet oplossen en gaf een 500 op de hele
+                // pagina. Met een vaste optielijst en een whereHas houden we het
+                // in eigen hand.
+                Tables\Filters\SelectFilter::make('team')
                     ->label('Elftal')
                     ->options(fn (): array => TeamFilter::options())
                     ->searchable()
-                    ->placeholder('Alle'),
+                    ->placeholder('Alle')
+                    ->query(fn (Builder $query, array $data): Builder => blank($data['value'] ?? null)
+                        ? $query
+                        : $query->whereHas('teams', fn ($t) => $t->where('teams.id', $data['value']))),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Zichtbaar'),
             ])
             ->actions([

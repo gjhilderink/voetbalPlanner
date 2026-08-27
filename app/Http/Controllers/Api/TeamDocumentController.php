@@ -30,9 +30,12 @@ class TeamDocumentController extends Controller
             ->where('club_id', $team->club_id)
             ->where('is_active', true)
             // Documenten van dit elftal én die van de hele club: de spelregels
-            // van de KNVB hangen aan geen enkel team maar gaan iedereen aan.
-            ->where(fn ($q) => $q->where('team_id', $team->id)->orWhereNull('team_id'))
-            ->with('team:id,name')
+            // van de KNVB hangen aan geen enkel elftal maar gaan iedereen aan.
+            // Zonder koppeling = clubbreed, dus doesntHave.
+            ->where(fn ($q) => $q
+                ->whereHas('teams', fn ($t) => $t->where('teams.id', $team->id))
+                ->orWhereDoesntHave('teams'))
+            ->with('teams:id,name')
             ->orderBy('sort_order')
             ->orderByDesc('created_at')
             ->get();
@@ -52,8 +55,8 @@ class TeamDocumentController extends Controller
             'extension'   => strtoupper($d->extension()),
             'sizeLabel'   => $d->sizeLabel(),
             // Waar het bij hoort; bij een clubbreed document zegt dat meer dan
-            // een leeg veld.
-            'scopeLabel'  => $d->team?->name ?? 'Hele club',
+            // een leeg veld. Meerdere elftallen komen door komma's gescheiden.
+            'scopeLabel'  => $d->teamsLabel(),
             'dateLabel'   => $d->created_at?->format('d-m-Y') ?? '',
             'melding'     => '',
         ])->values());

@@ -7,9 +7,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
- * Eén document bij een elftal, of bij de hele club als team_id leeg is.
+ * Eén document bij een of meer elftallen, of bij de hele club als er geen enkel
+ * elftal aan gekoppeld is.
  */
 class TeamDocument extends Model
 {
@@ -28,7 +30,7 @@ class TeamDocument extends Model
     ];
 
     protected $fillable = [
-        'club_id', 'team_id', 'uploaded_by',
+        'club_id', 'uploaded_by',
         'title', 'description',
         'file_path', 'original_name', 'mime_type', 'size',
         'sort_order', 'is_active',
@@ -48,9 +50,30 @@ class TeamDocument extends Model
         return $this->belongsTo(Club::class);
     }
 
-    public function team(): BelongsTo
+    /**
+     * De elftallen waarvoor dit document bedoeld is.
+     *
+     * Geen enkel elftal betekent: de hele club. Zo hoeft er geen aparte vlag
+     * bij te staan die met de koppeling uit de pas kan lopen.
+     */
+    public function teams(): BelongsToMany
     {
-        return $this->belongsTo(Team::class);
+        return $this->belongsToMany(Team::class, 'team_document_team');
+    }
+
+    /**
+     * "JO13-1, JO15-2" of "Hele club" — wat er onder de titel komt te staan.
+     *
+     * Niet scopeLabel(): Eloquent vat elke methode met voorvoegsel 'scope' op als
+     * query-scope, en dan hangt er ineens een label() aan de builder.
+     */
+    public function teamsLabel(): string
+    {
+        $namen = $this->relationLoaded('teams')
+            ? $this->teams->pluck('name')
+            : $this->teams()->pluck('teams.name');
+
+        return $namen->isEmpty() ? 'Hele club' : $namen->join(', ');
     }
 
     public function uploader(): BelongsTo
