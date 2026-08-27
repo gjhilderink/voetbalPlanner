@@ -164,6 +164,14 @@ class BarDuty extends Model
             return;
         }
 
+        // Eerst opnieuw inlezen. Deze methode wordt vrijwel altijd aangeroepen
+        // vlak na een sync() op de leden, en dan staat een al geladen relatie
+        // nog op de bezetting van vóór die wijziging. filledCount() gebruikt de
+        // geladen relatie als die er is — dat is precies wat je wilt bij het
+        // tonen van een lijst, en precies wat hier misgaat. Gevolg: de dienst
+        // bleef "open" terwijl er net genoeg mensen op waren gezet.
+        $this->load(['members', 'users']);
+
         $this->update([
             'status' => $this->filledCount() >= $this->requiredCount() ? 'bevestigd' : 'open',
         ]);
