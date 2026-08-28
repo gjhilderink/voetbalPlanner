@@ -9,11 +9,14 @@ use App\Models\FootballMatch;
 use App\Models\SyncLog;
 use App\Models\Team;
 use Illuminate\Support\Facades\Http;
+use App\Services\Concerns\SynchroniseertOpExternalId;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class MatchSyncService
 {
+    use SynchroniseertOpExternalId;
+
     private ?string $clubId = null;
 
     /** Cache binnen 1 sync-run: DOCUMENT-id => lokale logo-URL (voorkomt dubbele downloads). */
@@ -71,8 +74,9 @@ class MatchSyncService
                         continue;
                     }
 
-                    $this->upsertMatch($dto, $team->id);
-                    $synced++;
+                    if ($this->upsertMatch($dto, $team->id)) {
+                        $synced++;
+                    }
                 }
             }
 
@@ -96,7 +100,7 @@ class MatchSyncService
         return $log;
     }
 
-    private function upsertMatch(MatchDTO $dto, string $teamId): FootballMatch
+    private function upsertMatch(MatchDTO $dto, string $teamId): ?FootballMatch
     {
         $attrs = [
             'team_id'        => $teamId,
@@ -119,10 +123,16 @@ class MatchSyncService
             $attrs['opponent_logo'] = $localLogo;
         }
 
-        $match = FootballMatch::updateOrCreate(
-            ['external_id' => $dto->externalId],
+        $match = $this->upsertOpExternalId(
+            FootballMatch::class,
+            $dto->externalId,
             $attrs,
         );
+
+        // Verwijderd in de portal: overslaan, niet terughalen. Zie de trait.
+        if (! $match) {
+            return null;
+        }
 
         // Default: koppel de coach(es) die al aan het team hangen aan de wedstrijd,
         // zolang er nog geen coach is gekozen (handmatige keuze blijft staan).

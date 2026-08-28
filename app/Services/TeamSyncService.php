@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\Concerns\SynchroniseertOpExternalId;
 use App\DTOs\TeamDTO;
 use App\Models\SyncLog;
 use App\Models\Team;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Log;
 
 class TeamSyncService
 {
+    use SynchroniseertOpExternalId;
+
     private ?string $clubId = null;
 
     public function __construct(
@@ -71,10 +74,11 @@ class TeamSyncService
         return $log;
     }
 
-    private function upsertTeam(TeamDTO $dto): Team
+    private function upsertTeam(TeamDTO $dto): ?Team
     {
-        return Team::updateOrCreate(
-            ['external_id' => $dto->externalId],
+        return $this->upsertOpExternalId(
+            Team::class,
+            $dto->externalId,
             [
                 'club_id'        => $this->clubId,
                 'name'           => $dto->name,

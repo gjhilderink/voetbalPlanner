@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\Concerns\SynchroniseertOpExternalId;
 use App\DTOs\MemberDTO;
 use App\Models\Member;
 use App\Models\SyncLog;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Storage;
 
 class MemberSyncService
 {
+    use SynchroniseertOpExternalId;
+
     private ?string $clubId = null;
 
     public function __construct(
@@ -70,6 +73,12 @@ class MemberSyncService
                 }
 
                 $member = $this->upsertMember($dto);
+
+                // Verwijderd in de portal: overslaan, niet terughalen.
+                if (! $member) {
+                    continue;
+                }
+
                 $membersById[$member->id] = $member;
 
                 // _teamcode is injected by getMembers() to indicate which team this player belongs to
@@ -155,7 +164,7 @@ class MemberSyncService
         return $log;
     }
 
-    private function upsertMember(MemberDTO $dto): Member
+    private function upsertMember(MemberDTO $dto): ?Member
     {
         $existing = Member::where('external_id', $dto->externalId)->first();
 
@@ -177,7 +186,7 @@ class MemberSyncService
             $velden += $this->fotoVelden($dto, $existing);
         }
 
-        return Member::updateOrCreate(['external_id' => $dto->externalId], $velden);
+        return $this->upsertOpExternalId(Member::class, $dto->externalId, $velden);
     }
 
     /**
