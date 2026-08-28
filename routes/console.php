@@ -1,9 +1,5 @@
 <?php
 
-use App\Jobs\FullSyncJob;
-use App\Services\MatchSyncService;
-use App\Services\MemberSyncService;
-use App\Services\TeamSyncService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -13,26 +9,18 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Scheduled via cPanel cron: * * * * * php artisan schedule:run
-Schedule::job(new FullSyncJob())->dailyAt('03:00')->name('full-sync')->withoutOverlapping();
+//
+// Twee keer per dag, en rechtstreeks in plaats van via de wachtrij: een
+// queue-worker is op deze hosting niet gegarandeerd, en een synchronisatie die
+// stil in een wachtrij blijft staan is erger dan er geen te hebben. Het
+// commando stuurt zelf een statusmail.
+//
+// withoutOverlapping omdat een volledige ronde langer kan duren dan het
+// interval; anders lopen er twee door elkaar heen op dezelfde tabellen.
+Schedule::command('sportlink:sync')
+    ->twiceDaily(6, 18)
+    ->name('sportlink-sync')
+    ->withoutOverlapping();
 
 // Markeer verlopen ouder/verzorger koppelverzoeken als geweigerd
 Schedule::command('guardian:expire')->dailyAt('02:00')->name('guardian-expire');
-
-// Direct sync command (no queue required, use on shared hosting)
-Artisan::command('sportlink:sync', function () {
-    $this->info('Synchronisatie gestart...');
-
-    $this->info('Teams...');
-    $log = app(TeamSyncService::class)->sync();
-    $this->line('  → ' . $log->records_synced . ' teams (' . $log->status . ')');
-
-    $this->info('Leden...');
-    $log = app(MemberSyncService::class)->sync();
-    $this->line('  → ' . $log->records_synced . ' leden (' . $log->status . ')');
-
-    $this->info('Wedstrijden...');
-    $log = app(MatchSyncService::class)->sync();
-    $this->line('  → ' . $log->records_synced . ' wedstrijden (' . $log->status . ')');
-
-    $this->info('Klaar!');
-})->purpose('Sync teams, members and matches directly from Sportlink (no queue)');

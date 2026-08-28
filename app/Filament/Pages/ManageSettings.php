@@ -56,6 +56,7 @@ class ManageSettings extends Page
             'registration_notification_email'    => Setting::get('registration_notification_email', '', null),
             'registration_notification_subject'  => Setting::get('registration_notification_subject', '', null),
             'demo_request_notification_email'   => Setting::get('demo_request_notification_email', '', null),
+            'sync_notification_email'           => Setting::get('sync_notification_email', '', null),
             'demo_request_notification_subject' => Setting::get('demo_request_notification_subject', '', null),
             'recaptcha_enabled'    => Setting::get('recaptcha_enabled', '0', null) === '1',
             'recaptcha_site_key'   => Setting::get('recaptcha_site_key', '', null),
@@ -128,6 +129,12 @@ class ManageSettings extends Page
                             ->maxLength(255)
                             ->placeholder('Demo-aanvraag: {club_naam}')
                             ->helperText('Gebruik {club_naam} als variabele. Leeg = standaard onderwerp.'),
+
+                        TextInput::make('sync_notification_email')
+                            ->label('E-mail voor het synchronisatieverslag')
+                            ->email()
+                            ->maxLength(255)
+                            ->helperText('De automatische synchronisatie draait twee keer per dag en stuurt na afloop een overzicht met de aantallen en de status. Leeg = naar het adres voor clubaanvragen.'),
 
                         Toggle::make('recaptcha_enabled')
                             ->label('Anti-spam (Google reCAPTCHA) op de openbare formulieren')
@@ -403,6 +410,7 @@ class ManageSettings extends Page
             Setting::set('registration_notification_subject', $data['registration_notification_subject'] ?? '', 'system', false, null);
             Setting::set('demo_request_notification_email',   $data['demo_request_notification_email'] ?? '', 'system', false, null);
             Setting::set('demo_request_notification_subject', $data['demo_request_notification_subject'] ?? '', 'system', false, null);
+            Setting::set('sync_notification_email',           $data['sync_notification_email'] ?? '', 'system', false, null);
             Setting::set('recaptcha_enabled',    !empty($data['recaptcha_enabled']) ? '1' : '0', 'system', false, null);
             Setting::set('recaptcha_site_key',   $data['recaptcha_site_key'] ?? '', 'system', false, null);
             Setting::set('recaptcha_secret_key', $data['recaptcha_secret_key'] ?? '', 'system', true, null);
