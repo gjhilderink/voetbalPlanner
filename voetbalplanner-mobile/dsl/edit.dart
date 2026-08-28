@@ -34965,7 +34965,8 @@ class _LineupBoardState extends State<LineupBoard> {
                     ),
                   ),
                 ),
-              for (final speler in _bank) _bankRij(theme, speler),
+              for (final speler in _bank)
+                _bankRij(theme, speler, alleenOpstellen: true),
             ],
           ),
         );
@@ -35005,7 +35006,7 @@ class _LineupBoardState extends State<LineupBoard> {
   /// ingedeelde spelers: slepen werkt, maar op een telefoon is het gepriegel, en
   /// voor de eerste indeling wil je gewoon een lijst afwerken.
   Widget _bankRij(FlutterFlowTheme theme, LineupSlotStruct speler,
-      {bool metKnoppen = false}) {
+      {bool metKnoppen = false, bool alleenOpstellen = false}) {
     final afgemeld = speler.isAfgemeld == 'true';
 
     final kop = Row(
@@ -35068,28 +35069,36 @@ class _LineupBoardState extends State<LineupBoard> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: (metKnoppen && _mag)
+      child: (_mag && (metKnoppen || alleenOpstellen))
           ? Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 kop,
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _actieKnop(theme, 'Wissel', Icons.event_seat,
-                          () => _zetOpBank(speler),
-                          uit: afgemeld),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: _actieKnop(
-                          theme, 'Opstellen', Icons.sports_soccer,
-                          () => _zetOpEersteVrijePlek(speler),
-                          primair: true, uit: afgemeld),
-                    ),
-                  ],
-                ),
+                // Op de bank hoeft "Wissel" niet: daar staat hij al. Alleen de
+                // weg terug naar het veld, want slepen is op een telefoon
+                // gepriegel en zonder knop kom je er niet meer vandaan.
+                if (alleenOpstellen)
+                  _actieKnop(theme, 'Opstellen', Icons.sports_soccer,
+                      () => _zetOpEersteVrijePlek(speler),
+                      primair: true, uit: afgemeld)
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _actieKnop(theme, 'Wissel', Icons.event_seat,
+                            () => _zetOpBank(speler),
+                            uit: afgemeld),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _actieKnop(
+                            theme, 'Opstellen', Icons.sports_soccer,
+                            () => _zetOpEersteVrijePlek(speler),
+                            primair: true, uit: afgemeld),
+                      ),
+                    ],
+                  ),
               ],
             )
           : kop,
