@@ -218,6 +218,47 @@ class UserResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Een account hangt op twee manieren aan een elftal: via de
+                // teamkoppeling (coach, leider) en via het lid dat erbij hoort
+                // (spelers, en ouders via hun eigen lidprofiel). Beide tellen
+                // hier mee, anders vind je met dit filter alleen de staf.
+                Tables\Filters\SelectFilter::make('team')
+                    ->label('Team')
+                    ->options(fn (): array => TeamFilter::options())
+                    ->query(function (Builder $query, array $data): Builder {
+                        $teamId = $data['value'] ?? null;
+
+                        if (! $teamId) {
+                            return $query;
+                        }
+
+                        // Leden die alleen via hun e-mailadres aan een account
+                        // hangen (geen user_id op het lid) vallen anders weg -
+                        // dezelfde koppeling als resolveMember() gebruikt.
+                        $adressen = Member::query()
+                            ->whereHas('teams', fn (Builder $t) => $t->where('teams.id', $teamId))
+                            ->whereNotNull('email')
+                            ->where('email', '!=', '')
+                            ->pluck('email')
+                            ->all();
+
+                        return $query->where(function (Builder $q) use ($teamId, $adressen): void {
+                            $q->whereHas(
+                                'managedTeams',
+                                fn (Builder $t) => $t->where('teams.id', $teamId),
+                            )->orWhereHas(
+                                'member',
+                                fn (Builder $m) => $m->whereHas(
+                                    'teams',
+                                    fn (Builder $t) => $t->where('teams.id', $teamId),
+                                ),
+                            );
+
+                            if ($adressen) {
+                                $q->orWhereIn('email', $adressen);
+                            }
+                        });
+                    }),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Actief'),
                 // Verwijderde accounts waren alleen via de database te zien, en
                 // een verwijderd account houdt zijn e-mailadres bezet in de
