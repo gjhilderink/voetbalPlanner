@@ -112,7 +112,7 @@ class FootballMatch extends Model
      *         de sync heeft ze per elftal al bij de hand en bespaart zo een
      *         query per wedstrijd.
      */
-    public function koppelTeamCoaches(?array $memberIds = null): void
+    public function koppelTeamCoaches(?array $memberIds = null, bool $vulAan = false): void
     {
         $ids = $memberIds ?? ($this->team?->matchDefaultCoaches()->pluck('id')->all() ?? []);
 
@@ -120,8 +120,11 @@ class FootballMatch extends Model
             return;
         }
 
-        // Many-to-many: dit is wat het paneel én de app tonen.
-        if ($this->coaches()->count() === 0) {
+        // Many-to-many: dit is wat het paneel én de app tonen. Met $vulAan komen
+        // ontbrekende coaches er ook bij als er al iemand op staat; dat is voor
+        // het eenmalig bijwerken van bestaande wedstrijden en niet voor de sync,
+        // want daar zou het een handmatig weggehaalde coach terugzetten.
+        if ($vulAan || $this->coaches()->count() === 0) {
             $this->coaches()->syncWithoutDetaching($ids);
         }
 
