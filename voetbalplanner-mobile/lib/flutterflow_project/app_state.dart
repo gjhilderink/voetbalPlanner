@@ -137,6 +137,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<SwapMember>>",
     persisted: false,
   );
+  static const dialogMembersAll = ffai.ProjectAppStateFieldHandle(
+    name: "dialogMembersAll",
+    key: "jxqhwnyp",
+    typeName: "List<DataStruct<SwapMember>>",
+    persisted: false,
+  );
   static const dialogNote = ffai.ProjectAppStateFieldHandle(
     name: "dialogNote",
     key: "ybhkojry",
@@ -646,6 +652,7 @@ abstract final class AppState {
     dialogGuestName,
     dialogMatchId,
     dialogMembers,
+    dialogMembersAll,
     dialogNote,
     dialogRijderId,
     dialogRijderName,

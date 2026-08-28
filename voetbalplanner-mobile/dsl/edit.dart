@@ -1299,6 +1299,7 @@ void buildEditFlow(App app) {
   _buildQuickActionsSheet(app);
   app.raw((project) => _addDashboardQuickActionsFab(project));
   _buildMatchActionsSheet(app);
+  app.raw((project) => _ensureGuestFilterAction(project));
   app.raw((project) => _buildMatchActionsDialogBody(project));
 
   // ─── Banner (marketing) feature ────────────────────────────────────────────
@@ -23495,6 +23496,64 @@ void _ensureDialogListFields(FFProject project) {
   }
   ensure('dialogTeams', 'TeamOption');
   ensure('dialogMembers', 'SwapMember');
+  // De volledige selectie van het gekozen elftal. dialogMembers is wat de lijst
+  // toont en krimpt tijdens het zoeken; zonder een tweede lijst is er niets om
+  // op terug te vallen zodra je het zoekveld weer leegmaakt.
+  ensure('dialogMembersAll', 'SwapMember');
+}
+
+/// Filtert de spelerslijst in de gastspeler-dialoog op wat er is getypt.
+///
+/// In de app en niet op de server: de hele selectie staat er al, en voor elke
+/// aanslag een aanroep doen zou de lijst laten knipperen en de limiet van zestig
+/// verzoeken per minuut opeten.
+void _ensureGuestFilterAction(FFProject project) {
+  const code = r"""
+// Automatic FlutterFlow imports
+import '/backend/schema/structs/index.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+/// Toont alleen de spelers waarvan de naam het gezochte bevat.
+///
+/// Zonder zoekterm komt de hele selectie terug; dialogMembersAll blijft daarvoor
+/// onaangeroerd staan. Hoofdletters doen niet mee - je typt "sterre" en niet
+/// "Sterre".
+Future<void> filterGuestMembers(String? zoek) async {
+  final q = (zoek ?? '').trim().toLowerCase();
+  final alles = FFAppState().dialogMembersAll.toList();
+
+  FFAppState().update(() {
+    FFAppState().dialogMembers = q.isEmpty
+        ? alles
+        : alles.where((m) => m.name.toLowerCase().contains(q)).toList();
+  });
+}
+""";
+
+  final arg = FFParameter(
+    identifier:
+        FFIdentifier(name: 'zoek', key: generateRandomAlphaNumericString()),
+    dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+  );
+
+  if (findCustomAction(project, name: 'FilterGuestMembers') == null) {
+    addCustomAction(
+      project,
+      name: 'FilterGuestMembers',
+      description: 'Filtert de spelerslijst in de gastspeler-dialoog op naam.',
+      arguments: [arg],
+      code: code,
+    );
+    return;
+  }
+
+  updateCustomAction(project,
+      name: 'FilterGuestMembers', code: code, arguments: [arg]);
 }
 
 // Bouwt de inhoud van de MatchActionsSheet-dialoog: een menu + een doelpunt-
@@ -23962,11 +24021,45 @@ void _buildMatchActionsDialogBody(FFProject project) {
     dynamicVariables: {'teamId': generatorVarField(teamsList.key, 'id')},
     outputVariableName: 'maTeamMbrs', nodeKey: teamRow.key,
     onSuccess: (ctx) => Actions.chain([
-      Actions.updateAppState(project, updates: [StateFieldUpdate.setFromVariable('dialogMembers', ctx.responseVar)])]));
+      Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable('dialogMembers', ctx.responseVar),
+        StateFieldUpdate.setFromVariable('dialogMembersAll', ctx.responseVar),
+      ])]));
   teamRow.triggerActions.add(FFTriggerActions(
     trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP), rootAction: setTeam));
   teamsList.children.add(teamRow);
   final teamsScroll = UI.container(name: 'MaTeamsScroll', height: 150, clipContent: true, child: teamsList);
+
+  // Zoeken binnen het gekozen elftal. Een grote selectie is anders een lange
+  // lijst waarin je moet scrollen tot je de juiste naam ziet, en het venster is
+  // maar 190 hoog.
+  final gZoekVeld = UI.textField(
+    hintText: 'Zoek een speler',
+    name: 'MaGuestZoek',
+  );
+  // Filteren terwijl je typt, met een korte adempauze: bij elke aanslag de hele
+  // lijst herbouwen laat het toetsenbord haperen.
+  gZoekVeld.props.ensureTextField().debounceTimeValue =
+      FFDoubleValue(inputValue: 200.0);
+
+  final zoekActie = findCustomAction(project, name: 'FilterGuestMembers');
+  if (zoekActie != null) {
+    gZoekVeld.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TEXTFIELD_CHANGE),
+      rootAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: zoekActie.identifier.deepCopy(),
+            argumentValues: _actieArgs(zoekActie, {
+              'zoek': FFValue(variable: varFromTextFieldValue(gZoekVeld.key)),
+            }),
+          ),
+        ),
+      ),
+    ));
+  }
 
   final gMembersVar = appVar(membersId!);
   final gMembersList = UI.listView(name: 'MaGuestList', shrinkWrap: true, spacing: 2,
@@ -24020,7 +24113,12 @@ void _buildMatchActionsDialogBody(FFProject project) {
       varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
 
   final gMembersSection = UI.column(name: 'MaGuestSection', crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 4,
-      children: [UI.text('Kies de gastspeler:', name: 'MaGuestLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText), gMembersScroll, gConfirm]);
+      children: [
+        UI.text('Kies de gastspeler:', name: 'MaGuestLabel', style: UITextStyle.labelMedium, color: UIColor.secondaryText),
+        gZoekVeld,
+        gMembersScroll,
+        gConfirm,
+      ]);
   setConditionalVisibility(gMembersSection, variable: conditionVar(
       appVar(teamIdId), FFCondition_Relation.NOT_EQUAL_TO,
       varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);

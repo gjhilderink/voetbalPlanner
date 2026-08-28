@@ -1445,6 +1445,7 @@ abstract final class CustomCode {
     "DeleteMatchPhoto",
     "DeleteMyChatData",
     "FilterChatMembersByConv",
+    "FilterGuestMembers",
     "FinishAutofill",
     "GetAppUsersAsMembers",
     "GetOrCreateDirectConversation",
