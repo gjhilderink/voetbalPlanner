@@ -16,20 +16,25 @@ use Illuminate\Console\Command;
  * er bewust afhaalt bij de volgende sync gewoon terug. Het gevolg is wel dat een
  * wedstrijd die ooit met één coach is aangemaakt die tweede nooit meer krijgt.
  *
- * Dit commando doet dat eenmalig. Het haalt niemand weg; het vult alleen aan.
+ * Dit commando doet dat eenmalig. Standaard vult het alleen aan en haalt het
+ * niemand weg. Met --opschonen gaan ook coaches eraf die geen staf (meer) zijn
+ * van het elftal: dat zijn de resten van iemand die ooit verkeerd stond en later
+ * is rechtgezet, want de koppeling op de wedstrijd blijft dan gewoon staan.
  */
 class BackfillMatchCoaches extends Command
 {
     protected $signature = 'wedstrijden:coaches-aanvullen
         {--dry-run : Alleen tonen wat er zou veranderen}
-        {--team= : Beperk tot dit elftal (naam of id)}';
+        {--team= : Beperk tot dit elftal (naam of id)}
+        {--opschonen : Haal ook coaches weg die geen staf (meer) zijn van het elftal}';
 
     protected $description = 'Vult ontbrekende standaardcoaches aan op bestaande wedstrijden';
 
     public function handle(): int
     {
-        $droog = (bool) $this->option('dry-run');
-        $team  = $this->option('team');
+        $droog     = (bool) $this->option('dry-run');
+        $opschonen = (bool) $this->option('opschonen');
+        $team      = $this->option('team');
 
         $teamId = null;
         if ($team) {
@@ -47,6 +52,8 @@ class BackfillMatchCoaches extends Command
 
         /** @var array<string, array<int, string>> $standaard */
         $standaard = [];
+        /** @var array<string, array<int, string>> $staf */
+        $staf = [];
         $gewijzigd = 0;
         $bekeken   = 0;
 
@@ -54,7 +61,7 @@ class BackfillMatchCoaches extends Command
             ->whereNotNull('team_id')
             ->when($teamId, fn ($q) => $q->where('team_id', $teamId))
             ->with(['team', 'coaches:id,name'])
-            ->chunkById(200, function ($wedstrijden) use (&$standaard, &$gewijzigd, &$bekeken, $droog): void {
+            ->chunkById(200, function ($wedstrijden) use (&$standaard, &$staf, &$gewijzigd, &$bekeken, $droog, $opschonen): void {
                 foreach ($wedstrijden as $wedstrijd) {
                     $bekeken++;
 
@@ -74,7 +81,17 @@ class BackfillMatchCoaches extends Command
                     $huidig    = $wedstrijd->coaches->pluck('id')->all();
                     $ontbreekt = array_diff($ids, $huidig);
 
-                    if (empty($ontbreekt) && $wedstrijd->coach_id) {
+                    // Coaches die geen staf (meer) zijn van dit elftal. Dat
+                    // gebeurt als iemand ooit verkeerd stond en dat later is
+                    // rechtgezet: de bron klopt dan weer, maar de koppeling op de
+                    // wedstrijd blijft staan, want die voegt alleen toe.
+                    $vreemd = [];
+                    if ($opschonen) {
+                        $staf[$wedstrijd->team_id] ??= $wedstrijd->team?->staffMemberIds() ?? [];
+                        $vreemd = array_values(array_diff($huidig, $staf[$wedstrijd->team_id]));
+                    }
+
+                    if (empty($ontbreekt) && empty($vreemd) && $wedstrijd->coach_id) {
                         continue;
                     }
 
@@ -83,15 +100,37 @@ class BackfillMatchCoaches extends Command
                         ->pluck('name')
                         ->join(', ');
 
+                    $weg = $wedstrijd->coaches
+                        ->whereIn('id', $vreemd)
+                        ->pluck('name')
+                        ->join(', ');
+
+                    $wat = array_filter([
+                        $namen !== '' ? "+ {$namen}" : null,
+                        $weg !== '' ? "- {$weg}" : null,
+                    ]);
+
                     $this->line(sprintf(
                         '  %s %s — %s: %s',
                         $wedstrijd->match_datetime?->format('d-m-Y') ?? '??-??-????',
                         $wedstrijd->team?->name ?? '?',
                         $wedstrijd->opponent ?? '?',
-                        $namen !== '' ? "+ {$namen}" : 'coach_id invullen',
+                        $wat ? implode('   ', $wat) : 'coach_id invullen',
                     ));
 
                     if (! $droog) {
+                        if ($vreemd) {
+                            $wedstrijd->coaches()->detach($vreemd);
+
+                            // Stond de weggehaalde coach ook als coach_id, dan
+                            // schuift de eerstvolgende door; anders blijft er een
+                            // naam staan die nergens meer aan hangt.
+                            if (in_array($wedstrijd->coach_id, $vreemd, true)) {
+                                $wedstrijd->coach_id = null;
+                                $wedstrijd->save();
+                            }
+                        }
+
                         $wedstrijd->koppelTeamCoaches($ids, true);
                     }
 
