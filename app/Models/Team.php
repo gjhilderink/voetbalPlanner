@@ -107,15 +107,48 @@ class Team extends Model
      * coaches (rol coach); heeft het team die niet, dan vallen we terug op
      * leiders/assistent-coaches. Retourneert een Collection<Member>.
      */
+    /**
+     * Wie er standaard als coach op een wedstrijd van dit elftal komt.
+     *
+     * Twee bronnen, want een club legt dit op twee plekken vast. In Sportlink
+     * (en dus in member_team) staat de functie bij het lid; in de portal koppel
+     * je onder "Toegewezen teams & functies" een account aan een elftal, en dat
+     * belandt in user_team. Alleen naar de eerste kijken betekende dat een in de
+     * portal aangewezen coach nooit op een wedstrijd terechtkwam - zonder enig
+     * spoor, want er ging niets mis.
+     *
+     * Het resultaat is altijd een lijst leden: match_coaches verwijst naar
+     * leden, niet naar accounts. Een account zonder lidprofiel kan dus geen
+     * wedstrijdcoach zijn.
+     *
+     * Coaches gaan voor. Zijn die er niet, dan vallen leiders en assistenten in.
+     *
+     * @return \Illuminate\Support\Collection<int, Member>
+     */
     public function matchDefaultCoaches(): \Illuminate\Support\Collection
     {
-        $coaches = $this->members()->wherePivot('role', Member::ROLE_COACH)->get();
+        /** @param array<int, string> $rollen */
+        $viaLeden = fn (array $rollen) => $this->members()->wherePivotIn('role', $rollen)->get();
+
+        /** @param array<int, string> $rollen */
+        $viaAccounts = fn (array $rollen) => $this->users()
+            ->wherePivotIn('role', $rollen)
+            ->get()
+            ->map(fn (User $account) => $account->resolveMember())
+            ->filter();
+
+        $samen = fn (array $rollen) => $viaLeden($rollen)
+            ->concat($viaAccounts($rollen))
+            ->unique('id')
+            ->values();
+
+        $coaches = $samen([Member::ROLE_COACH]);
+
         if ($coaches->isNotEmpty()) {
             return $coaches;
         }
-        return $this->members()
-            ->wherePivotIn('role', [Member::ROLE_LEIDER, Member::ROLE_ASSISTANT])
-            ->get();
+
+        return $samen([Member::ROLE_LEIDER, Member::ROLE_ASSISTANT]);
     }
 
     public function club(): \Illuminate\Database\Eloquent\Relations\BelongsTo
