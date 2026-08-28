@@ -21,6 +21,10 @@ readonly class MatchDTO
         public ?int $scoreAway = null,
         public ?string $arrivalTime = null,
         public ?string $opponentLogo = null,
+        // De naam van óns elftal in deze wedstrijd. Nodig omdat Sportlink bij
+        // oefenwedstrijden een andere nummering voor teams gebruikt dan bij de
+        // competitie; de naam is dan het enige dat wél overeenkomt.
+        public ?string $teamName = null,
     ) {}
 
     /**
@@ -61,15 +65,18 @@ readonly class MatchDTO
             $isHome         = true;
             $opponent       = $uitTeam;
             $teamExternalId = (string) ($data['thuisteamid'] ?? '');
+            $teamName       = $thuisTeam;
         } elseif ($uitCode === self::BON_BOYS_CLUB_CODE) {
             $isHome         = false;
             $opponent       = $thuisTeam;
             $teamExternalId = (string) ($data['uitteamid'] ?? '');
+            $teamName       = $uitTeam;
         } else {
             // Fallback: use teamnaam to find our team (schedule has this field)
             $isHome         = true;
             $opponent       = $uitTeam ?: ($data['tegenstander'] ?? '');
             $teamExternalId = (string) ($data['thuisteamid'] ?? $data['teamcode'] ?? '');
+            $teamName       = $thuisTeam;
         }
 
         // wedstrijddatum is a proper ISO datetime — use it directly
@@ -104,6 +111,7 @@ readonly class MatchDTO
             scoreAway: $scoreAway,
             arrivalTime: ($data['verzameltijd'] ?? '') ?: null,
             opponentLogo: self::pickOpponentLogo($data, $isHome),
+            teamName: $teamName ?: null,
         );
     }
 }

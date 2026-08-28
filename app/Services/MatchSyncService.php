@@ -65,12 +65,13 @@ class MatchSyncService
                         ]);
                         $loggedKeys = true;
                     }
-                    $team = Team::where('external_id', $dto->teamExternalId)
-                        ->when($this->clubId, fn($q) => $q->where('club_id', $this->clubId))
-                        ->first();
+                    $team = $this->zoekTeam($dto);
 
                     if (!$team) {
-                        Log::warning('Team not found for match', ['team_external_id' => $dto->teamExternalId]);
+                        Log::warning('Team not found for match', [
+                            'team_external_id' => $dto->teamExternalId,
+                            'team_name'        => $dto->teamName,
+                        ]);
                         continue;
                     }
 
@@ -150,6 +151,37 @@ class MatchSyncService
         }
 
         return $match;
+    }
+
+    /**
+     * Het elftal van deze wedstrijd, eerst op id en anders op naam.
+     *
+     * Sportlink gebruikt bij oefenwedstrijden een andere nummering voor teams
+     * dan bij de competitie: dezelfde ploeg heet daar 347 en in het
+     * competitieprogramma 270798. Op het id alleen vielen alle oefenwedstrijden
+     * weg, met "Team not found for match" in het log en verder niets.
+     *
+     * De naam komt in beide gevallen letterlijk overeen ("Bon Boys O13-2JM"),
+     * dus die is de terugval. Alleen als terugval en niet als eerste keuze: een
+     * id is eenduidig en een naam kan veranderen.
+     */
+    private function zoekTeam(MatchDTO $dto): ?Team
+    {
+        $opClub = fn ($q) => $q->when($this->clubId, fn ($x) => $x->where('club_id', $this->clubId));
+
+        if ($dto->teamExternalId !== '') {
+            $team = Team::where('external_id', $dto->teamExternalId)->tap($opClub)->first();
+
+            if ($team) {
+                return $team;
+            }
+        }
+
+        if (! $dto->teamName) {
+            return null;
+        }
+
+        return Team::where('name', $dto->teamName)->tap($opClub)->first();
     }
 
     /** Default-coach(es) (member-ids) die aan een team hangen; gecachet per sync-run. */
