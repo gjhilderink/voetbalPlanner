@@ -164,11 +164,17 @@ class MatchesImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
 
             if ($isNew) {
                 $attributes['status'] ??= 'scheduled';
-                FootballMatch::create($attributes);
+                $match = FootballMatch::create($attributes);
                 $this->created++;
             } else {
                 $match->fill($attributes)->save();
             }
+
+            // Dezelfde behandeling als bij het ophalen uit Sportlink: de coaches
+            // van het elftal komen er standaard op. Zonder dit stond een
+            // geïmporteerde wedstrijd zonder coach in de app, terwijl bij het
+            // elftal wél iemand bekend is.
+            $match->koppelTeamCoaches();
 
             $this->imported++;
         }

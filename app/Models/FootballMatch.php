@@ -102,6 +102,36 @@ class FootballMatch extends Model
         return $this->belongsToMany(Member::class, 'match_drivers', 'match_id', 'member_id');
     }
 
+    /**
+     * Zet de coaches van het elftal op deze wedstrijd.
+     *
+     * Alleen als er nog niemand staat: een keuze die iemand zelf heeft gemaakt
+     * blijft staan. Dit vult een gat, het overschrijft niets.
+     *
+     * @param  array<int, string>|null  $memberIds  vooraf opgezochte coaches;
+     *         de sync heeft ze per elftal al bij de hand en bespaart zo een
+     *         query per wedstrijd.
+     */
+    public function koppelTeamCoaches(?array $memberIds = null): void
+    {
+        $ids = $memberIds ?? ($this->team?->matchDefaultCoaches()->pluck('id')->all() ?? []);
+
+        if (empty($ids)) {
+            return;
+        }
+
+        // Many-to-many: dit is wat het paneel én de app tonen.
+        if ($this->coaches()->count() === 0) {
+            $this->coaches()->syncWithoutDetaching($ids);
+        }
+
+        // Enkelvoudig coach_id als terugval voor de app.
+        if (! $this->coach_id) {
+            $this->coach_id = $ids[0];
+            $this->save();
+        }
+    }
+
     public function lineup(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(Lineup::class, 'match_id');

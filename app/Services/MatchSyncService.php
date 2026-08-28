@@ -135,20 +135,8 @@ class MatchSyncService
             return null;
         }
 
-        // Default: koppel de coach(es) die al aan het team hangen aan de wedstrijd,
-        // zolang er nog geen coach is gekozen (handmatige keuze blijft staan).
-        $coachIds = $this->teamCoachIds($teamId);
-        if (! empty($coachIds)) {
-            // Many-to-many (match_coaches): dit is wat het admin-paneel én de app tonen.
-            if ($match->coaches()->count() === 0) {
-                $match->coaches()->syncWithoutDetaching($coachIds);
-            }
-            // Enkelvoudig coach_id als fallback voor de app.
-            if (! $match->coach_id) {
-                $match->coach_id = $coachIds[0];
-                $match->save();
-            }
-        }
+        // De coaches van het elftal erop, zolang er nog geen keuze is gemaakt.
+        $match->koppelTeamCoaches($this->teamCoachIds($teamId));
 
         return $match;
     }
