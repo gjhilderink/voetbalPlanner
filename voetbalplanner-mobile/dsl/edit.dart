@@ -35706,8 +35706,16 @@ Future<String> loadLineupBoard(String? matchId, String? teamId) async {
     }
 
     FFAppState().update(() {
-      FFAppState().lineupField = lees(data['veld']);
-      FFAppState().lineupBench = lees(data['bank']);
+      // Wie zich heeft afgemeld hoort niet meer in de opstelling. Hij stond er
+      // misschien al in voordat hij zich afmeldde; dan bleef hij een plek
+      // bezetten die de coach niet kon vrijmaken, want een afgemelde speler is
+      // niet te verslepen. Hier eruit gehaald komt hij vanzelf onderaan bij de
+      // niet ingedeelde spelers te staan - die lijst is de selectie min het
+      // veld en de bank.
+      bool speeltMee(LineupSlotStruct s) => s.isAfgemeld != 'true';
+
+      FFAppState().lineupField = lees(data['veld']).where(speeltMee).toList();
+      FFAppState().lineupBench = lees(data['bank']).where(speeltMee).toList();
       FFAppState().lineupSelection = lees(data['selectie']);
       FFAppState().lineupPeriods = '${data['periods'] ?? '2'}';
       FFAppState().lineupSubs = (data['wissels'] is List)
