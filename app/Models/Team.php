@@ -108,6 +108,43 @@ class Team extends Model
      * leiders/assistent-coaches. Retourneert een Collection<Member>.
      */
     /**
+     * Leden die als staf bij dit elftal horen, uit alle drie de plekken waar
+     * dat kan staan.
+     *
+     * De functie bij het lid in het elftal (member_team, uit Sportlink), de
+     * teamkoppeling van een account (user_team, uit de portal) en de clubfunctie
+     * op het lid zelf (members.role). Dat zijn drie verschillende antwoorden op
+     * dezelfde vraag, en elk scherm keek naar een andere - waardoor een coach
+     * die je in de portal had aangewezen niet eens in de keuzelijst van een
+     * wedstrijd stond.
+     *
+     * @return array<int, string>
+     */
+    public function staffMemberIds(): array
+    {
+        $rollen = [Member::ROLE_COACH, Member::ROLE_LEIDER, Member::ROLE_ASSISTANT];
+
+        $viaLeden = $this->members()->wherePivotIn('role', $rollen)->pluck('members.id');
+
+        $viaAccounts = $this->users()
+            ->wherePivotIn('role', $rollen)
+            ->get()
+            ->map(fn (User $account) => $account->resolveMember()?->id)
+            ->filter();
+
+        $viaClubfunctie = $this->members()
+            ->whereIn('members.role', ['coach', 'staff'])
+            ->pluck('members.id');
+
+        return $viaLeden
+            ->concat($viaAccounts)
+            ->concat($viaClubfunctie)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
      * Wie er standaard als coach op een wedstrijd van dit elftal komt.
      *
      * Twee bronnen, want een club legt dit op twee plekken vast. In Sportlink

@@ -8,6 +8,7 @@ use App\Filament\Resources\MatchResource\Pages;
 use App\Filament\Support\TeamFilter;
 use App\Models\FootballMatch;
 use App\Models\Member;
+use App\Models\Team;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Schemas\Components\Utilities\Get;
@@ -83,11 +84,19 @@ class MatchResource extends Resource
                     ->relationship(
                         name: 'coaches',
                         titleAttribute: 'name',
+                        // Bij een gekozen elftal: iedereen die daar als staf bij
+                        // hoort, ongeacht wáár dat is vastgelegd. Zonder elftal
+                        // valt hij terug op de clubfunctie, want dan is er niets
+                        // om op te filteren.
                         modifyQueryUsing: fn(Builder $query, Get $get) => $query
-                            ->whereIn('role', ['coach', 'staff'])
                             ->where('is_active', true)
-                            ->when($get('team_id'), fn($q, $teamId) =>
-                                $q->whereHas('teams', fn($t) => $t->where('teams.id', $teamId))
+                            ->when(
+                                $get('team_id'),
+                                fn($q, $teamId) => $q->whereIn(
+                                    'members.id',
+                                    Team::find($teamId)?->staffMemberIds() ?? [],
+                                ),
+                                fn($q) => $q->whereIn('members.role', ['coach', 'staff']),
                             )
                             ->orderBy('name')
                     )
