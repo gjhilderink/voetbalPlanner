@@ -88,16 +88,29 @@ class MatchResource extends Resource
                         // hoort, ongeacht wáár dat is vastgelegd. Zonder elftal
                         // valt hij terug op de clubfunctie, want dan is er niets
                         // om op te filteren.
-                        modifyQueryUsing: fn(Builder $query, Get $get) => $query
-                            ->where('is_active', true)
-                            ->when(
-                                $get('team_id'),
-                                fn($q, $teamId) => $q->whereIn(
-                                    'members.id',
-                                    Team::find($teamId)?->staffMemberIds() ?? [],
-                                ),
-                                fn($q) => $q->whereIn('members.role', ['coach', 'staff']),
-                            )
+                        //
+                        // Wie er nú op de wedstrijd staat blijft er altijd bij,
+                        // ook als hij buiten dat filter valt. Zonder dat toont
+                        // het veld hem niet - en haalt opslaan hem er stilzwijgend
+                        // af, want een leeg keuzeveld leest als "niemand".
+                        modifyQueryUsing: fn(Builder $query, Get $get, ?FootballMatch $record) => $query
+                            ->where(function (Builder $q) use ($get, $record) {
+                                $q->where(fn(Builder $x) => $x
+                                    ->where('is_active', true)
+                                    ->when(
+                                        $get('team_id'),
+                                        fn($y, $teamId) => $y->whereIn(
+                                            'members.id',
+                                            Team::find($teamId)?->staffMemberIds() ?? [],
+                                        ),
+                                        fn($y) => $y->whereIn('members.role', ['coach', 'staff']),
+                                    ));
+
+                                $huidig = $record?->coaches->pluck('id')->all() ?? [];
+                                if ($huidig) {
+                                    $q->orWhereIn('members.id', $huidig);
+                                }
+                            })
                             ->orderBy('name')
                     )
                     ->searchable()
