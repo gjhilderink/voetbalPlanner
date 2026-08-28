@@ -238,14 +238,25 @@ class DocumentationSeeder extends Seeder
         ];
 
         foreach ($sections as $section) {
-            Documentation::updateOrCreate(
-                ['category' => $section['category'], 'title' => $section['title']],
-                [
-                    'body'       => $section['body'],
-                    'sort_order' => $section['sort_order'],
-                    'is_active'  => true,
-                ]
-            );
+            $onderwerp = Documentation::firstOrNew([
+                'category' => $section['category'],
+                'title'    => $section['title'],
+            ]);
+
+            // De tekst en de volgorde komen uit deze seeder, dus die worden bij
+            // elke deploy bijgewerkt: verbeteringen aan de handleiding horen
+            // vanzelf op de server te komen.
+            $onderwerp->body       = $section['body'];
+            $onderwerp->sort_order = $section['sort_order'];
+
+            // De zichtbaarheid niet. Heeft een beheerder een onderwerp
+            // uitgezet, dan is dat een keuze - en die stond na elke deploy weer
+            // aan, zonder dat iemand doorhad waar het vandaan kwam.
+            if (! $onderwerp->exists) {
+                $onderwerp->is_active = true;
+            }
+
+            $onderwerp->save();
         }
     }
 }
