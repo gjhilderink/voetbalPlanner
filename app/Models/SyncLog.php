@@ -13,6 +13,11 @@ class SyncLog extends Model
         'error_message', 'metadata', 'started_at', 'completed_at',
     ];
 
+    public function club(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Club::class);
+    }
+
     protected function casts(): array
     {
         return [

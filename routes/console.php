@@ -22,5 +22,12 @@ Schedule::command('sportlink:sync')
     ->name('sportlink-sync')
     ->withoutOverlapping();
 
+// Levensteken van de planner zelf. Zonder dit is "de synchronisatie liep niet"
+// niet te onderscheiden van "de cron draait helemaal niet" - en dat zijn twee
+// heel verschillende problemen. Kost één rij in settings.
+Schedule::call(fn () => \App\Models\Setting::set(
+    'scheduler_heartbeat', now()->toISOString(), 'system',
+))->everyFiveMinutes()->name('scheduler-heartbeat');
+
 // Markeer verlopen ouder/verzorger koppelverzoeken als geweigerd
 Schedule::command('guardian:expire')->dailyAt('02:00')->name('guardian-expire');
