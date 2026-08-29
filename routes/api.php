@@ -148,6 +148,8 @@ Route::prefix('v1')->group(function () {
         // Hele selectie met af-/aanmeldstatus; de coach zet ze hiermee om.
         Route::get('/matches/{match}/deelnemers', [MatchController::class, 'deelnemers']);
         Route::post('/matches/{match}/afmelden', [MatchController::class, 'afmelden']);
+        Route::post('/matches/{match}/afgelasten', [MatchController::class, 'afgelasten']);
+        Route::post('/matches/{match}/vrijgeven', [MatchController::class, 'vrijgeven']);
         Route::post('/matches/{match}/aanmelden', [MatchController::class, 'aanmelden']);
 
         // Vlagger (grensrechter) van een wedstrijd instellen (coach).
@@ -171,6 +173,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/trainings/{schedule}/{date}/deelnemers', [TrainingController::class, 'deelnemers']);
         Route::post('/trainings/{schedule}/{date}/afmelden', [TrainingController::class, 'afmelden']);
         Route::post('/trainings/{schedule}/{date}/aanmelden', [TrainingController::class, 'aanmelden']);
+        // Afgelasten en weer vrijgeven; alleen voor wie het elftal beheert.
+        Route::post('/trainings/{schedule}/{date}/afgelasten', [TrainingController::class, 'afgelasten']);
+        Route::post('/trainings/{schedule}/{date}/vrijgeven', [TrainingController::class, 'vrijgeven']);
 
         // Lineups
         Route::get('/matches/{match}/lineup', [LineupController::class, 'show']);

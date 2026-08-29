@@ -96,6 +96,13 @@ class MatchController extends Controller
         // tweede coach niet opnieuw begint aan iets wat al loopt.
         $data['live_gestart'] = $match->live_started_at !== null;
 
+        // Afgelast: de app zet er een balk boven en verbergt het af-/aanmelden.
+        // mag_afgelasten is dezelfde rechtencheck als hierboven, apart benoemd
+        // zodat de app niet hoeft te raden wat "mag opstelling" nog meer inhoudt.
+        $data['is_afgelast']     = $match->isCancelled();
+        $data['afgelast_reden']  = (string) ($match->cancel_reason ?? '');
+        $data['mag_afgelasten']  = $data['mag_opstelling'];
+
         // Korte doelpunten-samenvatting voor het coach-scherm ("12' Jan, 45' Piet").
         $data['goals_summary'] = $match->goalsSummary();
 
@@ -115,6 +122,64 @@ class MatchController extends Controller
         ])->values();
 
         return response()->json($data);
+    }
+
+    /**
+     * POST /v1/matches/{match}/afgelasten   body: { reason }
+     *
+     * De wedstrijd gaat niet door. Alleen de coach; en de reden is verplicht,
+     * want "afgelast" zonder uitleg levert precies de telefoontjes op die je
+     * met deze knop wilde voorkomen.
+     */
+    public function afgelasten(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()?->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'melding' => 'Alleen de coach kan een wedstrijd afgelasten.',
+            ], 403);
+        }
+
+        $validated = $request->validate(['reason' => 'required|string|max:255']);
+
+        $match->forceFill([
+            'cancelled_at'         => now(),
+            'cancel_reason'        => $validated['reason'],
+            'cancelled_by_user_id' => $request->user()->id,
+        ])->save();
+
+        return response()->json([
+            'success' => true,
+            'melding' => 'De wedstrijd is afgelast.',
+        ]);
+    }
+
+    /**
+     * POST /v1/matches/{match}/vrijgeven
+     *
+     * Toch weer door. Alleen de eigen afgelasting wordt teruggedraaid: heeft de
+     * bond de wedstrijd afgelast, dan staat dat in status en daar gaat deze knop
+     * niet over.
+     */
+    public function vrijgeven(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()?->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'melding' => 'Alleen de coach kan een wedstrijd vrijgeven.',
+            ], 403);
+        }
+
+        $match->forceFill([
+            'cancelled_at'         => null,
+            'cancel_reason'        => null,
+            'cancelled_by_user_id' => null,
+        ])->save();
+
+        return response()->json([
+            'success' => true,
+            'melding' => 'De wedstrijd gaat weer door.',
+        ]);
     }
 
     /**

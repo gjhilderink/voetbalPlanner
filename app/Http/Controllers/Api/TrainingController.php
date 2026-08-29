@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\ManagesAttendance;
 use App\Http\Controllers\Controller;
 use App\Models\Absence;
+use App\Models\TrainingCancellation;
 use App\Models\TrainingSchedule;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -60,6 +61,18 @@ class TrainingController extends Controller
             ->get()
             ->groupBy(fn ($a) => $a->training_schedule_id . '|' . $a->training_date->toDateString());
 
+        // Afgelaste trainingen binnen hetzelfde venster, in één query. Geen rij
+        // betekent: gaat door.
+        $afgelast = TrainingCancellation::query()
+            ->whereIn('training_schedule_id', $schedules->pluck('id'))
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->get()
+            ->keyBy(fn ($c) => $c->training_schedule_id . '|' . $c->date->toDateString());
+
+        // Mag deze gebruiker afgelasten? Alle schema's horen bij hetzelfde
+        // elftal, dus één keer bepalen is genoeg.
+        $magAfgelasten = $request->user()?->canManageLineup($teamId) ?? false;
+
         $myMemberId = $request->user()?->resolveMember()?->id;
         $myUserId   = $request->user()?->id;
 
@@ -89,6 +102,7 @@ class TrainingController extends Controller
             for (; $date <= $end; $date->addWeek()) {
                 $key   = $schedule->id . '|' . $date->toDateString();
                 $abs   = $absences->get($key) ?? collect();
+                $stop  = $afgelast->get($key);
                 $occurrences[] = [
                     'schedule_id' => $schedule->id,
                     'date'        => $date->toDateString(),
@@ -99,6 +113,10 @@ class TrainingController extends Controller
                     'location'      => $schedule->location ?? '',
                     'dressing_room' => $schedule->dressing_room ?? '',
                     'team_name'   => $schedule->team?->name ?? '',
+                    // Strings en geen booleans: de app-struct is volledig String.
+                    'is_afgelast'    => $stop ? 'true' : 'false',
+                    'afgelast_reden' => (string) ($stop?->reason ?? ''),
+                    'mag_afgelasten' => $magAfgelasten ? 'true' : 'false',
                     'mijn_status' => self::statusVoor(
                         $abs, $benLid, $myMemberId, $myUserId, $kindIds
                     ),
@@ -213,6 +231,62 @@ class TrainingController extends Controller
     /**
      * POST /v1/trainings/{schedule}/{date}/afmelden   body: { reason }
      */
+    /**
+     * POST /v1/trainings/{schedule}/{date}/afgelasten   body: { reason }
+     *
+     * Eén training gaat niet door. Het schema blijft staan: volgende week is er
+     * gewoon weer training, en dat is precies waarom dit een uitzondering per
+     * datum is en geen schakelaar op het schema.
+     */
+    public function afgelasten(Request $request, TrainingSchedule $schedule, string $date): JsonResponse
+    {
+        if (! $request->user()?->canManageLineup($schedule->team_id)) {
+            return response()->json([
+                'success' => false,
+                'melding' => 'Alleen de trainer kan een training afgelasten.',
+            ], 403);
+        }
+
+        $validated = $request->validate(['reason' => 'required|string|max:255']);
+
+        TrainingCancellation::updateOrCreate(
+            [
+                'training_schedule_id' => $schedule->id,
+                'date'                 => Carbon::parse($date)->toDateString(),
+            ],
+            [
+                'reason'               => $validated['reason'],
+                'cancelled_by_user_id' => $request->user()->id,
+            ],
+        );
+
+        return response()->json([
+            'success' => true,
+            'melding' => 'De training is afgelast.',
+        ]);
+    }
+
+    /** POST /v1/trainings/{schedule}/{date}/vrijgeven — gaat toch weer door. */
+    public function vrijgeven(Request $request, TrainingSchedule $schedule, string $date): JsonResponse
+    {
+        if (! $request->user()?->canManageLineup($schedule->team_id)) {
+            return response()->json([
+                'success' => false,
+                'melding' => 'Alleen de trainer kan een training vrijgeven.',
+            ], 403);
+        }
+
+        TrainingCancellation::query()
+            ->where('training_schedule_id', $schedule->id)
+            ->whereDate('date', Carbon::parse($date)->toDateString())
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'melding' => 'De training gaat weer door.',
+        ]);
+    }
+
     public function afmelden(Request $request, TrainingSchedule $schedule, string $date): JsonResponse
     {
         $validated = $request->validate([

@@ -803,6 +803,7 @@ void buildEditFlow(App app) {
   // idempotente helper (app.state-ensure botst met een al bestaand veld met
   // afwijkende payload).
   app.raw((project) => _ensureTrainingsAppStateField(project));
+  app.raw((project) => _ensureTrainingsPageAppStateField(project));
   // AppState 'matchGoals' = List<GoalItem> (coach-scorebeheer), gevuld door GetMatchGoals.
   app.raw((project) => _ensureMatchGoalsAppStateField(project));
   // AppState 'scoreTeamMembers' = List<SwapMember> (tikbare maker-keuze bij score).
@@ -1149,7 +1150,8 @@ void buildEditFlow(App app) {
       'matchDriverNames', 'matchNotes', 'apiStatus',
       'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
       'matchTeamId', 'selectedScorerName', 'inviteTeamId', 'matchOpponentLogo',
-      'matchLiveGestart',
+      'matchLiveGestart', 'matchAfgelast', 'matchAfgelastReden',
+      'matchMagAfgelasten',
     ]) {
       state.ensureField(f, string.withDefault(''));
     }
@@ -11603,7 +11605,8 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
     'matchDriverNames', 'matchNotes',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
     'matchGoalsSummary', 'matchTeamId', 'selectedScorerName', 'matchOpponentLogo',
-    'matchLiveGestart',
+    'matchLiveGestart', 'matchAfgelast', 'matchAfgelastReden',
+    'matchMagAfgelasten',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -11643,6 +11646,9 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchTeamId':        r'$.teamId',
           'matchOpponentLogo':  r'$.opponentLogo',
           'matchLiveGestart':   r'$.live_gestart',
+          'matchAfgelast':      r'$.is_afgelast',
+          'matchAfgelastReden': r'$.afgelast_reden',
+          'matchMagAfgelasten': r'$.mag_afgelasten',
           // matchAfmeldingen is een structlijst en gaat hieronder apart.
         };
         final updates = <StateFieldUpdate>[
@@ -22198,6 +22204,27 @@ void _ensureTrainingsAppStateField(FFProject project) {
   project.appState.fields.add(FFAppStateField(parameter: param));
 }
 
+/// AppState 'trainingsPage' = List<TrainingItem> voor de trainingenpagina.
+///
+/// Een eigen veld naast 'trainings'. Het dashboard toont een kort lijstje en
+/// de pagina twee weken; met één veld zou het dashboard meegroeien zodra je de
+/// pagina had geopend, en weer inkrimpen na een teamwissel.
+void _ensureTrainingsPageAppStateField(FFProject project) {
+  if (project.appState.fields.any(
+    (f) => f.parameter.identifier.name == 'trainingsPage',
+  )) return;
+  final struct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'TrainingItem', orElse: () => null);
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(name: 'trainingsPage', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
 // AppState 'matchGoals' = List<GoalItem>, gevuld door GetMatchGoals (scorebeheer).
 void _ensureMatchGoalsAppStateField(FFProject project) {
   if (project.appState.fields.any(
@@ -22241,7 +22268,11 @@ void _ensureTrainingItemCountFields(FFProject project) {
       .cast<FFDataStruct?>()
       .firstWhere((s) => s?.identifier.name == 'TrainingItem', orElse: () => null);
   if (ds == null) return;
-  for (final fieldName in const ['aangemeld', 'afgemeld', 'dressing_room']) {
+  for (final fieldName in const [
+    'aangemeld', 'afgemeld', 'dressing_room',
+    // Gaat deze training door? Plus de reden en of jij hem mag afgelasten.
+    'is_afgelast', 'afgelast_reden', 'mag_afgelasten',
+  ]) {
     if (ds.fields.any((f) => f.identifier.name == fieldName)) continue;
     ds.fields.add(FFParameter(
       identifier: FFIdentifier(name: fieldName, key: generateRandomAlphaNumericString()),
@@ -22278,6 +22309,41 @@ void _addGetTrainingsEndpoint(FFProject project) {
       project,
       name:                     endpointName,
       groupName:                groupName,
+      responseDataStructName:   'TrainingItem',
+      responseDataStructIsList: true,
+    );
+  }
+
+  // En hetzelfde voor de trainingenpagina, maar dan twee weken vooruit en
+  // zonder limiet. Een apart endpoint en niet dezelfde met een variabele: het
+  // dashboard en de pagina schrijven naar verschillende AppState-velden, dus ze
+  // delen hier toch niets.
+  const pageEndpoint = 'GetTrainingsPage';
+  const pageUrl = '/trainings?team_id=[teamId]&days=14';
+
+  if (findApiEndpoint(project, name: pageEndpoint, groupName: groupName) == null) {
+    if (findApiGroup(project, name: groupName) == null) return;
+    addEndpointToGroup(
+      project,
+      groupName:                groupName,
+      name:                     pageEndpoint,
+      url:                      pageUrl,
+      method:                   FFApiEndpoint_CallType.GET,
+      bodyType:                 FFApiEndpoint_BodyType.NONE,
+      variables: {
+        'token':  FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'teamId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      headers:                  ['Authorization: Bearer [token]'],
+      responseDataStructName:   'TrainingItem',
+      responseDataStructIsList: true,
+    );
+  } else {
+    updateApiEndpoint(
+      project,
+      name:                     pageEndpoint,
+      groupName:                groupName,
+      url:                      pageUrl,
       responseDataStructName:   'TrainingItem',
       responseDataStructIsList: true,
     );
@@ -22330,6 +22396,18 @@ void _addAfmeldEndpoints(FFProject project) {
   ensure('AfmeldenMatchApi', '/matches/[matchId]/afmelden?reason=[reason]',
       ['token', 'matchId', 'reason']);
   ensure('AanmeldenMatchApi', '/matches/[matchId]/aanmelden',
+      ['token', 'matchId']);
+
+  // Afgelasten en weer vrijgeven. Alleen voor wie het elftal beheert; de
+  // backend controleert dat opnieuw, want een endpoint dat de app niet toont is
+  // nog steeds een endpoint.
+  ensure('AfgelastenTrainingApi', '/trainings/[scheduleId]/[date]/afgelasten?reason=[reason]',
+      ['token', 'scheduleId', 'date', 'reason']);
+  ensure('VrijgevenTrainingApi', '/trainings/[scheduleId]/[date]/vrijgeven',
+      ['token', 'scheduleId', 'date']);
+  ensure('AfgelastenMatchApi', '/matches/[matchId]/afgelasten?reason=[reason]',
+      ['token', 'matchId', 'reason']);
+  ensure('VrijgevenMatchApi', '/matches/[matchId]/vrijgeven',
       ['token', 'matchId']);
 
   // Dezelfde acties, maar namens een speler. Aparte endpoints en niet een
@@ -26121,6 +26199,10 @@ void _buildTrainingDetailPage(App app) {
     },
     state: {
       'localStatus': string.withDefault('aangemeld'),
+      // Afgelast, bijgehouden op de pagina zelf: na het afgelasten hoeft er
+      // niet eerst een lijst herladen te zijn voordat het scherm klopt.
+      'localAfgelast': string.withDefault('false'),
+      'localAfgelastReden': string.withDefault(''),
     },
     body: Scaffold(
       appBar: AppBar(title: 'Training'),
@@ -26130,6 +26212,60 @@ void _buildTrainingDetailPage(App app) {
       ),
     ),
   );
+}
+
+/// Beide trainingslijsten opnieuw ophalen en dan de pagina sluiten.
+///
+/// Twee lijsten omdat het dashboard een kort rijtje toont en de trainingenpagina
+/// twee weken; ze hangen aan verschillende AppState-velden. Ververs je er maar
+/// één, dan kijk je na het afmelden op het andere scherm nog naar de oude stand.
+FFActionNode _herlaadTrainingen(
+  FFProject project, {
+  required FFIdentifier authTokenId,
+  required FFIdentifier currentTeamIdId,
+  required String nodeKey,
+  required String prefix,
+}) {
+  FFActionNode call(String endpoint, String veld, String out, FFAction? daarna) =>
+      Actions.apiCallNode(
+        project,
+        endpointName: endpoint,
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+        },
+        outputVariableName: out,
+        nodeKey: nodeKey,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable(veld, ctx.responseVar),
+          ]),
+          if (daarna != null) daarna,
+        ]),
+        // Geen daarna? Dan is dit niet de laatste aanroep en hoort er in de
+        // fouttak niets te gebeuren - een lege keten weigert FlutterFlow.
+        onFailure:
+            daarna == null ? null : (ctx) => Actions.chain([daarna]),
+      );
+
+  final heeftPagina = findApiEndpoint(project,
+          name: 'GetTrainingsPage', groupName: 'VoetbalPlannerAPI') !=
+      null;
+
+  final eerste = call('GetTrainingsList', 'trainings', '${prefix}Refresh',
+      heeftPagina ? null : Actions.navigateBack());
+  if (!heeftPagina) return eerste;
+
+  var staart = eerste;
+  while (staart.hasFollowUpAction()) {
+    staart = staart.followUpAction;
+  }
+  staart.followUpAction = call(
+      'GetTrainingsPage', 'trainingsPage', '${prefix}RefreshPage',
+      Actions.navigateBack());
+
+  return eerste;
 }
 
 void _wireTrainingDetailPage(FFProject project) {
@@ -26158,10 +26294,22 @@ void _wireTrainingDetailPage(FFProject project) {
     }
   }
 
+  // Pagina-state idempotent bijprikken: net als bij params doet ensurePage dat
+  // niet voor een pagina die er al staat, en dan bestaat het veld alleen in de
+  // declaratie hierboven en niet in het project.
+  for (final naam in const ['localAfgelast', 'localAfgelastReden']) {
+    _ensurePageStateField(wc, naam, FFBaseDataType.String);
+  }
+
   // kleedkamer-param (string) idempotent toevoegen — ensurePage doet dat niet
-  // voor een al bestaande pagina.
-  if (!wc.params.values.any((p) => p.hasIdentifier() && p.identifier.name == 'kleedkamer')) {
-    final id = FFIdentifier(name: 'kleedkamer', key: generateRandomAlphaNumericString());
+  // voor een al bestaande pagina. Hetzelfde geldt voor de afgelast-velden.
+  for (final naam in const [
+    'kleedkamer', 'isAfgelast', 'afgelastReden', 'magAfgelasten',
+  ]) {
+    if (wc.params.values.any((p) => p.hasIdentifier() && p.identifier.name == naam)) {
+      continue;
+    }
+    final id = FFIdentifier(name: naam, key: generateRandomAlphaNumericString());
     wc.params[id.key] = FFParameter(
       identifier: id,
       dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
@@ -26211,7 +26359,15 @@ void _wireTrainingDetailPage(FFProject project) {
       action: Actions.updatePageState(
         project,
         widgetClassName: 'TrainingDetailPage',
-        updates: [StateFieldUpdate.setFromVariable('localStatus', pParam(mijnStatusP))],
+        updates: [
+          StateFieldUpdate.setFromVariable('localStatus', pParam(mijnStatusP)),
+          if (paramId('isAfgelast') != null)
+            StateFieldUpdate.setFromVariable(
+                'localAfgelast', pParam(paramId('isAfgelast')!)),
+          if (paramId('afgelastReden') != null)
+            StateFieldUpdate.setFromVariable(
+                'localAfgelastReden', pParam(paramId('afgelastReden')!)),
+        ],
       ),
     ),
   );
@@ -26288,23 +26444,12 @@ void _wireTrainingDetailPage(FFProject project) {
       onSuccess: (ctx) => FFActionNode(
         key: gen(),
         action: _snackBarUitAntwoord(ctx, btn.key),
-        followUpAction: Actions.apiCallNode(
+        followUpAction: _herlaadTrainingen(
           project,
-          endpointName: 'GetTrainingsList',
-          groupName: 'VoetbalPlannerAPI',
-          dynamicVariables: {
-            'token':  varFromAppState(authTokenId.deepCopy()),
-            'teamId': varFromAppState(currentTeamIdId.deepCopy()),
-          },
-          outputVariableName: '${btn.name}Refresh',
+          authTokenId: authTokenId,
+          currentTeamIdId: currentTeamIdId,
           nodeKey: btn.key,
-          onSuccess: (ctx2) => Actions.chain([
-            Actions.updateAppState(project, updates: [
-              StateFieldUpdate.setFromVariable('trainings', ctx2.responseVar),
-            ]),
-            Actions.navigateBack(),
-          ]),
-          onFailure: (ctx2) => Actions.chain([Actions.navigateBack()]),
+          prefix: btn.name,
         ),
       ),
       onFailure: (ctx) => Actions.chain([
@@ -26539,13 +26684,203 @@ void _wireTrainingDetailPage(FFProject project) {
     return t;
   }
 
+  // ── Afgelasten ────────────────────────────────────────────────────────────
+  //
+  // De trainer zet één training stop; het schema blijft staan, want volgende
+  // week is er gewoon weer training. De reden komt uit hetzelfde invulvak als
+  // bij het afmelden — twee vakken op één pagina is er één te veel.
+  final afgelastKinderen = <FFNode>[];
+  final magAfgelastenP = paramId('magAfgelasten');
+
+  final localAfgelastId = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'localAfgelast',
+          orElse: () => null)
+      ?.parameter
+      .identifier;
+  final localRedenId = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'localAfgelastReden',
+          orElse: () => null)
+      ?.parameter
+      .identifier;
+
+  if (magAfgelastenP != null && localAfgelastId != null && localRedenId != null) {
+    // m = mag ik afgelasten, a = is hij al afgelast.
+    FFVariable regel(String expressie) => codeExpressionVar(
+          expression: expressie,
+          arguments: [
+            CodeExpressionArg(
+              name: 'm',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: pParam(magAfgelastenP)),
+            ),
+            CodeExpressionArg(
+              name: 'a',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: pState(localAfgelastId)),
+            ),
+          ],
+          returnType: FFParameter(
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+        );
+
+    // De melding voor iedereen: waarom de training niet doorgaat.
+    final bannerTekst = UI.text('',
+        name: 'TrainAfgelastReden',
+        style: UITextStyle.bodySmall,
+        color: UIColor.hex(0xFFB91C1C));
+    bannerTekst.props.text.textValue = FFStringValue(
+      variable: codeExpressionVar(
+        expression:
+            "((r ?? '') != '') ? (r ?? '') : 'Deze training gaat niet door.'",
+        arguments: [
+          CodeExpressionArg(
+            name: 'r',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: pState(localRedenId)),
+          ),
+        ],
+        returnType:
+            FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+      ),
+    );
+
+    final banner = UI.container(
+      name: 'TrainAfgelastBanner',
+      color: const UIColor.hex(0xFFFDE3E3, dark: 0xFF3A1E1E),
+      borderRadius: 8,
+      innerPadding: UIEdgeInsets.all(12),
+      child: UI.row(
+        name: 'TrainAfgelastRow',
+        spacing: 10,
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: [
+          UI.icon('event_busy', size: 20, color: UIColor.hex(0xFFB91C1C)),
+          UI.expanded(UI.column(
+            name: 'TrainAfgelastCol',
+            crossAxisAlignment: UICrossAxisAlignment.start,
+            spacing: 2,
+            children: [
+              UI.text('Afgelast',
+                  name: 'TrainAfgelastTitel',
+                  style: UITextStyle.titleSmall,
+                  color: UIColor.hex(0xFFB91C1C)),
+              bannerTekst,
+            ],
+          )),
+        ],
+      ),
+    );
+    setConditionalVisibility(banner,
+        variable: _equalsLiteral(pState(localAfgelastId), 'true'));
+
+    final afgelastBtn = UI.button('Training afgelasten',
+        name: 'TrainAfgelastButton',
+        width: double.infinity,
+        iconName: 'event_busy',
+        iconSize: 20,
+        borderRadius: 10,
+        padding: UIEdgeInsets.all(14));
+    final vrijgeefBtn = UI.button('Toch laten doorgaan',
+        name: 'TrainVrijgeefButton',
+        width: double.infinity,
+        iconName: 'event_available',
+        iconSize: 20,
+        borderRadius: 10,
+        padding: UIEdgeInsets.all(14));
+
+    setConditionalVisibility(afgelastBtn,
+        variable: regel("m == 'true' && a != 'true'"));
+    setConditionalVisibility(vrijgeefBtn,
+        variable: regel("m == 'true' && a == 'true'"));
+
+    void wireAfgelast(FFNode btn, String endpoint, {required bool metReden}) {
+      final dynVars = <String, FFVariable>{
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'scheduleId': pParam(schedIdP),
+        'date': pParam(dateP),
+      };
+      if (metReden) {
+        dynVars['reason'] = varFromTextFieldValue(reasonField.key);
+      }
+
+      final apiNode = Actions.apiCallNode(
+        project,
+        endpointName: endpoint,
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: dynVars,
+        outputVariableName: '${btn.name}Out',
+        nodeKey: btn.key,
+        onSuccess: (ctx) => FFActionNode(
+          key: gen(),
+          action: _snackBarUitAntwoord(ctx, btn.key),
+          followUpAction: _herlaadTrainingen(
+            project,
+            authTokenId: authTokenId,
+            currentTeamIdId: currentTeamIdId,
+            nodeKey: btn.key,
+            prefix: btn.name,
+          ),
+        ),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar(
+              'Er ging iets mis — probeer het opnieuw of controleer je verbinding.'),
+        ]),
+      );
+
+      FFActionNode root = apiNode;
+      if (metReden) {
+        // Zonder reden geen afgelasting: "afgelast" zonder uitleg levert precies
+        // de telefoontjes op die je met deze knop wilde voorkomen.
+        final leeg = codeExpressionVar(
+          expression: "(r ?? '').trim().isEmpty",
+          arguments: [
+            CodeExpressionArg(
+              name: 'r',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: varFromTextFieldValue(reasonField.key)),
+            ),
+          ],
+          returnType: FFParameter(
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+        );
+        root = Actions.conditional(
+          condition: leeg,
+          trueActions: FFActionNode(
+            key: gen(),
+            action: Actions.snackBar(
+                'Vul een reden in, zodat iedereen weet waarom de training niet doorgaat.'),
+          ),
+          falseActions: apiNode,
+        );
+      }
+
+      btn.triggerActions.removeWhere((t) =>
+          t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP);
+      btn.triggerActions.add(FFTriggerActions(
+        trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+        rootAction: root,
+      ));
+    }
+
+    wireAfgelast(afgelastBtn, 'AfgelastenTrainingApi', metReden: true);
+    wireAfgelast(vrijgeefBtn, 'VrijgevenTrainingApi', metReden: false);
+
+    afgelastKinderen.addAll([banner, afgelastBtn, vrijgeefBtn]);
+  }
+
   col.children.addAll([
     headerCard,
+    // De melding bovenaan: gaat de training niet door, dan is dat het eerste
+    // wat je wilt weten - niet of je je nog moet afmelden.
+    ...afgelastKinderen.take(1),
     reasonCard,
     sectionHeader('Afmelden voor deze training', 'TrainAfmeldHeader', 'aangemeld'),
     afmeldBtn,
     sectionHeader('Aanmelden voor deze training', 'TrainAanmeldHeader', 'afgemeld'),
     aanmeldBtn,
+    ...afgelastKinderen.skip(1),
     ...afmeldChildren,
   ]);
 }
@@ -26578,6 +26913,12 @@ void _wireTrainingCardNavigation(FFProject project) {
       'kleedkamer':  VariableParamValue(generatorVarField(listView.key, 'dressing_room')),
       'mijnStatus':  VariableParamValue(generatorVarField(listView.key, 'mijn_status')),
       'afmeldingen': VariableParamValue(generatorVarField(listView.key, 'afmeldingen')),
+      'isAfgelast':
+          VariableParamValue(generatorVarField(listView.key, 'is_afgelast')),
+      'afgelastReden':
+          VariableParamValue(generatorVarField(listView.key, 'afgelast_reden')),
+      'magAfgelasten':
+          VariableParamValue(generatorVarField(listView.key, 'mag_afgelasten')),
     }),
   );
 }
@@ -26607,6 +26948,7 @@ void _wireWedstrijdAfmelden(FFProject project) {
     infoColumn,
     (n) => const {
       'MatchAfmeldButton', 'MatchAanmeldButton', 'MatchReasonField', 'MatchAfmeldHeader',
+      'MatchAfgelastBanner', 'MatchAfgelastButton', 'MatchVrijgeefButton',
     }.contains(n.name),
   ).map((n) => n.key).toList()) {
     removeByKey(wc.node, k);
@@ -26789,11 +27131,200 @@ void _wireWedstrijdAfmelden(FFProject project) {
   wireButton(afmeldBtn, 'AfmeldenMatchApi', 'afgemeld', needsReason: true);
   wireButton(aanmeldBtn, 'AanmeldenMatchApi', 'aangemeld', needsReason: false);
 
+  // ── Afgelasten ────────────────────────────────────────────────────────────
+  //
+  // Aparte kolommen op de wedstrijd en niet de bestaande status: die wordt bij
+  // elke Sportlink-ronde overschreven met wat de bond zegt, en een afgelasting
+  // van de coach zou er de volgende ochtend weer uit staan.
+  final afgelastNodes = <FFNode>[];
+
+  FFIdentifier? stateId(String naam) => wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == naam, orElse: () => null)
+      ?.parameter
+      .identifier;
+
+  final afgelastId = stateId('matchAfgelast');
+  final afgelastRedenId = stateId('matchAfgelastReden');
+  final magAfgelastenId = stateId('matchMagAfgelasten');
+
+  if (afgelastId != null && afgelastRedenId != null && magAfgelastenId != null) {
+    FFVariable pv(FFIdentifier id) => varFromPageState(id.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+    // m = mag ik afgelasten, a = is hij al afgelast.
+    FFVariable regel(String expressie) => codeExpressionVar(
+          expression: expressie,
+          arguments: [
+            CodeExpressionArg(
+              name: 'm',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: pv(magAfgelastenId)),
+            ),
+            CodeExpressionArg(
+              name: 'a',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: pv(afgelastId)),
+            ),
+          ],
+          returnType: FFParameter(
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+        );
+
+    final bannerTekst = UI.text('',
+        name: 'MatchAfgelastReden',
+        style: UITextStyle.bodySmall,
+        color: UIColor.hex(0xFFB91C1C));
+    bannerTekst.props.text.textValue = FFStringValue(
+      variable: codeExpressionVar(
+        expression:
+            "((r ?? '') != '') ? (r ?? '') : 'Deze wedstrijd gaat niet door.'",
+        arguments: [
+          CodeExpressionArg(
+            name: 'r',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: pv(afgelastRedenId)),
+          ),
+        ],
+        returnType:
+            FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+      ),
+    );
+
+    final banner = UI.container(
+      name: 'MatchAfgelastBanner',
+      color: const UIColor.hex(0xFFFDE3E3, dark: 0xFF3A1E1E),
+      borderRadius: 8,
+      innerPadding: UIEdgeInsets.all(12),
+      child: UI.row(
+        name: 'MatchAfgelastRow',
+        spacing: 10,
+        crossAxisAlignment: UICrossAxisAlignment.center,
+        children: [
+          UI.icon('event_busy', size: 20, color: UIColor.hex(0xFFB91C1C)),
+          UI.expanded(UI.column(
+            name: 'MatchAfgelastCol',
+            crossAxisAlignment: UICrossAxisAlignment.start,
+            spacing: 2,
+            children: [
+              UI.text('Afgelast',
+                  name: 'MatchAfgelastTitel',
+                  style: UITextStyle.titleSmall,
+                  color: UIColor.hex(0xFFB91C1C)),
+              bannerTekst,
+            ],
+          )),
+        ],
+      ),
+    );
+    setConditionalVisibility(banner,
+        variable: _equalsLiteral(pv(afgelastId), 'true'));
+
+    final afgelastBtn = UI.button('Wedstrijd afgelasten',
+        name: 'MatchAfgelastButton', width: double.infinity);
+    final vrijgeefBtn = UI.button('Toch laten doorgaan',
+        name: 'MatchVrijgeefButton', width: double.infinity);
+    setConditionalVisibility(afgelastBtn,
+        variable: regel("m == 'true' && a != 'true'"));
+    setConditionalVisibility(vrijgeefBtn,
+        variable: regel("m == 'true' && a == 'true'"));
+
+    void wireAfgelast(FFNode btn, String endpoint,
+        {required bool metReden, required bool naarAfgelast}) {
+      final dynVars = <String, FFVariable>{
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'matchId': varFromPageParam(matchId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+      };
+      if (metReden) {
+        dynVars['reason'] = varFromTextFieldValue(reasonField.key);
+      }
+
+      final apiNode = Actions.apiCallNode(
+        project,
+        endpointName: endpoint,
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: dynVars,
+        outputVariableName: '${btn.name}Out',
+        nodeKey: btn.key,
+        // Meteen op het scherm bijwerken en niet wachten op een herlaadronde:
+        // de wedstrijdpagina laadt alleen bij het openen.
+        onSuccess: (ctx) => FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: _snackBarUitAntwoord(ctx, btn.key),
+          followUpAction: FFActionNode(
+            key: generateRandomAlphaNumericString(),
+            action: Actions.updatePageState(
+              project,
+              widgetClassName: 'WedstrijdDetailPage',
+              updates: [
+                StateFieldUpdate.set(
+                    'matchAfgelast', naarAfgelast ? 'true' : 'false'),
+                if (naarAfgelast)
+                  StateFieldUpdate.setFromVariable('matchAfgelastReden',
+                      varFromTextFieldValue(reasonField.key))
+                else
+                  StateFieldUpdate.set('matchAfgelastReden', ''),
+              ],
+            ),
+          ),
+        ),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar(
+              'Er ging iets mis — probeer het opnieuw of controleer je verbinding.'),
+        ]),
+      );
+
+      FFActionNode root = apiNode;
+      if (metReden) {
+        final leeg = codeExpressionVar(
+          expression: "(r ?? '').trim().isEmpty",
+          arguments: [
+            CodeExpressionArg(
+              name: 'r',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: varFromTextFieldValue(reasonField.key)),
+            ),
+          ],
+          returnType: FFParameter(
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+        );
+        root = Actions.conditional(
+          condition: leeg,
+          trueActions: FFActionNode(
+            key: generateRandomAlphaNumericString(),
+            action: Actions.snackBar(
+                'Vul een reden in, zodat iedereen weet waarom de wedstrijd niet doorgaat.'),
+          ),
+          falseActions: apiNode,
+        );
+      }
+
+      btn.triggerActions.removeWhere((t) =>
+          t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP);
+      btn.triggerActions.add(FFTriggerActions(
+        trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+        rootAction: root,
+      ));
+    }
+
+    wireAfgelast(afgelastBtn, 'AfgelastenMatchApi',
+        metReden: true, naarAfgelast: true);
+    wireAfgelast(vrijgeefBtn, 'VrijgevenMatchApi',
+        metReden: false, naarAfgelast: false);
+
+    afgelastNodes.addAll([banner, afgelastBtn, vrijgeefBtn]);
+  }
+
   infoColumn.children.addAll([
+    // De melding eerst: gaat de wedstrijd niet door, dan hoef je niet meer na
+    // te denken over af- of aanmelden.
+    ...afgelastNodes.take(1),
     UI.text('Af-/aanmelden', name: 'MatchAfmeldHeader', style: UITextStyle.titleSmall),
     reasonField,
     afmeldBtn,
     aanmeldBtn,
+    ...afgelastNodes.skip(1),
   ]);
 }
 
@@ -27923,6 +28454,12 @@ FFNode _dashTrainingCard(FFProject project, FFWidgetClass wc) {
               VariableParamValue(_firstItemVar(trainingsVar, 'mijn_status')),
           'afmeldingen':
               VariableParamValue(_firstItemVar(trainingsVar, 'afmeldingen')),
+          'isAfgelast':
+              VariableParamValue(_firstItemVar(trainingsVar, 'is_afgelast')),
+          'afgelastReden':
+              VariableParamValue(_firstItemVar(trainingsVar, 'afgelast_reden')),
+          'magAfgelasten':
+              VariableParamValue(_firstItemVar(trainingsVar, 'mag_afgelasten')),
         }),
       );
       return card;
@@ -28486,9 +29023,12 @@ void _wireTrainingenPage(FFProject project) {
 
   final authTokenId = _findAppStateFieldId(project, 'authToken');
   final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
-  final trainingsId = _findAppStateFieldId(project, 'trainings');
+  // Eigen veld en eigen endpoint: deze pagina toont twee weken, het dashboard
+  // een kort lijstje. Deelden ze er één, dan groeide het dashboard mee zodra je
+  // deze pagina had geopend.
+  final trainingsId = _findAppStateFieldId(project, 'trainingsPage');
   final hasEndpoint = findApiEndpoint(
-          project, name: 'GetTrainingsList', groupName: 'VoetbalPlannerAPI') !=
+          project, name: 'GetTrainingsPage', groupName: 'VoetbalPlannerAPI') !=
       null;
 
   // On-load: trainingen ophalen. Elke push opnieuw opgebouwd zodat de keten
@@ -28502,7 +29042,7 @@ void _wireTrainingenPage(FFProject project) {
       FFActionTriggerType.ON_INIT_STATE,
       Actions.apiCallNode(
         project,
-        endpointName: 'GetTrainingsList',
+        endpointName: 'GetTrainingsPage',
         groupName: 'VoetbalPlannerAPI',
         dynamicVariables: {
           'token': varFromAppState(authTokenId.deepCopy()),
@@ -28512,7 +29052,7 @@ void _wireTrainingenPage(FFProject project) {
         nodeKey: wc.node.key,
         onSuccess: (ctx) => Actions.chain([
           Actions.updateAppState(project, updates: [
-            StateFieldUpdate.setFromVariable('trainings', ctx.responseVar),
+            StateFieldUpdate.setFromVariable('trainingsPage', ctx.responseVar),
           ]),
         ]),
         onFailure: (ctx) => Actions.chain([
@@ -28569,6 +29109,56 @@ void _wireTrainingenPage(FFProject project) {
     return t;
   }
 
+  // Gaat niet door. Komt in plaats van de tellingen: hoeveel mensen zich hadden
+  // aangemeld doet er dan niet meer toe.
+  final afgelastChip = UI.container(
+    name: 'TrainingenCardAfgelast',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    borderRadius: 10,
+    color: UIColor.hex(0xFFFDE3E3),
+    child: UI.text('Afgelast',
+        name: 'TrainingenCardAfgelastLabel',
+        style: UITextStyle.labelSmall,
+        color: UIColor.hex(0xFFB91C1C),
+        fontWeight: UIFontWeight.w700,
+        maxLines: 1),
+  );
+  setConditionalVisibility(afgelastChip,
+      variable:
+          _equalsLiteral(generatorVarField(list.key, 'is_afgelast'), 'true'));
+
+  final tellingen = UI.column(
+    name: 'TrainingenCardCounts',
+    mainAxisMin: true,
+    spacing: 4,
+    children: [
+      UI.row(
+        name: 'TrainingenCardAanmeldRow',
+        spacing: 4,
+        mainAxisMin: true,
+        children: [
+          UI.icon('check_circle', size: 15, color: UIColor.success),
+          bound('TrainingenCardAanmeld', 'aangemeld', UITextStyle.labelMedium,
+              maxLines: 1),
+        ],
+      ),
+      UI.row(
+        name: 'TrainingenCardAfmeldRow',
+        spacing: 4,
+        mainAxisMin: true,
+        children: [
+          UI.icon('cancel', size: 15, color: UIColor.error),
+          bound('TrainingenCardAfmeld', 'afgemeld', UITextStyle.labelMedium,
+              maxLines: 1),
+        ],
+      ),
+    ],
+  );
+  setConditionalVisibility(tellingen,
+      variable: _equalsLiteral(
+          generatorVarField(list.key, 'is_afgelast'), 'true',
+          negate: true));
+
   final card = _dashCard(
     name: 'TrainingenCard',
     child: UI.row(
@@ -28615,33 +29205,8 @@ void _wireTrainingenPage(FFProject project) {
             ),
           ],
         )),
-        UI.column(
-          name: 'TrainingenCardCounts',
-          mainAxisMin: true,
-          spacing: 4,
-          children: [
-            UI.row(
-              name: 'TrainingenCardAanmeldRow',
-              spacing: 4,
-              mainAxisMin: true,
-              children: [
-                UI.icon('check_circle', size: 15, color: UIColor.success),
-                bound('TrainingenCardAanmeld', 'aangemeld',
-                    UITextStyle.labelMedium, maxLines: 1),
-              ],
-            ),
-            UI.row(
-              name: 'TrainingenCardAfmeldRow',
-              spacing: 4,
-              mainAxisMin: true,
-              children: [
-                UI.icon('cancel', size: 15, color: UIColor.error),
-                bound('TrainingenCardAfmeld', 'afgemeld',
-                    UITextStyle.labelMedium, maxLines: 1),
-              ],
-            ),
-          ],
-        ),
+        afgelastChip,
+        tellingen,
       ],
     ),
   );
@@ -28657,6 +29222,11 @@ void _wireTrainingenPage(FFProject project) {
         'location': VariableParamValue(generatorVarField(list.key, 'location')),
         'kleedkamer': VariableParamValue(generatorVarField(list.key, 'dressing_room')),
         'mijnStatus': VariableParamValue(generatorVarField(list.key, 'mijn_status')),
+        'isAfgelast': VariableParamValue(generatorVarField(list.key, 'is_afgelast')),
+        'afgelastReden':
+            VariableParamValue(generatorVarField(list.key, 'afgelast_reden')),
+        'magAfgelasten':
+            VariableParamValue(generatorVarField(list.key, 'mag_afgelasten')),
         'afmeldingen': VariableParamValue(generatorVarField(list.key, 'afmeldingen')),
       }),
     );

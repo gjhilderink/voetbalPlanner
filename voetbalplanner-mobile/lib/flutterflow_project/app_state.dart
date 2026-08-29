@@ -647,6 +647,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<TrainingItem>>",
     persisted: false,
   );
+  static const trainingsPage = ffai.ProjectAppStateFieldHandle(
+    name: "trainingsPage",
+    key: "i56905cp",
+    typeName: "List<DataStruct<TrainingItem>>",
+    persisted: false,
+  );
   static const unreadChatCount = ffai.ProjectAppStateFieldHandle(
     name: "unreadChatCount",
     key: "6aqxbbzz",
@@ -779,6 +785,7 @@ abstract final class AppState {
     teamStats,
     trainingParticipants,
     trainings,
+    trainingsPage,
     unreadChatCount,
     userEmail,
     userName,

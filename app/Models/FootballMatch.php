@@ -22,6 +22,7 @@ class FootballMatch extends Model
         'location', 'is_home', 'status', 'score_home', 'score_away',
         'arrival_time', 'dressing_room', 'coach_id', 'fruit_hero_id', 'vlagger_id', 'notes', 'last_synced_at',
         'live_started_at', 'live_halftime_at', 'live_ended_at', 'live_token',
+        'cancelled_at', 'cancel_reason', 'cancelled_by_user_id',
     ];
 
     protected function casts(): array
@@ -35,6 +36,7 @@ class FootballMatch extends Model
             'live_started_at' => 'datetime',
             'live_halftime_at' => 'datetime',
             'live_ended_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -48,6 +50,21 @@ class FootballMatch extends Model
     public function isLive(): bool
     {
         return $this->live_started_at !== null && $this->live_ended_at === null;
+    }
+
+    /**
+     * Gaat deze wedstrijd niet door?
+     *
+     * Twee bronnen: de coach kan hem zelf afgelasten (cancelled_at), en de bond
+     * kan hem afgelasten - dat komt via de synchronisatie binnen als status
+     * 'cancelled'. Ze staan naast elkaar omdat de synchronisatie status bij elke
+     * ronde overschrijft en een handmatige afgelasting daar niet tegen bestand
+     * zou zijn.
+     */
+    public function isCancelled(): bool
+    {
+        return $this->cancelled_at !== null
+            || strtolower((string) $this->status) === 'cancelled';
     }
 
     /**

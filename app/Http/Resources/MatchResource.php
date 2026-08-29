@@ -11,7 +11,7 @@ class MatchResource extends JsonResource
 {
     private static array $statusLabels = [
         'scheduled'  => 'Gepland',
-        'cancelled'  => 'Geannuleerd',
+        'cancelled'  => 'Afgelast',
         'postponed'  => 'Uitgesteld',
         'played'     => 'Gespeeld',
         'completed'  => 'Gespeeld',
@@ -28,7 +28,11 @@ class MatchResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        $rawStatus  = $this->status ?? '';
+        // Een afgelasting van de coach staat in een eigen kolom en niet in
+        // status - anders zou de Sportlink-synchronisatie hem er de volgende
+        // ochtend weer uit halen. Voor de lijsten in de app maakt de herkomst
+        // niet uit: afgelast is afgelast.
+        $rawStatus  = $this->cancelled_at !== null ? 'cancelled' : ($this->status ?? '');
         $myMemberId = $request->user()?->resolveMember()?->id;
 
         return [
@@ -64,6 +68,9 @@ class MatchResource extends JsonResource
             'vlaggerName'    => $this->vlagger?->name ?? '',
             'vlaggerId'      => $this->vlagger_id ?? '',
             'notes'          => $this->notes ?? '',
+            'isAfgelast'     => $this->cancelled_at !== null
+                || strtolower((string) ($this->status ?? '')) === 'cancelled',
+            'afgelastReden'  => (string) ($this->cancel_reason ?? ''),
             'isFruitHero'    => $myMemberId
                 ? $this->fruit_hero_id === $myMemberId
                 : false,
