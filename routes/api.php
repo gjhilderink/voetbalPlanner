@@ -259,9 +259,14 @@ Route::prefix('v1')->group(function () {
             Route::post('/create-parent-account', [GuardianController::class, 'createParentAccount'])
                  ->middleware(['throttle:5,1']);
 
-            // Ouder: verzoek indienen voor extra kind (throttle: 5/min)
+            // Ouder: verzoek indienen voor extra kind.
+            //
+            // De begrenzing blijft: met een lidnummer en een achternaam kun je
+            // anders net zo lang raden tot je aan iemand hangt. Wel ruimer dan
+            // vijf per minuut - wie zich vertypt bij twee kinderen zat er al
+            // tegenaan, en dat is geen aanval maar een ouder met een telefoon.
             Route::post('/request', [GuardianController::class, 'request'])
-                 ->middleware(['throttle:5,1']);
+                 ->middleware(['throttle:15,1', 'throttle:40,60']);
 
             // Kind: openstaande verzoeken ophalen (ook bij login)
             Route::get('/pending', [GuardianController::class, 'pendingForMe']);

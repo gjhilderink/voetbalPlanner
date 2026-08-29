@@ -20,5 +20,26 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi('60,1');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // De snelheidsbegrenzer gooit "Too Many Attempts." — Engels, zonder
+        // uitleg, en de app zet die tekst rauw op het scherm. Wie een
+        // koppelverzoek indient voor zijn tweede kind ziet dat en denkt dat er
+        // iets stuk is.
+        $exceptions->render(function (
+            \Illuminate\Http\Exceptions\ThrottleRequestsException $e,
+            \Illuminate\Http\Request $request,
+        ) {
+            if (! $request->expectsJson() && ! $request->is('api/*')) {
+                return null;
+            }
+
+            $seconden = (int) ($e->getHeaders()['Retry-After'] ?? 60);
+            $wacht = $seconden > 60
+                ? ceil($seconden / 60) . ' minuten'
+                : $seconden . ' seconden';
+
+            return response()->json([
+                'success' => false,
+                'message' => "Te veel pogingen achter elkaar. Probeer het over {$wacht} opnieuw.",
+            ], 429, $e->getHeaders());
+        });
     })->create();
