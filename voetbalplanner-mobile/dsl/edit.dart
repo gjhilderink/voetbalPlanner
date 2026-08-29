@@ -22423,17 +22423,31 @@ void _addScoreEndpoints(FFProject project) {
   // gebruiker (?include_self=1). Het gedeelde GetTeamMembers sluit jezelf uit
   // (bedoeld voor swap/chat: niet met jezelf), waardoor je in de maker-keuze
   // niet iedereen zag. Zelfde SwapMember-vorm, aparte URL.
+  //
+  // players_only=1: de coach en de leiders horen niet in deze lijst. Je kiest er
+  // wie er scoorde en wie je opstelt, en dat zijn spelers. Ze stonden er wel
+  // tussen, en juist bovenaan, omdat de lijst op naam is gesorteerd.
+  const scorerUrl = '/teams/[teamId]/members?include_self=1&players_only=1';
+
   if (!has('GetScorerMembers')) {
     addEndpointToGroup(
       project,
       groupName: 'VoetbalPlannerAPI',
       name: 'GetScorerMembers',
-      url: '/teams/[teamId]/members?include_self=1',
+      url: scorerUrl,
       method: FFApiEndpoint_CallType.GET,
       variables: {'teamId': str()},
       headers: ['Authorization: Bearer [bearerToken]'],
       responseDataStructName: 'SwapMember',
       responseDataStructIsList: true,
+    );
+  } else {
+    // Bestond al zonder de filter; bijwerken, anders blijft het bij de oude URL.
+    updateApiEndpoint(
+      project,
+      name: 'GetScorerMembers',
+      groupName: 'VoetbalPlannerAPI',
+      url: scorerUrl,
     );
   }
 }

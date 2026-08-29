@@ -59,8 +59,13 @@ class TeamController extends Controller
         // blijft de gebruiker uitgesloten (je wisselt/chat niet met jezelf).
         $includeSelf = $request->boolean('include_self');
 
+        // Alleen spelers, voor de schermen waar je er een kiest: wie scoorde,
+        // wie je opstelt. De coach en de leiders horen daar niet tussen, en
+        // omdat de lijst op naam is gesorteerd stonden ze er vaak bovenaan.
+        $alleenSpelers = $request->boolean('players_only');
+
         // 1. Klassieke Sportlink-leden via member_team pivot.
-        $members = $team->members()
+        $members = ($alleenSpelers ? $team->playingMembers() : $team->members())
             ->when($myMemberId && ! $includeSelf, fn($q) => $q->where('members.id', '!=', $myMemberId))
             ->orderBy('members.name')
             ->get();
@@ -84,7 +89,10 @@ class TeamController extends Controller
         //    rooster-lid is. Worden Member-shape gemapt voor de mobile app.
         $linkedMemberUserIds = $members->pluck('user_id')->filter()->all();
 
-        $extraUsers = $team->users()
+        // Accounts zonder lidprofiel die via user_team aan het elftal hangen zijn
+        // per definitie staf - coach, leider, bardienst. Bij een spelerslijst
+        // vallen ze dus helemaal weg.
+        $extraUsers = $alleenSpelers ? collect() : $team->users()
             ->whereNotIn('users.id', $linkedMemberUserIds)
             ->when($myUserId && ! $includeSelf, fn($q) => $q->where('users.id', '!=', $myUserId))
             ->orderBy('users.name')
