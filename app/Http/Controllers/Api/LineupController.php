@@ -73,6 +73,13 @@ class LineupController extends Controller
             ->pluck('member_id')
             ->all();
 
+        // Uitgenodigde gastspelers horen meteen in de selectie, ook als ze nog
+        // niet gereageerd hebben. Je nodigt iemand uit omdát je hem wilt
+        // opstellen; wachten op een bevestiging die misschien pas zaterdagochtend
+        // komt betekent dat je je opstelling niet kunt maken.
+        $gasten = $this->gastLeden($match);
+        $gastIds = $gasten->pluck('id')->all();
+
         $rij = fn (LineupPlayer $p) => [
             'memberId'   => (string) $p->member_id,
             'naam'       => $p->member?->name ?? '',
@@ -84,6 +91,7 @@ class LineupController extends Controller
             'posX'       => (string) ($p->slot_x ?? ''),
             'posY'       => (string) ($p->slot_y ?? ''),
             'isAfgemeld' => in_array($p->member_id, $afgemeld, true) ? 'true' : 'false',
+            'isGast'     => in_array($p->member_id, $gastIds, true) ? 'true' : 'false',
             // De periode hoort er ook bij. Zonder dit veld leest de app elke
             // speler als periode 1: een opstelling met twee helften kwam dan
             // terug als dubbele pionnen in de eerste en een lege tweede.
@@ -111,7 +119,7 @@ class LineupController extends Controller
                 ->sortBy('sort_order')->values()->map($rij)->all(),
             'bank'           => $spelers->where('is_substitute', true)
                 ->sortBy('sort_order')->values()->map($rij)->all(),
-            'selectie'       => $this->selectie($match, $afgemeld),
+            'selectie'       => $this->selectie($match, $afgemeld, $gasten),
             // Afgeleid uit de perioden, niet opgeslagen — zie Lineup.
             'wissels'        => $lineup?->derivedSubstitutions() ?? [],
             'melding'        => '',
@@ -123,9 +131,10 @@ class LineupController extends Controller
      * kan opstellen zonder een tweede scherm.
      *
      * @param  array<string>  $afgemeld
+     * @param  \Illuminate\Support\Collection<int, \App\Models\Member>  $gasten
      * @return array<int, array<string, string>>
      */
-    private function selectie(FootballMatch $match, array $afgemeld): array
+    private function selectie(FootballMatch $match, array $afgemeld, $gasten): array
     {
         // Kolommen kwalificeren: member_team heeft óók een is_active, en zonder
         // tabelnaam maakt MySQL daar "Column 'is_active' is ambiguous" van — een
@@ -135,14 +144,55 @@ class LineupController extends Controller
             ->orderBy('members.name')
             ->get() ?? collect();
 
-        return $leden->map(fn ($m) => [
+        $regel = fn ($m, bool $gast) => [
             'memberId'   => (string) $m->id,
             'naam'       => $m->name,
             'nummer'     => (string) ($m->shirt_number ?? ''),
             'posX'       => '',
             'posY'       => '',
             'isAfgemeld' => in_array($m->id, $afgemeld, true) ? 'true' : 'false',
-        ])->values()->all();
+            'isGast'     => $gast ? 'true' : 'false',
+        ];
+
+        $eigenIds = $leden->pluck('id')->all();
+
+        // Gasten onderaan en niet door de alfabetische lijst heen: het is een
+        // aparte groep, en de coach wil in één oogopslag zien wie hij erbij
+        // heeft gehaald. Wie al gewoon in het elftal zit valt af - dat kan bij
+        // een speler die van team wisselt.
+        $extra = $gasten
+            ->reject(fn ($m) => in_array($m->id, $eigenIds, true))
+            ->sortBy('name')
+            ->map(fn ($m) => $regel($m, true))
+            ->values()
+            ->all();
+
+        return array_merge(
+            $leden->map(fn ($m) => $regel($m, false))->values()->all(),
+            $extra,
+        );
+    }
+
+    /**
+     * De leden die als gast voor deze wedstrijd zijn uitgenodigd.
+     *
+     * Alleen de status van de uitnodiging telt, niet of de gast hem gezien of
+     * geaccepteerd heeft: voor de coach die de opstelling maakt is "ik heb hem
+     * gevraagd" het enige wat op dat moment vaststaat.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\Member>
+     */
+    private function gastLeden(FootballMatch $match)
+    {
+        return \App\Models\MatchGuestInvitation::query()
+            ->where('match_id', $match->id)
+            ->active()
+            ->with('member:id,name,shirt_number')
+            ->get()
+            ->map(fn ($g) => $g->member)
+            ->filter()
+            ->unique('id')
+            ->values();
     }
 
     /**
@@ -176,7 +226,14 @@ class LineupController extends Controller
             'players.*.period'        => 'nullable|integer|min:1|max:4',
         ]);
 
-        $teamLeden = $match->team?->members()->pluck('members.id')->all() ?? [];
+        // De uitgenodigde gasten horen er net zo goed bij. Zonder dit vielen ze
+        // hieronder stilzwijgend weg: de coach zette een gast op het veld, sloeg
+        // op, kreeg "opgeslagen" te zien en zag hem bij het herladen weer
+        // verdwenen zijn.
+        $teamLeden = array_merge(
+            $match->team?->members()->pluck('members.id')->all() ?? [],
+            $this->gastLeden($match)->pluck('id')->all(),
+        );
 
         DB::transaction(function () use ($match, $validated, $teamLeden) {
             $lineup = Lineup::updateOrCreate(
@@ -195,7 +252,8 @@ class LineupController extends Controller
             $volgorde = 0;
             foreach ($validated['players'] as $speler) {
                 // Beheerrechten op dit elftal geven geen toegang tot de rest van
-                // de club; een lid van buiten het team hoort hier niet te staan.
+                // de club; een lid van buiten het team - en niet als gast voor
+                // deze wedstrijd uitgenodigd - hoort hier niet te staan.
                 if ($teamLeden && ! in_array($speler['member_id'], $teamLeden, true)) {
                     continue;
                 }

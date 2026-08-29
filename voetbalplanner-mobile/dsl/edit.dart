@@ -34671,6 +34671,7 @@ class _LineupBoardState extends State<LineupBoard> {
         posX: posX,
         posY: posY,
         isAfgemeld: s.isAfgemeld,
+        isGast: s.isGast,
         period: '${periode ?? _periode}',
       );
 
@@ -35192,6 +35193,7 @@ class _LineupBoardState extends State<LineupBoard> {
   Widget _bankRij(FlutterFlowTheme theme, LineupSlotStruct speler,
       {bool metKnoppen = false, bool alleenOpstellen = false}) {
     final afgemeld = speler.isAfgemeld == 'true';
+    final gast = speler.isGast == 'true';
 
     final kop = Row(
       children: [
@@ -35239,6 +35241,25 @@ class _LineupBoardState extends State<LineupBoard> {
               style: theme.labelSmall.override(
                 fontFamily: theme.labelSmallFamily,
                 color: const Color(0xFFB91C1C),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        // Een gast staat gewoon tussen de selectie, maar zonder dit label zou
+        // de coach een naam zien die niet in zijn elftal thuishoort en zich
+        // afvragen waar die vandaan komt.
+        if (gast && !afgemeld)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0EAFF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              'Gast',
+              style: theme.labelSmall.override(
+                fontFamily: theme.labelSmallFamily,
+                color: const Color(0xFF1D4ED8),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -35501,6 +35522,7 @@ class _LineupBoardState extends State<LineupBoard> {
             posX: eruit[i].posX,
             posY: eruit[i].posY,
             isAfgemeld: erin[i].isAfgemeld,
+            isGast: erin[i].isGast,
             period: '$periode',
           ));
         }
@@ -35520,6 +35542,7 @@ class _LineupBoardState extends State<LineupBoard> {
             posX: s.posX,
             posY: s.posY,
             isAfgemeld: s.isAfgemeld,
+            isGast: s.isGast,
             period: '$periode',
           )));
       nieuwBank.addAll(bank.map((s) => LineupSlotStruct(
@@ -35529,6 +35552,7 @@ class _LineupBoardState extends State<LineupBoard> {
             posX: '',
             posY: '',
             isAfgemeld: s.isAfgemeld,
+            isGast: s.isGast,
             period: '$periode',
           )));
     }
@@ -35764,9 +35788,13 @@ void _ensureLineupBoardStruct(FFProject project) {
     project,
     name: 'LineupSlot',
     description:
-        'Eén speler op het opstellingsbord: naam, rugnummer, plek op het veld (0..1) en of hij zich heeft afgemeld.',
+        'Eén speler op het opstellingsbord: naam, rugnummer, plek op het veld (0..1), of hij zich heeft afgemeld en of hij als gast is uitgenodigd.',
     fields: const [
       'memberId', 'naam', 'nummer', 'posX', 'posY', 'isAfgemeld', 'period',
+      // Uitgenodigd voor deze ene wedstrijd en geen lid van het elftal. Moet
+      // door elke kopie heen meelopen, anders is een gast na het verslepen
+      // ineens een gewone speler.
+      'isGast',
     ],
   );
 
@@ -35866,6 +35894,7 @@ Future<String> loadLineupBoard(String? matchId, String? teamId) async {
               posX: '${m['posX'] ?? ''}',
               posY: '${m['posY'] ?? ''}',
               isAfgemeld: '${m['isAfgemeld'] ?? 'false'}',
+              isGast: '${m['isGast'] ?? 'false'}',
               period: '${m['period'] ?? '1'}',
             ))
         .toList();

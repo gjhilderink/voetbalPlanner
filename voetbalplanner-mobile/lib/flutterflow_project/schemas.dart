@@ -313,6 +313,7 @@ abstract final class Structs {
     "LineupSlot",
     <String, ffai.DslType>{
       "isAfgemeld": ffai.string,
+      "isGast": ffai.string,
       "memberId": ffai.string,
       "naam": ffai.string,
       "nummer": ffai.string,
