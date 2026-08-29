@@ -16,11 +16,21 @@ use Illuminate\Support\Facades\DB;
 
 class LineupController extends Controller
 {
-    public function show(FootballMatch $match): JsonResponse
+    public function show(Request $request, FootballMatch $match): JsonResponse
     {
         $lineup = $match->lineup()->with('players.member')->first();
 
         if (!$lineup) {
+            return response()->json([]);
+        }
+
+        // Dezelfde regel als bij het opstellingsbord: zolang de coach de
+        // opstelling niet heeft vrijgegeven is hij van hem alleen. Deze weg
+        // stond nog open - de livepagina las hem hier op en liet elk teamlid
+        // meekijken met een indeling waar de coach nog aan zat te schuiven.
+        $magBeheren = $request->user()?->canManageLineup($match->team_id) ?? false;
+
+        if (! $magBeheren && ! $lineup->isPublished()) {
             return response()->json([]);
         }
 

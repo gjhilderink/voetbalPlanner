@@ -371,7 +371,7 @@ class LiveMatchService
             // pagina zet ze links en rechts van de stand.
             'teamLogo'      => $this->clubLogo($match),
             'events'        => $events,
-            'lineup'        => $this->lineup($match),
+            'lineup'        => $this->lineup($match, $canManage),
             'stats'         => $this->stats($match),
         ];
     }
@@ -390,8 +390,16 @@ class LiveMatchService
      *
      * @return array{starters: array<string>, bench: array<string>}
      */
-    private function lineup(FootballMatch $match): array
+    private function lineup(FootballMatch $match, bool $canManage = false): array
     {
+        // Niet vrijgegeven is niet zichtbaar. Deze toestand gaat óók naar de
+        // publieke deellink, waar iedereen met het adres bij kan en van wie we
+        // niet eens weten of hij bij de club hoort; een concept-opstelling van
+        // een half uur voor de wedstrijd hoort daar zeker niet te staan.
+        if (! $canManage && ! ($match->lineup?->isPublished() ?? false)) {
+            return ['starters' => [], 'bench' => []];
+        }
+
         $spelers = $match->lineup?->players ?? collect();
 
         $namen = fn (bool $bank) => $spelers

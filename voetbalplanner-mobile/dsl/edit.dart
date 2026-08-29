@@ -33301,11 +33301,20 @@ FFNode? _liveLineupSection(
 
   // Geen opstelling ingevuld? Dan ook geen kopje — behalve voor de coach, die
   // moet er juist bij kunnen om hem te maken.
+  //
+  // En voor de rest pas zodra er is afgetrapt. De server houdt een niet
+  // vrijgegeven opstelling al binnen, maar ook een vrijgegeven opstelling hoort
+  // hier niet vóór de wedstrijd te staan: wie op "live volgen" tikt komt kijken
+  // naar wat er gebeurt, niet naar wat de coach van plan is. Op de
+  // wedstrijdpagina staat hij gewoon.
   setConditionalVisibility(
     kaart,
     variable: orConditionsVar([
-      _listNotEmptyVar(lineupVar),
       canManage.deepCopy(),
+      andConditionsVar([
+        _listNotEmptyVar(lineupVar),
+        _equalsLiteral(stateField('period'), 'not_started', negate: true),
+      ]).variable,
     ]).variable,
   );
 
