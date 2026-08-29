@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\FootballMatch;
 use App\Models\Goal;
+use App\Models\LiveViewer;
 use App\Models\MatchEvent;
 use App\Models\User;
 use Carbon\Carbon;
@@ -26,6 +27,13 @@ class LiveMatchService
     private const GRACE_HOURS = 3;
 
     /**
+     * Binnen hoeveel seconden na zijn laatste verzoek iemand nog als meekijker
+     * telt. Beide clients pollen elke tien seconden, dus dit verdraagt één
+     * gemiste ronde; korter en het getal knippert bij een hikkende verbinding.
+     */
+    private const VIEWER_WINDOW_SECONDS = 30;
+
+    /**
      * Start het verslag. Levert altijd een verse token op, zodat een eerder
      * gedeelde link nooit een volgende wedstrijd opent.
      */
@@ -42,6 +50,7 @@ class LiveMatchService
             // Een herstart begint met een schone lei; anders blijft het verslag
             // van de vorige poging eronder hangen.
             $match->events()->delete();
+            LiveViewer::where('match_id', $match->id)->delete();
 
             MatchEvent::create([
                 'match_id'   => $match->id,
@@ -163,6 +172,7 @@ class LiveMatchService
             }
 
             $match->events()->delete();
+            LiveViewer::where('match_id', $match->id)->delete();
 
             $match->forceFill([
                 'live_started_at'  => null,
@@ -231,8 +241,75 @@ class LiveMatchService
         return max(0, (int) $minuten);
     }
 
-    /** De volledige toestand: stand, klok, periode en de tijdlijn. */
-    public function state(FootballMatch $match, bool $canManage = false): array
+    /**
+     * Teken van leven van iemand die meekijkt.
+     *
+     * Wordt aangeroepen vanuit de twee plekken waar de toestand wordt
+     * opgevraagd - de app-API en de publieke pagina - want die vragen allebei
+     * elke tien seconden opnieuw. De sleutel is per kijker uniek en stabiel:
+     * het gebruikers-id in de app, en op de publieke pagina een hash van de
+     * sessie. Nooit een IP-adres.
+     */
+    public function registerViewer(FootballMatch $match, string $key, string $source): void
+    {
+        // Alleen tijdens de wedstrijd. Na het eindsignaal blijft de link nog
+        // uren open en zou de teller doorlopen zonder dat iemand hem leest.
+        if (! $match->isLive() || $key === '') {
+            return;
+        }
+
+        // upsert en geen updateOrCreate: dat laatste is een SELECT gevolgd door
+        // een INSERT, en twee verzoeken die elkaar overlappen lopen dan op een
+        // dubbele-sleutel-fout. Dit is één statement dat MySQL zelf afhandelt.
+        DB::table('live_viewers')->upsert(
+            [[
+                'id'           => (string) Str::uuid(),
+                'match_id'     => $match->id,
+                'viewer_key'   => mb_substr($key, 0, 64),
+                'source'       => $source,
+                'last_seen_at' => now(),
+            ]],
+            ['match_id', 'viewer_key'],
+            ['source', 'last_seen_at'],
+        );
+    }
+
+    /** Hoeveel mensen er op dit moment meekijken. */
+    public function viewerCount(FootballMatch $match): int
+    {
+        return LiveViewer::where('match_id', $match->id)
+            ->where('last_seen_at', '>=', Carbon::now()->subSeconds(self::VIEWER_WINDOW_SECONDS))
+            ->count();
+    }
+
+    /**
+     * Het aantal als zin. Hoort op de server thuis, net als periodLabel: de
+     * app-struct bestaat uit losse strings en kan geen enkelvoud van meervoud
+     * onderscheiden.
+     */
+    private function viewersLabel(int $aantal): string
+    {
+        return match (true) {
+            $aantal <= 0 => 'Nog niemand kijkt mee',
+            $aantal === 1 => '1 persoon kijkt mee',
+            default => $aantal . ' mensen kijken mee',
+        };
+    }
+
+    /**
+     * De volledige toestand: stand, klok, periode en de tijdlijn.
+     *
+     * $withViewers moet apart worden gevraagd en niet worden afgeleid uit
+     * $canManage: mine() bouwt de "Nu live"-kaart voor het dashboard en roept
+     * dit voor élke lopende wedstrijd aan, ook als coach. Zonder dit
+     * onderscheid zou het openen van het dashboard een telling per wedstrijd
+     * kosten voor een getal dat daar niet eens getoond wordt.
+     */
+    public function state(
+        FootballMatch $match,
+        bool $canManage = false,
+        bool $withViewers = false,
+    ): array
     {
         $match->loadMissing([
             'team.club', 'events.member', 'events.relatedMember',
@@ -259,6 +336,12 @@ class LiveMatchService
             ])
             ->all();
 
+        // Alleen tellen voor wie het getal ook te zien krijgt. De publieke
+        // pagina levert verreweg de meeste verzoeken en vraagt hier niet om;
+        // die overslaan scheelt bij een druk bekeken wedstrijd een telling per
+        // kijker per tien seconden.
+        $kijkers = ($withViewers && $match->isLive()) ? $this->viewerCount($match) : 0;
+
         return [
             'matchId'       => $match->id,
             // De app laadt hiermee de spelerkeuze voor doelpunten, wissels en
@@ -276,6 +359,13 @@ class LiveMatchService
             'isLive'        => $match->isLive() ? 'true' : 'false',
             'hasEnded'      => $ended ? 'true' : 'false',
             'canManage'     => $canManage ? 'true' : 'false',
+            // Altijd aanwezig, ook als er niet geteld is: de app-struct hoort
+            // niet per antwoord van vorm te veranderen. Een leeg label betekent
+            // "niet tonen".
+            'viewers'       => (string) $kijkers,
+            'viewersLabel'  => ($withViewers && $match->isLive())
+                ? $this->viewersLabel($kijkers)
+                : '',
             'shareUrl'      => $match->live_token ? url('/live/' . $match->live_token) : '',
             // Het eigen clubembleem; de tegenstander heeft er al een. De publieke
             // pagina zet ze links en rechts van de stand.

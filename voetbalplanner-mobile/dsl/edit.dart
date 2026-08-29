@@ -31256,6 +31256,10 @@ void _ensureLiveStructs(FFProject project) {
       'matchId', 'teamId', 'teamName', 'opponent', 'opponentLogo', 'isHome',
       'scoreOwn', 'scoreOpponent', 'period', 'periodLabel', 'minute',
       'isLive', 'hasEnded', 'canManage', 'shareUrl',
+      // Hoeveel mensen er nu meekijken. Het label is op de server al tot een
+      // zin gemaakt, want deze struct is puur string en kan geen enkelvoud van
+      // meervoud onderscheiden. De server stuurt het alleen aan een coach.
+      'viewers', 'viewersLabel',
     ],
   );
   _ensureFlatStringStruct(
@@ -32261,6 +32265,21 @@ void _wireLiveMatchPage(FFProject project) {
     ]).variable,
   );
 
+  // Hoeveel mensen er meekijken, naast de titel. Dat is waar een coach het wil
+  // zien: hij houdt het verslag bij met de knoppen eronder, en het scheelt of
+  // hij dat voor niemand doet of voor dertig man.
+  //
+  // Verborgen zolang het label leeg is - in de seconden tussen het openen van
+  // de pagina en het eerste antwoord van de server staat er anders een lege
+  // regel. De server laat het leeg voor iedereen die geen coach is.
+  final kijkers = boundText('LiveViewerCount', 'viewersLabel',
+      UITextStyle.bodySmall,
+      color: UIColor.secondaryText, maxLines: 1);
+  setConditionalVisibility(
+    kijkers,
+    variable: _equalsLiteral(stateField('viewersLabel'), '', negate: true),
+  );
+
   final coachBar = UI.container(
     name: 'LiveCoachBar',
     innerPadding: UIEdgeInsets.only(left: 16, right: 16, top: 14),
@@ -32269,8 +32288,16 @@ void _wireLiveMatchPage(FFProject project) {
       crossAxisAlignment: UICrossAxisAlignment.stretch,
       spacing: 8,
       children: [
-        UI.text('Vastleggen',
-            name: 'LiveCoachTitle', style: UITextStyle.titleSmall),
+        UI.row(
+          name: 'LiveCoachHead',
+          spacing: 8,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.expanded(UI.text('Vastleggen',
+                name: 'LiveCoachTitle', style: UITextStyle.titleSmall)),
+            kijkers,
+          ],
+        ),
         UI.row(
           name: 'LiveCoachRowA',
           spacing: 8,

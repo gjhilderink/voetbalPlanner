@@ -37,7 +37,7 @@ class LiveMatchController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Het live verslag is gestart.',
-            'data'    => $this->live->state($match->fresh(), true),
+            'data'    => $this->live->state($match->fresh(), true, withViewers: true),
         ]);
     }
 
@@ -76,7 +76,7 @@ class LiveMatchController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Vastgelegd.',
-            'data'    => $this->live->state($match->fresh(), true),
+            'data'    => $this->live->state($match->fresh(), true, withViewers: true),
         ]);
     }
 
@@ -92,7 +92,7 @@ class LiveMatchController extends Controller
         return response()->json([
             'success' => true,
             'message' => $event ? 'Laatste gebeurtenis teruggedraaid.' : 'Er is niets om terug te draaien.',
-            'data'    => $this->live->state($match->fresh(), true),
+            'data'    => $this->live->state($match->fresh(), true, withViewers: true),
         ]);
     }
 
@@ -114,7 +114,7 @@ class LiveMatchController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Het live verslag is afgesloten.',
-            'data'    => $this->live->state($match->fresh(), true),
+            'data'    => $this->live->state($match->fresh(), true, withViewers: true),
         ]);
     }
 
@@ -142,7 +142,7 @@ class LiveMatchController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Het verslag is verwijderd.',
-            'data'    => $this->live->state($match->fresh(), true),
+            'data'    => $this->live->state($match->fresh(), true, withViewers: true),
         ]);
     }
 
@@ -284,7 +284,16 @@ class LiveMatchController extends Controller
     {
         $canManage = (bool) $request->user()?->canManageLineup($match->team_id);
 
-        return response()->json($this->live->state($match, $canManage));
+        // Dit verzoek komt elke tien seconden binnen zolang iemand de
+        // livepagina open heeft. Daarmee is het meteen het teken van leven
+        // waaruit de coach afleest hoeveel mensen er meekijken.
+        if ($id = $request->user()?->id) {
+            $this->live->registerViewer($match, 'u:' . $id, 'app');
+        }
+
+        return response()->json(
+            $this->live->state($match, $canManage, withViewers: $canManage),
+        );
     }
 
     /**

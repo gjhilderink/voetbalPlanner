@@ -367,6 +367,7 @@
     var stateUrl = @json($stateUrl);
     var thuis = @json($thuis);
     var timer = null;
+    var gestopt = false;
 
     var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
     tabs.forEach(function (knop) {
@@ -463,9 +464,9 @@
         document.getElementById('statistieken').innerHTML = tekenStats(s);
 
         // Afgelopen: stoppen met vragen, er verandert niets meer.
-        if (afgelopen && timer) {
-            clearInterval(timer);
-            timer = null;
+        if (afgelopen) {
+            gestopt = true;
+            stopPollen();
         }
     }
 
@@ -473,18 +474,42 @@
         fetch(stateUrl, { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
             .then(function (r) {
                 // 404 = de link is verlopen; verder proberen heeft geen zin.
-                if (r.status === 404) { clearInterval(timer); timer = null; return null; }
+                if (r.status === 404) { gestopt = true; stopPollen(); return null; }
                 return r.ok ? r.json() : null;
             })
             .then(function (s) { if (s) teken(s); })
             .catch(function () { /* netwerkhik: bij de volgende ronde opnieuw */ });
     }
 
-    if (@json($state['hasEnded']) !== 'true') {
+    function startPollen() {
+        if (timer || gestopt) return;
+        // Meteen één keer, niet pas over tien seconden. De stand hierboven staat
+        // al goed, maar dit eerste verzoek is ook het teken van leven waaruit de
+        // coach afleest hoeveel mensen er meekijken.
+        ophalen();
         timer = setInterval(ophalen, 10000);
-        // Niet pollen terwijl de pagina op de achtergrond staat.
+    }
+
+    function stopPollen() {
+        if (!timer) return;
+        clearInterval(timer);
+        timer = null;
+    }
+
+    if (@json($state['hasEnded']) !== 'true') {
+        startPollen();
+        // Écht stoppen zolang de pagina op de achtergrond staat. Hier stond een
+        // listener die het interval liet doorlopen en er alleen een extra
+        // verzoek bovenop deed. Een browser knijpt een verborgen tabblad terug
+        // naar ongeveer één verzoek per minuut, en daarmee valt zo'n kijker
+        // telkens uit de telling en springt er weer in: de coach ziet het
+        // aantal meekijkers dan staan knipperen.
         document.addEventListener('visibilitychange', function () {
-            if (document.visibilityState === 'visible') ophalen();
+            if (document.visibilityState === 'visible') {
+                startPollen();
+            } else {
+                stopPollen();
+            }
         });
     }
 </script>

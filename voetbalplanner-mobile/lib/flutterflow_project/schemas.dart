@@ -363,6 +363,8 @@ abstract final class Structs {
       "shareUrl": ffai.string,
       "teamId": ffai.string,
       "teamName": ffai.string,
+      "viewers": ffai.string,
+      "viewersLabel": ffai.string,
     },
     description: ffai.generatedProjectStructDescription,
   );

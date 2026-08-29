@@ -31,3 +31,10 @@ Schedule::call(fn () => \App\Models\Setting::set(
 
 // Markeer verlopen ouder/verzorger koppelverzoeken als geweigerd
 Schedule::command('guardian:expire')->dailyAt('02:00')->name('guardian-expire');
+
+// Meekijkers van live verslagen opruimen. De rijen worden al gewist bij het
+// starten en het weggooien van een verslag, maar een wedstrijd die gewoon
+// afgelopen is laat ze staan - en niemand kijkt een dag later nog mee.
+Schedule::call(fn () => \App\Models\LiveViewer::where(
+    'last_seen_at', '<', now()->subDay(),
+)->delete())->dailyAt('03:30')->name('live-viewers-opruimen');
