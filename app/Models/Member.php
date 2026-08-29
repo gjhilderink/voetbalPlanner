@@ -56,6 +56,12 @@ class Member extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** De opgegeven kledingmaten, één per kledingstuk. */
+    public function clothingSizes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MemberClothingSize::class);
+    }
+
     public function teams(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Team::class)

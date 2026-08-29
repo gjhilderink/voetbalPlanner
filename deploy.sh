@@ -37,6 +37,9 @@ php artisan db:seed --class=OnboardingSlidesSeeder --force
 echo "2e. Seeding agenda-categorieën (per club, alleen als leeg)..."
 php artisan db:seed --class=AgendaCategoriesSeeder --force
 
+echo "2f. Seeding kledingstukken (per club, alleen als leeg)..."
+php artisan db:seed --class=ClothingSeeder --force
+
 echo "3. Publishing Filament assets..."
 php artisan filament:assets
 

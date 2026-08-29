@@ -84,6 +84,11 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         return $this->hasRole('bar_commissie');
     }
 
+    public function isKledingCommissie(): bool
+    {
+        return $this->hasRole('kleding_commissie');
+    }
+
     public function canImpersonate(): bool
     {
         return $this->hasRole('super_admin');
