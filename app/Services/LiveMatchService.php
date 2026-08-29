@@ -169,6 +169,17 @@ class LiveMatchService
                 'live_halftime_at' => null,
                 'live_ended_at'    => null,
                 'live_token'       => null,
+                // Ook de uitslag. Die wordt bij het eindsignaal uit het verslag
+                // weggeschreven (zie finalise), dus na het weggooien van het
+                // verslag staat er een score waar niets meer achter zit: de
+                // statistiek is leeg, de doelpunten zijn weg, en op de kaart
+                // staat nog 3-1.
+                //
+                // Bij een wedstrijd uit Sportlink komt de officiële uitslag bij
+                // de eerstvolgende synchronisatie vanzelf terug; bij een
+                // oefenwedstrijd hoort hij weg te zijn.
+                'score_home' => null,
+                'score_away' => null,
             ])->save();
         });
     }
