@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\SwapRequestController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\TeamDocumentController;
+use App\Http\Controllers\Api\ClothingController;
 use App\Http\Controllers\Api\TeamLineupController;
 use App\Http\Controllers\Api\TeamMoodController;
 use App\Http\Controllers\Api\TeamStatsController;
@@ -238,6 +239,12 @@ Route::prefix('v1')->group(function () {
         Route::patch('swap-requests/{swapRequest}/decline', [SwapRequestController::class, 'decline']);
 
         // Profiel
+        // Kledingmaten. Ophalen geeft de regels van iedereen voor wie je mag
+        // invullen: jezelf en je gekoppelde kinderen.
+        Route::get('/profile/clothing', [ClothingController::class, 'index']);
+        Route::post('/profile/clothing', [ClothingController::class, 'store']);
+        Route::get('/clothing/sizes', [ClothingController::class, 'sizes']);
+
         Route::patch('/profile/photo', [ProfileController::class, 'updatePhoto']);
         // Account zelf verwijderen (POST i.p.v. DELETE; shared-host-veilig)
         Route::post('/profile/delete', [ProfileController::class, 'destroy']);
