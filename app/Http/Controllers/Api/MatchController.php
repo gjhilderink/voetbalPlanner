@@ -90,6 +90,12 @@ class MatchController extends Controller
         // Opstelling + score beheren mag alleen de coach van het team (of beheerder).
         $data['mag_opstelling'] = $request->user()?->canManageLineup($match->team_id) ?? false;
 
+        // Is er al een live verslag aangemaakt? Niet hetzelfde als isLive(): ook
+        // een afgefloten wedstrijd heeft er een. De app gebruikt dit om de knop
+        // "Start live verslag" te vervangen door "Open live verslag", zodat een
+        // tweede coach niet opnieuw begint aan iets wat al loopt.
+        $data['live_gestart'] = $match->live_started_at !== null;
+
         // Korte doelpunten-samenvatting voor het coach-scherm ("12' Jan, 45' Piet").
         $data['goals_summary'] = $match->goalsSummary();
 

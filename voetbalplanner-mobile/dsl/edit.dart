@@ -1149,6 +1149,7 @@ void buildEditFlow(App app) {
       'matchDriverNames', 'matchNotes', 'apiStatus',
       'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
       'matchTeamId', 'selectedScorerName', 'inviteTeamId', 'matchOpponentLogo',
+      'matchLiveGestart',
     ]) {
       state.ensureField(f, string.withDefault(''));
     }
@@ -11602,6 +11603,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
     'matchDriverNames', 'matchNotes',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
     'matchGoalsSummary', 'matchTeamId', 'selectedScorerName', 'matchOpponentLogo',
+    'matchLiveGestart',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -11640,6 +11642,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchGoalsSummary':  r'$.goals_summary',
           'matchTeamId':        r'$.teamId',
           'matchOpponentLogo':  r'$.opponentLogo',
+          'matchLiveGestart':   r'$.live_gestart',
           // matchAfmeldingen is een structlijst en gaat hieronder apart.
         };
         final updates = <StateFieldUpdate>[
@@ -32716,19 +32719,6 @@ void _addLiveMatchButton(FFProject project) {
   final matchIdVar = varFromPageParam(matchIdParam.deepCopy())
     ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
 
-  final canManage = codeExpressionVar(
-    expression: "m == 'true'",
-    arguments: [
-      CodeExpressionArg(
-        name: 'm',
-        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-        value: FFValue(variable: pageState('matchMagOpstelling')),
-      ),
-    ],
-    returnType:
-        FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
-  );
-
   FFNode knop(String naam, String label, String icoon, UIColor kleur) {
     return UI.container(
       name: naam,
@@ -32753,44 +32743,59 @@ void _addLiveMatchButton(FFProject project) {
     );
   }
 
-  // Naar de livepagina; die start zelf het pollen.
-  final volgKnop = knop('LiveFollowButton', 'Live volgen', 'play_circle',
-      UIColor.hex(0xFFEF4444));
-  Actions.onTap(
-    volgKnop,
-    Actions.navigate(project, pageName: 'LiveMatchPage', params: {
-      'matchId': VariableParamValue(matchIdVar.deepCopy()),
-      'teamId': VariableParamValue(pageState('matchTeamId')),
-    }),
-  );
-
-  // Starten: eerst het endpoint, dan door naar de livepagina.
-  final startKnop =
-      knop('LiveStartButton', 'Start live verslag', 'sensors', UIColor.primary);
-  final startNode = Actions.apiCallNode(
-    project,
-    endpointName: 'StartLiveMatch',
-    groupName: 'VoetbalPlannerAPI',
-    dynamicVariables: {
-      'token': varFromAppState(authTokenId.deepCopy()),
-      'matchId': matchIdVar.deepCopy(),
-    },
-    outputVariableName: 'liveStart',
-    nodeKey: startKnop.key,
-    onSuccess: (ctx) => Actions.chain([
+  // Alle drie de knoppen doen hetzelfde: naar de livepagina. Alleen het opschrift
+  // verschilt, en dat hangt af van wie je bent en of er al een verslag loopt.
+  FFAction naarLive() =>
       Actions.navigate(project, pageName: 'LiveMatchPage', params: {
         'matchId': VariableParamValue(matchIdVar.deepCopy()),
         'teamId': VariableParamValue(pageState('matchTeamId')),
-      }),
-    ]),
-    onFailure: (ctx) => Actions.chain([
-      Actions.snackBar('Kon het live verslag niet starten.'),
-    ]),
-  );
-  Actions.onTapChain(startKnop, startNode);
-  setConditionalVisibility(startKnop, variable: canManage);
+      });
 
-  // De startknop bovenaan: een coach die een wedstrijd opent wil beginnen, niet
+  // m = mag ik beheren, g = is er al een verslag aangemaakt.
+  FFVariable regel(String expressie) => codeExpressionVar(
+        expression: expressie,
+        arguments: [
+          CodeExpressionArg(
+            name: 'm',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: pageState('matchMagOpstelling')),
+          ),
+          CodeExpressionArg(
+            name: 'g',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: pageState('matchLiveGestart')),
+          ),
+        ],
+        returnType: FFParameter(
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+      );
+
+  // Meekijken, voor wie het verslag niet bijhoudt.
+  final volgKnop = knop('LiveFollowButton', 'Live volgen', 'play_circle',
+      UIColor.hex(0xFFEF4444));
+  Actions.onTap(volgKnop, naarLive());
+  setConditionalVisibility(volgKnop, variable: regel("m != 'true'"));
+
+  // Nog geen verslag: de coach gaat naar de livepagina en drukt daar op
+  // "Start het verslag". Deze knop startte het vroeger meteen zelf, maar dan
+  // begon de wedstrijdklok al te lopen op het moment dat je even wilde kijken
+  // of alles klaarstond.
+  final startKnop =
+      knop('LiveStartButton', 'Start live verslag', 'sensors', UIColor.primary);
+  Actions.onTap(startKnop, naarLive());
+  setConditionalVisibility(
+      startKnop, variable: regel("m == 'true' && g != 'true'"));
+
+  // Er loopt al iets: dan hoort er geen startknop meer te staan, ook niet bij de
+  // tweede coach. Die zou anders opnieuw beginnen aan een verslag dat zijn
+  // collega al bijhoudt.
+  final openKnop = knop(
+      'LiveOpenButton', 'Open live verslag', 'sensors', UIColor.hex(0xFFEF4444));
+  Actions.onTap(openKnop, naarLive());
+  setConditionalVisibility(
+      openKnop, variable: regel("m == 'true' && g == 'true'"));
+
+  // De coachknop bovenaan: een coach die een wedstrijd opent wil beginnen, niet
   // volgen. Andersom stond "Live volgen" eerst en kwam je op een lege pagina
   // terecht bij een wedstrijd die nog niet gestart was.
   final wrap = UI.container(
@@ -32800,7 +32805,7 @@ void _addLiveMatchButton(FFProject project) {
       name: 'LiveMatchButtonCol',
       crossAxisAlignment: UICrossAxisAlignment.stretch,
       spacing: 8,
-      children: [startKnop, volgKnop],
+      children: [startKnop, openKnop, volgKnop],
     ),
   );
   infoColumn.children.insert(0, wrap);
