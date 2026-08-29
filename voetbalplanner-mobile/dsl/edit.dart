@@ -32288,6 +32288,11 @@ void _wireLiveMatchPage(FFProject project) {
   sections.add(coachBar);
 
   // Opstelling: basis en bank, met voor de coach de knoppen om in te delen.
+  //
+  // Wordt pas onderaan de pagina toegevoegd, ná de tijdlijn. Tijdens de
+  // wedstrijd kijk je naar de klok en het verslag; spelers indelen doe je
+  // vooraf, op het opstellingsscherm. Hier stond het tussen de knoppen en het
+  // verslag in en moest je er elke keer langs scrollen.
   final lineupCard = _liveLineupSection(
     project,
     wc,
@@ -32296,14 +32301,12 @@ void _wireLiveMatchPage(FFProject project) {
     stateField: stateField,
     canManage: canManage,
   );
-  if (lineupCard != null) sections.add(lineupCard);
   final lineupPanel = _liveLineupPanel(
     project,
     wc,
     authTokenId: authTokenId,
     liveMatchIdId: liveMatchIdId,
   );
-  if (lineupPanel != null) sections.add(lineupPanel);
 
   // ── Keuzepanelen ──────────────────────────────────────────────────────────
   if (membersId != null) {
@@ -32358,6 +32361,11 @@ void _wireLiveMatchPage(FFProject project) {
       ],
     ),
   ));
+
+  // De opstelling helemaal onderaan: wie hem nodig heeft scrollt ernaartoe, en
+  // wie het verslag bijhoudt heeft er tijdens de wedstrijd geen last van.
+  if (lineupCard != null) sections.add(lineupCard);
+  if (lineupPanel != null) sections.add(lineupPanel);
 
   // Alle secties onder elkaar als het enige kind van de container.
   container.children.add(UI.column(
