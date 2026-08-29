@@ -41,6 +41,42 @@ abstract final class AppState {
     typeName: "List<String>",
     persisted: false,
   );
+  static const clothingItemId = ffai.ProjectAppStateFieldHandle(
+    name: "clothingItemId",
+    key: "zekcgd8c",
+    typeName: "String",
+    persisted: false,
+  );
+  static const clothingItemName = ffai.ProjectAppStateFieldHandle(
+    name: "clothingItemName",
+    key: "23cqc941",
+    typeName: "String",
+    persisted: false,
+  );
+  static const clothingMemberId = ffai.ProjectAppStateFieldHandle(
+    name: "clothingMemberId",
+    key: "fvpa646v",
+    typeName: "String",
+    persisted: false,
+  );
+  static const clothingRows = ffai.ProjectAppStateFieldHandle(
+    name: "clothingRows",
+    key: "zarxbm59",
+    typeName: "List<DataStruct<ClothingRow>>",
+    persisted: false,
+  );
+  static const clothingSizeOptions = ffai.ProjectAppStateFieldHandle(
+    name: "clothingSizeOptions",
+    key: "77bxr5jm",
+    typeName: "List<DataStruct<ClothingSizeOption>>",
+    persisted: false,
+  );
+  static const clothingSizes = ffai.ProjectAppStateFieldHandle(
+    name: "clothingSizes",
+    key: "4w0ge53h",
+    typeName: "List<DataStruct<ClothingSizeOption>>",
+    persisted: false,
+  );
   static const clubLogoUrl = ffai.ProjectAppStateFieldHandle(
     name: "clubLogoUrl",
     key: "1bfk2ib7",
@@ -636,6 +672,12 @@ abstract final class AppState {
     authToken,
     availableTeams,
     bugScreenshotPaths,
+    clothingItemId,
+    clothingItemName,
+    clothingMemberId,
+    clothingRows,
+    clothingSizeOptions,
+    clothingSizes,
     clubLogoUrl,
     clubName,
     confirmDeleteAccount,

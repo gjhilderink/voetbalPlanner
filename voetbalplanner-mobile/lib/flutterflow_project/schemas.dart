@@ -120,6 +120,30 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle clothingRow = ffai.StructHandle(
+    "ClothingRow",
+    <String, ffai.DslType>{
+      "itemId": ffai.string,
+      "itemName": ffai.string,
+      "melding": ffai.string,
+      "memberId": ffai.string,
+      "memberName": ffai.string,
+      "ownerLabel": ffai.string,
+      "sizeId": ffai.string,
+      "sizeLabel": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
+  static final ffai.StructHandle clothingSizeOption = ffai.StructHandle(
+    "ClothingSizeOption",
+    <String, ffai.DslType>{
+      "id": ffai.string,
+      "itemId": ffai.string,
+      "label": ffai.string,
+      "melding": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle clubBranding = ffai.StructHandle(
     "ClubBranding",
     <String, ffai.DslType>{
@@ -623,6 +647,8 @@ abstract final class Structs {
     agendaItem,
     banner,
     barDuty,
+    clothingRow,
+    clothingSizeOption,
     clubBranding,
     clubRef,
     documentSection,
@@ -1445,6 +1471,7 @@ abstract final class CustomCode {
     "DeleteMatchPhoto",
     "DeleteMyChatData",
     "FilterChatMembersByConv",
+    "FilterClothingSizes",
     "FilterGuestMembers",
     "FinishAutofill",
     "GetAppUsersAsMembers",

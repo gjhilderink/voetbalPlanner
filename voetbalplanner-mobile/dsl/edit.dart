@@ -696,6 +696,7 @@ void buildEditFlow(App app) {
   // ProfielPage teamlijst — ná _addSwapStructFields zodat TeamOption.role bestaat.
   app.raw((project) => _addProfielTeamsList(project));
   app.raw((project) => _addProfielGuardianLinks(project));
+  app.raw((project) => _addProfielClothing(project));
   app.raw((project) => _addSwapParamsToBarDutyCard(project));
 
   final swapMember = ff.Structs.swapMember;
@@ -1490,6 +1491,9 @@ void buildEditFlow(App app) {
   // De koppelingen ophalen ná de sessiecontrole, zodat de aanroep in de tak
   // belandt die alleen draait wanneer je bent ingelogd.
   app.raw((project) => _wireProfielGuardianLinksLoad(project));
+  // Kledingmaten in dezelfde stap: ook deze aanroep hoort ná de
+  // sessiecontrole, in de tak die alleen draait wanneer je bent ingelogd.
+  app.raw((project) => _wireProfielClothingLoad(project));
   app.raw((project) => _addSessionExpiryGuard(project, 'DashboardPage'));
   // Inlogvelden herkenbaar maken voor de wachtwoordbeheerders van iOS/Android.
   app.raw((project) => _addLoginAutofillHints(project));
@@ -39832,4 +39836,528 @@ void _wireMatchStatsTab(FFProject project) {
       ]),
     ),
   );
+}
+// ─── Kledingmaten op het profiel ──────────────────────────────────────────────
+//
+// Een lid geeft per kledingstuk zijn maat op; een ouder doet dat voor zijn
+// kinderen. De server bepaalt voor wie je mag invullen en zet de naam bij de
+// regels die niet over jou gaan, zodat de app geen keuzemenu nodig heeft.
+//
+// Twee lijsten onder elkaar in plaats van een dialoog: tik op een kledingstuk en
+// de maten verschijnen eronder. Een dialoog zou een eigen component vragen, en
+// die zit hier aan de wedstrijdpagina vast.
+
+void _ensureClothingStructs(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'ClothingRow',
+    description:
+        'Eén kledingstuk voor één persoon: het stuk, de opgegeven maat en van wie het is.',
+    fields: const [
+      'memberId', 'memberName', 'ownerLabel',
+      'itemId', 'itemName', 'sizeId', 'sizeLabel', 'melding',
+    ],
+  );
+  _ensureFlatStringStruct(
+    project,
+    name: 'ClothingSizeOption',
+    description: 'Eén maat bij een kledingstuk.',
+    fields: const ['id', 'itemId', 'label', 'melding'],
+  );
+}
+
+void _ensureClothingAppState(FFProject project) {
+  bool heeft(String naam) =>
+      project.appState.fields.any((f) => f.parameter.identifier.name == naam);
+
+  void lijst(String naam, String structNaam) {
+    if (heeft(naam)) return;
+    final struct = findDataStruct(project, name: structNaam);
+    if (struct == null) return;
+    final param = FFParameter(
+      identifier:
+          FFIdentifier(name: naam, key: generateRandomAlphaNumericString()),
+      dataType: dataStructType(struct.identifier.deepCopy()),
+    );
+    param.isList = true;
+    project.appState.fields.add(FFAppStateField(parameter: param));
+  }
+
+  lijst('clothingRows', 'ClothingRow');
+  lijst('clothingSizes', 'ClothingSizeOption');
+  // De maten van het aangetikte kledingstuk. clothingSizes blijft heel, zodat er
+  // iets is om op terug te vallen zodra je een ander stuk kiest.
+  lijst('clothingSizeOptions', 'ClothingSizeOption');
+
+  for (final naam in const [
+    'clothingItemId',
+    'clothingItemName',
+    'clothingMemberId',
+  ]) {
+    if (heeft(naam)) continue;
+    project.appState.fields.add(FFAppStateField(
+      parameter: FFParameter(
+        identifier:
+            FFIdentifier(name: naam, key: generateRandomAlphaNumericString()),
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ),
+    ));
+  }
+}
+
+void _addClothingEndpoints(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  if (findApiGroup(project, name: groupName) == null) return;
+
+  if (findApiEndpoint(project, name: 'GetClothing', groupName: groupName) == null) {
+    addEndpointToGroup(
+      project,
+      groupName: groupName,
+      name: 'GetClothing',
+      url: '/profile/clothing',
+      method: FFApiEndpoint_CallType.GET,
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      variables: {'token': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+      headers: ['Authorization: Bearer [token]'],
+      responseDataStructName: 'ClothingRow',
+      responseDataStructIsList: true,
+    );
+  }
+
+  if (findApiEndpoint(project, name: 'GetClothingSizes', groupName: groupName) == null) {
+    addEndpointToGroup(
+      project,
+      groupName: groupName,
+      name: 'GetClothingSizes',
+      url: '/clothing/sizes',
+      method: FFApiEndpoint_CallType.GET,
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      variables: {'token': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+      headers: ['Authorization: Bearer [token]'],
+      responseDataStructName: 'ClothingSizeOption',
+      responseDataStructIsList: true,
+    );
+  }
+
+  if (findApiEndpoint(project, name: 'SetClothingSize', groupName: groupName) == null) {
+    addEndpointToGroup(
+      project,
+      groupName: groupName,
+      name: 'SetClothingSize',
+      // Query-parameters en geen body: FlutterFlow vult [var] alleen in de URL
+      // in, en zo werkt de rest van deze API ook.
+      url: '/profile/clothing?member_id=[memberId]&item_id=[itemId]&size_id=[sizeId]',
+      method: FFApiEndpoint_CallType.POST,
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      variables: {
+        'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'memberId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'itemId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'sizeId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      headers: ['Authorization: Bearer [token]'],
+    );
+  }
+}
+
+/// Toont alleen de maten van het aangetikte kledingstuk.
+///
+/// In de app en niet op de server: alle maten staan er al na het openen van het
+/// profiel, en een aanroep per tik zou de lijst laten knipperen.
+void _ensureClothingFilterAction(FFProject project) {
+  const code = r"""
+// Automatic FlutterFlow imports
+import '/backend/schema/structs/index.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+/// Zet de maten van dit kledingstuk klaar om uit te kiezen.
+Future<void> filterClothingSizes(String? itemId) async {
+  final id = (itemId ?? '').trim();
+
+  FFAppState().update(() {
+    FFAppState().clothingSizeOptions = id.isEmpty
+        ? <ClothingSizeOptionStruct>[]
+        : FFAppState()
+            .clothingSizes
+            .where((m) => m.itemId == id)
+            .toList();
+  });
+}
+""";
+
+  final arg = FFParameter(
+    identifier:
+        FFIdentifier(name: 'itemId', key: generateRandomAlphaNumericString()),
+    dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+  );
+
+  if (findCustomAction(project, name: 'FilterClothingSizes') == null) {
+    addCustomAction(
+      project,
+      name: 'FilterClothingSizes',
+      description: 'Zet de maten van het gekozen kledingstuk klaar.',
+      arguments: [arg],
+      code: code,
+    );
+    return;
+  }
+
+  updateCustomAction(project,
+      name: 'FilterClothingSizes', code: code, arguments: [arg]);
+}
+
+void _addProfielClothing(FFProject project) {
+  _ensureClothingStructs(project);
+  _ensureClothingAppState(project);
+  _addClothingEndpoints(project);
+  _ensureClothingFilterAction(project);
+
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+
+  final rowsId = _findAppStateFieldId(project, 'clothingRows');
+  final optiesId = _findAppStateFieldId(project, 'clothingSizeOptions');
+  final itemIdId = _findAppStateFieldId(project, 'clothingItemId');
+  final itemNaamId = _findAppStateFieldId(project, 'clothingItemName');
+  final memberIdId = _findAppStateFieldId(project, 'clothingMemberId');
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (rowsId == null ||
+      optiesId == null ||
+      itemIdId == null ||
+      itemNaamId == null ||
+      memberIdId == null ||
+      authTokenId == null) return;
+
+  final target =
+      findDescendants(wc.node, (n) => n.name == 'ProfielInfoContent').firstOrNull;
+  if (target == null || target.type != FFWidgetType.Column) return;
+
+  // Vers opbouwen bij elke push, net als de blokken hierboven.
+  for (final naam in const [
+    'ProfielKledingLabel', 'ProfielKledingList', 'ProfielKledingLeeg',
+    'ProfielMaatLabel', 'ProfielMaatList',
+  ]) {
+    for (final n in findDescendants(wc.node, (x) => x.name == naam).toList()) {
+      removeByKey(wc.node, n.key);
+    }
+  }
+
+  final scaffoldKey = wc.node.key;
+  FFVariable app(FFIdentifier id) => varFromAppState(id.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final rowsVar = app(rowsId);
+  final optiesVar = app(optiesId);
+
+  final label = UI.text(
+    'Kledingmaten',
+    name: 'ProfielKledingLabel',
+    style: UITextStyle.labelSmall,
+    color: UIColor.secondaryText,
+  );
+
+  // ── De kledingstukken met de opgegeven maat ──────────────────────────────
+  final lijst = UI.listView(
+    name: 'ProfielKledingList',
+    shrinkWrap: true,
+    spacing: 6,
+    dynamicSource: DynamicSource(variable: rowsVar, itemName: 'kleding'),
+  );
+
+  FFNode gebonden(String naam, String veld, UITextStyle stijl,
+      {UIColor? kleur, UIFontWeight? gewicht}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: 1,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijst.key, veld));
+    return t;
+  }
+
+  // De naam van het kind staat alleen bij regels die niet over jou gaan; de
+  // server laat hem leeg bij je eigen regels.
+  final eigenaar = gebonden('ProfielKledingEigenaar', 'ownerLabel',
+      UITextStyle.labelSmall,
+      kleur: UIColor.secondaryText);
+  setConditionalVisibility(
+    eigenaar,
+    variable: _equalsLiteral(
+        generatorVarField(lijst.key, 'ownerLabel'), '',
+        negate: true),
+  );
+
+  final maat = gebonden('ProfielKledingMaat', 'sizeLabel',
+      UITextStyle.bodyMedium,
+      gewicht: UIFontWeight.w700);
+
+  // Niets opgegeven: dat hoort er te staan, anders lijkt de regel af.
+  final geenMaat = UI.text('Nog niet ingevuld',
+      name: 'ProfielKledingGeen',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText,
+      maxLines: 1);
+  setConditionalVisibility(
+    geenMaat,
+    variable: _equalsLiteral(generatorVarField(lijst.key, 'sizeLabel'), ''),
+  );
+  setConditionalVisibility(
+    maat,
+    variable: _equalsLiteral(
+        generatorVarField(lijst.key, 'sizeLabel'), '',
+        negate: true),
+  );
+
+  final rij = UI.container(
+    name: 'ProfielKledingRij',
+    width: double.infinity,
+    borderRadius: 10,
+    color: UIColor.secondaryBackground,
+    padding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 10),
+    child: UI.row(
+      name: 'ProfielKledingRijRow',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.expanded(UI.column(
+          name: 'ProfielKledingCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 2,
+          children: [
+            eigenaar,
+            gebonden('ProfielKledingStuk', 'itemName', UITextStyle.bodyMedium,
+                gewicht: UIFontWeight.w600),
+          ],
+        )),
+        maat,
+        geenMaat,
+        UI.icon('chevron_right', size: 18, color: UIColor.secondaryText),
+      ],
+    ),
+  );
+
+  // Tik = dit kledingstuk kiezen; de maten verschijnen eronder.
+  final filterActie = findCustomAction(project, name: 'FilterClothingSizes');
+  if (filterActie != null) {
+    final kies = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable(
+            'clothingItemId', generatorVarField(lijst.key, 'itemId')),
+        StateFieldUpdate.setFromVariable(
+            'clothingItemName', generatorVarField(lijst.key, 'itemName')),
+        StateFieldUpdate.setFromVariable(
+            'clothingMemberId', generatorVarField(lijst.key, 'memberId')),
+      ]),
+    );
+    kies.followUpAction = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: filterActie.identifier.deepCopy(),
+          argumentValues: _actieArgs(filterActie, {
+            'itemId':
+                FFValue(variable: generatorVarField(lijst.key, 'itemId')),
+          }),
+        ),
+      ),
+    );
+    Actions.onTapChain(rij, kies);
+  }
+
+  lijst.children.add(rij);
+
+  final leeg = UI.text('',
+      name: 'ProfielKledingLeeg',
+      style: UITextStyle.labelSmall,
+      color: UIColor.secondaryText,
+      maxLines: 2);
+  leeg.props.text.textValue =
+      FFStringValue(variable: _firstItemVar(rowsVar, 'melding'));
+  setConditionalVisibility(
+    leeg,
+    variable: andConditionsVar([
+      _listNotEmptyVar(rowsVar.deepCopy()),
+      _firstFieldFilledVar(rowsVar, 'melding'),
+    ]).variable,
+  );
+
+  // ── De maten van het gekozen kledingstuk ─────────────────────────────────
+  final maatLabel = UI.text('',
+      name: 'ProfielMaatLabel',
+      style: UITextStyle.labelMedium,
+      fontWeight: UIFontWeight.w600,
+      maxLines: 1);
+  maatLabel.props.text.textValue =
+      interpolateVar(['Kies een maat voor ', app(itemNaamId)]);
+
+  final maatLijst = UI.listView(
+    name: 'ProfielMaatList',
+    shrinkWrap: true,
+    spacing: 6,
+    dynamicSource: DynamicSource(variable: optiesVar, itemName: 'maatoptie'),
+  );
+
+  final maatTekst = UI.text('',
+      name: 'ProfielMaatTekst',
+      style: UITextStyle.bodyMedium,
+      fontWeight: UIFontWeight.w600,
+      maxLines: 1);
+  maatTekst.props.text.textValue =
+      FFStringValue(variable: generatorVarField(maatLijst.key, 'label'));
+
+  final maatRij = UI.container(
+    name: 'ProfielMaatRij',
+    width: double.infinity,
+    borderRadius: 10,
+    color: UIColor.secondaryBackground,
+    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    alignment: UIAlignment.center,
+    child: maatTekst,
+  );
+
+  if (findApiEndpoint(project,
+          name: 'SetClothingSize', groupName: 'VoetbalPlannerAPI') !=
+      null) {
+    final bewaar = Actions.apiCallNode(
+      project,
+      endpointName: 'SetClothingSize',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'memberId': varFromAppState(memberIdId.deepCopy()),
+        'itemId': varFromAppState(itemIdId.deepCopy()),
+        'sizeId': generatorVarField(maatLijst.key, 'id'),
+      },
+      outputVariableName: 'kledingBewaar',
+      nodeKey: maatRij.key,
+      onSuccess: (ctx) => Actions.chain([
+        // Keuze weer dichtklappen.
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.set('clothingItemId', ''),
+          StateFieldUpdate.set('clothingItemName', ''),
+          StateFieldUpdate.set('clothingMemberId', ''),
+        ]),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Kon de maat niet opslaan.'),
+      ]),
+    );
+
+    // Opnieuw ophalen achter de bewaaractie en niet in haar onSuccess: een
+    // API-aanroep is een knoop in de keten en geen actie in een lijstje.
+    _hangAchteraan(
+      _ketenStaart(bewaar),
+      Actions.apiCallNode(
+        project,
+        endpointName: 'GetClothing',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+        outputVariableName: 'kledingHerlaad',
+        nodeKey: maatRij.key,
+        onSuccess: (c2) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('clothingRows', c2.responseVar),
+          ]),
+        ]),
+      ),
+    );
+
+    Actions.onTapChain(maatRij, bewaar);
+  }
+
+  maatLijst.children.add(maatRij);
+
+  // Het maatblok is er alleen zodra je een kledingstuk hebt aangetikt.
+  final gekozen = _equalsLiteral(app(itemIdId), '', negate: true);
+  setConditionalVisibility(maatLabel, variable: gekozen);
+  setConditionalVisibility(maatLijst, variable: gekozen.deepCopy());
+
+  target.children.addAll([label, leeg, lijst, maatLabel, maatLijst]);
+}
+
+/// Haalt de kledingregels en de maten op bij het openen van het profiel.
+///
+/// Apart van het blok hierboven en als laatste in de rij, om dezelfde reden als
+/// bij de koppelingen: eerder in de opbouw komt de aanroep niet in de
+/// uiteindelijke laadketen terecht.
+void _wireProfielClothingLoad(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+
+  final rowsId = _findAppStateFieldId(project, 'clothingRows');
+  final sizesId = _findAppStateFieldId(project, 'clothingSizes');
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  if (rowsId == null || sizesId == null || authTokenId == null) return;
+  if (findApiEndpoint(project,
+              name: 'GetClothing', groupName: 'VoetbalPlannerAPI') ==
+          null ||
+      findApiEndpoint(project,
+              name: 'GetClothingSizes', groupName: 'VoetbalPlannerAPI') ==
+          null) return;
+
+  // Ook door de takken van een voorwaarde heen kijken; de sessiecontrole zet de
+  // hele keten in haar false-tak.
+  bool heeftAanroep(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasDatabase() &&
+        n.action.database.hasApiCall() &&
+        n.action.database.apiCall.hasEndpointIdentifier() &&
+        n.action.database.apiCall.endpointIdentifier.name == 'GetClothing') {
+      return true;
+    }
+    if (n.hasFollowUpAction() && heeftAanroep(n.followUpAction)) return true;
+    if (n.hasConditionActions()) {
+      final ca = n.conditionActions;
+      if (ca.hasFalseAction() && heeftAanroep(ca.falseAction)) return true;
+      for (final t in ca.trueActions) {
+        if (t.hasTrueAction() && heeftAanroep(t.trueAction)) return true;
+      }
+    }
+    return false;
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && heeftAanroep(t.rootAction))) return;
+
+  final maten = Actions.apiCallNode(
+    project,
+    endpointName: 'GetClothingSizes',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+    outputVariableName: 'kledingMatenLoad',
+    nodeKey: wc.node.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable('clothingSizes', ctx.responseVar),
+      ]),
+    ]),
+  );
+
+  final rijen = Actions.apiCallNode(
+    project,
+    endpointName: 'GetClothing',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+    outputVariableName: 'kledingLoad',
+    nodeKey: wc.node.key,
+    onSuccess: (ctx) => Actions.chain([
+      Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable('clothingRows', ctx.responseVar),
+      ]),
+    ]),
+  );
+
+  _hangAchteraan(_ketenStaart(rijen), maten);
+
+  _appendToFirstPageLoadChain(wc.node, rijen);
 }
