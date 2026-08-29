@@ -33991,6 +33991,34 @@ List<FFNode> _matchReportDeleteSection(
           staart = staart.followUpAction;
         }
       }
+      // En de statistiek erachteraan. Die wordt afgeleid uit het verslag, maar
+      // staat als losse lijst in app-state: zonder deze aanroep blijft het
+      // tabblad de cijfers van het zojuist weggegooide verslag tonen tot je de
+      // wedstrijd sluit en opnieuw opent.
+      if (findApiEndpoint(project,
+              name: 'GetMatchStats', groupName: 'VoetbalPlannerAPI') !=
+          null) {
+        staart.followUpAction = Actions.apiCallNode(
+          project,
+          endpointName: 'GetMatchStats',
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: {
+            'token': varFromAppState(authTokenId.deepCopy()),
+            'matchId': matchIdVar(),
+          },
+          outputVariableName: 'reportDeleteStats',
+          nodeKey: jaKnop.key,
+          onSuccess: (c3) => Actions.chain([
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable('matchStats', c3.responseVar),
+            ]),
+          ]),
+        );
+        while (staart.hasFollowUpAction()) {
+          staart = staart.followUpAction;
+        }
+      }
+
       staart.followUpAction = FFActionNode(
         key: generateRandomAlphaNumericString(),
         action: zetBevestiging(false),
@@ -39717,6 +39745,42 @@ void _wireMatchStatsTab(FFProject project) {
   final tabProps = tab.props.tab.deepCopy();
   tabProps.text = FFText(textValue: FFStringValue(inputValue: 'Statistiek'));
   tab.props.tab = tabProps;
+
+  // Opnieuw ophalen zodra je het tabblad opent. De cijfers komen uit het live
+  // verslag, en dat verandert op een ánder scherm: wie een doelpunt noteert en
+  // daarna terugbladert, keek anders naar de stand van bij het openen van de
+  // wedstrijd. Bij het openen van de pagina wordt hij ook al geladen; dit is de
+  // tweede kans, en die kost niets zolang je het tabblad niet aanraakt.
+  final tabMatchId = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+
+  if (tabMatchId != null) {
+    tab.triggerActions.removeWhere((t) =>
+        t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_TAP);
+
+    tab.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(
+        project,
+        endpointName: 'GetMatchStats',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'matchId': varFromPageParam(tabMatchId.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        },
+        outputVariableName: 'statsTabHerlaad',
+        nodeKey: tab.key,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('matchStats', ctx.responseVar),
+          ]),
+        ]),
+      ),
+    ));
+  }
 
   final scaffoldKey = wc.node.key;
   final statsVar = varFromAppState(statsId.deepCopy())
