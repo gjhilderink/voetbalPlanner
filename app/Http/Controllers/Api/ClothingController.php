@@ -37,30 +37,42 @@ class ClothingController extends Controller
             return response()->json([self::leeg('Je account is nog niet aan een lid gekoppeld.')]);
         }
 
-        $stukken = $this->kledingstukken($eigen);
-
-        if ($stukken->isEmpty()) {
-            return response()->json([self::leeg('Je club heeft nog geen kleding ingesteld.')]);
-        }
-
         $rijen = [];
 
         foreach ($this->personen($request) as $index => $lid) {
+            // Per persoon opnieuw: een ouder hoort bij een andere club dan zijn
+            // kind kan horen, en wie zelf nergens in een elftal zit krijgt geen
+            // kleding. Zo houdt een ouder die alleen ouder is wél de secties van
+            // zijn kinderen, maar geen eigen rijtje - hij krijgt niets van de club.
+            $stukken = $this->kledingstukken($lid);
+
+            if ($stukken->isEmpty()) {
+                continue;
+            }
+
             $gekozen = MemberClothingSize::query()
                 ->where('member_id', $lid->id)
                 ->with('size')
                 ->get()
                 ->keyBy('clothing_item_id');
 
-            foreach ($stukken as $stuk) {
+            $ingevuld = $stukken->filter(fn (ClothingItem $s) => $gekozen->has($s->id))->count();
+
+            foreach ($stukken as $positie => $stuk) {
                 $maat = $gekozen->get($stuk->id)?->size;
 
                 $rijen[] = [
                     'memberId'   => (string) $lid->id,
                     'memberName' => (string) $lid->name,
-                    // Leeg bij jezelf. De app zet deze naam boven de regel, zodat
-                    // een ouder ziet van wie de maat is zonder ernaar te zoeken.
+                    // Leeg bij jezelf; de app toont die naam bij de regel.
                     'ownerLabel' => $index === 0 ? '' : (string) $lid->name,
+                    // Kop van de uitklap. De app groepeert niet zelf: hij toont
+                    // een kop bij de eerste regel van een persoon, en dat is
+                    // precies wat 'isFirstOfOwner' hier zegt.
+                    'ownerKey'      => (string) $lid->id,
+                    'ownerTitle'    => $index === 0 ? 'Mijn kleding' : (string) $lid->name,
+                    'ownerSummary'  => $ingevuld . ' van ' . $stukken->count() . ' ingevuld',
+                    'isFirstOfOwner' => $positie === 0 ? 'true' : 'false',
                     'itemId'     => (string) $stuk->id,
                     'itemName'   => (string) $stuk->name,
                     'sizeId'     => (string) ($maat->id ?? ''),
@@ -68,6 +80,12 @@ class ClothingController extends Controller
                     'melding'    => '',
                 ];
             }
+        }
+
+        if (! $rijen) {
+            return response()->json([self::leeg(
+                'Er is voor jou geen kleding in te vullen. Hoor je wel bij een elftal? Neem dan contact op met de club.'
+            )]);
         }
 
         return response()->json($rijen);
@@ -82,8 +100,14 @@ class ClothingController extends Controller
             return response()->json([self::leegMaat('Je account is nog niet aan een lid gekoppeld.')]);
         }
 
+        // Van iedereen voor wie je mag invullen: een ouder zonder eigen elftal
+        // heeft anders geen enkele maat om uit te kiezen voor zijn kind.
+        $stukIds = $this->personen($request)
+            ->flatMap(fn (Member $lid) => $this->kledingstukken($lid)->pluck('id'))
+            ->unique();
+
         $maten = ClothingSize::query()
-            ->whereIn('clothing_item_id', $this->kledingstukken($eigen)->pluck('id'))
+            ->whereIn('clothing_item_id', $stukIds)
             ->orderBy('sort_order')
             ->orderBy('label')
             ->get();
@@ -229,14 +253,18 @@ class ClothingController extends Controller
     private static function leeg(string $melding): array
     {
         return [
-            'memberId'   => '',
-            'memberName' => '',
-            'ownerLabel' => '',
-            'itemId'     => '',
-            'itemName'   => '',
-            'sizeId'     => '',
-            'sizeLabel'  => '',
-            'melding'    => $melding,
+            'memberId'       => '',
+            'memberName'     => '',
+            'ownerLabel'     => '',
+            'ownerKey'       => '',
+            'ownerTitle'     => '',
+            'ownerSummary'   => '',
+            'isFirstOfOwner' => 'false',
+            'itemId'         => '',
+            'itemName'       => '',
+            'sizeId'         => '',
+            'sizeLabel'      => '',
+            'melding'        => $melding,
         ];
     }
 

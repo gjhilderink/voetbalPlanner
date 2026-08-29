@@ -39855,6 +39855,7 @@ void _ensureClothingStructs(FFProject project) {
         'Eén kledingstuk voor één persoon: het stuk, de opgegeven maat en van wie het is.',
     fields: const [
       'memberId', 'memberName', 'ownerLabel',
+      'ownerKey', 'ownerTitle', 'ownerSummary', 'isFirstOfOwner',
       'itemId', 'itemName', 'sizeId', 'sizeLabel', 'melding',
     ],
   );
@@ -39893,6 +39894,9 @@ void _ensureClothingAppState(FFProject project) {
     'clothingItemId',
     'clothingItemName',
     'clothingMemberId',
+    // Welke uitklap openstaat. Eén tegelijk: twee open lijsten maken het
+    // scherm langer dan de telefoon.
+    'clothingOpenOwner',
   ]) {
     if (heeft(naam)) continue;
     project.appState.fields.add(FFAppStateField(
@@ -40011,11 +40015,66 @@ Future<void> filterClothingSizes(String? itemId) async {
       name: 'FilterClothingSizes', code: code, arguments: [arg]);
 }
 
+/// Klapt de sectie van één persoon open of dicht.
+///
+/// Als custom action en niet als voorwaardelijke actieketen: "open hem, tenzij
+/// hij al open was" is in Dart één regel en in een actieboom een klein bouwwerk.
+void _ensureClothingToggleAction(FFProject project) {
+  const code = r"""
+// Automatic FlutterFlow imports
+import '/backend/schema/structs/index.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+/// Opent deze sectie, of sluit hem als hij al openstond.
+Future<void> toggleClothingSection(String? ownerKey) async {
+  final key = (ownerKey ?? '').trim();
+  final open = FFAppState().clothingOpenOwner == key;
+
+  FFAppState().update(() {
+    FFAppState().clothingOpenOwner = open ? '' : key;
+
+    // De maatkeuze hoort bij een regel uit de sectie die je net dichtklapt;
+    // laten staan zou een keuzelijst opleveren zonder zichtbare aanleiding.
+    FFAppState().clothingItemId = '';
+    FFAppState().clothingItemName = '';
+    FFAppState().clothingMemberId = '';
+    FFAppState().clothingSizeOptions = <ClothingSizeOptionStruct>[];
+  });
+}
+""";
+
+  final arg = FFParameter(
+    identifier:
+        FFIdentifier(name: 'ownerKey', key: generateRandomAlphaNumericString()),
+    dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+  );
+
+  if (findCustomAction(project, name: 'ToggleClothingSection') == null) {
+    addCustomAction(
+      project,
+      name: 'ToggleClothingSection',
+      description: 'Klapt de kledingsectie van één persoon open of dicht.',
+      arguments: [arg],
+      code: code,
+    );
+    return;
+  }
+
+  updateCustomAction(project,
+      name: 'ToggleClothingSection', code: code, arguments: [arg]);
+}
+
 void _addProfielClothing(FFProject project) {
   _ensureClothingStructs(project);
   _ensureClothingAppState(project);
   _addClothingEndpoints(project);
   _ensureClothingFilterAction(project);
+  _ensureClothingToggleAction(project);
 
   final wc = findPage(project, name: 'ProfielPage');
   if (wc == null) return;
@@ -40025,12 +40084,14 @@ void _addProfielClothing(FFProject project) {
   final itemIdId = _findAppStateFieldId(project, 'clothingItemId');
   final itemNaamId = _findAppStateFieldId(project, 'clothingItemName');
   final memberIdId = _findAppStateFieldId(project, 'clothingMemberId');
+  final openId = _findAppStateFieldId(project, 'clothingOpenOwner');
   final authTokenId = _findAppStateFieldId(project, 'authToken');
   if (rowsId == null ||
       optiesId == null ||
       itemIdId == null ||
       itemNaamId == null ||
       memberIdId == null ||
+      openId == null ||
       authTokenId == null) return;
 
   final target =
@@ -40040,6 +40101,7 @@ void _addProfielClothing(FFProject project) {
   // Vers opbouwen bij elke push, net als de blokken hierboven.
   for (final naam in const [
     'ProfielKledingLabel', 'ProfielKledingList', 'ProfielKledingLeeg',
+    'ProfielKledingItem', 'ProfielKledingKop',
     'ProfielMaatLabel', 'ProfielMaatList',
   ]) {
     for (final n in findDescendants(wc.node, (x) => x.name == naam).toList()) {
@@ -40083,17 +40145,6 @@ void _addProfielClothing(FFProject project) {
     return t;
   }
 
-  // De naam van het kind staat alleen bij regels die niet over jou gaan; de
-  // server laat hem leeg bij je eigen regels.
-  final eigenaar = gebonden('ProfielKledingEigenaar', 'ownerLabel',
-      UITextStyle.labelSmall,
-      kleur: UIColor.secondaryText);
-  setConditionalVisibility(
-    eigenaar,
-    variable: _equalsLiteral(
-        generatorVarField(lijst.key, 'ownerLabel'), '',
-        negate: true),
-  );
 
   final maat = gebonden('ProfielKledingMaat', 'sizeLabel',
       UITextStyle.bodyMedium,
@@ -40132,7 +40183,6 @@ void _addProfielClothing(FFProject project) {
           crossAxisAlignment: UICrossAxisAlignment.start,
           spacing: 2,
           children: [
-            eigenaar,
             gebonden('ProfielKledingStuk', 'itemName', UITextStyle.bodyMedium,
                 gewicht: UIFontWeight.w600),
           ],
@@ -40143,6 +40193,75 @@ void _addProfielClothing(FFProject project) {
       ],
     ),
   );
+
+  // Alleen zichtbaar zolang de sectie van deze persoon openstaat. Een uitklap
+  // per persoon in plaats van één lange lijst: met twee kinderen stonden er
+  // vijftien regels onder elkaar en was je eigen shirt niet meer te vinden.
+  setConditionalVisibility(
+    rij,
+    variable: conditionVar(
+      generatorVarField(lijst.key, 'ownerKey'),
+      FFCondition_Relation.EQUAL_TO,
+      app(openId),
+    ).variable,
+  );
+
+  // ── De kop van een sectie ────────────────────────────────────────────────
+  final kopTitel = gebonden('ProfielKledingKopTitel', 'ownerTitle',
+      UITextStyle.bodyMedium,
+      gewicht: UIFontWeight.w700);
+  final kopTelling = gebonden('ProfielKledingKopTelling', 'ownerSummary',
+      UITextStyle.labelSmall,
+      kleur: UIColor.secondaryText);
+
+  final kop = UI.container(
+    name: 'ProfielKledingKop',
+    width: double.infinity,
+    borderRadius: 10,
+    padding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 12),
+    child: UI.row(
+      name: 'ProfielKledingKopRij',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('checkroom', size: 20, color: UIColor.primary),
+        UI.expanded(UI.column(
+          name: 'ProfielKledingKopCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 2,
+          children: [kopTitel, kopTelling],
+        )),
+        UI.icon('expand_more', size: 20, color: UIColor.secondaryText),
+      ],
+    ),
+  );
+
+  // Eén kop per persoon: de server markeert de eerste regel van elk rijtje.
+  setConditionalVisibility(
+    kop,
+    variable: _equalsLiteral(
+        generatorVarField(lijst.key, 'isFirstOfOwner'), 'true'),
+  );
+
+  final toggleActie = findCustomAction(project, name: 'ToggleClothingSection');
+  if (toggleActie != null) {
+    Actions.onTapChain(
+      kop,
+      FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: FFAction(
+          key: generateRandomAlphaNumericString(),
+          customAction: FFCustomActionCall(
+            customActionIdentifier: toggleActie.identifier.deepCopy(),
+            argumentValues: _actieArgs(toggleActie, {
+              'ownerKey':
+                  FFValue(variable: generatorVarField(lijst.key, 'ownerKey')),
+            }),
+          ),
+        ),
+      ),
+    );
+  }
 
   // Tik = dit kledingstuk kiezen; de maten verschijnen eronder.
   final filterActie = findCustomAction(project, name: 'FilterClothingSizes');
@@ -40174,7 +40293,12 @@ void _addProfielClothing(FFProject project) {
     Actions.onTapChain(rij, kies);
   }
 
-  lijst.children.add(rij);
+  lijst.children.add(UI.column(
+    name: 'ProfielKledingItem',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 4,
+    children: [kop, rij],
+  ));
 
   final leeg = UI.text('',
       name: 'ProfielKledingLeeg',

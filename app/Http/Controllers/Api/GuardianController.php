@@ -366,6 +366,25 @@ class GuardianController extends Controller
     }
 
     /**
+     * De status in gewone taal.
+     *
+     * Deze methode ontbrak, waardoor /guardian/links met een 500 stukliep en
+     * het koppelingenblok op het profiel leeg bleef - zonder melding, want de
+     * app zet de lijst alleen bij een geslaagde aanroep.
+     */
+    private static function guardianStatusLabel(string $status): string
+    {
+        return match ($status) {
+            'approved' => 'Goedgekeurd',
+            'pending'  => 'Wacht op bevestiging',
+            'rejected' => 'Geweigerd',
+            'expired'  => 'Verlopen',
+            'revoked'  => 'Ingetrokken',
+            default    => $status,
+        };
+    }
+
+    /**
      * Eén regel van het koppeloverzicht.
      *
      * @return array<string, string>|null  null als de tegenpartij niet meer bestaat

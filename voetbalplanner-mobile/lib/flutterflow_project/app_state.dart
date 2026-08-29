@@ -59,6 +59,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const clothingOpenOwner = ffai.ProjectAppStateFieldHandle(
+    name: "clothingOpenOwner",
+    key: "077nwqfm",
+    typeName: "String",
+    persisted: false,
+  );
   static const clothingRows = ffai.ProjectAppStateFieldHandle(
     name: "clothingRows",
     key: "zarxbm59",
@@ -675,6 +681,7 @@ abstract final class AppState {
     clothingItemId,
     clothingItemName,
     clothingMemberId,
+    clothingOpenOwner,
     clothingRows,
     clothingSizeOptions,
     clothingSizes,
