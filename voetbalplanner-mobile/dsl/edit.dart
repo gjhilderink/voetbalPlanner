@@ -8352,6 +8352,11 @@ void _addSwapStructFields(FFProject project) {
       ('isVlagger',    FFBaseDataType.Boolean),
       ('dateLabel',    FFBaseDataType.String),
       ('timeLabel',    FFBaseDataType.String),
+      // Afgelast door de coach of door de bond. Zonder dit veld stond een
+      // afgelaste wedstrijd gewoon tussen de komende activiteiten alsof er
+      // niets aan de hand was.
+      ('isAfgelast',    FFBaseDataType.Boolean),
+      ('afgelastReden', FFBaseDataType.String),
     ]),
     ('TeamOption',   [
       ('role', FFBaseDataType.String),
@@ -28246,6 +28251,55 @@ FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
     variable: _firstFieldFilledVar(matchesVar, 'location'),
   );
 
+  // Afgelast. Boven de stand en niet ergens onderin: dit is het enige wat er op
+  // dat moment toe doet, en zonder deze balk staat er een gewone aftrapkaart
+  // voor een wedstrijd die niet doorgaat.
+  final afgelastTekst = UI.text('',
+      name: 'DashNextMatchAfgelastReden',
+      style: UITextStyle.labelSmall,
+      color: UIColor.hex(0xFFB91C1C),
+      maxLines: 2,
+      textOverflow: UITextOverflow.ellipsis);
+  afgelastTekst.props.text.textValue = FFStringValue(
+    variable: codeExpressionVar(
+      expression:
+          "((r ?? '') != '') ? ('Afgelast · ' + (r ?? '')) : 'Deze wedstrijd is afgelast'",
+      arguments: [
+        CodeExpressionArg(
+          name: 'r',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: _firstItemVar(matchesVar, 'afgelastReden')),
+        ),
+      ],
+      returnType:
+          FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    ),
+  );
+
+  final afgelastBalk = UI.container(
+    name: 'DashNextMatchAfgelast',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    borderRadius: 8,
+    color: UIColor.hex(0xFFFDE3E3, dark: 0xFF3A1E1E),
+    child: UI.row(
+      name: 'DashNextMatchAfgelastRij',
+      spacing: 6,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('event_busy', size: 16, color: UIColor.hex(0xFFB91C1C)),
+        UI.expanded(afgelastTekst),
+      ],
+    ),
+  );
+  setConditionalVisibility(
+    afgelastBalk,
+    variable: conditionVar(
+      _firstItemVar(matchesVar, 'isAfgelast'),
+      FFCondition_Relation.EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+    ).variable,
+  );
+
   final content = UI.column(
     name: 'DashNextMatchContent',
     crossAxisAlignment: UICrossAxisAlignment.stretch,
@@ -28261,6 +28315,7 @@ FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
           'matchId': VariableParamValue(_firstItemVar(matchesVar, 'id')),
         },
       ),
+      afgelastBalk,
       UI.row(
         name: 'DashNextMatchRow',
         crossAxisAlignment: UICrossAxisAlignment.center,
@@ -28900,6 +28955,50 @@ FFNode? _dashActivitiesCard(FFProject project, FFWidgetClass wc) {
     ).variable,
   );
 
+  // Gaat niet door. Onder de regel en niet als los blokje rechts: daar staat al
+  // "Thuis" of het aantal aanmeldingen, en dit is belangrijker dan allebei.
+  final afgelastTekst = UI.text('',
+      name: 'DashActivityAfgelastReden',
+      style: UITextStyle.labelSmall,
+      color: UIColor.hex(0xFFB91C1C),
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  afgelastTekst.props.text.textValue = FFStringValue(
+    variable: codeExpressionVar(
+      expression: "((r ?? '') != '') ? ('Afgelast · ' + (r ?? '')) : 'Afgelast'",
+      arguments: [
+        CodeExpressionArg(
+          name: 'r',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(
+              variable: generatorVarField(list.key, 'afgelastReden')),
+        ),
+      ],
+      returnType:
+          FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    ),
+  );
+
+  final afgelastRij = UI.container(
+    name: 'DashActivityAfgelast',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    borderRadius: 8,
+    color: UIColor.hex(0xFFFDE3E3, dark: 0xFF3A1E1E),
+    child: UI.row(
+      name: 'DashActivityAfgelastRij',
+      spacing: 5,
+      mainAxisMin: true,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.icon('event_busy', size: 13, color: UIColor.hex(0xFFB91C1C)),
+        UI.expanded(afgelastTekst),
+      ],
+    ),
+  );
+  setConditionalVisibility(afgelastRij,
+      variable:
+          _equalsLiteral(generatorVarField(list.key, 'isAfgelast'), 'true'));
+
   final card = UI.container(
     name: 'DashActivityCard',
     innerPadding: UIEdgeInsets.symmetric(vertical: 6),
@@ -28914,7 +29013,7 @@ FFNode? _dashActivitiesCard(FFProject project, FFWidgetClass wc) {
           name: 'DashActivityInfo',
           crossAxisAlignment: UICrossAxisAlignment.start,
           spacing: 3,
-          children: [titleText, subtitleText],
+          children: [titleText, subtitleText, afgelastRij],
         )),
         trailingText,
         UI.icon('chevron_right', size: 20, color: UIColor.secondaryText),
@@ -29843,6 +29942,9 @@ void _ensureActivityItemStruct(FFProject project) {
     'startTime',
     'kleedkamer',
     'mijnStatus',
+    // Gaat niet door. Alles in deze struct is String, dus 'true'/'false'.
+    'isAfgelast',
+    'afgelastReden',
   ];
 
   if (existing == null) {
@@ -30006,8 +30108,11 @@ Future<String> buildDashboardActivities() async {
         timeLabel: tijd,
         location: m.location,
         iconName: 'sports_soccer',
-        trailing: m.isHome ? 'Thuis' : 'Uit',
+        // Een afgelaste wedstrijd hoeft niet meer te melden of hij thuis is.
+        trailing: m.isAfgelast ? '' : (m.isHome ? 'Thuis' : 'Uit'),
         sortKey: sortKey(when),
+        isAfgelast: m.isAfgelast ? 'true' : 'false',
+        afgelastReden: m.afgelastReden,
       ),
       when,
     );
@@ -30029,8 +30134,14 @@ Future<String> buildDashboardActivities() async {
         timeLabel: t.startTime,
         location: t.location,
         iconName: 'sports',
-        trailing: t.aangemeld.isNotEmpty ? '${t.aangemeld} aangemeld' : '',
+        // Hoeveel mensen zich hadden aangemeld doet er niet meer toe als de
+        // training niet doorgaat.
+        trailing: t.isAfgelast == 'true'
+            ? ''
+            : (t.aangemeld.isNotEmpty ? '${t.aangemeld} aangemeld' : ''),
         sortKey: sortKey(when),
+        isAfgelast: t.isAfgelast.isEmpty ? 'false' : t.isAfgelast,
+        afgelastReden: t.afgelastReden,
         scheduleId: t.scheduleId,
         date: t.date,
         dayLabel: t.dayLabel,

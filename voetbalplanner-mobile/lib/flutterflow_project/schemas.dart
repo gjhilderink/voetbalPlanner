@@ -14,6 +14,7 @@ abstract final class Structs {
   static final ffai.StructHandle activityItem = ffai.StructHandle(
     "ActivityItem",
     <String, ffai.DslType>{
+      "afgelastReden": ffai.string,
       "afmeldingen": ffai.listOf(Structs.afmelding),
       "date": ffai.string,
       "dayLabel": ffai.string,
@@ -21,6 +22,7 @@ abstract final class Structs {
       "dayNumber": ffai.string,
       "iconName": ffai.string,
       "id": ffai.string,
+      "isAfgelast": ffai.string,
       "kind": ffai.string,
       "kleedkamer": ffai.string,
       "location": ffai.string,
@@ -180,6 +182,7 @@ abstract final class Structs {
   static final ffai.StructHandle footMatch = ffai.StructHandle(
     "FootMatch",
     <String, ffai.DslType>{
+      "afgelastReden": ffai.string,
       "arrivalTime": ffai.string,
       "coachName": ffai.string,
       "dateLabel": ffai.string,
@@ -187,6 +190,7 @@ abstract final class Structs {
       "fruitHeroId": ffai.string,
       "fruitHeroName": ffai.string,
       "id": ffai.string,
+      "isAfgelast": ffai.bool_,
       "isDriver": ffai.bool_,
       "isFruitHero": ffai.bool_,
       "isHome": ffai.bool_,
