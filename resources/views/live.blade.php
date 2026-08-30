@@ -37,6 +37,7 @@
         ['Doelpunten',   $stats['goalsOwn']  ?? '0', $stats['goalsOpponent']  ?? '0'],
         ['Gele kaarten', $stats['yellowOwn'] ?? '0', $stats['yellowOpponent'] ?? '0'],
         ['Rode kaarten', $stats['redOwn']    ?? '0', $stats['redOpponent']    ?? '0'],
+        ['Schoten op doel', $stats['shotsOwn'] ?? '0', $stats['shotsOpponent'] ?? '0'],
     ];
 @endphp
 <!DOCTYPE html>
@@ -433,7 +434,8 @@
         var rijen = [
             ['Doelpunten', s.stats.goalsOwn, s.stats.goalsOpponent],
             ['Gele kaarten', s.stats.yellowOwn, s.stats.yellowOpponent],
-            ['Rode kaarten', s.stats.redOwn, s.stats.redOpponent]
+            ['Rode kaarten', s.stats.redOwn, s.stats.redOpponent],
+            ['Schoten op doel', s.stats.shotsOwn, s.stats.shotsOpponent]
         ];
         var html = '';
         for (var i = 0; i < rijen.length; i++) {

@@ -340,7 +340,11 @@ class LiveMatchController extends Controller
     {
         $type = $data['type'];
 
-        if (in_array($type, [MatchEvent::TYPE_GOAL, MatchEvent::TYPE_CARD], true)
+        if (in_array($type, [
+                MatchEvent::TYPE_GOAL,
+                MatchEvent::TYPE_CARD,
+                MatchEvent::TYPE_SHOT,
+            ], true)
             && empty($data['side'])
         ) {
             return 'Geef aan of het om het eigen team of de tegenstander gaat.';

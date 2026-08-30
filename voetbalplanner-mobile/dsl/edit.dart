@@ -32584,6 +32584,30 @@ void _wireLiveMatchPage(FFProject project) {
     ),
   );
 
+  // Schot op doel, één tik. Bewust zonder spelerskeuze: een schot valt vaak in
+  // een scrimmage en er zijn er veel meer dan doelpunten - de coach die eerst
+  // een naam moet aanwijzen mist het volgende. Wie schoot leggen we dus niet
+  // vast; het is een teamcijfer.
+  final shotBtn = coachButton('Schot', 'my_location', UIColor.primary);
+  Actions.onTapChain(
+    shotBtn,
+    eventNode(
+      nodeKey: shotBtn.key,
+      output: 'liveShotOwn',
+      statics: {'type': 'shot', 'side': 'own', 'memberId': '', 'relatedMemberId': '', 'cardType': ''},
+    ),
+  );
+
+  final oppShotBtn = coachButton('Schot tegen', 'my_location', UIColor.secondaryText);
+  Actions.onTapChain(
+    oppShotBtn,
+    eventNode(
+      nodeKey: oppShotBtn.key,
+      output: 'liveShotOpponent',
+      statics: {'type': 'shot', 'side': 'opponent', 'memberId': '', 'relatedMemberId': '', 'cardType': ''},
+    ),
+  );
+
   FFNode panelButton(String label, String iconName, UIColor color, String panel) {
     final btn = coachButton(label, iconName, color);
     Actions.onTap(btn, setPanel(panel));
@@ -32875,6 +32899,13 @@ void _wireLiveMatchPage(FFProject project) {
             panelButton('Doelpunt', 'sports_soccer', UIColor.success, 'scorer'),
             oppGoalBtn,
           ],
+        ),
+        // Schoten onder de doelpunten: dezelfde indeling eigen/tegenstander,
+        // zodat je tijdens de wedstrijd niet hoeft te zoeken.
+        UI.row(
+          name: 'LiveCoachRowShots',
+          spacing: 8,
+          children: [shotBtn, oppShotBtn],
         ),
         UI.row(
           name: 'LiveCoachRowB',

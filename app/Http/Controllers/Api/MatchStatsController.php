@@ -79,6 +79,20 @@ class MatchStatsController extends Controller
             }
         }
 
+        $schoten = $events->where('type', MatchEvent::TYPE_SHOT);
+
+        if ($schoten->isNotEmpty()) {
+            // Doelpunten zijn ook schoten op doel, maar worden apart geteld: de
+            // coach legt tijdens de wedstrijd het schot vast óf het doelpunt,
+            // niet allebei. Optellen zou dus dubbel tellen wat hij niet heeft
+            // ingevoerd.
+            $regels[] = self::kop('Schoten op doel');
+            $regels[] = self::regel('Voor',
+                (string) $schoten->where('side', MatchEvent::SIDE_OWN)->count());
+            $regels[] = self::regel('Tegen',
+                (string) $schoten->where('side', MatchEvent::SIDE_OPPONENT)->count());
+        }
+
         $kaarten = $events->where('type', MatchEvent::TYPE_CARD);
 
         if ($kaarten->isNotEmpty()) {

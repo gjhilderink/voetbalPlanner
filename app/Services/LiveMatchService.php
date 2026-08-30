@@ -435,6 +435,8 @@ class LiveMatchService
             'yellowOpponent'=> $tel(fn ($e) => $e->type === MatchEvent::TYPE_CARD && $e->card_type === 'yellow' && $e->side === 'opponent'),
             'redOwn'        => $tel(fn ($e) => $e->type === MatchEvent::TYPE_CARD && $e->card_type === 'red' && $e->side !== 'opponent'),
             'redOpponent'   => $tel(fn ($e) => $e->type === MatchEvent::TYPE_CARD && $e->card_type === 'red' && $e->side === 'opponent'),
+            'shotsOwn'      => $tel(fn ($e) => $e->type === MatchEvent::TYPE_SHOT && $e->side !== 'opponent'),
+            'shotsOpponent' => $tel(fn ($e) => $e->type === MatchEvent::TYPE_SHOT && $e->side === 'opponent'),
             'substitutions' => $tel(fn ($e) => $e->type === MatchEvent::TYPE_SUBSTITUTION),
         ];
     }

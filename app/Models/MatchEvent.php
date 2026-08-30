@@ -22,6 +22,8 @@ class MatchEvent extends Model
     public const TYPE_GOAL         = 'goal';
     public const TYPE_CARD         = 'card';
     public const TYPE_SUBSTITUTION = 'substitution';
+    /** Schot op doel. Alleen de kant telt; wie schoot leggen we niet vast. */
+    public const TYPE_SHOT         = 'shot';
 
     public const TYPES = [
         self::TYPE_KICKOFF,
@@ -31,6 +33,7 @@ class MatchEvent extends Model
         self::TYPE_GOAL,
         self::TYPE_CARD,
         self::TYPE_SUBSTITUTION,
+        self::TYPE_SHOT,
     ];
 
     public const SIDE_OWN      = 'own';
@@ -79,6 +82,7 @@ class MatchEvent extends Model
             self::TYPE_GOAL         => 'sports_soccer',
             self::TYPE_CARD         => 'style',
             self::TYPE_SUBSTITUTION => 'swap_horiz',
+            self::TYPE_SHOT         => 'my_location',
             self::TYPE_HALFTIME,
             self::TYPE_FULLTIME     => 'sports',
             default                 => 'play_arrow',
@@ -109,6 +113,10 @@ class MatchEvent extends Model
                     $this->detail === 'penalty' ? '· strafschop' : '',
                     $this->detail === 'own_goal' ? '· eigen doelpunt' : '',
                 ]))),
+
+            self::TYPE_SHOT => $this->side === self::SIDE_OPPONENT
+                ? 'Schot op doel ' . $tegen
+                : ($naam !== '' ? 'Schot op doel · ' . $naam : 'Schot op doel'),
 
             self::TYPE_CARD => trim(
                 ($this->card_type === self::CARD_RED ? 'Rood' : 'Geel')
