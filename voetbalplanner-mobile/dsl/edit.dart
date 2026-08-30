@@ -35464,10 +35464,12 @@ class _LineupBoardState extends State<LineupBoard> {
   }
 
   /// Alleen de roepnaam op de pion; een volledige naam past niet in een chip.
-  String _kort(String naam) {
-    final delen = naam.trim().split(RegExp(r'\s+'));
-    return delen.isEmpty ? '' : delen.first;
-  }
+  /// Breedte van een pion op het veld.
+  ///
+  /// Ruimer dan de bal van 42, zodat er een hele naam onder past. Hier stond
+  /// alleen de voornaam, en met twee keer een Sem of een Daan in de selectie
+  /// wist de coach niet wie er waar stond.
+  static const double _pionBreedte = 84;
 
   @override
   Widget build(BuildContext context) {
@@ -35489,10 +35491,13 @@ class _LineupBoardState extends State<LineupBoard> {
           // Onder de 420 px staan veld en bank onder elkaar; naast elkaar wordt
           // het veld dan zo smal dat er geen speler meer op past.
           final smal = constraints.maxWidth < 420;
-          final veldBreedte = smal ? constraints.maxWidth : constraints.maxWidth - 170;
+          // 202 en niet 170: de namenlijst ernaast was zo smal dat elke naam met
+          // een tussenvoegsel werd afgekapt. Het veld levert er wat breedte voor
+          // in, maar daar staan de spelers al op hun plek.
+          final veldBreedte = smal ? constraints.maxWidth : constraints.maxWidth - 202;
 
           // De melding boven het veld en niet in de zijkant: die is in de brede
-          // indeling maar 158 px breed, en daar valt een waarschuwing weg.
+          // indeling maar 190 px breed, en daar valt een waarschuwing weg.
           final veld = Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -35536,7 +35541,7 @@ class _LineupBoardState extends State<LineupBoard> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    SizedBox(width: 158, child: zijkant),
+                    SizedBox(width: 190, child: zijkant),
                   ],
                 );
         },
@@ -35589,7 +35594,10 @@ class _LineupBoardState extends State<LineupBoard> {
         final doos = context.findRenderObject() as RenderBox?;
         if (doos == null) return;
         final lokaal = doos.globalToLocal(details.offset);
-        _zetOpVeld(details.data, (lokaal.dx + 21) / breedte, (lokaal.dy + 21) / hoogte);
+        // details.offset is de linkerbovenhoek van wat je sleept; opschuiven naar
+        // het midden van de bal, anders landt de speler een halve pion te ver links.
+        _zetOpVeld(details.data, (lokaal.dx + _pionBreedte / 2) / breedte,
+            (lokaal.dy + 21) / hoogte);
       },
       builder: (context, kandidaten, __) {
         return Container(
@@ -35607,7 +35615,9 @@ class _LineupBoardState extends State<LineupBoard> {
               Positioned.fill(child: CustomPaint(painter: _VeldLijnen())),
               for (final speler in _veld)
                 Positioned(
-                  left: _getal(speler.posX, 0.5) * breedte - 21,
+                  // Half de pionbreedte naar links: de plek in de opstelling is
+                  // die van de bal, niet die van de linkerrand van het naamplaatje.
+                  left: _getal(speler.posX, 0.5) * breedte - _pionBreedte / 2,
                   top: _getal(speler.posY, 0.5) * hoogte - 21,
                   child: _pion(theme, speler),
                 ),
@@ -35686,8 +35696,11 @@ class _LineupBoardState extends State<LineupBoard> {
     // coach zien in plaats van hem stilletjes kwijt te raken.
     final afgemeld = speler.isAfgemeld == 'true';
 
-    return Column(
+    return SizedBox(
+      width: _pionBreedte,
+      child: Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           width: 42,
@@ -35714,8 +35727,13 @@ class _LineupBoardState extends State<LineupBoard> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(6),
           ),
+          // Twee regels: een naam als "Sem van der Meer" past niet op één, en
+          // afkappen brengt je terug bij het probleem dat we net hebben opgelost.
           child: Text(
-            _kort(speler.naam),
+            speler.naam,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: theme.labelSmall.override(
               fontFamily: theme.labelSmallFamily,
               color: const Color(0xFF1E3A5F),
@@ -35723,6 +35741,7 @@ class _LineupBoardState extends State<LineupBoard> {
           ),
         ),
       ],
+      ),
     );
   }
 
@@ -35825,9 +35844,12 @@ class _LineupBoardState extends State<LineupBoard> {
                   color: afgemeld ? const Color(0xFFB91C1C) : theme.primaryText,
                 ),
               ),
+              // Twee regels in plaats van afkappen: "van der" kostte anders net
+              // de achternaam, en dan staan er twee spelers met dezelfde
+              // voornaam onder elkaar die je niet uit elkaar houdt.
               Text(
                 speler.naam,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.bodySmall.override(
                   fontFamily: theme.bodySmallFamily,
