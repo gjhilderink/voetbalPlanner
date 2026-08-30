@@ -111,7 +111,11 @@ class TeamStatsController extends Controller
         // gegevens. Een live vastgelegd doelpunt maakt óók een Goal-rij aan, en
         // die is via goal_id aan de gebeurtenis gekoppeld — daarop filteren we,
         // zodat er niets dubbel wordt geteld.
-        $wedstrijdIds = $played->pluck('id');
+        // Alle wedstrijden van het seizoen en niet alleen de afgeronde: een
+        // doelpunt dat in het live verslag staat is gemaakt, ook als de coach
+        // vergat op "Einde" te drukken en er dus nooit een uitslag is
+        // weggeschreven. Dat kostte spelers hun doelpunten.
+        $wedstrijdIds = $matches->pluck('id');
 
         $uitVerslag = fn (string $veld) => $memberId
             ? MatchEvent::query()
@@ -153,7 +157,7 @@ class TeamStatsController extends Controller
         // zonder verslag telt dus als nul kaarten.
         $kaarten = $memberId
             ? MatchEvent::query()
-                ->whereIn('match_id', $matches->pluck('id'))
+                ->whereIn('match_id', $wedstrijdIds)
                 ->where('type', MatchEvent::TYPE_CARD)
                 ->where('member_id', $memberId)
                 ->selectRaw('card_type, count(*) as aantal')
@@ -251,15 +255,27 @@ class TeamStatsController extends Controller
 
     private static function isPlayed(FootballMatch $match): bool
     {
+        if ($match->isCancelled()) {
+            return false;
+        }
         if ($match->score_home === null || $match->score_away === null) {
             return false;
         }
 
-        return in_array(
-            strtolower((string) $match->status),
-            ['played', 'completed', 'finished'],
-            true,
-        );
+        // Een uitslag én de wedstrijd is geweest: dan is hij gespeeld.
+        //
+        // De status er óók bij eisen was te streng. Die komt alleen op 'played'
+        // te staan als Sportlink de wedstrijd via de uitslagen aanlevert of
+        // letterlijk "Uitgespeeld" meldt. Een oefenwedstrijd, een handmatig
+        // ingevoerde wedstrijd en een wedstrijd waarvan de coach de uitslag zelf
+        // invulde bleven zo buiten élk cijfer op het dashboard - terwijl de
+        // uitslag er gewoon bij stond.
+        if (in_array(strtolower((string) $match->status),
+                ['played', 'completed', 'finished'], true)) {
+            return true;
+        }
+
+        return $match->match_datetime === null || $match->match_datetime->isPast();
     }
 
     /** @return array{0:int,1:int} eigen doelpunten, tegendoelpunten */

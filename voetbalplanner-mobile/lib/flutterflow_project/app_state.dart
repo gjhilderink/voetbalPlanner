@@ -635,6 +635,12 @@ abstract final class AppState {
     typeName: "DataStruct<TeamStats>",
     persisted: false,
   );
+  static const teamStatsRows = ffai.ProjectAppStateFieldHandle(
+    name: "teamStatsRows",
+    key: "knlji7t2",
+    typeName: "List<DataStruct<MatchStatRow>>",
+    persisted: false,
+  );
   static const trainingParticipants = ffai.ProjectAppStateFieldHandle(
     name: "trainingParticipants",
     key: "42mzeoq5",
@@ -783,6 +789,7 @@ abstract final class AppState {
     teamMatches,
     teamMood,
     teamStats,
+    teamStatsRows,
     trainingParticipants,
     trainings,
     trainingsPage,

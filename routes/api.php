@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\ClothingController;
 use App\Http\Controllers\Api\TeamLineupController;
 use App\Http\Controllers\Api\TeamMoodController;
 use App\Http\Controllers\Api\TeamStatsController;
+use App\Http\Controllers\Api\TeamStatsDetailController;
 use Illuminate\Support\Facades\Route;
 
 // Globale catch-all voor OPTIONS preflight — moet ALS EERSTE staan zodat
@@ -130,6 +131,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/teams/{team}/standing', [StandingController::class, 'show']);
         // Seizoenscijfers (team + jezelf) en teamsfeer voor het dashboard.
         Route::get('/teams/{team}/stats', [TeamStatsController::class, 'show']);
+        // Doorklikscherm voor de coach: dezelfde cijfers, maar per speler.
+        Route::get('/teams/{team}/team-stats', [TeamStatsDetailController::class, 'show']);
         Route::get('/teams/{team}/mood', [TeamMoodController::class, 'show']);
         Route::post('/teams/{team}/mood', [TeamMoodController::class, 'store']);
 

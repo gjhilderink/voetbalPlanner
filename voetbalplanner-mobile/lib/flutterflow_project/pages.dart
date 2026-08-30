@@ -34,6 +34,7 @@ import 'pages/rijschema_page.dart' show rijschemaPageHandle;
 import 'pages/stand_page.dart' show standPageHandle;
 import 'pages/team_chat_page.dart' show teamChatPageHandle;
 import 'pages/team_members_page.dart' show teamMembersPageHandle;
+import 'pages/team_stats_page.dart' show teamStatsPageHandle;
 import 'pages/training_detail_page.dart' show trainingDetailPageHandle;
 import 'pages/trainingen_page.dart' show trainingenPageHandle;
 import 'pages/verslag_page.dart' show verslagPageHandle;
@@ -75,6 +76,7 @@ abstract final class Pages {
   static final standPage = standPageHandle;
   static final teamChatPage = teamChatPageHandle;
   static final teamMembersPage = teamMembersPageHandle;
+  static final teamStatsPage = teamStatsPageHandle;
   static final trainingDetailPage = trainingDetailPageHandle;
   static final trainingenPage = trainingenPageHandle;
   static final verslagPage = verslagPageHandle;
@@ -115,6 +117,7 @@ abstract final class Pages {
     standPage,
     teamChatPage,
     teamMembersPage,
+    teamStatsPage,
     trainingDetailPage,
     trainingenPage,
     verslagPage,

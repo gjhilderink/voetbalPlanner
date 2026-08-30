@@ -1443,6 +1443,7 @@ void buildEditFlow(App app) {
   // Nieuwe NavBar-pagina's (Trainingen + Meer) moeten bestaan vóór de drawer-
   // en badge-wiring hieronder, anders krijgen ze die pas bij de volgende push.
   _buildTrainingenPage(app);
+  _buildTeamStatsPage(app);
   _buildMeerPage(app);
   // Live wedstrijdverslag. De pagina hier aanmaken zodat de knoppen die ernaar
   // verwijzen hem verderop kunnen vinden.
@@ -1552,6 +1553,9 @@ void buildEditFlow(App app) {
     _ensureMatchStatsAppState(project);
     _addMatchStatsEndpoint(project);
     _wireMatchStatsTab(project);
+    // Leunt op dezelfde struct als de wedstrijdstatistiek, dus hierna.
+    _ensureTeamStatsRowsAppState(project);
+    _wireTeamStatsPage(project);
     _ensureTeamDocumentStruct(project);
     _ensureTeamDocumentsAppState(project);
     _addTeamDocumentsEndpoint(project);
@@ -22314,6 +22318,39 @@ void _addGetTrainingsEndpoint(FFProject project) {
     );
   }
 
+  // Teamcijfers voor de coach. Zelfde vorm als de wedstrijdstatistiek - platte
+  // regels - zodat de app er dezelfde lijst uit rendert.
+  const teamStats = 'GetTeamStatsDetail';
+  const teamStatsUrl = '/teams/[teamId]/team-stats';
+
+  if (findApiEndpoint(project, name: teamStats, groupName: groupName) == null) {
+    if (findApiGroup(project, name: groupName) == null) return;
+    addEndpointToGroup(
+      project,
+      groupName:                groupName,
+      name:                     teamStats,
+      url:                      teamStatsUrl,
+      method:                   FFApiEndpoint_CallType.GET,
+      bodyType:                 FFApiEndpoint_BodyType.NONE,
+      variables: {
+        'token':  FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'teamId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      headers:                  ['Authorization: Bearer [token]'],
+      responseDataStructName:   'MatchStatRow',
+      responseDataStructIsList: true,
+    );
+  } else {
+    updateApiEndpoint(
+      project,
+      name:                     teamStats,
+      groupName:                groupName,
+      url:                      teamStatsUrl,
+      responseDataStructName:   'MatchStatRow',
+      responseDataStructIsList: true,
+    );
+  }
+
   // En hetzelfde voor de trainingenpagina, maar dan twee weken vooruit en
   // zonder limiet. Een apart endpoint en niet dezelfde met een variabele: het
   // dashboard en de pagina schrijven naar verschillende AppState-velden, dus ze
@@ -29001,6 +29038,24 @@ void _buildTrainingenPage(App app) {
   );
 }
 
+/// Teamcijfers voor de coach: wie scoort, wie pakt kaarten, wie is er niet.
+///
+/// Het dashboard toont per gebruiker zijn eigen cijfers. Dat zegt een coach
+/// weinig - die wil het over zijn elftal hebben.
+void _buildTeamStatsPage(App app) {
+  app.ensurePage(
+    'TeamStatsPage',
+    description:
+        'Seizoenscijfers van het hele elftal: resultaten, topscorers, assists, kaarten en opkomst per speler.',
+    route: 'teamstatistieken',
+    body: Column(
+      children: [
+        Container(name: 'TeamStatsContainer'),
+      ],
+    ),
+  );
+}
+
 void _buildMeerPage(App app) {
   app.ensurePage(
     'MeerPage',
@@ -30695,7 +30750,21 @@ FFNode? _dashSeasonStatsCard(FFProject project, FFWidgetClass wc) {
     }(),
   );
 
-  return _dashCard(
+  // Voor de coach een pijltje en een tik naar de teamcijfers. Wat hier staat
+  // zijn zíjn eigen cijfers, en die zeggen hem weinig - hij wil weten wie er
+  // scoort en wie er structureel niet is.
+  final activeId = _findAppStateFieldId(project, 'activeRole');
+  final isStaf = activeId == null
+      ? null
+      : orConditionsVar([
+          for (final rol in const ['Coach', 'Trainer', 'Leider'])
+            _activeRoleIs(activeId, scaffoldKey, rol),
+        ]).variable;
+
+  final pijl = UI.icon('chevron_right', size: 20, color: UIColor.secondaryText);
+  if (isStaf != null) setConditionalVisibility(pijl, variable: isStaf);
+
+  final kaart = _dashCard(
     name: 'DashSeasonStatsCard',
     margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
     child: UI.column(
@@ -30710,6 +30779,7 @@ FFNode? _dashSeasonStatsCard(FFProject project, FFWidgetClass wc) {
             UI.expanded(UI.text('Statistieken',
                 name: 'DashSeasonStatsTitle', style: UITextStyle.titleSmall)),
             seasonChip,
+            pijl,
           ],
         ),
         // Doelpunten, assists en kaarten komen uit de live verslagen. Dat hoort
@@ -30768,6 +30838,19 @@ FFNode? _dashSeasonStatsCard(FFProject project, FFWidgetClass wc) {
       ],
     ),
   );
+
+  // Aantikken opent de teamcijfers. Ook voor wie geen staf is: de server
+  // antwoordt dan met een nette melding in plaats van cijfers over anderen.
+  // Dat is beter dan een kaart die soms wel en soms niet reageert - alleen het
+  // pijltje verklapt dat er meer achter zit.
+  if (project.getWidgetClassByName('TeamStatsPage') != null && isStaf != null) {
+    Actions.onTap(
+      kaart,
+      Actions.navigate(project, pageName: 'TeamStatsPage', params: {}),
+    );
+  }
+
+  return kaart;
 }
 
 /// "Mijn uitnodigingen": wedstrijden waarvoor je als gastspeler gevraagd bent.
@@ -40342,6 +40425,178 @@ void _ensureMatchStatStruct(FFProject project) {
         'Eén regel uit de wedstrijdstatistiek: een kop of een label met een waarde.',
     fields: const ['kind', 'label', 'value', 'melding'],
   );
+}
+
+/// AppState 'teamStatsRows' = de teamcijfers voor de coach.
+///
+/// Eigen veld naast matchStats, ook al is de struct dezelfde: het zijn twee
+/// schermen die naast elkaar open kunnen staan, en delen ze het veld dan
+/// overschrijft de één de cijfers van de ander.
+void _ensureTeamStatsRowsAppState(FFProject project) {
+  final struct = findDataStruct(project, name: 'MatchStatRow');
+  if (struct == null) return;
+
+  if (project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'teamStatsRows')) return;
+
+  final param = FFParameter(
+    identifier: FFIdentifier(
+        name: 'teamStatsRows', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
+/// Vult TeamStatsPage: laadt de cijfers bij het openen en toont ze als lijst.
+void _wireTeamStatsPage(FFProject project) {
+  final wc = findPage(project, name: 'TeamStatsPage');
+  if (wc == null) return;
+
+  final rowsId = _findAppStateFieldId(project, 'teamStatsRows');
+  final authTokenId = _findAppStateFieldId(project, 'authToken');
+  final teamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  if (rowsId == null || authTokenId == null || teamIdId == null) return;
+  if (findApiEndpoint(project,
+          name: 'GetTeamStatsDetail', groupName: 'VoetbalPlannerAPI') ==
+      null) return;
+
+  if (getPropertyChild(wc.node, 'appBar') == null) {
+    final titel = UI.text('Teamstatistieken',
+        name: 'TeamStatsAppBarTitle', style: UITextStyle.titleLarge);
+    final appBar = UI.appBar(titleWidget: titel);
+    wc.node.children.add(appBar);
+    wc.node.childPropertyMap['appBar'] =
+        FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: appBar.key)]);
+  }
+
+  wc.node.triggerActions.removeWhere((t) =>
+      t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE);
+  Actions.addTriggerChain(
+    wc.node,
+    FFActionTriggerType.ON_INIT_STATE,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetTeamStatsDetail',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'teamId': varFromAppState(teamIdId.deepCopy()),
+      },
+      outputVariableName: 'teamStatsLoad',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('teamStatsRows', ctx.responseVar),
+        ]),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Kon de teamcijfers niet laden.'),
+      ]),
+    ),
+  );
+
+  final container =
+      findDescendants(wc.node, (n) => n.name == 'TeamStatsContainer').firstOrNull;
+  if (container == null) return;
+  container.children.clear();
+
+  final bodyCol = getPropertyChild(wc.node, 'body');
+  if (bodyCol != null && bodyCol.type == FFWidgetType.Column) {
+    final c = bodyCol.props.column.deepCopy();
+    c.scrollable = true;
+    bodyCol.props.column = c;
+  }
+
+  final rowsVar = varFromAppState(rowsId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final lijst = UI.listView(
+    name: 'TeamStatsList',
+    shrinkWrap: true,
+    spacing: 2,
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    dynamicSource: DynamicSource(variable: rowsVar, itemName: 'stat'),
+  );
+
+  FFNode gebonden(String naam, String veld, UITextStyle stijl,
+      {UIColor? kleur, UIFontWeight? gewicht}) {
+    final t = UI.text('',
+        name: naam,
+        style: stijl,
+        color: kleur,
+        fontWeight: gewicht,
+        maxLines: 2,
+        textOverflow: UITextOverflow.ellipsis);
+    t.props.text.textValue =
+        FFStringValue(variable: generatorVarField(lijst.key, veld));
+    return t;
+  }
+
+  // Kop en gewone regel sluiten elkaar uit op het veld 'kind'; FlutterFlow kan
+  // een tekststijl niet aan een variabele binden.
+  final kop = UI.container(
+    name: 'TeamStatKop',
+    innerPadding: UIEdgeInsets.only(top: 14, bottom: 4),
+    child: gebonden('TeamStatKopTekst', 'label', UITextStyle.labelMedium,
+        kleur: UIColor.secondaryText, gewicht: UIFontWeight.w700),
+  );
+  setConditionalVisibility(kop,
+      variable: _equalsLiteral(generatorVarField(lijst.key, 'kind'), 'kop'));
+
+  final regel = UI.container(
+    name: 'TeamStatRegel',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    borderRadius: 10,
+    color: UIColor.secondaryBackground,
+    child: UI.row(
+      name: 'TeamStatRegelRij',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        UI.expanded(gebonden('TeamStatLabel', 'label', UITextStyle.bodyMedium)),
+        gebonden('TeamStatWaarde', 'value', UITextStyle.bodyMedium,
+            gewicht: UIFontWeight.w700),
+      ],
+    ),
+  );
+  setConditionalVisibility(regel,
+      variable: _equalsLiteral(generatorVarField(lijst.key, 'kind'), 'regel'));
+
+  lijst.children.add(UI.column(
+    name: 'TeamStatItem',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    children: [kop, regel],
+  ));
+
+  // Melding in plaats van cijfers: geen wedstrijden, of geen rechten. De server
+  // zet hem in het eerste item.
+  final melding = UI.text('',
+      name: 'TeamStatsMelding',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center,
+      maxLines: 3);
+  melding.props.text.textValue =
+      FFStringValue(variable: _firstItemVar(rowsVar, 'melding'));
+  melding.props.padding = FFPadding(
+    leftValue: FFDoubleValue(inputValue: 24),
+    rightValue: FFDoubleValue(inputValue: 24),
+    topValue: FFDoubleValue(inputValue: 28),
+  );
+  setConditionalVisibility(
+    melding,
+    variable: andConditionsVar([
+      _listNotEmptyVar(rowsVar.deepCopy()),
+      _firstFieldFilledVar(rowsVar, 'melding'),
+    ]).variable,
+  );
+
+  container.children.add(UI.column(
+    name: 'TeamStatsCol',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    children: [melding, lijst],
+  ));
 }
 
 void _ensureMatchStatsAppState(FFProject project) {
