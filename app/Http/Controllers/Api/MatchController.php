@@ -44,6 +44,17 @@ class MatchController extends Controller
             ->when($teamId, fn($q, $id) => $q->where('team_id', $id))
             ->when($request->status, fn($q, $s) => $q->where('status', $s))
             ->when($request->upcoming, fn($q) => $q->where('match_datetime', '>=', now()))
+            // ?season=1: alles van het lopende voetbalseizoen, dus ook wat al
+            // gespeeld is. Het venster op de server en niet twee datums uit de
+            // app: die zou zelf moeten weten dat een seizoen op 1 juli begint,
+            // en dan staat die regel op twee plekken.
+            ->when($request->boolean('season'), function ($q) {
+                $jaar = now()->month >= 7 ? now()->year : now()->year - 1;
+                $q->whereBetween('match_datetime', [
+                    \Carbon\Carbon::create($jaar, 7, 1)->startOfDay(),
+                    \Carbon\Carbon::create($jaar + 1, 6, 30)->endOfDay(),
+                ]);
+            })
             ->when($request->date_from, fn($q, $d) => $q->where('match_datetime', '>=', $d))
             ->when($request->date_to, fn($q, $d) => $q->where('match_datetime', '<=', $d))
             ->orderBy('match_datetime')

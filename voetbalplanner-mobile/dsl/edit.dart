@@ -1765,6 +1765,55 @@ void _addUpcomingFilter(FFProject project) {
     }
   }
 
+  // 3b. "Toon alle wedstrijden" krijgt een eigen endpoint.
+  //
+  // Dit hing aan GetMatches, en dat endpoint stuurt geen team mee: de server
+  // valt dan terug op álle elftallen waar je bij hoort. Wie de schakelaar
+  // omzette kreeg de wedstrijden van zijn drie kinderen door elkaar.
+  const seasonUrl = '/matches?season=1&per_page=100&team_id=[teamId]';
+  final existingSeasonEp = group.endpoints
+      .cast<FFApiEndpoint?>()
+      .firstWhere((ep) => ep?.identifier.name == 'GetSeasonMatches',
+          orElse: () => null);
+
+  if (existingSeasonEp == null) {
+    group.endpoints.add(FFApiEndpoint(
+      identifier: FFIdentifier(
+        name: 'GetSeasonMatches',
+        key: generateRandomAlphaNumericString(),
+      ),
+      url: seasonUrl,
+      callType: FFApiEndpoint_CallType.GET,
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      body: '',
+      variables: [
+        FFApiValue(
+          identifier: FFIdentifier(name: 'token', key: generateRandomAlphaNumericString()),
+          type: FFBaseDataType.String,
+        ),
+        FFApiValue(
+          identifier: FFIdentifier(name: 'teamId', key: generateRandomAlphaNumericString()),
+          type: FFBaseDataType.String,
+        ),
+      ],
+      headers: ['Authorization: Bearer [token]'],
+      groupIdentifier: group.identifier.deepCopy(),
+      responseDataStructParam: getMatchesEp?.responseDataStructParam.deepCopy(),
+    ));
+  } else {
+    existingSeasonEp.url = seasonUrl;
+    existingSeasonEp.headers.clear();
+    existingSeasonEp.headers.add('Authorization: Bearer [token]');
+    for (final naam in const ['token', 'teamId']) {
+      if (!existingSeasonEp.variables.any((v) => v.identifier.name == naam)) {
+        existingSeasonEp.variables.add(FFApiValue(
+          identifier: FFIdentifier(name: naam, key: generateRandomAlphaNumericString()),
+          type: FFBaseDataType.String,
+        ));
+      }
+    }
+  }
+
   // 4. Replace onLoad: use GetUpcomingMatches so upcoming matches show on first load.
   //    Also sets isLoading=false consistent with the original chain.
   final authTokenId = project.appState.fields
@@ -1843,16 +1892,22 @@ void _addUpcomingFilter(FFProject project) {
   // The toggle widget's node key — needed for action-output nodeKeyRef.
   const _toggleKey = 'Switch_ugcso2gz';
 
-  // Toggle ON → show all matches (GetMatches without upcoming filter).
+  // Toggle ON → het hele seizoen van het gekozen elftal, gespeeld en nog te
+  // spelen. Met het elftal erbij: zonder team_id valt de server terug op alles
+  // waar je bij hoort, en dat waren bij een ouder met drie kinderen drie
+  // elftallen door elkaar.
   Actions.addTriggerChain(
     switchNode,
     FFActionTriggerType.ON_TOGGLE_ON,
     Actions.apiCallNode(
       project,
-      endpointName: 'GetMatches',
+      endpointName: 'GetSeasonMatches',
       groupName: 'VoetbalPlannerAPI',
-      variables: {'page': '1'},
-      dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        if (currentTeamIdId != null)
+          'teamId': varFromAppState(currentTeamIdId.deepCopy()),
+      },
       outputVariableName: 'allMatchesResult',
       nodeKey: _toggleKey,
       onSuccess: (ctx) => Actions.chain([
