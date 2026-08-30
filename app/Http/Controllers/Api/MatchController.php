@@ -136,7 +136,7 @@ class MatchController extends Controller
         if (! $request->user()?->canManageLineup($match->team_id)) {
             return response()->json([
                 'success' => false,
-                'melding' => 'Alleen de coach kan een wedstrijd afgelasten.',
+                'message' => 'Alleen de coach kan een wedstrijd afgelasten.',
             ], 403);
         }
 
@@ -150,7 +150,7 @@ class MatchController extends Controller
 
         return response()->json([
             'success' => true,
-            'melding' => 'De wedstrijd is afgelast.',
+            'message' => 'De wedstrijd is afgelast.',
         ]);
     }
 
@@ -166,7 +166,7 @@ class MatchController extends Controller
         if (! $request->user()?->canManageLineup($match->team_id)) {
             return response()->json([
                 'success' => false,
-                'melding' => 'Alleen de coach kan een wedstrijd vrijgeven.',
+                'message' => 'Alleen de coach kan een wedstrijd vrijgeven.',
             ], 403);
         }
 
@@ -178,7 +178,7 @@ class MatchController extends Controller
 
         return response()->json([
             'success' => true,
-            'melding' => 'De wedstrijd gaat weer door.',
+            'message' => 'De wedstrijd gaat weer door.',
         ]);
     }
 

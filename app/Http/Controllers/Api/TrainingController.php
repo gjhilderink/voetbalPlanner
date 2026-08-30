@@ -243,7 +243,7 @@ class TrainingController extends Controller
         if (! $request->user()?->canManageLineup($schedule->team_id)) {
             return response()->json([
                 'success' => false,
-                'melding' => 'Alleen de trainer kan een training afgelasten.',
+                'message' => 'Alleen de trainer kan een training afgelasten.',
             ], 403);
         }
 
@@ -262,7 +262,7 @@ class TrainingController extends Controller
 
         return response()->json([
             'success' => true,
-            'melding' => 'De training is afgelast.',
+            'message' => 'De training is afgelast.',
         ]);
     }
 
@@ -272,7 +272,7 @@ class TrainingController extends Controller
         if (! $request->user()?->canManageLineup($schedule->team_id)) {
             return response()->json([
                 'success' => false,
-                'melding' => 'Alleen de trainer kan een training vrijgeven.',
+                'message' => 'Alleen de trainer kan een training vrijgeven.',
             ], 403);
         }
 
@@ -283,7 +283,7 @@ class TrainingController extends Controller
 
         return response()->json([
             'success' => true,
-            'melding' => 'De training gaat weer door.',
+            'message' => 'De training gaat weer door.',
         ]);
     }
 
