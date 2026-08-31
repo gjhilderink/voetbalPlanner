@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\BarDutyController;
 use App\Http\Controllers\Api\BrandingController;
 use App\Http\Controllers\Api\DocumentationController;
+use App\Http\Controllers\Api\AccessController;
 use App\Http\Controllers\Api\TourController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
@@ -101,6 +102,13 @@ Route::prefix('v1')->group(function () {
         // Waar een in-app rondleiding moet beginnen. Geeft een lege matchId met
         // uitleg terug als er niets aan te wijzen valt; dat is een antwoord, geen fout.
         Route::get('/tour-target', [TourController::class, 'target']);
+
+        // Toegangscontrole bij de ingang. Beide routes zijn gegrendeld op de rol
+        // 'toegang' in de controller zelf; scannen geeft altijd HTTP 200, ook
+        // bij een ongeldige code, zodat de app dat kan onderscheiden van een
+        // netwerkfout.
+        Route::get('/access/events', [AccessController::class, 'events']);
+        Route::post('/access/scan', [AccessController::class, 'scan']);
 
         // Onboarding-slides (per club aanpasbaar, voor de rondleiding in de app)
         Route::get('/onboarding-slides', [OnboardingController::class, 'index']);

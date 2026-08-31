@@ -13,6 +13,9 @@ enum UserRole: string
     // Accounts die via een ouder/verzorger-koppeling zijn aangemaakt. Ze zijn
     // geen clublid; hun toegang loopt volledig via het gekoppelde kind.
     case Guardian = 'guardian';
+    // Mag toegangscodes beheren en bij de ingang scannen. Los van coach of
+    // commissie: de vrijwilliger aan de deur is vaak geen van beide.
+    case Toegang = 'toegang';
 
     public function label(): string
     {
@@ -22,6 +25,7 @@ enum UserRole: string
             self::Coach => 'Coach',
             self::Member => 'Lid',
             self::Guardian => 'Ouder/verzorger',
+            self::Toegang => 'Toegangscontrole',
         };
     }
 }

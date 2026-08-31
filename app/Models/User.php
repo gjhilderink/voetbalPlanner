@@ -89,6 +89,11 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         return $this->hasRole('kleding_commissie');
     }
 
+    public function isToegang(): bool
+    {
+        return $this->hasRole('toegang');
+    }
+
     public function canImpersonate(): bool
     {
         return $this->hasRole('super_admin');
@@ -202,12 +207,6 @@ class User extends Authenticatable implements FilamentUser, HasTenants
     }
 
     /**
-     * Alle teams die deze gebruiker mag zien: eigen teams (via user_team én via
-     * het Member/lidnummer) plus de teams van gekoppelde kinderen (approved
-     * guardian_links). Uniek op id. Gebruikt voor de teamkeuze in de app
-     * (bv. een ouder met kinderen in meerdere teams).
-     */
-    /**
      * Heeft dit account ergens een staffunctie: coach, assistent of leider?
      *
      * Niet per elftal, in tegenstelling tot canManageLineup(): dit beantwoordt
@@ -260,6 +259,12 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         return (bool) $this->resolveMember()?->teams->contains('id', $teamId);
     }
 
+    /**
+     * Alle teams die deze gebruiker mag zien: eigen teams (via user_team én via
+     * het Member/lidnummer) plus de teams van gekoppelde kinderen (approved
+     * guardian_links). Uniek op id. Gebruikt voor de teamkeuze in de app
+     * (bv. een ouder met kinderen in meerdere teams).
+     */
     public function accessibleTeams(): \Illuminate\Support\Collection
     {
         if ($this->accessibleTeamsCache !== null) {

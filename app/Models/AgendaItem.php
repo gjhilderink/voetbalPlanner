@@ -41,6 +41,7 @@ class AgendaItem extends Model
         'audience',
         'registration_enabled', 'registration_closes_at', 'capacity',
         'allow_guests', 'show_participants',
+        'free_for_members',
         'is_published', 'published_at', 'is_highlighted',
     ];
 
@@ -58,6 +59,7 @@ class AgendaItem extends Model
             'is_published'           => 'boolean',
             'is_highlighted'         => 'boolean',
             'capacity'               => 'integer',
+            'free_for_members'       => 'boolean',
         ];
     }
 
@@ -86,6 +88,18 @@ class AgendaItem extends Model
     public function staffGroups(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(StaffGroup::class, 'agenda_item_staff_group');
+    }
+
+    /** De uitgedeelde toegangscodes voor deze activiteit. */
+    public function accessCodes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AccessCode::class);
+    }
+
+    /** Wie er binnen is: zowel op een uitgedeelde code als op lidnummer. */
+    public function accessEntries(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AccessEntry::class);
     }
 
     public function registrations(): \Illuminate\Database\Eloquent\Relations\HasMany

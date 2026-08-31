@@ -39,8 +39,11 @@ class UserResource extends JsonResource
                 $rolesByTeam[$teamId][] = $role;
             }
         };
-        if ($member = $this->resolveMember()) {
-            foreach ($member->teams as $t) {
+        // Eén keer opzoeken; hieronder wordt het lid nog een paar keer gebruikt
+        // voor het lidnummer en de pasfoto.
+        $lid = $this->resolveMember();
+        if ($lid) {
+            foreach ($lid->teams as $t) {
                 $addRole($t->id, $t->pivot->role ?? null);
             }
         }
@@ -83,6 +86,11 @@ class UserResource extends JsonResource
                 'splash_bg_color' => $this->club->splash_bg_color ?? '',
             ] : self::legeClub(),
             'roles'         => $this->getRoleNames()->values(),
+            // Mag deze gebruiker bij de ingang scannen? Als vlag en niet als rol:
+            // de app leidt zijn rollen af uit teamfuncties (Speler, Coach,
+            // Trainer, Ouder, Leider) en kent de portalrollen helemaal niet.
+            // Dezelfde aanpak als magBeheren en canManage elders.
+            'can_scan_access' => $this->hasAnyRole(['super_admin', 'club_admin', 'toegang']),
             'managed_teams' => $this->managedTeams->map(fn($t) => [
                 'id'   => $t->id,
                 'name' => $t->name,
@@ -97,13 +105,17 @@ class UserResource extends JsonResource
                 'role'  => $roleLabelFor($t->id),
                 'roles' => $roleLabelsFor($t->id),
             ])->values(),
-            'member_id'         => $this->member?->id ?? '',
-            'relatiecode'       => $this->member?->external_id ?? '',
+            // resolveMember() en niet de member-relatie: een lid dat alleen op
+            // e-mailadres gekoppeld is had hier een leeg lidnummer, en zou dus
+            // een lege QR in zijn profiel krijgen. De teams hierboven doen het
+            // al met resolveMember().
+            'member_id'         => $lid?->id ?? '',
+            'relatiecode'       => $lid?->external_id ?? '',
             // Eigen upload eerst; anders de pasfoto uit Sportlink van het
             // gekoppelde lid. Zie Member::photoUrl().
             'profile_photo_url' => $this->profile_photo
                 ? asset('storage/' . $this->profile_photo)
-                : ($this->member?->photoUrl() ?? ''),
+                : ($lid?->photoUrl() ?? ''),
             'is_active'     => $this->is_active,
             'created_at'    => $this->created_at?->toISOString(),
         ];
