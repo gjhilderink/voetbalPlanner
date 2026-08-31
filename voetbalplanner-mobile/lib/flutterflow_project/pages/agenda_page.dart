@@ -19,6 +19,18 @@ final class AgendaPageParams {
 
 final class AgendaPageState {
   const AgendaPageState();
+  ffai.ProjectStateFieldHandle get bannerImageUrl =>
+      const ffai.ProjectStateFieldHandle(
+        name: "bannerImageUrl",
+        key: "xyklt9ft",
+        typeName: "String",
+      );
+  ffai.ProjectStateFieldHandle get bannerLinkUrl =>
+      const ffai.ProjectStateFieldHandle(
+        name: "bannerLinkUrl",
+        key: "onh1b6y2",
+        typeName: "String",
+      );
   ffai.ProjectStateFieldHandle get categories =>
       const ffai.ProjectStateFieldHandle(
         name: "categories",
@@ -93,189 +105,211 @@ abstract final class AgendaPageWidgets {
         ],
         "body": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "3fcc4vja",
-            type: "Stack",
+            key: "Column_suasikfu",
+            type: "Column",
             path: "AgendaPage.body[0]",
-            name: "AgendaPageBodyStack",
+            name: "AgendaBodyColumn",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_dm7rap02",
-                type: "Column",
+                key: "Container_vlmm1e3e",
+                type: "Container",
                 path: "AgendaPage.body[0].children[0]",
-                name: "AgendaPageColumn",
+                name: "AgendaBannerContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_9nawofpw",
-                    type: "Container",
+                    key: "Image_0961ro4y",
+                    type: "Image",
                     path: "AgendaPage.body[0].children[0].children[0]",
-                    name: "AgendaFilterBar",
+                    name: "AgendaBannerImage",
+                  ),
+                ],
+              ),
+              ffai.ProjectWidgetHandle(
+                key: "3fcc4vja",
+                type: "Stack",
+                path: "AgendaPage.body[0].children[1]",
+                name: "AgendaPageBodyStack",
+                children: <ffai.ProjectWidgetHandle>[
+                  ffai.ProjectWidgetHandle(
+                    key: "Column_dm7rap02",
+                    type: "Column",
+                    path: "AgendaPage.body[0].children[1].children[0]",
+                    name: "AgendaPageColumn",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "ListView_w17hung1",
-                        type: "ListView",
-                        path: "AgendaPage.body[0].children[0].children[0].children[0]",
-                        name: "AgendaCategoryChips",
+                        key: "Container_9nawofpw",
+                        type: "Container",
+                        path: "AgendaPage.body[0].children[1].children[0].children[0]",
+                        name: "AgendaFilterBar",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_3y9qnnhm",
+                            key: "ListView_w17hung1",
+                            type: "ListView",
+                            path: "AgendaPage.body[0].children[1].children[0].children[0].children[0]",
+                            name: "AgendaCategoryChips",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_3y9qnnhm",
+                                type: "Container",
+                                path: "AgendaPage.body[0].children[1].children[0].children[0].children[0].children[0]",
+                                name: "AgendaCategoryChip",
+                                triggers: const <String>[
+                                  "ON_TAP",
+                                ],
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_h6p1jix9",
+                                    type: "Text",
+                                    path: "AgendaPage.body[0].children[1].children[0].children[0].children[0].children[0].children[0]",
+                                    name: "AgendaCategoryChipLabel",
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      ffai.ProjectWidgetHandle(
+                        key: "Container_0smdpt00",
+                        type: "Container",
+                        path: "AgendaPage.body[0].children[1].children[0].children[1]",
+                        name: "AgendaClearFilterWrap",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Button_82i2jtc1",
+                            type: "Button",
+                            path: "AgendaPage.body[0].children[1].children[0].children[1].children[0]",
+                            name: "AgendaClearFilterButton",
+                            text: "Toon alles",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
+                          ),
+                        ],
+                      ),
+                      ffai.ProjectWidgetHandle(
+                        key: "ListView_3yi8k0y0",
+                        type: "ListView",
+                        path: "AgendaPage.body[0].children[1].children[0].children[2]",
+                        name: "AgendaList",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_8lml4j78",
                             type: "Container",
-                            path: "AgendaPage.body[0].children[0].children[0].children[0].children[0]",
-                            name: "AgendaCategoryChip",
+                            path: "AgendaPage.body[0].children[1].children[0].children[2].children[0]",
+                            name: "AgendaListCard",
                             triggers: const <String>[
                               "ON_TAP",
                             ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_h6p1jix9",
-                                type: "Text",
-                                path: "AgendaPage.body[0].children[0].children[0].children[0].children[0].children[0]",
-                                name: "AgendaCategoryChipLabel",
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "Container_0smdpt00",
-                    type: "Container",
-                    path: "AgendaPage.body[0].children[0].children[1]",
-                    name: "AgendaClearFilterWrap",
-                    children: <ffai.ProjectWidgetHandle>[
-                      ffai.ProjectWidgetHandle(
-                        key: "Button_82i2jtc1",
-                        type: "Button",
-                        path: "AgendaPage.body[0].children[0].children[1].children[0]",
-                        name: "AgendaClearFilterButton",
-                        text: "Toon alles",
-                        triggers: const <String>[
-                          "ON_TAP",
-                        ],
-                      ),
-                    ],
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "ListView_3yi8k0y0",
-                    type: "ListView",
-                    path: "AgendaPage.body[0].children[0].children[2]",
-                    name: "AgendaList",
-                    children: <ffai.ProjectWidgetHandle>[
-                      ffai.ProjectWidgetHandle(
-                        key: "Container_8lml4j78",
-                        type: "Container",
-                        path: "AgendaPage.body[0].children[0].children[2].children[0]",
-                        name: "AgendaListCard",
-                        triggers: const <String>[
-                          "ON_TAP",
-                        ],
-                        children: <ffai.ProjectWidgetHandle>[
-                          ffai.ProjectWidgetHandle(
-                            key: "Column_0ccppurw",
-                            type: "Column",
-                            path: "AgendaPage.body[0].children[0].children[2].children[0].children[0]",
-                            name: "AgendaCardColumn",
-                            children: <ffai.ProjectWidgetHandle>[
-                              ffai.ProjectWidgetHandle(
-                                key: "Text_h5zd4pnk",
-                                type: "Text",
-                                path: "AgendaPage.body[0].children[0].children[2].children[0].children[0].children[0]",
-                                name: "AgendaCardDate",
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "Text_zpbazt6m",
-                                type: "Text",
-                                path: "AgendaPage.body[0].children[0].children[2].children[0].children[0].children[1]",
-                                name: "AgendaCardTitle",
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "Text_1jnbk26j",
-                                type: "Text",
-                                path: "AgendaPage.body[0].children[0].children[2].children[0].children[0].children[2]",
-                                name: "AgendaCardSummary",
-                              ),
-                              ffai.ProjectWidgetHandle(
-                                key: "Row_so0l3048",
-                                type: "Row",
-                                path: "AgendaPage.body[0].children[0].children[2].children[0].children[0].children[3]",
-                                name: "AgendaCardMetaRow",
+                                key: "Column_0ccppurw",
+                                type: "Column",
+                                path: "AgendaPage.body[0].children[1].children[0].children[2].children[0].children[0]",
+                                name: "AgendaCardColumn",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_5d2ghygi",
+                                    key: "Text_h5zd4pnk",
                                     type: "Text",
-                                    path: "AgendaPage.body[0].children[0].children[2].children[0].children[0].children[3].children[0]",
-                                    name: "AgendaCardTime",
+                                    path: "AgendaPage.body[0].children[1].children[0].children[2].children[0].children[0].children[0]",
+                                    name: "AgendaCardDate",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_m62snjap",
+                                    key: "Text_zpbazt6m",
                                     type: "Text",
-                                    path: "AgendaPage.body[0].children[0].children[2].children[0].children[0].children[3].children[1]",
-                                    name: "AgendaCardLocation",
+                                    path: "AgendaPage.body[0].children[1].children[0].children[2].children[0].children[0].children[1]",
+                                    name: "AgendaCardTitle",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_1jnbk26j",
+                                    type: "Text",
+                                    path: "AgendaPage.body[0].children[1].children[0].children[2].children[0].children[0].children[2]",
+                                    name: "AgendaCardSummary",
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_so0l3048",
+                                    type: "Row",
+                                    path: "AgendaPage.body[0].children[1].children[0].children[2].children[0].children[0].children[3]",
+                                    name: "AgendaCardMetaRow",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_5d2ghygi",
+                                        type: "Text",
+                                        path: "AgendaPage.body[0].children[1].children[0].children[2].children[0].children[0].children[3].children[0]",
+                                        name: "AgendaCardTime",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_m62snjap",
+                                        type: "Text",
+                                        path: "AgendaPage.body[0].children[1].children[0].children[2].children[0].children[0].children[3].children[1]",
+                                        name: "AgendaCardLocation",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_u2ydkkpz",
+                                    type: "Text",
+                                    path: "AgendaPage.body[0].children[1].children[0].children[2].children[0].children[0].children[4]",
+                                    name: "AgendaCardCategory",
                                   ),
                                 ],
                               ),
-                              ffai.ProjectWidgetHandle(
-                                key: "Text_u2ydkkpz",
-                                type: "Text",
-                                path: "AgendaPage.body[0].children[0].children[2].children[0].children[0].children[4]",
-                                name: "AgendaCardCategory",
-                              ),
                             ],
                           ),
                         ],
                       ),
                     ],
                   ),
+                  ffai.ProjectWidgetHandle(
+                    key: "Container_241o768g",
+                    type: "Container",
+                    path: "AgendaPage.body[0].children[1].children[1]",
+                    name: "ChatBadgeOverlay",
+                  ),
                 ],
-              ),
-              ffai.ProjectWidgetHandle(
-                key: "Container_241o768g",
-                type: "Container",
-                path: "AgendaPage.body[0].children[1]",
-                name: "ChatBadgeOverlay",
               ),
             ],
           ),
         ],
         "drawer": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "Drawer_aaj46iqr",
+            key: "Drawer_6rpyy5pn",
             type: "Drawer",
             path: "AgendaPage.drawer[0]",
             name: "AppDrawer",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_7f8t287s",
+                key: "Column_3dl7rdst",
                 type: "Column",
                 path: "AgendaPage.drawer[0].children[0]",
                 name: "DrawerMenuColumn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_xcz5tepy",
+                    key: "Container_el11qy0h",
                     type: "Container",
                     path: "AgendaPage.drawer[0].children[0].children[0]",
                     name: "DrawerHeader",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_mv012cvx",
+                        key: "Column_yrr3xivw",
                         type: "Column",
                         path: "AgendaPage.drawer[0].children[0].children[0].children[0]",
                         name: "DrawerHeaderColumn",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_30tdig35",
+                            key: "Container_p51aj9ur",
                             type: "Container",
                             path: "AgendaPage.drawer[0].children[0].children[0].children[0].children[0]",
                             name: "DrawerHeaderAvatar",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "u96mehgw",
+                                key: "kufpywr9",
                                 type: "CircleImage",
                                 path: "AgendaPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "DrawerHeaderPhoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_sntgoefq",
+                                key: "Icon_1v4w0dbh",
                                 type: "Icon",
                                 path: "AgendaPage.drawer[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "Icon",
@@ -283,13 +317,13 @@ abstract final class AgendaPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_h9fjz4mn",
+                            key: "Text_aeefi3xa",
                             type: "Text",
                             path: "AgendaPage.drawer[0].children[0].children[0].children[0].children[1]",
                             name: "DrawerHeaderName",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_6hl7is1i",
+                            key: "Text_fuku430q",
                             type: "Text",
                             path: "AgendaPage.drawer[0].children[0].children[0].children[0].children[2]",
                             name: "DrawerHeaderEmail",
@@ -299,7 +333,7 @@ abstract final class AgendaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_0k2ve3jn",
+                    key: "ListTile_op57d27p",
                     type: "ListTile",
                     path: "AgendaPage.drawer[0].children[0].children[1]",
                     name: "DrawerTileHome",
@@ -308,7 +342,7 @@ abstract final class AgendaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_6yu8nteg",
+                    key: "ListTile_trb7lmb2",
                     type: "ListTile",
                     path: "AgendaPage.drawer[0].children[0].children[2]",
                     name: "DrawerTileNews",
@@ -317,7 +351,7 @@ abstract final class AgendaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_s6z1fi2m",
+                    key: "ListTile_qefov328",
                     type: "ListTile",
                     path: "AgendaPage.drawer[0].children[0].children[3]",
                     name: "DrawerTileDocs",
@@ -326,7 +360,7 @@ abstract final class AgendaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_1cuteexc",
+                    key: "ListTile_cilie0h4",
                     type: "ListTile",
                     path: "AgendaPage.drawer[0].children[0].children[4]",
                     name: "DrawerTileProfiel",
@@ -335,7 +369,7 @@ abstract final class AgendaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_ich6gafl",
+                    key: "ListTile_l544hm8w",
                     type: "ListTile",
                     path: "AgendaPage.drawer[0].children[0].children[5]",
                     name: "DrawerTileBug",
@@ -344,25 +378,25 @@ abstract final class AgendaPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_7wsdzy7d",
+                    key: "Container_khvuf54a",
                     type: "Container",
                     path: "AgendaPage.drawer[0].children[0].children[6]",
                     name: "DrawerFooterSpacer",
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_1o13th5g",
+                    key: "Container_r8t3b0gg",
                     type: "Container",
                     path: "AgendaPage.drawer[0].children[0].children[7]",
                     name: "DrawerFooterLogoWrap",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Row_ls8bxj46",
+                        key: "Row_o283ivlj",
                         type: "Row",
                         path: "AgendaPage.drawer[0].children[0].children[7].children[0]",
                         name: "DrawerFooterLogoRow",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "atu6cs2x",
+                            key: "swevezt8",
                             type: "Image",
                             path: "AgendaPage.drawer[0].children[0].children[7].children[0].children[0]",
                             name: "DrawerFooterLogo",

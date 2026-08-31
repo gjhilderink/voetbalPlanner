@@ -1389,8 +1389,13 @@ void buildEditFlow(App app) {
   } catch (_) {}
   app.raw((project) => _addBannerEndpoint(project));
   app.raw((project) => _addBannerToWedstrijdenPage(project));
-  app.raw((project) => _addBannerToBardienPage(project));
-  app.raw((project) => _addBannerToRijschemaPage(project));
+  // De overige pagina's gebruiken allemaal dezelfde vorm: banner bovenaan de
+  // body. Alleen de wedstrijdenpagina wijkt af, want daar moet hij boven de
+  // begroeting en niet bovenaan het scherm.
+  //
+  // Helemaal onderaan deze functie, niet hier: Trainingen en Agenda worden
+  // verderop nog ingericht, en die pas bouwt de body opnieuw op. Een banner die
+  // hier wordt ingevoegd is tegen die tijd weer weg.
 
   // ── Nieuwsfeed feature ────────────────────────────────────────────────────
   try {
@@ -1611,6 +1616,17 @@ void buildEditFlow(App app) {
     _ensureSyncUserRolesAction(project);
     _wireSyncUserRolesOnLoad(project);
     _wireTrainingenPage(project);
+    // Banners bovenaan de pagina's die allemaal dezelfde vorm hebben. Ná het
+    // inrichten van die pagina's: wie eerder invoegt wordt overschreven.
+    for (final (pagina, prefix, plek) in const [
+      ('BardienPage',    'Bardien',    'bardiensten'),
+      ('RijschemaPage',  'Rijschema',  'rijschema'),
+      ('TrainingenPage', 'Trainingen', 'trainingen'),
+      ('AgendaPage',     'Agenda',     'agenda'),
+    ]) {
+      _addBannerBovenaanPagina(project,
+          pageName: pagina, prefix: prefix, position: plek);
+    }
     _ensureStandingStruct(project);
     _ensureStandingAppState(project);
     _addStandingEndpoint(project);
@@ -8286,17 +8302,24 @@ void _ensurePageStateField(FFWidgetClass wc, String name, FFBaseDataType type) {
     (f) => f.parameter.identifier.name == name,
   );
   if (exists) return;
-  wc.classModel.stateFields.add(
-    FFWidgetClassStateField(
-      parameter: FFParameter(
-        identifier: FFIdentifier(
-          name: name,
-          key: generateRandomAlphaNumericString(),
-        ),
-        dataType: FFDataTypeV2(scalarType: type),
+  final veld = FFWidgetClassStateField(
+    parameter: FFParameter(
+      identifier: FFIdentifier(
+        name: name,
+        key: generateRandomAlphaNumericString(),
       ),
+      dataType: FFDataTypeV2(scalarType: type),
     ),
   );
+  try {
+    wc.classModel.stateFields.add(veld);
+  } on UnsupportedError {
+    // Een pagina die in dezelfde run door app.ensurePage is opgebouwd komt
+    // bevroren uit de compiler: "Unsupported operation: 'add' on a read-only
+    // list". Een verse kopie is wel te bewerken.
+    wc.classModel = wc.classModel.deepCopy();
+    wc.classModel.stateFields.add(veld);
+  }
 }
 
 // Scrollable column intentionally disabled — caused tap events on login buttons
@@ -13674,21 +13697,38 @@ void _addBannerToWedstrijdenPage(FFProject project) {
   _wireBannerPageLoad(project, wc, 'WedstrijdenPage', 'wedstrijden');
 }
 
-// Wraps BardienPage body in a Column (same pattern as _restructureWedstrijdenPageBody),
-// then inserts a banner Image widget as the first child.
-void _addBannerToBardienPage(FFProject project) {
-  final wc = findPage(project, name: 'BardienPage');
+/// Zet een banner bovenaan een pagina.
+///
+/// Wikkelt de body zo nodig in een Column - een Scaffold-body is vaak één
+/// widget, en dan is er geen plek om iets bóven te zetten - en hangt de banner
+/// er als eerste kind in. De naam van de container is de idempotentie: staat
+/// hij er al, dan wordt alleen de zichtbaarheidsregel opnieuw gezet, zodat een
+/// verbeterde expressie ook op bestaande pagina's landt.
+///
+/// [prefix] bepaalt de knooppuntnamen, [position] is de plek waarop de banner
+/// in de portal is ingesteld.
+void _addBannerBovenaanPagina(
+  FFProject project, {
+  required String pageName,
+  required String prefix,
+  required String position,
+}) {
+  final wc = findPage(project, name: pageName);
   if (wc == null) return;
 
   _ensurePageStateField(wc, 'bannerImageUrl', FFBaseDataType.String);
   _ensurePageStateField(wc, 'bannerLinkUrl',  FFBaseDataType.String);
 
-  // Wrap body in Column if not already done.
   final bodyChild = getPropertyChild(wc.node, 'body');
   if (bodyChild != null && bodyChild.type != FFWidgetType.Column) {
-    final bodyColumn = UI.column(name: 'BardienBodyColumn', mainAxisMin: false);
     UI.expanded(bodyChild);
-    bodyColumn.children.add(bodyChild);
+    // Het kind meteen in de constructor: een UI.column zonder children krijgt
+    // een bevroren lijst mee, en dan faalt een latere add met "read-only list".
+    final bodyColumn = UI.column(
+      name: '${prefix}BodyColumn',
+      mainAxisMin: false,
+      children: [bodyChild],
+    );
     final idx = wc.node.children.indexWhere((n) => n.key == bodyChild.key);
     if (idx >= 0) wc.node.children[idx] = bodyColumn;
     wc.node.childPropertyMap['body'] = FFChildrenKeys(
@@ -13696,72 +13736,29 @@ void _addBannerToBardienPage(FFProject project) {
     );
   }
 
-  // Insert (or re-insert) banner as first child of the body Column.
   final bodyCol = getPropertyChild(wc.node, 'body');
   if (bodyCol == null) return;
 
-  final existing = findDescendants(wc.node, (n) => n.name == 'BardienBannerContainer');
+  final containerName = '${prefix}BannerContainer';
+  final existing = findDescendants(wc.node, (n) => n.name == containerName);
   if (existing.isEmpty) {
-    final bannerNode = _buildBannerImageNode(
-      project,
-      wc,
-      containerName: 'BardienBannerContainer',
-      imageName: 'BardienBannerImage',
-      imageUrlFieldName: 'bannerImageUrl',
+    bodyCol.children.insert(
+      0,
+      _buildBannerImageNode(
+        project,
+        wc,
+        containerName: containerName,
+        imageName: '${prefix}BannerImage',
+        imageUrlFieldName: 'bannerImageUrl',
+      ),
     );
-    bodyCol.children.insert(0, bannerNode);
-  } else {
-    // Re-apply visibility so expression changes (e.g. null-safety fix) take effect
-    // on already-existing containers from a prior push.
-    _applyBannerContainerVisibility(wc, existing.first, 'bannerImageUrl');
-  }
-
-  _wireBannerPageLoad(project, wc, 'BardienPage', 'bardiensten');
-}
-
-// Mirror van _addBannerToBardienPage maar voor RijschemaPage.
-// Voegt bannerImageUrl/bannerLinkUrl state-velden toe, wrapt de body in een
-// Column als die dat nog niet is, en plaatst de banner als eerste child.
-void _addBannerToRijschemaPage(FFProject project) {
-  final wc = findPage(project, name: 'RijschemaPage');
-  if (wc == null) return;
-
-  _ensurePageStateField(wc, 'bannerImageUrl', FFBaseDataType.String);
-  _ensurePageStateField(wc, 'bannerLinkUrl',  FFBaseDataType.String);
-
-  // Wrap body in Column if not already done.
-  final bodyChild = getPropertyChild(wc.node, 'body');
-  if (bodyChild != null && bodyChild.type != FFWidgetType.Column) {
-    final bodyColumn = UI.column(name: 'RijschemaBodyColumn', mainAxisMin: false);
-    UI.expanded(bodyChild);
-    bodyColumn.children.add(bodyChild);
-    final idx = wc.node.children.indexWhere((n) => n.key == bodyChild.key);
-    if (idx >= 0) wc.node.children[idx] = bodyColumn;
-    wc.node.childPropertyMap['body'] = FFChildrenKeys(
-      keyRefs: [FFNodeKeyReference(key: bodyColumn.key)],
-    );
-  }
-
-  // Insert (or re-insert) banner as first child of the body Column.
-  final bodyCol = getPropertyChild(wc.node, 'body');
-  if (bodyCol == null) return;
-
-  final existing = findDescendants(wc.node, (n) => n.name == 'RijschemaBannerContainer');
-  if (existing.isEmpty) {
-    final bannerNode = _buildBannerImageNode(
-      project,
-      wc,
-      containerName: 'RijschemaBannerContainer',
-      imageName: 'RijschemaBannerImage',
-      imageUrlFieldName: 'bannerImageUrl',
-    );
-    bodyCol.children.insert(0, bannerNode);
   } else {
     _applyBannerContainerVisibility(wc, existing.first, 'bannerImageUrl');
   }
 
-  _wireBannerPageLoad(project, wc, 'RijschemaPage', 'rijschema');
+  _wireBannerPageLoad(project, wc, pageName, position);
 }
+
 
 // Re-applies null-safe conditional visibility on any banner container node.
 // Separating this from _buildBannerImageNode lets the page functions call it

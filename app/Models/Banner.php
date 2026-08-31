@@ -37,6 +37,8 @@ class Banner extends Model
         'wedstrijden'  => 'Wedstrijden',
         'bardiensten'  => 'Bardiensten',
         'rijschema'    => 'Rijschema',
+        'trainingen'   => 'Trainingen',
+        'agenda'       => 'Agenda',
         'chat'         => 'Chat',
     ];
 
