@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\BarDutyController;
 use App\Http\Controllers\Api\BrandingController;
 use App\Http\Controllers\Api\DocumentationController;
+use App\Http\Controllers\Api\TourController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\LineupController;
 use App\Http\Controllers\Api\LiveMatchController;
@@ -96,6 +97,10 @@ Route::prefix('v1')->group(function () {
 
         // Documentation
         Route::get('/documentation', [DocumentationController::class, 'index']);
+
+        // Waar een in-app rondleiding moet beginnen. Geeft een lege matchId met
+        // uitleg terug als er niets aan te wijzen valt; dat is een antwoord, geen fout.
+        Route::get('/tour-target', [TourController::class, 'target']);
 
         // Onboarding-slides (per club aanpasbaar, voor de rondleiding in de app)
         Route::get('/onboarding-slides', [OnboardingController::class, 'index']);

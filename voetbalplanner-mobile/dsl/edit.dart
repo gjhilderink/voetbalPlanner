@@ -553,6 +553,11 @@ void buildEditFlow(App app) {
   // vraag die dit beantwoordt is "heb ik dit al eens gezien" en dat hoort een
   // herstart te overleven. Een lijst en geen vlag per tour: er komen er meer bij.
   try { app.state('gezieneTours',              listOf(string), persisted: true); } catch (_) {}
+  // Een aangevraagde rondleiding, onderweg van de handleiding naar de
+  // wedstrijd. Niet persistent: blijft dit een herstart overleven, dan begint
+  // er ineens een rondleiding bij een wedstrijd die je gewoon wilde openen.
+  try { app.state('tourOpenId',                string); } catch (_) {}
+  try { app.state('tourOpenStap',              int_.withDefault(0)); } catch (_) {}
   // Staat de app in de kleuren en het logo van de club? Standaard aan, want dat
   // is wat je verwacht als je de app van je club opent; wie het neutraal wil kan
   // hem uitzetten. clubStyleAsked onthoudt of de vraag al gesteld is - los veld,
@@ -690,6 +695,16 @@ void buildEditFlow(App app) {
     veld('tourId', FFBaseDataType.String);
     veld('tourStartStep', FFBaseDataType.Integer);
   });
+  // Het fundament van de rondleiding staat helemaal vooraan: de knop in de
+  // handleiding roept OpenTourTarget aan en de wedstrijdpagina hangt er
+  // markeringen aan. Allebei hebben ze nodig dat de widget en de acties al
+  // bestaan voordat zij zichzelf opbouwen.
+  app.raw((project) {
+    _ensureTourFundament(project);
+    _ensureTourActies(project);
+    _ensureTourNavigatieActies(project);
+  });
+
   // Fix de FlutterFlow web-deploy: twee FF-default packages compileren niet meer
   // op recente Flutter (de deploy faalde hierop). Forceer compatibele versies.
   app.raw((project) => _fixIncompatiblePubVersions(project));
@@ -1324,14 +1339,6 @@ void buildEditFlow(App app) {
   // rebuilds lopen anders herschrijft die de gehighlighte tree weer terug.
   app.raw((project) => _wireOwnNameHighlight(project));
 
-  // Het fundament van de rondleiding staat hier en niet verderop: de
-  // wedstrijdpagina hangt er markeringen aan, en die heeft de custom widget dus
-  // al nodig voordat hij zichzelf opbouwt.
-  app.raw((project) {
-    _ensureTourFundament(project);
-    _ensureTourActies(project);
-  });
-
   // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons into MatchInfoColumn.
   app.raw((project) => _wireMatchSwap(project));
   // Af-/aanmelden met reden op WedstrijdDetailPage (ná de info-kolom + swap-knoppen).
@@ -1370,6 +1377,7 @@ void buildEditFlow(App app) {
   // Markeringen op de coach-knop en het menu. Moet hierna: die knooppunten
   // bestaan pas als de twee passes hierboven klaar zijn.
   app.raw((project) => _zetTourDoelenOpWedstrijd(project));
+  app.raw((project) => _wireTourStartOpWedstrijd(project));
 
   // ─── Banner (marketing) feature ────────────────────────────────────────────
   // Banner struct for the GetBanners API response.
@@ -5347,12 +5355,11 @@ void _addTourButtonsToDocumentatie(FFProject project) {
       findDescendants(lijst, (n) => n.type == FFWidgetType.Column).firstOrNull;
   if (kaartKolom == null) return;
 
-  void knop(String tourId, String pagina) {
+  void knop(String tourId) {
     final naam = 'TourKnop_$tourId';
     // Elke push opnieuw opbouwen in plaats van overslaan: zo landen wijzigingen
     // aan de tekst of de actie ook echt.
     kaartKolom.children.removeWhere((n) => n.name == naam);
-    if (project.getWidgetClassByName(pagina) == null) return;
 
     final b = UI.button(
       'Toon mij dit',
@@ -5360,19 +5367,35 @@ void _addTourButtonsToDocumentatie(FFProject project) {
       iconName: 'play_circle_outline',
       width: double.infinity,
     );
-    Actions.onTap(
+    // Eerst de aanvraag in app-state, dan de actie die de bijbehorende
+    // wedstrijd opzoekt en erheen gaat. Twee stappen en geen navigatie hier:
+    // welke wedstrijd het wordt weet alleen de server, en of er er überhaupt
+    // een is ook.
+    final opener = findCustomAction(project, name: 'OpenTourTarget');
+    if (opener == null) return;
+
+    Actions.onTapChain(
       b,
-      Actions.navigate(
-        project,
-        pageName: pagina,
-        params: {
-          'tourId': VariableParamValue(generatorVarField(lijst.key, 'tourId')),
+      FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable(
+              'tourOpenId', generatorVarField(lijst.key, 'tourId')),
           // Waar de rondleiding begint staat per sectie ingesteld, zodat twee
           // secties dezelfde rondleiding kunnen delen en elk op hun eigen plek
           // starten.
-          'startStep':
-              VariableParamValue(generatorVarField(lijst.key, 'tourStartStep')),
-        },
+          StateFieldUpdate.setFromVariable(
+              'tourOpenStap', generatorVarField(lijst.key, 'tourStartStep')),
+        ]),
+        followUpAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: FFAction(
+            key: generateRandomAlphaNumericString(),
+            customAction: FFCustomActionCall(
+              customActionIdentifier: opener.identifier.deepCopy(),
+            ),
+          ),
+        ),
       ),
     );
     setConditionalVisibility(
@@ -5382,8 +5405,8 @@ void _addTourButtonsToDocumentatie(FFProject project) {
     kaartKolom.children.add(b);
   }
 
-  knop('wedstrijd_afgelasten', 'DemoWedstrijdAfgelastenPage');
-  knop('gastspeler_uitnodigen', 'DemoGastspelerPage');
+  knop('wedstrijd_afgelasten');
+  knop('gastspeler_uitnodigen');
 }
 
 void _buildDocumentatiePage(App app, StructHandle documentSection) {
@@ -38757,6 +38780,178 @@ Future<String> publishLineup(String? matchId, bool? published) async {
       ),
     ],
     vrijgeefCode,
+  );
+}
+
+/// De twee acties die de handleiding met de echte wedstrijd verbinden.
+///
+/// Allebei zonder argumenten: wat de rondleiding moet worden staat in
+/// app-state. Dat scheelt het bouwen van FFFunctionCallValues met de hand, en
+/// het maakt de aanvraag onderweg leesbaar - je kunt hem in de debugger zien.
+void _ensureTourNavigatieActies(FFProject project) {
+  const openCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+/// Zoekt de wedstrijd waar de aangevraagde rondleiding op kan draaien en gaat
+/// erheen. Valt er niets aan te wijzen, dan een melding en verder niets.
+///
+/// De server kiest die wedstrijd, niet de app: alleen daar staat wie waar
+/// coach of leider van is, en zonder die knoppen heeft de rondleiding geen doel.
+Future<void> openTourTarget(BuildContext context) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final tourId = FFAppState().tourOpenId;
+  if (tourId.isEmpty) return;
+
+  void meldEnStop(String tekst) {
+    FFAppState().update(() {
+      FFAppState().tourOpenId = '';
+    });
+    messenger.showSnackBar(SnackBar(content: Text(tekst)));
+  }
+
+  final token = FFAppState().authToken;
+  if (token.isEmpty) {
+    meldEnStop('Je bent niet ingelogd.');
+    return;
+  }
+
+  try {
+    final uri = Uri.parse(
+        'https://voetbalplanner.nubix.nl/api/v1/tour-target?tour=$tourId');
+    final response = await http.get(uri, headers: {
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+    });
+
+    if (response.statusCode != 200) {
+      meldEnStop('Kon de uitleg nu niet openen.');
+      return;
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final matchId = (data['matchId'] ?? '').toString();
+    if (matchId.isEmpty) {
+      meldEnStop((data['message'] ?? '').toString().isNotEmpty
+          ? data['message'].toString()
+          : 'Er is nu geen wedstrijd om dit op te laten zien.');
+      return;
+    }
+
+    if (!context.mounted) return;
+    // De routenaam als tekst en niet via de gegenereerde klasse: dat scheelt
+    // een import die bij elke hernoeming van de pagina omvalt.
+    context.pushNamed('WedstrijdDetailPage', queryParameters: {
+      'matchId': serializeParam(matchId, ParamType.String),
+    }.withoutNulls);
+  } catch (e) {
+    meldEnStop('Kon de uitleg nu niet openen.');
+  }
+}
+''';
+
+  const startCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+/// Start de rondleiding die vanuit de handleiding is aangevraagd.
+///
+/// Hangt aan het einde van de laadketen van de wedstrijddetail en doet niets
+/// als er geen aanvraag ligt - dus een wedstrijd gewoon openen verandert niet.
+///
+/// De aanvraag wordt meteen gewist. Blijft hij staan, dan begint de
+/// rondleiding opnieuw bij de volgende wedstrijd die je opent, en dat is het
+/// soort verrassing waar niemand op zit te wachten.
+Future<void> startTourAlsGevraagd(BuildContext context) async {
+  final tourId = FFAppState().tourOpenId;
+  if (tourId.isEmpty) return;
+
+  final stap = FFAppState().tourOpenStap;
+  FFAppState().update(() {
+    FFAppState().tourOpenId = '';
+    FFAppState().tourOpenStap = 0;
+  });
+
+  await startTour(context, tourId, stap);
+}
+''';
+
+  void zorgVoor(String naam, String code, String beschrijving) {
+    if (findCustomAction(project, name: naam) == null) {
+      addCustomAction(
+        project,
+        name: naam,
+        description: beschrijving,
+        arguments: const [],
+        includeContext: true,
+        code: code,
+      );
+    } else {
+      updateCustomAction(
+        project,
+        name: naam,
+        code: code,
+        arguments: const [],
+        includeContext: true,
+      );
+    }
+  }
+
+  zorgVoor('OpenTourTarget', openCode,
+      'Zoekt de wedstrijd voor de aangevraagde rondleiding en gaat erheen.');
+  zorgVoor('StartTourAlsGevraagd', startCode,
+      'Start op de wedstrijddetail de rondleiding die is aangevraagd.');
+
+  try { addPubDependency(project, name: 'http', version: '^1.2.0'); } catch (_) {}
+}
+
+/// Hangt StartTourAlsGevraagd achter de laadketen van de wedstrijddetail.
+///
+/// Achteraan, want de rondleiding meet knoppen waarvan de zichtbaarheid uit
+/// GetMatchDetail komt. Begint hij daarvoor, dan staat de helft er nog niet.
+void _wireTourStartOpWedstrijd(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  final actie = findCustomAction(project, name: 'StartTourAlsGevraagd');
+  if (actie == null) return;
+
+  bool alAanwezig(FFActionNode n) {
+    if (n.hasAction() &&
+        n.action.hasCustomAction() &&
+        n.action.customAction.customActionIdentifier.name ==
+            'StartTourAlsGevraagd') {
+      return true;
+    }
+    return n.hasFollowUpAction() && alAanwezig(n.followUpAction);
+  }
+
+  if (wc.node.triggerActions
+      .any((t) => t.hasRootAction() && alAanwezig(t.rootAction))) return;
+
+  _appendToFirstPageLoadChain(
+    wc.node,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: actie.identifier.deepCopy(),
+        ),
+      ),
+    ),
   );
 }
 
