@@ -549,6 +549,10 @@ void buildEditFlow(App app) {
   // Onboarding gezien? Persistent (overleeft herstart); standaard false zodat de
   // slides bij de eerste keer inloggen verschijnen.
   try { app.state('onboardingSeen',            bool_.withDefault(false), persisted: true); } catch (_) {}
+  // Welke rondleidingen zijn afgerond of overgeslagen? Persistent, want de
+  // vraag die dit beantwoordt is "heb ik dit al eens gezien" en dat hoort een
+  // herstart te overleven. Een lijst en geen vlag per tour: er komen er meer bij.
+  try { app.state('gezieneTours',              listOf(string), persisted: true); } catch (_) {}
   // Staat de app in de kleuren en het logo van de club? Standaard aan, want dat
   // is wat je verwacht als je de app van je club opent; wie het neutraal wil kan
   // hem uitzetten. clubStyleAsked onthoudt of de vraag al gesteld is - los veld,
@@ -1607,6 +1611,7 @@ void buildEditFlow(App app) {
     _ensureLineupBoardAppState(project);
     _ensureLineupBoardActions(project);
     _ensureTourFundament(project);
+    _ensureTourActies(project);
     _ensureLineupBoardWidget(project);
     _wireOpstellingPage(project);
     _ensurePlannedSubsWidget(project);
@@ -38239,6 +38244,291 @@ void _ensureTourFundament(FFProject project) {
   } else {
     updateCustomWidget(project, name: 'TourTarget', code: _kTourTargetCode);
   }
+}
+
+/// De acties eromheen: voortgang onthouden en de rondleiding starten.
+void _ensureTourActies(FFProject project) {
+  // ── voortgang ──────────────────────────────────────────────────────────
+  const markCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+Future<void> markTourCompleted(String? tourId) async {
+  final id = tourId ?? '';
+  if (id.isEmpty) return;
+  if (FFAppState().gezieneTours.contains(id)) return;
+  // Via update(), zodat een knop die op deze lijst let meteen bijwerkt.
+  FFAppState().update(() {
+    FFAppState().addToGezieneTours(id);
+  });
+}
+''';
+
+  const seenCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+Future<bool> hasSeenTour(String? tourId) async {
+  final id = tourId ?? '';
+  if (id.isEmpty) return false;
+  return FFAppState().gezieneTours.contains(id);
+}
+''';
+
+  const resetCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+Future<void> resetAllTours() async {
+  FFAppState().update(() {
+    FFAppState().gezieneTours = <String>[];
+  });
+}
+''';
+
+  // ── de rondleiding zelf ────────────────────────────────────────────────
+  //
+  // Wat hier vooral gebeurt is het weglaten van stappen. Een doel dat niet op
+  // het scherm staat levert bij tutorial_coach_mark geen nette fout op maar een
+  // crash, dus filteren we alles zonder gemonteerde key eruit. Een demopagina
+  // waarin een TourTarget ontbreekt hoort de gebruiker niet te merken.
+  const startCode = r'''
+// Automatic FlutterFlow imports
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import '/custom_code/widgets/tour_target.dart';
+
+Future<void> startTour(
+  BuildContext context,
+  String? tourId,
+  int? startStep,
+) async {
+  final id = tourId ?? '';
+  final alle = TourDefinities.stappen(id);
+  if (alle.isEmpty) {
+    debugPrint('[tour] onbekende rondleiding: "$id"');
+    return;
+  }
+
+  // Even wachten. Deze actie hangt aan On Page Load en draait dus voordat het
+  // eerste frame is opgebouwd; op dat moment heeft geen enkele TourTarget een
+  // context en zou de hele rondleiding worden weggefilterd.
+  await Future.delayed(const Duration(milliseconds: 300));
+  if (!context.mounted) return;
+
+  final vanaf = (startStep ?? 0).clamp(0, alle.length - 1);
+  final zichtbaar = <TourStap>[];
+  for (final stap in alle.skip(vanaf)) {
+    if (TourRegistry.bestaat(stap.stepId)) {
+      zichtbaar.add(stap);
+    } else if (!stap.optioneel) {
+      // Stil overslaan zou dit onvindbaar maken: een verplichte stap zonder
+      // doel is een fout in de demopagina, niet een normaal geval.
+      debugPrint(
+          '[tour] stap "${stap.stepId}" overgeslagen: geen doel op het scherm.');
+    }
+  }
+  if (zichtbaar.isEmpty) {
+    debugPrint('[tour] "$id" heeft geen enkel zichtbaar doel; niets getoond.');
+    return;
+  }
+
+  final doelen = <TargetFocus>[];
+  for (var i = 0; i < zichtbaar.length; i++) {
+    final stap = zichtbaar[i];
+    doelen.add(TargetFocus(
+      identify: stap.stepId,
+      keyTarget: TourRegistry.sleutel(stap.stepId),
+      shape: stap.vorm == 'cirkel'
+          ? ShapeLightFocus.Circle
+          : ShapeLightFocus.RRect,
+      radius: 8,
+      enableOverlayTab: false,
+      contents: [
+        TargetContent(
+          align: stap.uitlijning == 'boven'
+              ? ContentAlign.top
+              : ContentAlign.bottom,
+          builder: (ballonContext, controller) => tourBallon(
+            ballonContext,
+            controller,
+            stap,
+            i + 1,
+            zichtbaar.length,
+          ),
+        ),
+      ],
+    ));
+  }
+
+  TutorialCoachMark(
+    targets: doelen,
+    // Zwart en niet uit het thema: dit is de verduistering rondom de uitsnede.
+    // In het donkere thema is primaryText juist licht, en dan wordt de sluier
+    // een witte waas over het scherm.
+    colorShadow: Colors.black,
+    opacityShadow: 0.8,
+    paddingFocus: 6,
+    // Overslaan zit in de ballon; de standaardknop staat er los overheen en
+    // valt in dit ontwerp uit de toon.
+    hideSkip: true,
+    onFinish: () {
+      markTourCompleted(id);
+    },
+    onSkip: () {
+      // Ook overslaan telt als gezien: anders krijg je hem elke keer opnieuw.
+      markTourCompleted(id);
+      return true;
+    },
+  ).show(context: context);
+}
+
+/// De ballon met uitleg. Kleuren komen uit het thema, zodat licht en donker
+/// allebei leesbaar zijn.
+Widget tourBallon(
+  BuildContext context,
+  TutorialCoachMarkController controller,
+  TourStap stap,
+  int nummer,
+  int totaal,
+) {
+  final thema = FlutterFlowTheme.of(context);
+  final laatste = nummer == totaal;
+
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: thema.secondaryBackground,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Stap $nummer van $totaal',
+          style: thema.labelSmall.copyWith(color: thema.secondaryText),
+        ),
+        const SizedBox(height: 4),
+        Text(stap.titel, style: thema.titleSmall),
+        const SizedBox(height: 6),
+        Text(stap.tekst, style: thema.bodyMedium),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            TextButton(
+              onPressed: controller.skip,
+              child: Text(
+                'Overslaan',
+                style: thema.labelMedium.copyWith(color: thema.secondaryText),
+              ),
+            ),
+            const Spacer(),
+            if (nummer > 1)
+              TextButton(
+                onPressed: controller.previous,
+                child: Text('Vorige', style: thema.labelMedium),
+              ),
+            const SizedBox(width: 4),
+            FilledButton(
+              onPressed: controller.next,
+              style: FilledButton.styleFrom(backgroundColor: thema.primary),
+              child: Text(
+                laatste ? 'Klaar' : 'Volgende',
+                // Wit en niet uit het thema: de knop is in beide thema's groen.
+                style: thema.labelMedium.copyWith(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+''';
+
+  void zorgVoor(
+    String naam,
+    String code, {
+    List<FFParameter> args = const [],
+    FFParameter? retour,
+    bool metContext = false,
+    String beschrijving = '',
+  }) {
+    if (findCustomAction(project, name: naam) == null) {
+      addCustomAction(
+        project,
+        name: naam,
+        description: beschrijving,
+        arguments: args,
+        returnParameter: retour,
+        includeContext: metContext,
+        code: code,
+      );
+    } else {
+      updateCustomAction(
+        project,
+        name: naam,
+        code: code,
+        arguments: args,
+        includeContext: metContext,
+      );
+    }
+  }
+
+  FFParameter tekst(String naam) => FFParameter(
+        identifier: FFIdentifier(name: naam),
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      );
+
+  zorgVoor('MarkTourCompleted', markCode,
+      args: [tekst('tourId')],
+      beschrijving: 'Onthoudt dat een rondleiding is afgerond of overgeslagen.');
+
+  zorgVoor('HasSeenTour', seenCode,
+      args: [tekst('tourId')],
+      retour: FFParameter(
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+      ),
+      beschrijving: 'Is deze rondleiding al eens bekeken?');
+
+  zorgVoor('ResetAllTours', resetCode,
+      beschrijving: 'Vergeet alle bekeken rondleidingen. Voor testen.');
+
+  zorgVoor('StartTour', startCode,
+      args: [
+        tekst('tourId'),
+        FFParameter(
+          identifier: FFIdentifier(name: 'startStep'),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Integer),
+        ),
+      ],
+      metContext: true,
+      beschrijving:
+          'Start de rondleiding met deze id, vanaf stap startStep. Stappen '
+          'waarvan het doel niet op het scherm staat worden overgeslagen.');
 }
 
 void _ensureLineupBoardWidget(FFProject project) {

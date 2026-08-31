@@ -269,6 +269,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const gezieneTours = ffai.ProjectAppStateFieldHandle(
+    name: "gezieneTours",
+    key: "6bs4544z",
+    typeName: "List<String>",
+    persisted: true,
+  );
   static const groupMemberNames = ffai.ProjectAppStateFieldHandle(
     name: "groupMemberNames",
     key: "ppeud04v",
@@ -758,6 +764,7 @@ abstract final class AppState {
     dialogView,
     directConvId,
     editingChatDocPath,
+    gezieneTours,
     groupMemberNames,
     guardianLinks,
     guestInvitations,
