@@ -327,18 +327,34 @@ void buildEditFlow(App app) {
   // Font families preserved from the project defaults:
   //   Inter Tight → titles/headlines   Inter → body/label
   // Body text bumped +2pt for readability; titles bumped +2pt for hierarchy.
-  app.typography('bodySmall',   fontFamily: 'Inter',       fontSize: 14, fontWeight: 400);
-  app.typography('bodyMedium',  fontFamily: 'Inter',       fontSize: 16, fontWeight: 400);
-  app.typography('bodyLarge',   fontFamily: 'Inter',       fontSize: 18, fontWeight: 400);
-  app.typography('titleSmall',  fontFamily: 'Inter Tight', fontSize: 18, fontWeight: 600);
-  app.typography('titleMedium', fontFamily: 'Inter Tight', fontSize: 20, fontWeight: 600);
-  app.typography('titleLarge',  fontFamily: 'Inter Tight', fontSize: 22, fontWeight: 600);
-  app.typography('labelLarge',  fontFamily: 'Inter',       fontSize: 17, fontWeight: 500);
-  app.typography('labelMedium', fontFamily: 'Inter',       fontSize: 14, fontWeight: 500);
-  // Default primary: navy matches the club fallback color (#1E3A5F).
-  // NavBar selected icon, TabBar indicator, and any widget not explicitly
-  // recolored by _applyBrandingToAllButtons will use this static value.
-  app.themeColor('primary', 0xFF1E3A5F);
+  // Barlow, de letter uit de huisstijl (zie resources/views/partials/brand.blade.php).
+  //
+  // Eén familie voor alles, met het gewicht als verschil tussen kop en tekst.
+  // De smalle cursieve snede van het woordmerk staat bewust niet in de app: die
+  // is gemaakt voor koppen van vijftig punten op een poster, en een lijst met
+  // spelersnamen daarin is niet te lezen.
+  app.typography('bodySmall',   fontFamily: 'Barlow', fontSize: 14, fontWeight: 400);
+  app.typography('bodyMedium',  fontFamily: 'Barlow', fontSize: 16, fontWeight: 400);
+  app.typography('bodyLarge',   fontFamily: 'Barlow', fontSize: 18, fontWeight: 400);
+  app.typography('titleSmall',  fontFamily: 'Barlow', fontSize: 18, fontWeight: 700);
+  app.typography('titleMedium', fontFamily: 'Barlow', fontSize: 20, fontWeight: 700);
+  app.typography('titleLarge',  fontFamily: 'Barlow', fontSize: 22, fontWeight: 700);
+  app.typography('labelLarge',  fontFamily: 'Barlow', fontSize: 17, fontWeight: 600);
+  app.typography('labelMedium', fontFamily: 'Barlow', fontSize: 14, fontWeight: 600);
+  app.typography('labelSmall',  fontFamily: 'Barlow', fontSize: 12, fontWeight: 500);
+  // De display- en headline-sneden gebruikt de app zelf nauwelijks, maar ze
+  // zitten wel in het thema; zonder deze regels blijven ze op Inter staan en
+  // duikt er op een enkel scherm ineens een andere letter op.
+  app.typography('headlineSmall',  fontFamily: 'Barlow', fontSize: 24, fontWeight: 700);
+  app.typography('headlineMedium', fontFamily: 'Barlow', fontSize: 28, fontWeight: 700);
+  app.typography('headlineLarge',  fontFamily: 'Barlow', fontSize: 32, fontWeight: 700);
+  app.typography('displaySmall',   fontFamily: 'Barlow', fontSize: 36, fontWeight: 700);
+  app.typography('displayMedium',  fontFamily: 'Barlow', fontSize: 44, fontWeight: 700);
+  app.typography('displayLarge',   fontFamily: 'Barlow', fontSize: 64, fontWeight: 700);
+  // De hoofdkleur van de huisstijl: groen. Dit is wat je ziet zonder club - het
+  // gekozen icoon in de navigatiebalk, de indicator onder een tabblad, en alles
+  // wat _applyBrandingToAllButtons niet aanraakt.
+  app.themeColor('primary', 0xFF5BA12F);
 
   // Force light theme. The app is designed light-only and the dark palette is
   // unconfigured (all colors transparent 0x00000000), so on a dark-mode phone
@@ -12690,7 +12706,7 @@ void _applyBrandingToAllButtons(FFProject project) {
   final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
   if (primaryColorId == null) return;
 
-  final clubColor = _stijlKleurVar(project, 'primaryColor', '#1E3A5F');
+  final clubColor = _stijlKleurVar(project, 'primaryColor', '#5BA12F');
   final whiteColor = FFColorValue(
     inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_BACKGROUND),
   );
@@ -12826,7 +12842,7 @@ void _applyBrandingToAllAppBars(FFProject project) {
   final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
   if (primaryColorId == null) return;
 
-  final brandingBg = _stijlKleurVar(project, 'primaryColor', '#1E3A5F');
+  final brandingBg = _stijlKleurVar(project, 'primaryColor', '#5BA12F');
   final whiteColor = FFColorValue(
     inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_BACKGROUND),
   );
@@ -36049,7 +36065,7 @@ class _LineupBoardState extends State<LineupBoard> {
         padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
         child: Row(
           children: [
-            Icon(icoon, size: 22, color: const Color(0xFF1E3A5F)),
+            Icon(icoon, size: 22, color: const Color(0xFF0B1D31)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -36342,7 +36358,7 @@ class _LineupBoardState extends State<LineupBoard> {
                                 'Neem de vorige periode over',
                                 style: theme.labelSmall.override(
                                   fontFamily: theme.labelSmallFamily,
-                                  color: const Color(0xFF1E3A5F),
+                                  color: const Color(0xFF0B1D31),
                                 ),
                               ),
                             ),
@@ -36395,7 +36411,7 @@ class _LineupBoardState extends State<LineupBoard> {
           height: 42,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: afgemeld ? const Color(0xFFB91C1C) : const Color(0xFF1E3A5F),
+            color: afgemeld ? const Color(0xFFB91C1C) : const Color(0xFF0B1D31),
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
           ),
@@ -36424,7 +36440,7 @@ class _LineupBoardState extends State<LineupBoard> {
             overflow: TextOverflow.ellipsis,
             style: theme.labelSmall.override(
               fontFamily: theme.labelSmallFamily,
-              color: const Color(0xFF1E3A5F),
+              color: const Color(0xFF0B1D31),
             ),
           ),
         ),
@@ -36444,7 +36460,7 @@ class _LineupBoardState extends State<LineupBoard> {
             color: const Color(0xFFF1F2F5),
             borderRadius: BorderRadius.circular(14),
             border: kandidaten.isNotEmpty
-                ? Border.all(color: const Color(0xFF1E3A5F), width: 2)
+                ? Border.all(color: const Color(0xFF5BA12F), width: 2)
                 : null,
           ),
           child: Column(
@@ -36651,7 +36667,7 @@ class _LineupBoardState extends State<LineupBoard> {
       {bool primair = false, bool uit = false}) {
     final kleur = uit
         ? theme.secondaryText
-        : (primair ? Colors.white : const Color(0xFF1E3A5F));
+        : (primair ? Colors.white : const Color(0xFF0B1D31));
 
     return GestureDetector(
       onTap: bijTik,
@@ -36660,7 +36676,7 @@ class _LineupBoardState extends State<LineupBoard> {
         decoration: BoxDecoration(
           color: uit
               ? const Color(0xFFE9EBEF)
-              : (primair ? const Color(0xFF1E3A5F) : const Color(0xFFEFF1F5)),
+              : (primair ? const Color(0xFF5BA12F) : const Color(0xFFEFF1F5)),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -36743,7 +36759,7 @@ class _LineupBoardState extends State<LineupBoard> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
                   color: _periode == p
-                      ? const Color(0xFF1E3A5F)
+                      ? const Color(0xFF5BA12F)
                       : const Color(0xFFEFF1F5),
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -36912,14 +36928,14 @@ class _LineupBoardState extends State<LineupBoard> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF1E3A5F)),
+            const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF0B1D31)),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 'Speeltijd automatisch verdelen over alle perioden',
                 style: theme.labelSmall.override(
                   fontFamily: theme.labelSmallFamily,
-                  color: const Color(0xFF1E3A5F),
+                  color: const Color(0xFF0B1D31),
                 ),
               ),
             ),
@@ -38602,7 +38618,7 @@ class _PlannedSubsState extends State<PlannedSubs> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E3A5F),
+                        color: const Color(0xFF0B1D31),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(

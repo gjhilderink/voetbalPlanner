@@ -80,8 +80,7 @@
             <div class="mt-10 flex flex-col items-start gap-3">
                 <span class="payoff text-xs text-white/45">Beschikbaar voor</span>
                 <div class="flex flex-wrap items-center gap-3">
-                    {{-- De iOS-knop gaat naar de App Store; Android staat er nog als
-                         aankondiging, zolang die app nog niet gepubliceerd is. --}}
+                    {{-- Allebei de winkels; de apps staan er. --}}
                     <a href="https://apps.apple.com/nl/app/voetbalplanner/id6773810390"
                        target="_blank" rel="noopener"
                        class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 rounded-xl px-4 py-2.5 text-white transition-colors">
@@ -90,12 +89,14 @@
                         </svg>
                         <span class="font-semibold text-sm">iOS</span>
                     </a>
-                    <div class="inline-flex items-center gap-2 bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white/55">
+                    <a href="https://play.google.com/store/apps/details?id=com.mycompany.voetbalplanner"
+                       target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 rounded-xl px-4 py-2.5 text-white transition-colors">
                         <svg class="w-5 h-5" viewBox="0 0 576 512" fill="currentColor" aria-hidden="true">
                             <path d="M420.55 301.93a24 24 0 1 1 24-24 24 24 0 0 1-24 24m-265.1 0a24 24 0 1 1 24-24 24 24 0 0 1-24 24m273.7-144.48 47.94-83a10 10 0 1 0-17.27-10l-48.54 84.07a301.25 301.25 0 0 0-246.56 0L69.34 64.45a10 10 0 1 0-17.27 10l47.94 83C13.72 201.05 1.24 292 1.24 292H575.55s-12.48-90.95-98-134.55"/>
                         </svg>
-                        <span class="font-semibold text-sm">Android — binnenkort</span>
-                    </div>
+                        <span class="font-semibold text-sm">Android</span>
+                    </a>
                 </div>
             </div>
         </div>
