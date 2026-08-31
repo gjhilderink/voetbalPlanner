@@ -666,6 +666,7 @@ void buildEditFlow(App app) {
   app.raw((project) => _addDocumentationEndpoint(project));
   _buildDocumentatiePage(app, documentSection);
   _buildDemoAfgelastenPage(app);
+  _buildDemoGastspelerPage(app);
   app.raw((project) => _wireDocumentationPageLoad(project));
   // Handleiding + Bug-melden zijn naar de AppDrawer verhuisd; ruim eventuele
   // bestaande knoppen op ProfielPage op.
@@ -4721,6 +4722,315 @@ void _addDocumentationEndpoint(FFProject project) {
 }
 
 
+/// Een element met een rondleiding-markering erover.
+///
+/// De markering neemt geen ruimte in, dus de Stack houdt precies de maat van
+/// het element; TourRegistry.rechthoek leest die maat af. De naam 'Doel_...'
+/// is er zodat je bij het lezen van een pagina meteen ziet waar een stap op
+/// mikt.
+DslWidget _tourDoel(String stepId, DslWidget kind) => Stack(
+      children: [
+        kind,
+        CustomWidget(
+          widgetName: 'TourTarget',
+          arguments: {'stepId': stepId},
+          name: 'Doel_$stepId',
+        ),
+      ],
+    );
+
+/// De demopagina voor de rondleiding "gastspeler uitnodigen".
+///
+/// Bootst de zwevende plusknop na plus het paneel dat daaronder openklapt.
+/// In de echte app is dat een bottom sheet met zeven weergaven die op één
+/// app-state-veld wisselen; hier staan het menu en de uitnodigen-weergave
+/// tegelijk onder elkaar. Dat moet ook: een weergave die nog niet zichtbaar
+/// is kan de rondleiding niet aanwijzen.
+///
+/// De labels komen letterlijk uit MatchActionsSheet: 'Rijders toevoegen',
+/// 'Vlagger kiezen', 'Fruitheld kiezen', 'Gastspeler uitnodigen', 'Notitie
+/// toevoegen', en verderop 'Kies eerst het team:' en 'Kies de gastspeler:'.
+void _buildDemoGastspelerPage(App app) {
+  /// Eén knop uit het actiemenu. Allemaal dezelfde stijl, ook de knop waar de
+  /// rondleiding naartoe wijst: in de app springt die er ook niet uit.
+  DslWidget menuKnop(String label) => Container(
+        color: Colors.secondaryBackground,
+        borderRadius: 8,
+        borderColor: Colors.hex(0xFFE5E7EB),
+        borderWidth: 1,
+        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          spacing: 10,
+          children: [
+            Expanded(Text(label, style: Styles.bodyMedium, maxLines: 1)),
+            Icon('chevron_right', size: 18, color: Colors.secondaryText),
+          ],
+        ),
+      );
+
+  /// Een regel in een keuzelijst: elftal of speler.
+  DslWidget keuzeRij(String label, String onder, {bool gekozen = false}) =>
+      Container(
+        color: gekozen
+            ? Colors.hex(0xFFEAF4E4)
+            : Colors.secondaryBackground,
+        borderRadius: 8,
+        borderColor:
+            gekozen ? Colors.primary : Colors.hex(0xFFE5E7EB),
+        borderWidth: 1,
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          spacing: 10,
+          children: [
+            Expanded(
+              Column(
+                crossAxis: CrossAxis.start,
+                spacing: 1,
+                children: [
+                  Text(label, style: Styles.bodyMedium, maxLines: 1),
+                  Text(onder,
+                      style: Styles.labelSmall, color: Colors.secondaryText),
+                ],
+              ),
+            ),
+            if (gekozen)
+              Icon('check_circle', size: 18, color: Colors.primary),
+          ],
+        ),
+      );
+
+  app.ensurePage(
+    'DemoGastspelerPage',
+    description:
+        'Nagebootst coach-menu voor de rondleiding "gastspeler uitnodigen". '
+        'Alle namen en elftallen zijn verzonnen en de knoppen doen niets.',
+    route: 'demo-gastspeler-uitnodigen',
+    params: {
+      'tourId': string.withDefault('gastspeler_uitnodigen'),
+      'startStep': int_.withDefault(0),
+    },
+    onLoad: [
+      CallCustomAction.named('StartTour', arguments: {
+        'tourId': PageParam('tourId'),
+        'startStep': PageParam('startStep'),
+      }),
+    ],
+    body: Container(
+      color: Colors.hex(0xFFF4F5F7),
+      child: Column(
+        scrollable: true,
+        children: [
+          // ── kop met terugknop ───────────────────────────────────────────
+          Container(
+            color: Colors.secondaryBackground,
+            padding: EdgeInsets.only(left: 8, top: 44, right: 16, bottom: 12),
+            child: Row(
+              spacing: 4,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  onTap: [NavigateBack()],
+                  child: Icon('arrow_back', size: 22, color: Colors.primaryText),
+                ),
+                Expanded(Text('Wedstrijd', style: Styles.titleMedium)),
+                Container(
+                  color: Colors.hex(0xFFFDE8E8),
+                  borderRadius: 6,
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  child: Text('Voorbeeld',
+                      style: Styles.labelSmall, color: Colors.hex(0xFFC81E1E)),
+                ),
+              ],
+            ),
+          ),
+
+          Column(
+            padding: EdgeInsets.all(12),
+            spacing: 12,
+            crossAxis: CrossAxis.stretch,
+            children: [
+              // Context: om welke wedstrijd het gaat.
+              Container(
+                color: Colors.secondaryBackground,
+                borderRadius: 10,
+                borderColor: Colors.hex(0xFFE5E7EB),
+                borderWidth: 1,
+                padding: EdgeInsets.all(14),
+                child: Row(
+                  spacing: 12,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      color: Colors.hex(0xFFEAF4E4),
+                      alignment: Alignment.center,
+                      child: Icon('sports_soccer',
+                          size: 20, color: Colors.primary),
+                    ),
+                    Expanded(
+                      Column(
+                        crossAxis: CrossAxis.start,
+                        spacing: 2,
+                        children: [
+                          Text('FC Voorbeeld - VV Testdorp',
+                              style: Styles.titleSmall, maxLines: 1),
+                          Text('zondag 14:30',
+                              style: Styles.bodySmall,
+                              color: Colors.secondaryText),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── stap 1: de zwevende plusknop ────────────────────────────
+              //
+              // Rechts uitgelijnd, want daar staat hij in de app ook. Niet
+              // echt zwevend: dan zou hij in een tweede Stack hangen en zou
+              // de markering de verkeerde maat aflezen.
+              Row(
+                mainAxis: MainAxis.end,
+                children: [
+                  _tourDoel(
+                    'coach_menu',
+                    Container(
+                      width: 52,
+                      height: 52,
+                      borderRadius: 26,
+                      color: Colors.primary,
+                      alignment: Alignment.center,
+                      child: Icon('add', size: 26, color: Colors.info),
+                    ),
+                  ),
+                ],
+              ),
+
+              // ── het paneel dat daaronder openklapt ──────────────────────
+              Container(
+                color: Colors.secondaryBackground,
+                borderRadius: 16,
+                borderColor: Colors.hex(0xFFE5E7EB),
+                borderWidth: 1,
+                padding: EdgeInsets.all(14),
+                child: Column(
+                  crossAxis: CrossAxis.stretch,
+                  spacing: 10,
+                  children: [
+                    Row(
+                      mainAxis: MainAxis.center,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 4,
+                          borderRadius: 2,
+                          color: Colors.hex(0xFFD8DBE0),
+                        ),
+                      ],
+                    ),
+                    Text('Wedstrijd-actie', style: Styles.titleMedium),
+
+                    menuKnop('Rijders toevoegen'),
+                    menuKnop('Vlagger kiezen'),
+                    menuKnop('Fruitheld kiezen'),
+
+                    // ── stap 2: de knop die je kiest ────────────────────
+                    _tourDoel(
+                      'menu_gastspeler',
+                      menuKnop('Gastspeler uitnodigen'),
+                    ),
+
+                    menuKnop('Notitie toevoegen'),
+
+                    Container(height: 1, color: Colors.hex(0xFFE5E7EB)),
+
+                    Text('Kies eerst het team:',
+                        style: Styles.labelMedium,
+                        color: Colors.secondaryText),
+
+                    // ── stap 3: het elftal ──────────────────────────────
+                    _tourDoel(
+                      'team_kiezen',
+                      Column(
+                        crossAxis: CrossAxis.stretch,
+                        spacing: 6,
+                        children: [
+                          keuzeRij('JO13-1', 'Voorbeeldclub', gekozen: true),
+                          keuzeRij('JO13-2', 'Voorbeeldclub'),
+                          keuzeRij('JO15-1', 'Voorbeeldclub'),
+                        ],
+                      ),
+                    ),
+
+                    Text('Kies de gastspeler:',
+                        style: Styles.labelMedium,
+                        color: Colors.secondaryText),
+
+                    // ── stap 4: zoeken op naam ──────────────────────────
+                    _tourDoel(
+                      'gastspeler_zoeken',
+                      Container(
+                        color: Colors.primaryBackground,
+                        borderRadius: 8,
+                        borderColor: Colors.hex(0xFFE5E7EB),
+                        borderWidth: 1,
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                        child: Row(
+                          spacing: 8,
+                          children: [
+                            Icon('search',
+                                size: 18, color: Colors.secondaryText),
+                            Expanded(Text('Zoek een speler',
+                                style: Styles.bodyMedium,
+                                color: Colors.secondaryText,
+                                maxLines: 1)),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    keuzeRij('Jan Jansen', 'JO13-1'),
+                    keuzeRij('Piet de Vries', 'JO13-1', gekozen: true),
+                    keuzeRij('Karim el Amrani', 'JO13-1'),
+
+                    // ── stap 5: uitnodigen ──────────────────────────────
+                    _tourDoel(
+                      'gastspeler_toevoegen',
+                      Row(children: [
+                        Expanded(Button(
+                          'Gastspeler toevoegen',
+                          icon: 'person_add',
+                          borderRadius: 8,
+                          height: 46,
+                          name: 'DemoGastKnop',
+                          onTap: [
+                            Snackbar('Dit is een voorbeeldscherm; er wordt '
+                                'niemand uitgenodigd.'),
+                          ],
+                        )),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
+
+              Text(
+                'Dit scherm is nagemaakt voor de uitleg. De knoppen doen niets.',
+                style: Styles.labelSmall,
+                color: Colors.secondaryText,
+                textAlign: TextAlign.center,
+                name: 'DemoGastVoetnoot',
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 /// De demopagina voor de rondleiding "wedstrijd afgelasten".
 ///
 /// Alles is nep en niets doet iets: geen API-aanroep, geen pagina-state, geen
@@ -4767,18 +5077,6 @@ void _buildDemoAfgelastenPage(App app) {
         ),
       );
 
-  /// Een element met een markering erover. De markering neemt geen ruimte in,
-  /// dus de Stack houdt precies de maat van het element.
-  DslWidget metDoel(String stepId, DslWidget kind) => Stack(
-        children: [
-          kind,
-          CustomWidget(
-            widgetName: 'TourTarget',
-            arguments: {'stepId': stepId},
-            name: 'Doel_$stepId',
-          ),
-        ],
-      );
 
   app.ensurePage(
     'DemoWedstrijdAfgelastenPage',
@@ -4831,7 +5129,7 @@ void _buildDemoAfgelastenPage(App app) {
             crossAxis: CrossAxis.stretch,
             children: [
               // ── stap 1: het kaartje dat je in de lijst aantikt ───────────
-              metDoel(
+              _tourDoel(
                 'wedstrijd_openen',
                 Container(
                   color: Colors.secondaryBackground,
@@ -4872,7 +5170,7 @@ void _buildDemoAfgelastenPage(App app) {
               ),
 
               // ── stap 4: de rode melding ─────────────────────────────────
-              metDoel(
+              _tourDoel(
                 'afgelasten_melding',
                 Container(
                   color: Colors.hex(0xFFFDE8E8),
@@ -4912,7 +5210,7 @@ void _buildDemoAfgelastenPage(App app) {
                   style: Styles.titleSmall, name: 'DemoAfmeldKop'),
 
               // ── stap 2: het redenveld ───────────────────────────────────
-              metDoel(
+              _tourDoel(
                 'afgelasten_reden',
                 Container(
                   color: Colors.secondaryBackground,
@@ -4934,7 +5232,7 @@ void _buildDemoAfgelastenPage(App app) {
               ),
 
               // ── stap 3: afgelasten ──────────────────────────────────────
-              metDoel(
+              _tourDoel(
                 'afgelasten_knop',
                 Row(children: [
                   Expanded(Button(
@@ -4954,7 +5252,7 @@ void _buildDemoAfgelastenPage(App app) {
               ),
 
               // ── stap 5: terugdraaien ────────────────────────────────────
-              metDoel(
+              _tourDoel(
                 'afgelasten_terug',
                 Row(children: [
                   Expanded(Button(
