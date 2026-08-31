@@ -26,6 +26,7 @@ abstract final class Structs {
       "kind": ffai.string,
       "kleedkamer": ffai.string,
       "location": ffai.string,
+      "magAfgelasten": ffai.string,
       "mijnStatus": ffai.string,
       "monthName": ffai.string,
       "scheduleId": ffai.string,

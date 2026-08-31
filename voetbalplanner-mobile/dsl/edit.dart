@@ -29822,6 +29822,11 @@ void _wireActivityCardNavigation(
         'kleedkamer': VariableParamValue(field('kleedkamer')),
         'mijnStatus': VariableParamValue(field('mijnStatus')),
         'afmeldingen': VariableParamValue(field('afmeldingen')),
+        // Zonder deze drie mist de detailpagina de afgelastknoppen: zij haalt
+        // niets zelf op en leest alles uit wat er wordt meegegeven.
+        'isAfgelast': VariableParamValue(field('isAfgelast')),
+        'afgelastReden': VariableParamValue(field('afgelastReden')),
+        'magAfgelasten': VariableParamValue(field('magAfgelasten')),
       }),
     );
   }
@@ -30708,6 +30713,9 @@ void _ensureActivityItemStruct(FFProject project) {
     // Gaat niet door. Alles in deze struct is String, dus 'true'/'false'.
     'isAfgelast',
     'afgelastReden',
+    // Mag je hem afgelasten? Reist mee naar de detailpagina, want die krijgt
+    // zijn gegevens uit deze lijst en doet zelf geen aanroep.
+    'magAfgelasten',
   ];
 
   if (existing == null) {
@@ -30905,6 +30913,7 @@ Future<String> buildDashboardActivities() async {
         sortKey: sortKey(when),
         isAfgelast: t.isAfgelast.isEmpty ? 'false' : t.isAfgelast,
         afgelastReden: t.afgelastReden,
+        magAfgelasten: t.magAfgelasten,
         scheduleId: t.scheduleId,
         date: t.date,
         dayLabel: t.dayLabel,
