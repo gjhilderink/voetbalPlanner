@@ -18133,6 +18133,12 @@ void _addRijschemaOpponentLogo(FFProject project) {
 
 // Scopet het rijschema op de eigen teams: voeg mine=1 toe aan de GetDriveSchedule-
 // URL (backend beperkt dan tot accessibleTeams). Idempotent.
+//
+// En upcoming=1, want dat ontbrak. /matches filtert niet vanzelf op de toekomst
+// - anders dan /bar-duties, dat het verleden standaard verbergt - en de lijst
+// komt op datum oplopend terug. Het dashboard toont het eerste item als taak
+// "Rijden", dus dat was de óudste rit van het seizoen: een taak van maanden
+// geleden. Op de rijschemapagina stond diezelfde geschiedenis bovenaan.
 void _scopeDriveScheduleToOwnTeams(FFProject project) {
   final group = findApiGroup(project, name: 'VoetbalPlannerAPI');
   if (group == null) return;
@@ -18140,7 +18146,7 @@ void _scopeDriveScheduleToOwnTeams(FFProject project) {
       .cast<FFApiEndpoint?>()
       .firstWhere((e) => e?.identifier.name == 'GetDriveSchedule', orElse: () => null);
   if (ep == null) return;
-  ep.url = '/matches?is_home=false&has_drivers=1&mine=1&per_page=50';
+  ep.url = '/matches?is_home=false&has_drivers=1&mine=1&upcoming=1&per_page=50';
 }
 
 // ─── Herstel RijschemaPage body als die leeg is ───────────────────────────────
