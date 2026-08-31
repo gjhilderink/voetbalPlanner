@@ -39,6 +39,9 @@ Route::get('/tarieven', function () {
     return view('pricing', ['inhoud' => \App\Services\PricingContent::all()]);
 })->name('pricing');
 
+// Huisstijl. Bereikbaar maar niet uitgelicht: een werkdocument voor onszelf en
+// voor wie iets voor ons maakt, met noindex erop. Staat alleen in de voettekst.
+Route::view('/huisstijl', 'brandguide')->name('brandguide');
 Route::get('/aanmelden', [ClubRequestController::class, 'create'])->name('club-request.create');
 Route::post('/aanmelden', [ClubRequestController::class, 'store'])->name('club-request.store');
 Route::get('/aanmelden/bedankt', [ClubRequestController::class, 'success'])->name('club-request.success');

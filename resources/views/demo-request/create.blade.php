@@ -12,6 +12,7 @@
         <script src="https://cdn.tailwindcss.com"></script>
     @endif
 
+    @include('partials.brand')
     @include('partials.analytics')
 
     @if (($recaptchaEnabled ?? false) && ($recaptchaSiteKey ?? ''))

@@ -43,6 +43,7 @@
         <script src="https://cdn.tailwindcss.com"></script>
     @endif
 
+    @include('partials.brand')
     @include('partials.analytics')
 </head>
 <body class="bg-white text-gray-900 antialiased font-sans">
