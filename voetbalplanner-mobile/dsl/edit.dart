@@ -34099,6 +34099,42 @@ FFNode _livePickerPanels(
       );
 
   /// Eén paneel: kop met uitleg, daaronder de spelerlijst.
+  /// Terug zonder iets vast te leggen.
+  ///
+  /// Wist ook wat er onderweg is onthouden: de gekozen speler en de soort
+  /// treffer. Alleen het paneel sluiten laat die staan, en dan draagt de
+  /// volgende keuze de resten van de vorige mee.
+  ///
+  /// Met eigen padding en niet als kale tekst: dit is de uitweg als je
+  /// misgetikt hebt, en die moet je met een duim kunnen raken.
+  FFNode annuleerKnop(String key) {
+    final knop = UI.container(
+      name: '${key}Cancel',
+      innerPadding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      borderRadius: 8,
+      color: UIColor.hex(0xFFFDE3E3, dark: 0xFF3A1E1E),
+      child: UI.text('Annuleren',
+          name: '${key}CancelLabel',
+          style: UITextStyle.labelMedium,
+          color: UIColor.error,
+          maxLines: 1),
+    );
+    Actions.onTap(
+      knop,
+      Actions.updatePageState(
+        project,
+        widgetClassName: 'LiveMatchPage',
+        updates: [
+          StateFieldUpdate.set('panel', ''),
+          StateFieldUpdate.set('pickedId', ''),
+          StateFieldUpdate.set('pickedName', ''),
+          StateFieldUpdate.set('goalDetail', ''),
+        ],
+      ),
+    );
+    return knop;
+  }
+
   FFNode panel({
     required String key,
     required String title,
@@ -34138,11 +34174,7 @@ FFNode _livePickerPanels(
     Actions.addTriggerChain(item, FFActionTriggerType.ON_TAP, onPick(list, item));
     list.children.add(item);
 
-    final annuleer = UI.text('Annuleren',
-        name: '${key}Cancel',
-        style: UITextStyle.labelMedium,
-        color: UIColor.error);
-    Actions.onTap(annuleer, setPanel(''));
+    final annuleer = annuleerKnop(key);
 
     final children = <FFNode>[
       UI.row(
@@ -34300,8 +34332,18 @@ FFNode _livePickerPanels(
       crossAxisAlignment: UICrossAxisAlignment.stretch,
       spacing: 10,
       children: [
-        UI.text('Gele of rode kaart?',
-            name: 'LiveCardKindTitle', style: UITextStyle.titleSmall),
+        // Dit paneel had geen uitweg: wie per ongeluk op Kaart tikte moest
+        // eerst een kleur en dan een speler kiezen, en dat daarna ongedaan
+        // maken.
+        UI.row(
+          name: 'LiveCardKindHead',
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.expanded(UI.text('Gele of rode kaart?',
+                name: 'LiveCardKindTitle', style: UITextStyle.titleSmall)),
+            annuleerKnop('LiveCardKind'),
+          ],
+        ),
         UI.row(
           name: 'LiveCardKindRow',
           spacing: 10,
