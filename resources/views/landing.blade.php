@@ -18,6 +18,7 @@
 <body class="bg-white text-gray-900 antialiased font-sans">
 
 @include('partials.nav')
+@include('partials.app-banner')
 
 {{-- Hero --}}
 <section class="tactisch text-white py-20 px-6">
@@ -63,7 +64,7 @@
                 <span class="payoff text-xs text-white/45">Beschikbaar voor</span>
                 <div class="flex flex-wrap items-center gap-3">
                     {{-- Allebei de winkels; de apps staan er. --}}
-                    <a href="https://apps.apple.com/nl/app/voetbalplanner/id6773810390"
+                    <a href="{{ config('app_stores.ios') }}"
                        target="_blank" rel="noopener"
                        class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 rounded-xl px-4 py-2.5 text-white transition-colors">
                         <svg class="w-5 h-5" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true">
@@ -71,7 +72,7 @@
                         </svg>
                         <span class="font-semibold text-sm">iOS</span>
                     </a>
-                    <a href="https://play.google.com/store/apps/details?id=com.mycompany.voetbalplanner"
+                    <a href="{{ config('app_stores.android') }}"
                        target="_blank" rel="noopener"
                        class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 rounded-xl px-4 py-2.5 text-white transition-colors">
                         <svg class="w-5 h-5" viewBox="0 0 576 512" fill="currentColor" aria-hidden="true">
