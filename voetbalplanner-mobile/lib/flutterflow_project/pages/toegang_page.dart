@@ -78,13 +78,13 @@ abstract final class ToegangPageWidgets {
                 name: "ToegangContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_ct38bjpz",
+                    key: "Container_y412btwk",
                     type: "Container",
                     path: "ToegangPage.body[0].children[0].children[0]",
                     name: "ToegangScannerWrap",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_g8wnwhrl",
+                        key: "Container_bocsz2rk",
                         type: "Container",
                         path: "ToegangPage.body[0].children[0].children[0].children[0]",
                         name: "ToegangScannerWidget",

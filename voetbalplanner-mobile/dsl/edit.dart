@@ -708,6 +708,7 @@ void buildEditFlow(App app) {
   // Fix de FlutterFlow web-deploy: twee FF-default packages compileren niet meer
   // op recente Flutter (de deploy faalde hierop). Forceer compatibele versies.
   app.raw((project) => _fixIncompatiblePubVersions(project));
+  app.raw((project) => _zetFirebasePerformanceUit(project));
   app.raw((project) => _addDocumentationEndpoint(project));
   _buildDocumentatiePage(app, documentSection);
   app.raw((project) => _wireDocumentationPageLoad(project));
@@ -14089,6 +14090,25 @@ void _appendToFirstPageLoadChain(FFNode node, FFActionNode actionToAppend) {
 // kwam niet in de gegenereerde pubspec terecht; addPubDependency wél). FF merget
 // custom deps over de base-versie. Idempotent: update als hij al in de custom-
 // lijst staat, anders toevoegen.
+/// Zet Firebase Performance Monitoring uit.
+///
+/// Niet omdat het niet werkt, maar omdat het de iOS-build blokkeerde. Het
+/// eist GoogleDataTransport ~> 10.0, terwijl de MLKit-barcodescanner van
+/// mobile_scanner juist < 10.0 wil. CocoaPods komt daar niet uit en de build
+/// strandt op "Install pods".
+///
+/// De keuze viel op deze kant: prestatiemeting wordt nergens in deze app
+/// gebruikt en stond aan als standaardinstelling. Het alternatief - de scanner
+/// naar versie 6 - vroeg om minimum iOS 15.5 en een herschreven widget.
+void _zetFirebasePerformanceUit(FFProject project) {
+  if (!project.hasBackend()) return;
+  if (!project.backend.hasFirebasePerformanceMonitoringConfig()) return;
+
+  project
+      .ensureBackend()
+      .ensureFirebasePerformanceMonitoringConfig()
+      .enabled = false;
+}
 void _fixIncompatiblePubVersions(FFProject project) {
   // page_transition 2.1.0 gebruikt de verwijderde CupertinoPageTransitionsBuilder
   // → 2.2.2 gefixt. FF gebruikt alleen PageTransition/PageTransitionType (stabiel).
