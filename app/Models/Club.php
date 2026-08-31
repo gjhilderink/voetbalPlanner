@@ -22,11 +22,15 @@ class Club extends Model
         'primary_color', 'secondary_color', 'accent_color',
         'email_header_text', 'email_intro_text', 'email_footer_text', 'email_subject',
         'app_icon_path', 'splash_path', 'splash_bg_color',
+        'access_enabled',
     ];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return [
+            'is_active'      => 'boolean',
+            'access_enabled' => 'boolean',
+        ];
     }
 
     public function teams(): HasMany

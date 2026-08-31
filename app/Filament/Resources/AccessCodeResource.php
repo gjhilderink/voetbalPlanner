@@ -54,9 +54,31 @@ class AccessCodeResource extends Resource
             );
     }
 
+    /**
+     * Staat de module aan bij deze club?
+     *
+     * Ook gebruikt door AccessEntryResource en AgendaItemResource, zodat de
+     * regel op één plek staat. Een super-admin zonder gekozen club ziet alles;
+     * die kijkt dan clubbreed en niet namens één club.
+     */
+    public static function moduleAan(): bool
+    {
+        $club = filament()->getTenant();
+        if ($club) {
+            return (bool) $club->access_enabled;
+        }
+
+        $user = auth()->user();
+        if ($user?->hasRole('super_admin')) {
+            return true;
+        }
+
+        return (bool) $user?->club?->access_enabled;
+    }
+
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasAnyRole(self::ROLLEN) ?? false;
+        return (auth()->user()?->hasAnyRole(self::ROLLEN) ?? false) && static::moduleAan();
     }
 
     public static function canCreate(): bool

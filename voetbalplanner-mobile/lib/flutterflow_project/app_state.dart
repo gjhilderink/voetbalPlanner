@@ -683,6 +683,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<MatchStatRow>>",
     persisted: false,
   );
+  static const toegangModule = ffai.ProjectAppStateFieldHandle(
+    name: "toegangModule",
+    key: "o6auwnwv",
+    typeName: "String",
+    persisted: true,
+  );
   static const tourOpenId = ffai.ProjectAppStateFieldHandle(
     name: "tourOpenId",
     key: "m8tgmwxd",
@@ -851,6 +857,7 @@ abstract final class AppState {
     teamMood,
     teamStats,
     teamStatsRows,
+    toegangModule,
     tourOpenId,
     tourOpenStap,
     trainingParticipants,

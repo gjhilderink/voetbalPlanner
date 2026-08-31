@@ -84,13 +84,19 @@ class UserResource extends JsonResource
                 'app_icon_url'    => self::logoUrl($this->club->app_icon_path),
                 'splash_url'      => self::logoUrl($this->club->splash_path),
                 'splash_bg_color' => $this->club->splash_bg_color ?? '',
+                // Staat de toegangsmodule aan? Bepaalt of elk lid zijn
+                // persoonlijke QR in het menu ziet.
+                'access_enabled'  => $this->club->access_enabled ? 'true' : 'false',
             ] : self::legeClub(),
             'roles'         => $this->getRoleNames()->values(),
             // Mag deze gebruiker bij de ingang scannen? Als vlag en niet als rol:
             // de app leidt zijn rollen af uit teamfuncties (Speler, Coach,
             // Trainer, Ouder, Leider) en kent de portalrollen helemaal niet.
             // Dezelfde aanpak als magBeheren en canManage elders.
-            'can_scan_access' => $this->hasAnyRole(['super_admin', 'club_admin', 'toegang']),
+            // Rol én module: staat toegangscontrole uit bij de club, dan hoort
+            // de scanknop nergens te verschijnen.
+            'can_scan_access' => $this->hasAnyRole(['super_admin', 'club_admin', 'toegang'])
+                && (bool) $this->club?->access_enabled,
             'managed_teams' => $this->managedTeams->map(fn($t) => [
                 'id'   => $t->id,
                 'name' => $t->name,
@@ -147,6 +153,7 @@ class UserResource extends JsonResource
             'secondary_color' => '#3b82f6',
             'accent_color' => '#10b981',
             'app_icon_url' => '', 'splash_url' => '', 'splash_bg_color' => '',
+            'access_enabled' => 'false',
         ];
     }
 }

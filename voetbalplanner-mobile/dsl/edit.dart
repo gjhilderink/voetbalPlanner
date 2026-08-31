@@ -8227,6 +8227,7 @@ Future<String> verifyMagicLink(String? token) async {
       FFAppState().relatiecode     = (user['relatiecode']     as String?) ?? '';
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
       FFAppState().magScannen      = (user['can_scan_access'] == true) ? 'true' : 'false';
+      FFAppState().toegangModule   = (club['access_enabled'] as String?) ?? 'false';
     });
     // Register this user so the direct-chat member strip shows only app users.
     // Fire-and-forget: previously this was awaited, but Firestore can hang
@@ -8453,6 +8454,7 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().relatiecode     = (user['relatiecode']     as String?) ?? '';
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
       FFAppState().magScannen      = (user['can_scan_access'] == true) ? 'true' : 'false';
+      FFAppState().toegangModule   = (club['access_enabled'] as String?) ?? 'false';
     });
 
     // Register this user so the direct-chat member strip shows only app users.
@@ -8585,6 +8587,9 @@ void _fixLoginButtonBindings(FFProject project) {
   // Mag deze gebruiker bij de ingang scannen? Als tekst 'true'/'false', zoals
   // alle vlaggen die uit de API komen - de app-structs typeren die zo.
   _ensureAppStateField(project, 'magScannen',       FFBaseDataType.String, persisted: true);
+  // Staat de toegangsmodule aan bij deze club? Bepaalt of het lid zijn eigen
+  // QR-code in het menu ziet - los van magScannen, want dat gaat over de rol.
+  _ensureAppStateField(project, 'toegangModule',   FFBaseDataType.String, persisted: true);
   _ensureAppStateField(project, 'profilePhotoUrl',  FFBaseDataType.String, persisted: true);
 
   // onboardingSeen wordt al persistent gedeclareerd via app.state (persisted: true).
@@ -22047,6 +22052,15 @@ FFNode _buildAppDrawerNode(FFProject project) {
   final docsTile = tile('DrawerTileDocs', 'Handleiding', 'menu_book', 'DocumentatiePage');
   final profileTile = tile('DrawerTileProfiel', 'Profiel', 'person', 'ProfielPage');
   final codeTile = tile('DrawerTileMijnCode', 'Mijn toegangscode', 'qr_code_2', 'MijnCodePage');
+  // Alleen als de club de toegangsmodule gebruikt. Anders is het een code die
+  // nergens werkt, en dat roept meer vragen op dan hij beantwoordt.
+  final moduleId = _findAppStateFieldId(project, 'toegangModule');
+  if (moduleId != null) {
+    setConditionalVisibility(
+      codeTile,
+      variable: _equalsLiteral(varFromAppState(moduleId.deepCopy()), 'true'),
+    );
+  }
   final bugTile = tile('DrawerTileBug', 'Bug melden', 'bug_report', 'BugReportPage');
 
   // ── Footer: clublogo onderaan de drawer ─────────────────────────────────────

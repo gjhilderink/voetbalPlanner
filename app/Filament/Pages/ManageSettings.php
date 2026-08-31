@@ -77,6 +77,7 @@ class ManageSettings extends Page
             'whatsapp_bridge_url' => Setting::get('whatsapp_bridge_url', 'https://mcp.nubixhosting.nl/mcp/whatsapp/mcp', $clubId),
             'whatsapp_api_key'    => Setting::get('whatsapp_api_key', '', $clubId),
             'debug_enabled'       => filter_var(Setting::get('debug_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
+            'access_enabled'      => (bool) ($club?->access_enabled ?? false),
             'club_name'           => $club?->name,
             'club_address'        => $club?->address,
             'club_city'           => $club?->city,
@@ -238,6 +239,18 @@ class ManageSettings extends Page
                             ->maxLength(255),
                     ])
                     ->columns(2),
+
+                Section::make('Modules')
+                    ->description('Onderdelen die niet elke club gebruikt. Uit betekent: nergens zichtbaar, ook niet in de app.')
+                    ->schema([
+                        Toggle::make('access_enabled')
+                            ->label('Toegangscontrole')
+                            ->helperText('Toegangscodes maken bij een activiteit en die bij de ingang scannen met de app. '
+                                . 'Aan zetten geeft ook elk lid een persoonlijke QR-code in het menu van de app. '
+                                . 'Wie mag scannen bepaal je met de rol Toegangscontrole bij Gebruikers.'),
+                    ])
+                    ->columns(1)
+                    ->collapsible(),
 
                 Section::make('App-uiterlijk')
                     ->description('Het icoon en het startscherm van de app, in de stijl van de club.')
@@ -493,6 +506,7 @@ class ManageSettings extends Page
                 'app_icon_path'      => $data['app_icon_path'] ?? null,
                 'splash_path'        => $data['splash_path'] ?? null,
                 'splash_bg_color'    => $data['splash_bg_color'] ?? null,
+                'access_enabled'     => (bool) ($data['access_enabled'] ?? false),
                 'email_header_text'  => $data['email_header_text'] ?? null,
                 'email_intro_text'   => $data['email_intro_text'] ?? null,
                 'email_footer_text'  => $data['email_footer_text'] ?? null,

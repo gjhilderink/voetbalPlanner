@@ -214,10 +214,20 @@ class AccessController extends Controller
         ]);
     }
 
+    /**
+     * Rol én module. De module staat per club aan of uit; is hij uit, dan is
+     * er niets te scannen en hoort de app hier ook niet te komen.
+     */
     private function authorizeRole(): void
     {
-        if (! request()->user()?->hasAnyRole(self::ROLLEN)) {
+        $user = request()->user();
+
+        if (! $user?->hasAnyRole(self::ROLLEN)) {
             abort(403, 'Geen toegang.');
+        }
+
+        if (! $user->club?->access_enabled) {
+            abort(403, 'Toegangscontrole staat niet aan voor deze club.');
         }
     }
 }

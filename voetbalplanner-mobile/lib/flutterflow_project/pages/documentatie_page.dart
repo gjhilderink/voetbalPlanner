@@ -131,7 +131,7 @@ abstract final class DocumentatiePageWidgets {
                             name: "Text",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Button_an1xjrd3",
+                            key: "Button_7b3b4sj9",
                             type: "Button",
                             path: "DocumentatiePage.body[0].children[1].children[0].children[0].children[2]",
                             name: "TourKnop_wedstrijd_afgelasten",
@@ -141,7 +141,7 @@ abstract final class DocumentatiePageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Button_3c0cv1xg",
+                            key: "Button_6p5omjcj",
                             type: "Button",
                             path: "DocumentatiePage.body[0].children[1].children[0].children[0].children[3]",
                             name: "TourKnop_gastspeler_uitnodigen",

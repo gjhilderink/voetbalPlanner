@@ -225,7 +225,9 @@ class AgendaItemResource extends Resource
                     ->visible(fn (Get $get): bool => (bool) $get('registration_enabled')),
             ]),
 
-            Section::make('Toegangscontrole')->columns(1)->schema([
+            Section::make('Toegangscontrole')
+                ->visible(fn (): bool => \App\Filament\Resources\AccessCodeResource::moduleAan())
+                ->columns(1)->schema([
                 Forms\Components\Toggle::make('free_for_members')
                     ->label('Gratis voor leden')
                     ->helperText('Aan: het lidnummer van elk clublid werkt hier als toegangscode, één keer per activiteit. Leden vinden hun eigen QR in de app onder Mijn toegangscode. Uitgedeelde codes beheer je bij Toegangscodes.'),

@@ -36,7 +36,8 @@ class AccessEntryResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasAnyRole(self::ROLLEN) ?? false;
+        return (auth()->user()?->hasAnyRole(self::ROLLEN) ?? false)
+            && AccessCodeResource::moduleAan();
     }
 
     public static function canCreate(): bool
