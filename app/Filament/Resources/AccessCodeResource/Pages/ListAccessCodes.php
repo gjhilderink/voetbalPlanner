@@ -8,6 +8,9 @@ use App\Filament\Resources\AccessCodeResource;
 use App\Filament\Support\ImportNotifier;
 use App\Imports\AccessCodesImport;
 use App\Models\AccessCode;
+use App\Models\AgendaItem;
+use App\Support\Qr;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -136,6 +139,62 @@ class ListAccessCodes extends ListRecords
                     );
 
                     Storage::disk('local')->delete($data['file']);
+                }),
+
+            Actions\Action::make('afdrukvel')
+                ->label('PDF-vel')
+                ->icon('heroicon-o-document-arrow-down')
+                ->color('gray')
+                ->form([
+                    Forms\Components\Select::make('agenda_item_id')
+                        ->label('Activiteit')
+                        ->options(fn () => AccessCodeResource::agendaOpties())
+                        ->searchable()
+                        ->required(),
+
+                    Forms\Components\Toggle::make('alleen_ongebruikt')
+                        ->label('Alleen codes die nog niet gebruikt zijn')
+                        ->default(false),
+                ])
+                ->modalWidth('md')
+                ->action(function (array $data): \Symfony\Component\HttpFoundation\StreamedResponse {
+                    $item = AgendaItem::find($data['agenda_item_id']);
+
+                    $codes = AccessCode::query()
+                        ->where('agenda_item_id', $data['agenda_item_id'])
+                        ->where('is_active', true)
+                        ->when(
+                            (bool) ($data['alleen_ongebruikt'] ?? false),
+                            fn ($q) => $q->whereColumn('used_count', '<', 'max_uses'),
+                        )
+                        ->orderBy('code')
+                        ->get();
+
+                    // De QR's vooraf tekenen en niet in de view: dan blijft de
+                    // Blade een opmaakbestand en staat het zware werk hier.
+                    $kaarten = $codes->map(fn (AccessCode $c): array => [
+                        'code'  => $c->code,
+                        'label' => $c->label,
+                        'max'   => $c->max_uses,
+                        'qr'    => Qr::pngDataUri($c->code, 260),
+                    ])->all();
+
+                    $pdf = Pdf::loadView('pdf.access-codes', [
+                        'titel'     => $item?->title ?? 'Toegangscodes',
+                        'datum'     => $item?->starts_at?->format('d-m-Y H:i') ?? '',
+                        'clubNaam'  => filament()->getTenant()?->name,
+                        'kaarten'   => $kaarten,
+                    ])->setPaper('a4', 'portrait');
+
+                    $bestandsnaam = 'toegangscodes-'
+                        . \Illuminate\Support\Str::slug($item?->title ?? 'activiteit')
+                        . '-' . now()->format('Y-m-d') . '.pdf';
+
+                    return response()->streamDownload(
+                        fn () => print ($pdf->output()),
+                        $bestandsnaam,
+                        ['Content-Type' => 'application/pdf'],
+                    );
                 }),
 
             Actions\CreateAction::make()->label('Code toevoegen'),

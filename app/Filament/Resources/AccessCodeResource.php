@@ -7,6 +7,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AccessCodeResource\Pages;
 use App\Models\AccessCode;
 use App\Models\AgendaItem;
+use App\Support\Qr;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -192,6 +193,23 @@ class AccessCodeResource extends Resource
                     ->query(fn (Builder $q) => $q->whereColumn('used_count', '>=', 'max_uses')),
             ])
             ->actions([
+                Actions\Action::make('qr')
+                    ->label('QR bekijken')
+                    ->icon('heroicon-o-qr-code')
+                    ->color('gray')
+                    ->modalHeading(fn (AccessCode $record): string => 'Code ' . $record->code)
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Sluiten')
+                    ->modalWidth('sm')
+                    // Een view en geen formulier: er valt niets in te vullen.
+                    // De download loopt via een data-URI, zodat er geen extra
+                    // route nodig is die ook weer afgeschermd moet worden.
+                    ->modalContent(fn (AccessCode $record) => view('filament.access.qr-modal', [
+                        'code'    => $record,
+                        'dataUri' => Qr::pngDataUri($record->code, 320),
+                        'download' => Qr::pngDataUri($record->code, 640),
+                    ])),
+
                 Actions\Action::make('reset')
                     ->label('Teller terugzetten')
                     ->icon('heroicon-o-arrow-path')
