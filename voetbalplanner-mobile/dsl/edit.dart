@@ -1606,6 +1606,7 @@ void buildEditFlow(App app) {
     _ensureLineupBoardStruct(project);
     _ensureLineupBoardAppState(project);
     _ensureLineupBoardActions(project);
+    _ensureTourFundament(project);
     _ensureLineupBoardWidget(project);
     _wireOpstellingPage(project);
     _ensurePlannedSubsWidget(project);
@@ -37927,6 +37928,187 @@ Future<String> publishLineup(String? matchId, bool? published) async {
     ],
     vrijgeefCode,
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// IN-APP RONDLEIDING (coach marks)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Een handleiding-item kan een rondleiding starten: donkere overlay, uitsnede
+// over het element, ballon met uitleg. De rondleidingen draaien op nagebouwde
+// demopagina's met nepdata en niet op de echte schermen, zodat er niets stuk kan
+// in echte wedstrijdgegevens.
+//
+// De doel-elementen registreren zichzelf onder een stepId. Dat moet wel: de
+// GlobalKeys van door FlutterFlow gegenereerde widgets zijn van buitenaf niet te
+// bereiken, dus elk doel wikkelt zich in een TourTarget die zijn eigen key maakt
+// en die in een registry zet.
+
+/// De registry en de wikkelwidget, samen in één bestand.
+///
+/// De registry hoorde een eigen bestand te worden via addCustomClass, maar de
+/// codegen van FlutterFlow schrijft dat bestand weg zónder .dart-extensie
+/// (`lib/custom_code/tour_registry`), waardoor de import er niet op oplost. In
+/// hetzelfde bestand als de widget zetten werkt wel, en scheelt een moving part.
+/// Wie de registry elders nodig heeft importeert
+/// `/custom_code/widgets/tour_target.dart` rechtstreeks — de index-export toont
+/// alleen TourTarget.
+const String _kTourTargetCode = r'''
+import 'package:flutter/material.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+
+/// Houdt bij welke doel-widgets op dit moment op het scherm staan.
+///
+/// Sleutel is de stepId uit de tour-definitie. Een widget meldt zich aan in
+/// initState en weer af in dispose; zonder dat afmelden blijft er na het
+/// wegnavigeren een key achter die nergens meer aan hangt, en wijst de
+/// rondleiding de volgende keer naar een plek die niet bestaat.
+class TourRegistry {
+  TourRegistry._();
+
+  static final Map<String, GlobalKey> _sleutels = <String, GlobalKey>{};
+
+  /// Meldt een doel aan en geeft de key terug die eraan hangt.
+  ///
+  /// Bestaat de stepId al, dan wordt de oude key vervangen. Dat gebeurt bij een
+  /// hot reload of als dezelfde pagina twee keer wordt geopend voordat de eerste
+  /// is opgeruimd; de laatste die zich meldt staat op het scherm.
+  static GlobalKey registreer(String stepId) {
+    final sleutel = GlobalKey(debugLabel: 'tour_$stepId');
+    _sleutels[stepId] = sleutel;
+    return sleutel;
+  }
+
+  /// De key van een doel, of null als het niet op het scherm staat.
+  static GlobalKey? sleutel(String stepId) => _sleutels[stepId];
+
+  /// Staat dit doel op het scherm én is het gemonteerd?
+  ///
+  /// Alleen op de map afgaan is niet genoeg: een widget kan zijn afgebroken
+  /// zonder dispose (bij een fout in de boom), en dan hangt er een key zonder
+  /// context. tutorial_coach_mark loopt daarop stuk.
+  static bool bestaat(String stepId) =>
+      _sleutels[stepId]?.currentContext != null;
+
+  /// Meldt een doel af. Alleen als de key nog van deze widget is: bij een snelle
+  /// heropbouw meldt de nieuwe zich aan vóórdat de oude zich afmeldt, en dan zou
+  /// blind verwijderen de verse key weggooien.
+  static void vergeet(String stepId, [GlobalKey? sleutel]) {
+    if (sleutel == null || _sleutels[stepId] == sleutel) {
+      _sleutels.remove(stepId);
+    }
+  }
+
+  /// Alles vergeten. Voor de debug-knop en voor tests.
+  static void leeg() => _sleutels.clear();
+
+  /// Hoeveel doelen er nu geregistreerd staan. Handig om te controleren dat
+  /// twee keer dezelfde pagina openen geen dubbele keys oplevert.
+  static int get aantal => _sleutels.length;
+}
+
+/// Markeert een plek op het scherm zodat de rondleiding hem kan aanwijzen.
+///
+/// Geen wikkel om een kind heen, maar een onzichtbare laag die je in een Stack
+/// óver het element legt. Reden: een custom widget kan vanuit de DSL geen
+/// widget als parameter krijgen — ParamValue kent alleen tekst, een variabele
+/// en een actieketen. Een `child`-builder zou dus altijd leeg blijven.
+///
+/// Gebruik: Stack(children: [ het element, TourTarget(stepId: '...') ]). De
+/// markering rekt zich op tot de maat van de stapel, dus de uitsnede van de
+/// rondleiding valt samen met het element eronder.
+///
+/// IgnorePointer, want een laag over een knop die tikken opvangt is een knop
+/// die niet meer werkt.
+class TourTarget extends StatefulWidget {
+  const TourTarget({
+    super.key,
+    this.width,
+    this.height,
+    required this.stepId,
+  });
+
+  final double? width;
+  final double? height;
+  final String stepId;
+
+  @override
+  State<TourTarget> createState() => _TourTargetState();
+}
+
+class _TourTargetState extends State<TourTarget> {
+  late GlobalKey _sleutel;
+
+  @override
+  void initState() {
+    super.initState();
+    _sleutel = TourRegistry.registreer(widget.stepId);
+  }
+
+  @override
+  void didUpdateWidget(covariant TourTarget oud) {
+    super.didUpdateWidget(oud);
+    // De stepId kan wijzigen als dezelfde widget in een lijst hergebruikt wordt.
+    if (oud.stepId != widget.stepId) {
+      TourRegistry.vergeet(oud.stepId, _sleutel);
+      _sleutel = TourRegistry.registreer(widget.stepId);
+    }
+  }
+
+  @override
+  void dispose() {
+    TourRegistry.vergeet(widget.stepId, _sleutel);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: SizedBox(
+        key: _sleutel,
+        width: widget.width ?? double.infinity,
+        height: widget.height ?? double.infinity,
+      ),
+    );
+  }
+}
+''';
+
+/// Zet de bouwstenen van de rondleiding klaar. Idempotent.
+void _ensureTourFundament(FFProject project) {
+  try {
+    addPubDependency(project, name: 'tutorial_coach_mark', version: '^1.2.13');
+  } catch (_) {
+    // Stond er al; addPubDependency gooit op een duplicaat.
+  }
+
+  // Een eerdere push zette de registry in een eigen custom class. Dat bestand
+  // kwam er zonder .dart-extensie uit en brak de import; weghalen dus.
+  if (findCustomClass(project, name: 'TourRegistry') != null) {
+    removeCustomClass(project, name: 'TourRegistry');
+  }
+
+  if (findCustomWidget(project, name: 'TourTarget') == null) {
+    addCustomWidget(
+      project,
+      name: 'TourTarget',
+      description:
+          'Onzichtbare markering die een rondleiding kan aanwijzen. Leg hem in een '
+          'Stack over het element heen; hij registreert zijn GlobalKey onder stepId '
+          'en meldt zich af bij dispose.',
+      parameters: [
+        FFParameter(
+          identifier: FFIdentifier(
+              name: 'stepId', key: generateRandomAlphaNumericString()),
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        ),
+      ],
+      code: _kTourTargetCode,
+    );
+  } else {
+    updateCustomWidget(project, name: 'TourTarget', code: _kTourTargetCode);
+  }
 }
 
 void _ensureLineupBoardWidget(FFProject project) {

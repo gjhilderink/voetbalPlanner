@@ -1526,6 +1526,7 @@ abstract final class CustomCode {
     "HighlightedNameList",
     "LineupBoard",
     "PlannedSubs",
+    "TourTarget",
   ];
 }
 
