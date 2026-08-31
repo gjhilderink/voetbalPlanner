@@ -12,6 +12,7 @@ import 'pages/chat_detail_page.dart' show chatDetailPageHandle;
 import 'pages/chats_page.dart' show chatsPageHandle;
 import 'pages/create_group_page.dart' show createGroupPageHandle;
 import 'pages/dashboard_page.dart' show dashboardPageHandle;
+import 'pages/demo_wedstrijd_afgelasten_page.dart' show demoWedstrijdAfgelastenPageHandle;
 import 'pages/direct_chat_page.dart' show directChatPageHandle;
 import 'pages/documentatie_page.dart' show documentatiePageHandle;
 import 'pages/documenten_page.dart' show documentenPageHandle;
@@ -54,6 +55,7 @@ abstract final class Pages {
   static final chatsPage = chatsPageHandle;
   static final createGroupPage = createGroupPageHandle;
   static final dashboardPage = dashboardPageHandle;
+  static final demoWedstrijdAfgelastenPage = demoWedstrijdAfgelastenPageHandle;
   static final directChatPage = directChatPageHandle;
   static final documentatiePage = documentatiePageHandle;
   static final documentenPage = documentenPageHandle;
@@ -95,6 +97,7 @@ abstract final class Pages {
     chatsPage,
     createGroupPage,
     dashboardPage,
+    demoWedstrijdAfgelastenPage,
     directChatPage,
     documentatiePage,
     documentenPage,

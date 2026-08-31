@@ -665,6 +665,7 @@ void buildEditFlow(App app) {
   app.raw((project) => _fixIncompatiblePubVersions(project));
   app.raw((project) => _addDocumentationEndpoint(project));
   _buildDocumentatiePage(app, documentSection);
+  _buildDemoAfgelastenPage(app);
   app.raw((project) => _wireDocumentationPageLoad(project));
   // Handleiding + Bug-melden zijn naar de AppDrawer verhuisd; ruim eventuele
   // bestaande knoppen op ProfielPage op.
@@ -4716,6 +4717,272 @@ void _addDocumentationEndpoint(FFProject project) {
     headers:                  ['Authorization: Bearer [bearerToken]'],
     responseDataStructName:   'DocumentSection',
     responseDataStructIsList: true,
+  );
+}
+
+
+/// De demopagina voor de rondleiding "wedstrijd afgelasten".
+///
+/// Alles is nep en niets doet iets: geen API-aanroep, geen pagina-state, geen
+/// echte wedstrijd. Dat is met opzet — de rondleiding moet uit te leggen zijn
+/// zonder dat er per ongeluk een echte wedstrijd afgelast wordt.
+///
+/// Het scherm toont de wedstrijd meteen in afgelaste toestand: de rode melding
+/// en 'Toch laten doorgaan' staan er dus al. In de echte app verschijnen die
+/// pas na het afgelasten, maar een doel dat er nog niet is kan de rondleiding
+/// niet aanwijzen, en dan zouden de laatste twee stappen wegvallen.
+///
+/// Opmaak volgt het Info-tabblad van de wedstrijddetail: achtergrond #F4F5F7,
+/// witte rijen met radius 8 en rand #E5E7EB, icoon in een rond vlak #FDE8E8.
+void _buildDemoAfgelastenPage(App app) {
+  /// Eén witte inforij, zoals op het Info-tabblad.
+  DslWidget inforij(String icoon, String kop, String waarde) => Container(
+        color: Colors.secondaryBackground,
+        borderRadius: 8,
+        borderColor: Colors.hex(0xFFE5E7EB),
+        borderWidth: 1,
+        padding: EdgeInsets.all(12),
+        child: Row(
+          spacing: 12,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              color: Colors.hex(0xFFFDE8E8),
+              alignment: Alignment.center,
+              child: Icon(icoon, size: 18, color: Colors.hex(0xFFC81E1E)),
+            ),
+            Expanded(
+              Column(
+                crossAxis: CrossAxis.start,
+                spacing: 2,
+                children: [
+                  Text(kop, style: Styles.labelSmall, color: Colors.secondaryText),
+                  Text(waarde, style: Styles.bodyMedium),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  /// Een element met een markering erover. De markering neemt geen ruimte in,
+  /// dus de Stack houdt precies de maat van het element.
+  DslWidget metDoel(String stepId, DslWidget kind) => Stack(
+        children: [
+          kind,
+          CustomWidget(
+            widgetName: 'TourTarget',
+            arguments: {'stepId': stepId},
+            name: 'Doel_$stepId',
+          ),
+        ],
+      );
+
+  app.ensurePage(
+    'DemoWedstrijdAfgelastenPage',
+    description:
+        'Nagebootst wedstrijdscherm voor de rondleiding "wedstrijd afgelasten". '
+        'Alle gegevens zijn verzonnen en de knoppen doen niets.',
+    route: 'demo-wedstrijd-afgelasten',
+    params: {
+      'tourId': string.withDefault('wedstrijd_afgelasten'),
+      'startStep': int_.withDefault(0),
+    },
+    onLoad: [
+      CallCustomAction.named('StartTour', arguments: {
+        'tourId': PageParam('tourId'),
+        'startStep': PageParam('startStep'),
+      }),
+    ],
+    body: Container(
+      color: Colors.hex(0xFFF4F5F7),
+      child: Column(
+        scrollable: true,
+        children: [
+          // ── kop met terugknop ───────────────────────────────────────────
+          Container(
+            color: Colors.secondaryBackground,
+            padding: EdgeInsets.only(left: 8, top: 44, right: 16, bottom: 12),
+            child: Row(
+              spacing: 4,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  onTap: [NavigateBack()],
+                  child: Icon('arrow_back', size: 22, color: Colors.primaryText),
+                ),
+                Expanded(Text('Wedstrijd', style: Styles.titleMedium)),
+                Container(
+                  color: Colors.hex(0xFFFDE8E8),
+                  borderRadius: 6,
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  child: Text('Voorbeeld',
+                      style: Styles.labelSmall, color: Colors.hex(0xFFC81E1E)),
+                ),
+              ],
+            ),
+          ),
+
+          Column(
+            padding: EdgeInsets.all(12),
+            spacing: 12,
+            crossAxis: CrossAxis.stretch,
+            children: [
+              // ── stap 1: het kaartje dat je in de lijst aantikt ───────────
+              metDoel(
+                'wedstrijd_openen',
+                Container(
+                  color: Colors.secondaryBackground,
+                  borderRadius: 10,
+                  borderColor: Colors.hex(0xFFE5E7EB),
+                  borderWidth: 1,
+                  padding: EdgeInsets.all(14),
+                  child: Row(
+                    spacing: 12,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        color: Colors.hex(0xFFFDE8E8),
+                        alignment: Alignment.center,
+                        child: Icon('sports_soccer',
+                            size: 20, color: Colors.hex(0xFFC81E1E)),
+                      ),
+                      Expanded(
+                        Column(
+                          crossAxis: CrossAxis.start,
+                          spacing: 2,
+                          children: [
+                            Text('FC Voorbeeld - VV Testdorp',
+                                style: Styles.titleSmall, maxLines: 1),
+                            Text('zondag 14:30',
+                                style: Styles.bodySmall,
+                                color: Colors.secondaryText),
+                          ],
+                        ),
+                      ),
+                      Icon('chevron_right',
+                          size: 20, color: Colors.secondaryText),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── stap 4: de rode melding ─────────────────────────────────
+              metDoel(
+                'afgelasten_melding',
+                Container(
+                  color: Colors.hex(0xFFFDE8E8),
+                  borderRadius: 10,
+                  borderColor: Colors.hex(0xFFF3C2C2),
+                  borderWidth: 1,
+                  padding: EdgeInsets.all(14),
+                  child: Row(
+                    spacing: 12,
+                    crossAxis: CrossAxis.start,
+                    children: [
+                      Icon('cancel', size: 20, color: Colors.hex(0xFFC81E1E)),
+                      Expanded(
+                        Column(
+                          crossAxis: CrossAxis.start,
+                          spacing: 2,
+                          children: [
+                            Text('Wedstrijd afgelast',
+                                style: Styles.titleSmall,
+                                color: Colors.hex(0xFFC81E1E)),
+                            Text('Reden: veld onbespeelbaar',
+                                style: Styles.bodySmall),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              inforij('groups', 'Tegenstander', 'VV Testdorp'),
+              inforij('event', 'Datum en tijd', 'zondag 14:30'),
+              inforij('place', 'Locatie', 'Sportpark De Wei, veld 2'),
+              inforij('schedule', 'Aanwezig', '13:45'),
+
+              Text('Af-/aanmelden',
+                  style: Styles.titleSmall, name: 'DemoAfmeldKop'),
+
+              // ── stap 2: het redenveld ───────────────────────────────────
+              metDoel(
+                'afgelasten_reden',
+                Container(
+                  color: Colors.secondaryBackground,
+                  borderRadius: 8,
+                  borderColor: Colors.hex(0xFFE5E7EB),
+                  borderWidth: 1,
+                  padding: EdgeInsets.all(12),
+                  child: Column(
+                    crossAxis: CrossAxis.start,
+                    spacing: 4,
+                    children: [
+                      Text('Reden (bij afmelden)',
+                          style: Styles.labelSmall,
+                          color: Colors.secondaryText),
+                      Text('veld onbespeelbaar', style: Styles.bodyMedium),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── stap 3: afgelasten ──────────────────────────────────────
+              metDoel(
+                'afgelasten_knop',
+                Row(children: [
+                  Expanded(Button(
+                    'Wedstrijd afgelasten',
+                    icon: 'block',
+                    color: Colors.hex(0xFFC81E1E),
+                    textColor: Colors.info,
+                    borderRadius: 8,
+                    height: 46,
+                    name: 'DemoAfgelastKnop',
+                    onTap: [
+                      Snackbar('Dit is een voorbeeldscherm; er wordt niets '
+                          'echt afgelast.'),
+                    ],
+                  )),
+                ]),
+              ),
+
+              // ── stap 5: terugdraaien ────────────────────────────────────
+              metDoel(
+                'afgelasten_terug',
+                Row(children: [
+                  Expanded(Button(
+                    'Toch laten doorgaan',
+                    icon: 'undo',
+                    variant: ButtonVariant.outlined,
+                    borderRadius: 8,
+                    height: 46,
+                    name: 'DemoDoorgaanKnop',
+                    onTap: [
+                      Snackbar('Dit is een voorbeeldscherm; er verandert niets.'),
+                    ],
+                  )),
+                ]),
+              ),
+
+              Text(
+                'Dit scherm is nagemaakt voor de uitleg. De knoppen doen niets.',
+                style: Styles.labelSmall,
+                color: Colors.secondaryText,
+                textAlign: TextAlign.center,
+                name: 'DemoVoetnoot',
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
   );
 }
 
@@ -37960,6 +38227,8 @@ Future<String> publishLineup(String? matchId, bool? published) async {
 /// alleen TourTarget.
 const String _kTourTargetCode = r'''
 import 'package:flutter/material.dart';
+// Voor RenderStack: material.dart geeft die niet gegarandeerd door.
+import 'package:flutter/rendering.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 
@@ -37988,13 +38257,46 @@ class TourRegistry {
   /// De key van een doel, of null als het niet op het scherm staat.
   static GlobalKey? sleutel(String stepId) => _sleutels[stepId];
 
-  /// Staat dit doel op het scherm én is het gemonteerd?
+  /// De rechthoek op het scherm van het element waar deze markering bij hoort.
+  ///
+  /// Let op: niet de markering zelf. Die tekent niets en staat er alleen om
+  /// zich te laten vinden; we lezen de maat af van de Stack waarin hij ligt, en
+  /// die is precies zo groot als het element ernaast.
+  ///
+  /// Waarom de Stack en niet gewoon "de eerste voorouder met oppervlak":
+  /// FlutterFlow eist afmetingen op elke geplaatste custom widget en zet daar
+  /// een omhulsel van 1 bij 1 punt omheen. Dat omhulsel heeft dus wél
+  /// oppervlak en zou de zoektocht meteen stoppen.
+  ///
+  /// Een key rechtstreeks aan tutorial_coach_mark meegeven kan om dezelfde
+  /// reden niet: de uitsnede zou 1 bij 1 punt groot worden.
+  static Rect? rechthoek(String stepId) {
+    final ctx = _sleutels[stepId]?.currentContext;
+    if (ctx == null) return null;
+
+    RenderStack? gevonden;
+    ctx.visitAncestorElements((element) {
+      final ro = element.renderObject;
+      if (ro is RenderStack) {
+        gevonden = ro;
+        return false;
+      }
+      return true;
+    });
+
+    // Kopie naar een lokale variabele: een vastgelegde variabele promoveert
+    // niet, dus zonder dit klaagt de analyzer over de null-controle.
+    final doel = gevonden;
+    if (doel == null || !doel.attached || !doel.hasSize) return null;
+    return doel.localToGlobal(Offset.zero) & doel.size;
+  }
+
+  /// Staat dit doel op het scherm, en is er een rechthoek van te maken?
   ///
   /// Alleen op de map afgaan is niet genoeg: een widget kan zijn afgebroken
   /// zonder dispose (bij een fout in de boom), en dan hangt er een key zonder
   /// context. tutorial_coach_mark loopt daarop stuk.
-  static bool bestaat(String stepId) =>
-      _sleutels[stepId]?.currentContext != null;
+  static bool bestaat(String stepId) => rechthoek(stepId) != null;
 
   /// Meldt een doel af. Alleen als de key nog van deze widget is: bij een snelle
   /// heropbouw meldt de nieuwe zich aan vóórdat de oude zich afmeldt, en dan zou
@@ -38015,17 +38317,16 @@ class TourRegistry {
 
 /// Markeert een plek op het scherm zodat de rondleiding hem kan aanwijzen.
 ///
-/// Geen wikkel om een kind heen, maar een onzichtbare laag die je in een Stack
-/// óver het element legt. Reden: een custom widget kan vanuit de DSL geen
+/// Geen wikkel om een kind heen: een custom widget kan vanuit de DSL geen
 /// widget als parameter krijgen — ParamValue kent alleen tekst, een variabele
-/// en een actieketen. Een `child`-builder zou dus altijd leeg blijven.
+/// en een actieketen, dus een `child`-builder zou altijd leeg blijven.
 ///
 /// Gebruik: Stack(children: [ het element, TourTarget(stepId: '...') ]). De
-/// markering rekt zich op tot de maat van de stapel, dus de uitsnede van de
-/// rondleiding valt samen met het element eronder.
+/// markering neemt zelf geen ruimte in, zodat de Stack de maat van het element
+/// houdt; TourRegistry.rechthoek leest die maat af bij de eerste voorouder die
+/// wél oppervlak heeft.
 ///
-/// IgnorePointer, want een laag over een knop die tikken opvangt is een knop
-/// die niet meer werkt.
+/// Nul bij nul en dus ook geen IgnorePointer nodig: er valt niets te raken.
 class TourTarget extends StatefulWidget {
   const TourTarget({
     super.key,
@@ -38069,13 +38370,7 @@ class _TourTargetState extends State<TourTarget> {
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: SizedBox(
-        key: _sleutel,
-        width: widget.width ?? double.infinity,
-        height: widget.height ?? double.infinity,
-      ),
-    );
+    return SizedBox.shrink(key: _sleutel);
   }
 }
 
@@ -38224,26 +38519,54 @@ void _ensureTourFundament(FFProject project) {
     removeCustomClass(project, name: 'TourRegistry');
   }
 
-  if (findCustomWidget(project, name: 'TourTarget') == null) {
+  // De parameterlijst wordt alleen herschreven als er echt iets mis mee is.
+  //
+  // Dat klinkt omslachtig, maar updateCustomWidget spuit bij elke aanroep een
+  // verse `dimensions`-parameter met een nieuwe sleutel in. De geplaatste
+  // knooppunten verwijzen dan naar een sleutel die niet meer bestaat, en de
+  // validatie meldt "Dimensions not specified for custom code widget" -- een
+  // foutmelding die nergens over afmetingen gaat.
+  //
+  // Meesturen moest wél één keer: een eerdere push liet een parameter `child`
+  // van het type WidgetBuilder achter, en daar liep de compiler op vast met
+  // "Unsupported existing project data type".
+  final parameters = [
+    FFParameter(
+      identifier:
+          FFIdentifier(name: 'stepId', key: generateRandomAlphaNumericString()),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ),
+  ];
+  const beschrijving =
+      'Onzichtbare markering die een rondleiding kan aanwijzen. Leg hem in een '
+      'Stack over het element heen; hij neemt zelf geen ruimte in, zodat de '
+      'Stack de maat van het element houdt.';
+
+  final bestaand = findCustomWidget(project, name: 'TourTarget');
+  if (bestaand == null) {
     addCustomWidget(
       project,
       name: 'TourTarget',
-      description:
-          'Onzichtbare markering die een rondleiding kan aanwijzen. Leg hem in een '
-          'Stack over het element heen; hij registreert zijn GlobalKey onder stepId '
-          'en meldt zich af bij dispose.',
-      parameters: [
-        FFParameter(
-          identifier: FFIdentifier(
-              name: 'stepId', key: generateRandomAlphaNumericString()),
-          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-        ),
-      ],
+      description: beschrijving,
+      parameters: parameters,
       code: _kTourTargetCode,
     );
-  } else {
-    updateCustomWidget(project, name: 'TourTarget', code: _kTourTargetCode);
+    return;
   }
+
+  // Alleen 'dimensions' (automatisch) en 'stepId' horen erop te staan.
+  final vreemd = bestaand.parameters.any((p) =>
+      p.hasIdentifier() &&
+      p.identifier.name != 'stepId' &&
+      p.dataType.subType.widgetPropertyType != FFWidgetPropertyType.DIMENSIONS);
+
+  updateCustomWidget(
+    project,
+    name: 'TourTarget',
+    code: _kTourTargetCode,
+    description: beschrijving,
+    parameters: vreemd ? parameters : null,
+  );
 }
 
 /// De acties eromheen: voortgang onthouden en de rondleiding starten.
@@ -38357,9 +38680,13 @@ Future<void> startTour(
   final doelen = <TargetFocus>[];
   for (var i = 0; i < zichtbaar.length; i++) {
     final stap = zichtbaar[i];
+    // Nog een keer opvragen kan niet misgaan: het filter hierboven heeft er
+    // net een gekregen en er is sindsdien geen frame voorbij.
+    final rect = TourRegistry.rechthoek(stap.stepId);
+    if (rect == null) continue;
     doelen.add(TargetFocus(
       identify: stap.stepId,
-      keyTarget: TourRegistry.sleutel(stap.stepId),
+      targetPosition: TargetPosition(rect.size, rect.topLeft),
       shape: stap.vorm == 'cirkel'
           ? ShapeLightFocus.Circle
           : ShapeLightFocus.RRect,
@@ -38498,17 +38825,26 @@ Widget tourBallon(
     }
   }
 
-  FFParameter tekst(String naam) => FFParameter(
-        identifier: FFIdentifier(name: naam),
+  // Vaste sleutels, om twee redenen.
+  //
+  // Zonder sleutel krijgen alle argumenten er dezelfde (lege) en overschrijven
+  // ze elkaar: StartTour gaf zo aan zowel tourId als startStep de waarde van
+  // startStep mee.
+  //
+  // En géén willekeurige sleutel, want updateCustomAction ververst die bij
+  // elke push. De pagina's worden gecompileerd vóórdat deze functie draait, dus
+  // hun aanroepen zouden meteen naar een sleutel wijzen die niet meer bestaat.
+  FFParameter tekst(String naam, String sleutel) => FFParameter(
+        identifier: FFIdentifier(name: naam, key: sleutel),
         dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
       );
 
   zorgVoor('MarkTourCompleted', markCode,
-      args: [tekst('tourId')],
+      args: [tekst('tourId', 'tourmarkid')],
       beschrijving: 'Onthoudt dat een rondleiding is afgerond of overgeslagen.');
 
   zorgVoor('HasSeenTour', seenCode,
-      args: [tekst('tourId')],
+      args: [tekst('tourId', 'tourseenid')],
       retour: FFParameter(
         dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
       ),
@@ -38519,9 +38855,9 @@ Widget tourBallon(
 
   zorgVoor('StartTour', startCode,
       args: [
-        tekst('tourId'),
+        tekst('tourId', 'tourstartid'),
         FFParameter(
-          identifier: FFIdentifier(name: 'startStep'),
+          identifier: FFIdentifier(name: 'startStep', key: 'tourstartstep'),
           dataType: FFDataTypeV2(scalarType: FFBaseDataType.Integer),
         ),
       ],
