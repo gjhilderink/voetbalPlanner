@@ -757,6 +757,325 @@ class ReleaseNotesSeeder extends Seeder
                     . 'gewoon op het inlogscherm. Ook wie via een inloglink binnenkomt krijgt die melding niet meer, '
                     . 'want die had nog helemaal geen sessie.',
             ],
+            // ── Live verslag ────────────────────────────────────────────────
+            [
+                'type'        => 'feature',
+                'title'       => 'Schot op doel vastleggen',
+                'description' => 'In het live verslag staan twee knoppen erbij: schot en schot tegen. Eén tik, '
+                    . 'zonder eerst een speler te kiezen — er vallen er te veel om er telkens een naam bij te '
+                    . 'zoeken. De aantallen komen terug op de publieke pagina, in het tabblad Statistiek en in '
+                    . 'de tijdlijn.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Zie hoeveel mensen er meekijken',
+                'description' => 'Terwijl je het live verslag bijhoudt zie je in de coachbalk hoeveel mensen er '
+                    . 'op dat moment meelezen — via de app en via de gedeelde link samen. Het getal is van dit '
+                    . 'moment en reageert binnen ongeveer een halve minuut.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Het verslag begint pas als jij op start drukt',
+                'description' => '"Start live verslag" op de wedstrijdpagina begon meteen met tellen, ook als je '
+                    . 'alleen even wilde kijken of alles klaarstond. Die knop brengt je nu naar de livepagina, '
+                    . 'waar je zelf op start drukt. Loopt er al een verslag, dan staat er "Open live verslag" — '
+                    . 'zo kunnen twee coaches samen één wedstrijd bijhouden zonder opnieuw te beginnen.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'De opstelling staat onderaan de livepagina',
+                'description' => 'Tijdens de wedstrijd kijk je naar de klok en het verslag; spelers indelen doe '
+                    . 'je vooraf. De opstelling stond daar tussenin en moest elke keer voorbij gescrold worden.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'De opstelling was te vroeg zichtbaar',
+                'description' => 'Wie op "live volgen" tikte zag de opstelling, ook als de coach hem nog niet had '
+                    . 'vrijgegeven. Datzelfde gold voor de gedeelde link, waar iedereen bij kan. Niet vrijgegeven '
+                    . 'is nu niet zichtbaar, en voor wie meekijkt verschijnt de opstelling pas na de aftrap.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Coaches stonden tussen de spelers',
+                'description' => 'Bij het kiezen van een doelpuntenmaker of het indelen van de opstelling stonden '
+                    . 'de coaches en leiders in de lijst, en door de sortering op naam vaak bovenaan.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Statistiek werd niet bijgewerkt',
+                'description' => 'Het tabblad Statistiek laadde alleen bij het openen van de wedstrijd. Wie een '
+                    . 'verslag weggooide of een doelpunt noteerde en daarna terugbladerde, keek naar de oude '
+                    . 'cijfers.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Verslag verwijderen liet de uitslag staan',
+                'description' => 'Na het weggooien van een verslag bleef de eindstand op de wedstrijdkaart staan, '
+                    . 'terwijl de doelpunten en de statistiek weg waren. Bij een wedstrijd uit Sportlink komt de '
+                    . 'officiële uitslag bij de volgende synchronisatie vanzelf terug.',
+            ],
+
+            // ── Opstelling ──────────────────────────────────────────────────
+            [
+                'type'        => 'feature',
+                'title'       => 'Standaardopstelling per elftal',
+                'description' => 'Stel één keer een vaste opstelling samen voor je team en laad die bij elke '
+                    . 'wedstrijd in met één knop. Je past hem daarna nog aan zonder de standaard te wijzigen.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Notitie bij de opstelling',
+                'description' => 'Een veld voor tactische afspraken bij de opstelling, boven de opslaanknop. '
+                    . 'Alleen zichtbaar voor wie de opstelling beheert.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Wisselspeler met één knop terug het veld in',
+                'description' => 'Zet je iemand op de bank, dan staat er nu een knop "Opstellen" bij. Slepen kan '
+                    . 'nog steeds, maar op een telefoon is dat gepriegel.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Zoeken bij het uitnodigen van een gastspeler',
+                'description' => 'In het venster waarin je een gastspeler kiest zit een zoekveld. Bij een club '
+                    . 'met honderden leden scheelt dat een halve minuut scrollen.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Volledige naam op het opstellingsbord',
+                'description' => 'Op het veld stond alleen de voornaam. Met twee keer een Sem of een Daan in de '
+                    . 'selectie wist je niet wie waar stond. Er staat nu de hele naam, en de namenlijst ernaast '
+                    . 'is breder zodat een tussenvoegsel er ook bij past.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Gastspelers stonden niet in de opstelling',
+                'description' => 'Een uitgenodigde gastspeler kwam nergens in de opstelling voor, ook niet nadat '
+                    . 'hij had toegezegd. Hij staat er nu meteen bij, onderaan de selectie met een label "Gast".',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Afgemelde spelers blijven niet in de opstelling staan',
+                'description' => 'Wie zich afmeldde werd rood in de opstelling maar bleef staan, en een afgemelde '
+                    . 'wisselspeler was niet meer te verplaatsen. Afmelden zet iemand nu bij de niet ingedeelde '
+                    . 'spelers, met "Afgemeld" erbij.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Opstelling met twee helften kwam verkeerd terug',
+                'description' => 'Een opstelling met perioden las elke speler als periode 1: je zag dubbele '
+                    . 'pionnen in de eerste helft en een lege tweede.',
+            ],
+
+            // ── Trainingen en afgelasten ────────────────────────────────────
+            [
+                'type'        => 'feature',
+                'title'       => 'Trainingen twee weken vooruit',
+                'description' => 'De trainingenpagina toonde er twee. Nu staat alles van de komende twee weken '
+                    . 'erin.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Wedstrijd of training afgelasten',
+                'description' => 'Coach en trainer kunnen een wedstrijd of een losse training afgelasten, met een '
+                    . 'reden, en hem weer vrijgeven als het toch doorgaat. Bij een training blijft het schema '
+                    . 'gewoon staan: volgende week is er weer training.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Afgelasting was niet te zien op het dashboard',
+                'description' => 'Een afgelaste wedstrijd stond gewoon tussen de komende activiteiten, met "Thuis" '
+                    . 'erachter alsof er niets aan de hand was. Nu staat de reden erbij, ook op de kaart met de '
+                    . 'volgende wedstrijd.',
+            ],
+
+            // ── Cijfers ─────────────────────────────────────────────────────
+            [
+                'type'        => 'feature',
+                'title'       => 'Teamstatistieken voor de coach',
+                'description' => 'Tik op de kaart Statistieken op het dashboard en je ziet de cijfers van het hele '
+                    . 'elftal: resultaten, topscorers, assists, kaarten per speler, schoten op doel en de opkomst '
+                    . 'per speler. Alleen voor wie het elftal beheert.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Seizoenscijfers klopten niet',
+                'description' => 'Een wedstrijd telde alleen mee als Sportlink hem als uitgespeeld aanleverde. '
+                    . 'Oefenwedstrijden, handmatig ingevoerde wedstrijden en wedstrijden waarvan je de uitslag '
+                    . 'zelf invulde vielen buiten alle cijfers. Ook doelpunten uit een verslag waarbij nooit op '
+                    . '"Einde" was gedrukt telden niet mee.',
+            ],
+
+            // ── Kleding ─────────────────────────────────────────────────────
+            [
+                'type'        => 'feature',
+                'title'       => 'Kledingmaten op je profiel',
+                'description' => 'Geef je maten op voor shirt, broek, sokken en de rest; ouders doen dat voor hun '
+                    . 'kinderen. Per persoon een uitklapblok, zodat een gezin met drie kinderen geen lijst van '
+                    . 'twintig regels krijgt. De kledingcommissie ziet in de portal per elftal wie wat heeft '
+                    . 'opgegeven en wie nog niets.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Nummer per kledingstuk',
+                'description' => 'Naast de maat kun je nu ook het nummer op een kledingstuk invullen — het '
+                    . 'rugnummer op een shirt bijvoorbeeld. Kies eerst een maat, daarna verschijnt het '
+                    . 'nummerveld.',
+            ],
+
+            // ── Ouders, af- en aanmelden ────────────────────────────────────
+            [
+                'type'        => 'feature',
+                'title'       => 'Ouders melden hun kind af en aan',
+                'description' => 'Ben je gekoppeld aan je kind, dan meld je het af of aan voor een training of '
+                    . 'wedstrijd zonder in te loggen als je kind. Bij meerdere kinderen in hetzelfde elftal kies '
+                    . 'je om wie het gaat.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Af- en aanmeldlijst beter leesbaar',
+                'description' => 'De lijst met wie er komt en wie niet is opnieuw opgemaakt: hele namen, ronde '
+                    . 'badges en een teller bovenaan.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Koppelingen stonden niet op je profiel',
+                'description' => 'Het blok met wie je gekoppeld bent bleef leeg door een serverfout, waardoor het '
+                    . 'leek alsof je aan niemand gekoppeld was. Je ziet nu beide kanten: een kind ziet ook zijn '
+                    . 'gekoppelde ouders.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Kind koppelen gaf "Too Many Attempts"',
+                'description' => 'Wie een tweede kind wilde koppelen liep tegen een Engelse foutmelding aan. De '
+                    . 'grens is verruimd en de melding is voortaan Nederlands en legt uit hoe lang je moet '
+                    . 'wachten.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Af- en aanmelden alleen voor je eigen elftal',
+                'description' => 'Toegang tot een elftal en er lid van zijn liepen door elkaar. Daardoor kon je je '
+                    . 'af- en aanmelden bij een team waar je alleen meekeek.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Teamsfeer: ouders kijken mee, stemmen niet mee',
+                'description' => 'Een ouder of verzorger kon de sfeer van het elftal kiezen. Dat is aan de spelers '
+                    . 'zelf; ouders zien de uitslag wel.',
+            ],
+
+            // ── Wedstrijden en taken ────────────────────────────────────────
+            [
+                'type'        => 'bugfix',
+                'title'       => '"Toon alle wedstrijden" liet alle elftallen zien',
+                'description' => 'De schakelaar bij Wedstrijden gaf de wedstrijden van álle elftallen waar je bij '
+                    . 'hoort door elkaar. Hij blijft nu bij het gekozen elftal en toont het hele seizoen, '
+                    . 'gespeeld en nog te spelen.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Rijschema toonde ritten uit het verleden',
+                'description' => 'De taak "Rijden" op het dashboard wees een wedstrijd van maanden geleden aan, en '
+                    . 'op de rijschemapagina stond diezelfde geschiedenis bovenaan.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Bardienst bleef "open" staan',
+                'description' => 'Een bardienst waarvoor genoeg mensen waren ingedeeld bleef als open staan.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Foto van een wedstrijd verwijderen gaf een foutmelding',
+                'description' => 'Het prullenbakje bij een foto leverde een 404 op en de foto bleef staan.',
+            ],
+
+            // ── Uiterlijk van de app ────────────────────────────────────────
+            [
+                'type'        => 'improvement',
+                'title'       => 'De app in een nieuwe huisstijl',
+                'description' => 'Groen als hoofdkleur, een nieuw lettertype en een rustiger beeld. Heeft je club '
+                    . 'eigen kleuren ingesteld, dan blijven die natuurlijk voorgaan.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'De app in de stijl van je club',
+                'description' => 'Bij de eerste keer inloggen vraagt de app of je hem in de kleuren en het logo '
+                    . 'van je club wilt. Het inlogscherm toont voortaan het logo van je club in plaats van een '
+                    . 'algemeen icoon. Je kunt de keuze altijd wijzigen in je profiel.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Profielpagina opgeruimd',
+                'description' => 'Je naam stond er twee keer, met alle inhoud ertussen. Nu één kop bovenaan met je '
+                    . 'foto, en je elftallen in dezelfde vorm als je koppelingen. De pagina laat zich scrollen — '
+                    . 'de knoppen onderaan vielen buiten beeld — en die knoppen hebben iconen gekregen.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Uitloggen ook onderaan Meer',
+                'description' => 'Je hoefde er niet meer voor naar je profiel.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Knoppen waren zwart voordat je inlogde',
+                'description' => 'Op een verse installatie was het inlogscherm zwart in plaats van in de kleuren '
+                    . 'van de app.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Na uitloggen bleef de vorige club staan',
+                'description' => 'Logde iemand anders in op hetzelfde toestel, dan zag die op het inlogscherm nog '
+                    . 'het logo en de kleuren van zijn voorganger.',
+            ],
+
+            // ── Voor de club: koppeling en beheer ───────────────────────────
+            [
+                'type'        => 'feature',
+                'title'       => 'Sportlink synchroniseert twee keer per dag',
+                'description' => 'De koppeling met Sportlink draait automatisch \'s ochtends en \'s avonds, met '
+                    . 'een statusmail naar de club. In de portal staat een monitor die laat zien of hij loopt.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Coaches worden automatisch aan wedstrijden gekoppeld',
+                'description' => 'Bij het importeren van wedstrijden krijgen ze meteen de coaches en leiders van '
+                    . 'het elftal. Er is ook een opschoonactie voor wedstrijden die er al stonden.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Kledingcommissie in de portal',
+                'description' => 'Een nieuwe rol die per elftal ziet wie welke maat heeft, met een export naar '
+                    . 'Excel. De commissie beheert zelf welke kledingstukken er zijn en welke maten daarbij '
+                    . 'horen.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Tarievenpagina en demo aanvragen',
+                'description' => 'Op voetbalplanner.nl staat nu een tarievenpagina met rekenhulp, en kun je '
+                    . 'vrijblijvend een demo aanvragen. De aanvragen komen in de portal binnen.',
+            ],
+            [
+                'type'        => 'improvement',
+                'title'       => 'Teamfilter bij gebruikers',
+                'description' => 'In de portal filter je de gebruikerslijst nu op elftal.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Oefenwedstrijden kwamen niet mee uit Sportlink',
+                'description' => 'Sportlink levert oefenwedstrijden onder een ander teamnummer aan, waardoor ze '
+                    . 'werden overgeslagen.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Synchronisatie viel om over een verwijderde wedstrijd',
+                'description' => 'Stond er een handmatig toegevoegde wedstrijd die later was verwijderd, dan '
+                    . 'stopte de hele synchronisatie met een foutmelding.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Uitgezette handleidingonderwerpen kwamen terug',
+                'description' => 'Na een update stonden onderwerpen die de club had uitgezet weer aan.',
+            ],
         ];
 
         $sort = 0;
