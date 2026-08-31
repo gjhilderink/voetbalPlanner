@@ -708,7 +708,8 @@ void buildEditFlow(App app) {
   // Fix de FlutterFlow web-deploy: twee FF-default packages compileren niet meer
   // op recente Flutter (de deploy faalde hierop). Forceer compatibele versies.
   app.raw((project) => _fixIncompatiblePubVersions(project));
-  app.raw((project) => _zetFirebasePerformanceUit(project));
+  app.raw((project) => _zetFirebasePerformanceAan(project));
+  app.raw((project) => _zetMinimumIosVersie(project, '15.5.0'));
   app.raw((project) => _addDocumentationEndpoint(project));
   _buildDocumentatiePage(app, documentSection);
   app.raw((project) => _wireDocumentationPageLoad(project));
@@ -14095,24 +14096,30 @@ void _appendToFirstPageLoadChain(FFNode node, FFActionNode actionToAppend) {
 // kwam niet in de gegenereerde pubspec terecht; addPubDependency wél). FF merget
 // custom deps over de base-versie. Idempotent: update als hij al in de custom-
 // lijst staat, anders toevoegen.
-/// Zet Firebase Performance Monitoring uit.
+/// Zet Firebase Performance Monitoring weer aan.
 ///
-/// Niet omdat het niet werkt, maar omdat het de iOS-build blokkeerde. Het
-/// eist GoogleDataTransport ~> 10.0, terwijl de MLKit-barcodescanner van
-/// mobile_scanner juist < 10.0 wil. CocoaPods komt daar niet uit en de build
-/// strandt op "Install pods".
-///
-/// De keuze viel op deze kant: prestatiemeting wordt nergens in deze app
-/// gebruikt en stond aan als standaardinstelling. Het alternatief - de scanner
-/// naar versie 6 - vroeg om minimum iOS 15.5 en een herschreven widget.
-void _zetFirebasePerformanceUit(FFProject project) {
+/// Het stond even uit omdat het de iOS-build leek te blokkeren met een botsing
+/// rond GoogleDataTransport. Dat klopte niet: firebase_messaging eist diezelfde
+/// versie 10, en push kan er niet uit. De echte oorzaak was de verouderde MLKit
+/// van mobile_scanner, en die is nu opgehoogd.
+void _zetFirebasePerformanceAan(FFProject project) {
   if (!project.hasBackend()) return;
   if (!project.backend.hasFirebasePerformanceMonitoringConfig()) return;
 
   project
       .ensureBackend()
       .ensureFirebasePerformanceMonitoringConfig()
-      .enabled = false;
+      .enabled = true;
+}
+
+/// Minimum iOS-versie voor de app.
+///
+/// De barcodescanner leunt op Google ML Kit 7, en dat eist iOS 15.5. Blijft dit
+/// op 15.0 staan, dan weigert CocoaPods met een melding over het deployment
+/// target. Toestellen tussen 15.0 en 15.5 vallen hiermee af; dat is in de
+/// praktijk vrijwel niemand.
+void _zetMinimumIosVersie(FFProject project, String versie) {
+  project.ensureAppSettings().ensureAdvancedSettings().minIosVersion = versie;
 }
 void _fixIncompatiblePubVersions(FFProject project) {
   // page_transition 2.1.0 gebruikt de verwijderde CupertinoPageTransitionsBuilder
@@ -38584,6 +38591,7 @@ class _ToegangScannerState extends State<ToegangScanner> {
   DateTime? _laatsteTijd;
   bool _bezig = false;
   Timer? _wisser;
+  StreamSubscription<BarcodeCapture>? _luisteraar;
 
   @override
   void initState() {
@@ -38594,6 +38602,7 @@ class _ToegangScannerState extends State<ToegangScanner> {
   @override
   void dispose() {
     _wisser?.cancel();
+    _luisteraar?.cancel();
     _camera?.dispose();
     super.dispose();
   }
@@ -38655,10 +38664,18 @@ class _ToegangScannerState extends State<ToegangScanner> {
         facing: CameraFacing.back,
       );
     });
+
+    // Via de stream en niet via onDetect: die callback is in versie 6
+    // verouderd en in 7 verdwenen, terwijl barcodes in alle drie bestaat.
+    // Sinds versie 6 moet de camera ook zelf gestart worden.
+    _luisteraar = _camera!.barcodes.listen(_opVondst);
+    unawaited(_camera!.start());
   }
 
   void _terugNaarKeuze() {
     _wisser?.cancel();
+    _luisteraar?.cancel();
+    _luisteraar = null;
     _camera?.dispose();
     setState(() {
       _camera = null;
@@ -38759,7 +38776,7 @@ class _ToegangScannerState extends State<ToegangScanner> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        MobileScanner(controller: _camera!, onDetect: _opVondst),
+        MobileScanner(controller: _camera!),
         _balk(thema),
         if (_status != null) _uitslagScherm(thema),
       ],
@@ -38932,7 +38949,11 @@ class _ToegangScannerState extends State<ToegangScanner> {
 
 /// De pub-afhankelijkheid en de scanner-widget.
 void _ensureToegangScannerWidget(FFProject project) {
-  _ensurePubDepVersion(project, 'mobile_scanner', '^5.2.3');
+  // Versie 6 en niet 5: die van 5 leunt op Google ML Kit 6, dat
+  // GoogleDataTransport onder 10 eist. Firebase 11 - en dus ook push - wil
+  // juist 10, en CocoaPods komt daar niet uit. ML Kit 7 in versie 6 lost dat
+  // op, ten koste van minimum iOS 15.5.
+  _ensurePubDepVersion(project, 'mobile_scanner', '^6.0.0');
 
   const beschrijving =
       'Toegangscontrole bij de ingang: kiest de activiteit, scant QR-codes en '
