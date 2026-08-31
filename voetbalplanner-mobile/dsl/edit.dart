@@ -544,6 +544,12 @@ void buildEditFlow(App app) {
   // Onboarding gezien? Persistent (overleeft herstart); standaard false zodat de
   // slides bij de eerste keer inloggen verschijnen.
   try { app.state('onboardingSeen',            bool_.withDefault(false), persisted: true); } catch (_) {}
+  // Staat de app in de kleuren en het logo van de club? Standaard aan, want dat
+  // is wat je verwacht als je de app van je club opent; wie het neutraal wil kan
+  // hem uitzetten. clubStyleAsked onthoudt of de vraag al gesteld is - los veld,
+  // want "uit gezet" en "nog niet gevraagd" zijn twee verschillende dingen.
+  try { app.state('clubStyle',                 bool_.withDefault(true), persisted: true); } catch (_) {}
+  try { app.state('clubStyleAsked',            bool_.withDefault(false), persisted: true); } catch (_) {}
   // Coach-actie gekozen via de FAB op de wedstrijddetail: '' | 'goal' | 'invite'.
   // Bepaalt welke weergave de MatchActionsSheet-dialoog toont (menu/picker).
   try { app.state('matchActionMode',           string); } catch (_) {}
@@ -668,6 +674,8 @@ void buildEditFlow(App app) {
   _buildOnboardingPage(app);
   app.raw((project) => _gateWedstrijdenOnboarding(project));
   app.raw((project) => _addOnboardingResetButton(project));
+  app.raw((project) => _addClubStyleToggle(project));
+  app.raw((project) => _addClubBrandingToLogin(project));
   // Slides per club aanpasbaar: struct/endpoint/app-state + custom icon-widget,
   // daarna de PageView data-gedreven maken (laden + generator).
   app.raw((project) => _addOnboardingSlideBackend(project));
@@ -5684,6 +5692,18 @@ void _addDeleteAccountButton(FFProject project) {
       StateFieldUpdate.set('userName', ''),
       StateFieldUpdate.set('userEmail', ''),
       StateFieldUpdate.set('clubName', ''),
+      // Ook de huisstijl. Zonder dit kijkt de volgende gebruiker op het
+      // loginscherm naar het logo en de kleuren van zijn voorganger, en krijgt
+      // hij de stijlvraag nooit te zien omdat die al beantwoord leek.
+      StateFieldUpdate.set('primaryColor', ''),
+      StateFieldUpdate.set('secondaryColor', ''),
+      StateFieldUpdate.set('accentColor', ''),
+      StateFieldUpdate.set('clubLogoUrl', ''),
+      StateFieldUpdate.set('clubAppIconUrl', ''),
+      StateFieldUpdate.set('clubSplashUrl', ''),
+      StateFieldUpdate.set('clubSplashColor', ''),
+      StateFieldUpdate.set('clubStyleAsked', 'false'),
+      StateFieldUpdate.set('clubStyle', 'true'),
     ],
   ));
   successActions.add(
@@ -5976,6 +5996,225 @@ void _addOnboardingResetButton(FFProject project) {
   } else {
     wc.node.children.add(button);
   }
+}
+
+/// Het loginscherm in de stijl van de club.
+///
+/// Dit is het eerste beeld van de app, en het stond vast op een voetbalicoon met
+/// de tekst "VoetbalPlanner". Het échte startscherm - het beeld vóór Flutter
+/// start - zit in de build en kan niet per club; dit scherm wel, en het is het
+/// eerste dat de gebruiker écht ziet.
+///
+/// De waarden zijn persistent, dus op een toestel dat al eens is ingelogd staat
+/// de clubstijl er meteen, ook voordat er een verbinding is.
+void _addClubBrandingToLogin(FFProject project) {
+  final wc = findPage(project, name: 'LoginPage');
+  if (wc == null) return;
+
+  final splashId = _findAppStateFieldId(project, 'clubSplashUrl');
+  final logoId = _findAppStateFieldId(project, 'clubLogoUrl');
+  final naamId = _findAppStateFieldId(project, 'clubName');
+  final aanId = _findAppStateFieldId(project, 'clubStyle');
+  if (splashId == null || logoId == null || naamId == null || aanId == null) {
+    return;
+  }
+
+  // De vaste titel opzoeken; daar hangen we het clubbeeld voor.
+  final titel = findDescendants(
+    wc.node,
+    (n) => n.props.hasText() && n.props.text.textValue.inputValue == 'VoetbalPlanner',
+  ).firstOrNull;
+  if (titel == null) return;
+
+  for (final n in findDescendants(wc.node, (x) => x.name == 'LoginClubBeeld').toList()) {
+    removeByKey(wc.node, n.key);
+  }
+
+  final scaffoldKey = wc.node.key;
+  FFVariable app(FFIdentifier id) => varFromAppState(id.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  // Startscherm als die er is, anders het clublogo. s = splash, l = logo.
+  FFVariable beeldUrl() => codeExpressionVar(
+        expression: "(s ?? '').isNotEmpty ? s! : (l ?? '')",
+        arguments: [
+          CodeExpressionArg(
+            name: 's',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: app(splashId)),
+          ),
+          CodeExpressionArg(
+            name: 'l',
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: app(logoId)),
+          ),
+        ],
+        returnType:
+            FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+      );
+
+  final beeld = FFNode(
+    key: generateRandomAlphaNumericString(),
+    type: FFWidgetType.Image,
+    name: 'LoginClubBeeld',
+    props: FFWidgetProperties(
+      image: FFImage(
+        type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+        pathValue: FFStringValue(variable: beeldUrl()),
+        fit: FFBoxFit.FF_BOX_FIT_CONTAIN,
+        cached: true,
+        dimensions: FFDimensions(
+          width: FFDim(pixelsValue: FFDoubleValue(inputValue: 160.0)),
+          height: FFDim(pixelsValue: FFDoubleValue(inputValue: 120.0)),
+        ),
+      ),
+    ),
+  );
+
+  // Zichtbaar als de clubstijl aanstaat én er een beeld is. Is dat niet zo, dan
+  // blijft het bestaande voetbalicoon gewoon staan.
+  final beeldZichtbaar = codeExpressionVar(
+    expression: "aan == true && ((s ?? '').isNotEmpty || (l ?? '').isNotEmpty)",
+    arguments: [
+      CodeExpressionArg(
+        name: 'aan',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+        value: FFValue(variable: app(aanId)),
+      ),
+      CodeExpressionArg(
+        name: 's',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: app(splashId)),
+      ),
+      CodeExpressionArg(
+        name: 'l',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: app(logoId)),
+      ),
+    ],
+    returnType:
+        FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+  );
+  setConditionalVisibility(beeld, variable: beeldZichtbaar);
+
+  insertBeforeKey(wc.node, titel.key, beeld);
+
+  // De titel wordt de clubnaam zodra we die kennen; anders blijft er
+  // "VoetbalPlanner" staan.
+  titel.props.text.textValue = FFStringValue(
+    variable: codeExpressionVar(
+      expression: "(aan == true && (n ?? '').isNotEmpty) ? n! : 'VoetbalPlanner'",
+      arguments: [
+        CodeExpressionArg(
+          name: 'aan',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+          value: FFValue(variable: app(aanId)),
+        ),
+        CodeExpressionArg(
+          name: 'n',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: app(naamId)),
+        ),
+      ],
+      returnType:
+          FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    ),
+  );
+
+  // Het vaste voetbalicoon verbergen zodra het clubbeeld er staat; twee logo's
+  // boven elkaar is er één te veel.
+  final ouder = findDescendants(
+    wc.node,
+    (n) => n.children.any((c) => c.key == titel.key),
+  ).firstOrNull;
+  final icoonDoos = ouder?.children
+      .cast<FFNode?>()
+      .firstWhere((c) => c != null && c.props.hasContainer(), orElse: () => null);
+  if (icoonDoos != null) {
+    setConditionalVisibility(icoonDoos,
+        variable: codeExpressionVar(
+          expression: "!(aan == true && ((s ?? '').isNotEmpty || (l ?? '').isNotEmpty))",
+          arguments: [
+            CodeExpressionArg(
+              name: 'aan',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+              value: FFValue(variable: app(aanId)),
+            ),
+            CodeExpressionArg(
+              name: 's',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: app(splashId)),
+            ),
+            CodeExpressionArg(
+              name: 'l',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: app(logoId)),
+            ),
+          ],
+          returnType: FFParameter(
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+        ));
+  }
+}
+
+/// Twee knoppen op de profielpagina om de clubstijl aan of uit te zetten.
+///
+/// Een keuze die je één keer maakt bij de eerste login en daarna nooit meer kunt
+/// wijzigen is een val - zeker eentje die het hele uiterlijk van de app bepaalt.
+/// Twee knoppen en geen schakelaar: de DSL kan een toggle niet aan app-state
+/// binden, en twee knoppen die elkaar afwisselen doen hetzelfde.
+void _addClubStyleToggle(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+  final aanId = _findAppStateFieldId(project, 'clubStyle');
+  if (aanId == null) return;
+
+  for (final naam in const ['ClubStyleOnButton', 'ClubStyleOffButton']) {
+    _removeProfielButton(project, naam);
+  }
+
+  final scaffoldKey = wc.node.key;
+  FFVariable aanVar() => varFromAppState(aanId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  FFNode knop(String label, String naam, bool aan) {
+    final btn = UI.button(label, name: naam, width: double.infinity);
+    Actions.onTap(
+      btn,
+      Actions.updateAppState(project, updates: [
+        StateFieldUpdate.set('clubStyle', aan ? 'true' : 'false'),
+        // Ook de vraag afvinken: wie hier zelf kiest hoeft hem niet later
+        // alsnog op het dashboard te krijgen.
+        StateFieldUpdate.set('clubStyleAsked', 'true'),
+      ]),
+    );
+    setConditionalVisibility(
+      btn,
+      variable: conditionVar(
+        aanVar(),
+        aan ? FFCondition_Relation.EQUAL_TO : FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+      ).variable,
+    );
+    return btn;
+  }
+
+  // Staat de clubstijl aan, dan bied je "uitzetten" aan, en andersom.
+  final uit = knop('Clubstijl uitzetten', 'ClubStyleOffButton', false);
+  final aan = knop('Clubstijl aanzetten', 'ClubStyleOnButton', true);
+
+  FFNode? targetColumn;
+  for (final c in findDescendants(wc.node, (n) => n.type == FFWidgetType.Column)) {
+    if (c.children.any((ch) => ch.key == 'Button_wvz4j2lc' || ch.name == 'GuardianButton')) {
+      targetColumn = c;
+      break;
+    }
+  }
+  targetColumn ??= () {
+    final b = getPropertyChild(wc.node, 'body');
+    return (b != null && b.type == FFWidgetType.Column) ? b : null;
+  }();
+  (targetColumn ?? wc.node).children.addAll([uit, aan]);
 }
 
 // ─── Onboarding-slides per club (data-gedreven) ───────────────────────────────
@@ -7591,6 +7830,9 @@ Future<String> verifyMagicLink(String? token) async {
       FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
       FFAppState().clubLogoUrl     = (club['logo_url']        as String?) ?? '';
+      FFAppState().clubAppIconUrl  = (club['app_icon_url']    as String?) ?? '';
+      FFAppState().clubSplashUrl   = (club['splash_url']      as String?) ?? '';
+      FFAppState().clubSplashColor = (club['splash_bg_color'] as String?) ?? '';
       FFAppState().relatiecode     = (user['relatiecode']     as String?) ?? '';
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
     });
@@ -7806,6 +8048,9 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().secondaryColor  = (club['secondary_color'] as String?) ?? '#3b82f6';
       FFAppState().accentColor     = (club['accent_color']    as String?) ?? '#10b981';
       FFAppState().clubLogoUrl     = (club['logo_url']        as String?) ?? '';
+      FFAppState().clubAppIconUrl  = (club['app_icon_url']    as String?) ?? '';
+      FFAppState().clubSplashUrl   = (club['splash_url']      as String?) ?? '';
+      FFAppState().clubSplashColor = (club['splash_bg_color'] as String?) ?? '';
       FFAppState().relatiecode     = (user['relatiecode']     as String?) ?? '';
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
     });
@@ -7922,6 +8167,13 @@ void _fixLoginButtonBindings(FFProject project) {
   _ensureAppStateField(project, 'accentColor',     FFBaseDataType.String, persisted: true);
   _ensureAppStateField(project, 'clubLogoUrl',     FFBaseDataType.String, persisted: true);
   _ensureAppStateField(project, 'currentTeamName', FFBaseDataType.String, persisted: true);
+
+  // Het uiterlijk van de app zelf. Persistent, zodat de app bij een koude start
+  // meteen in de goede stijl opkomt in plaats van eerst neutraal en dan om te
+  // klappen zodra het antwoord van de server binnen is.
+  _ensureAppStateField(project, 'clubAppIconUrl',  FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'clubSplashUrl',   FFBaseDataType.String, persisted: true);
+  _ensureAppStateField(project, 'clubSplashColor', FFBaseDataType.String, persisted: true);
 
   // Ensure user-identity fields survive app restarts.
   for (final field in ['authToken', 'userName', 'userEmail', 'clubName', 'currentTeamName']) {
@@ -12392,6 +12644,45 @@ FFVariable? _matchStateFieldVar(
   return v;
 }
 
+/// De kleur waarin de app hoort te staan.
+///
+/// Doet twee dingen die allebei op runtime moeten gebeuren:
+///
+/// 1. De stijlschakelaar respecteren. Staat clubStyle uit, dan valt de app terug
+///    op de neutrale VoetbalPlanner-kleur.
+/// 2. Een lege waarde opvangen. primaryColor is leeg tot de eerste geslaagde
+///    login, en colorFromCssString maakt van een lege string zwart - het
+///    loginscherm had daardoor zwarte knoppen in plaats van het navy dat als
+///    themakleur is ingesteld.
+FFColorValue _stijlKleurVar(FFProject project, String veld, String terugval) {
+  final kleurId = _findAppStateFieldId(project, veld)!;
+  final aanId = _findAppStateFieldId(project, 'clubStyle');
+  final kleurVar = varFromAppState(kleurId.deepCopy());
+
+  final expressie = aanId == null
+      ? "(c ?? '').isEmpty ? '$terugval' : c!"
+      : "(aan == true && (c ?? '').isNotEmpty) ? c! : '$terugval'";
+
+  return colorFromStringVar(codeExpressionVar(
+    expression: expressie,
+    arguments: [
+      if (aanId != null)
+        CodeExpressionArg(
+          name: 'aan',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean),
+          value: FFValue(variable: varFromAppState(aanId.deepCopy())),
+        ),
+      CodeExpressionArg(
+        name: 'c',
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+        value: FFValue(variable: kleurVar),
+      ),
+    ],
+    returnType:
+        FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+  ));
+}
+
 // Applies the club primary color (from AppState.primaryColor) to every
 // FFButtonWidget across all pages: fills the button with the club color,
 // sets button text to white, and ensures generous inner padding.
@@ -12399,7 +12690,7 @@ void _applyBrandingToAllButtons(FFProject project) {
   final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
   if (primaryColorId == null) return;
 
-  final clubColor = colorFromStringVar(varFromAppState(primaryColorId.deepCopy()));
+  final clubColor = _stijlKleurVar(project, 'primaryColor', '#1E3A5F');
   final whiteColor = FFColorValue(
     inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_BACKGROUND),
   );
@@ -12495,13 +12786,30 @@ void _addClubLogoToAppBars(FFProject project) {
       padding: UIEdgeInsets.only(right: 12),
       child: logoImage,
     );
+    // Zichtbaar als er een logo is én de app in clubstijl staat. Zet iemand de
+    // clubstijl uit, dan hoort het logo van de club ook uit de balk te
+    // verdwijnen; anders is het half uit.
+    final aanId = _findAppStateFieldId(project, 'clubStyle');
     final hasLogo = conditionVar(
       varFromAppState(logoId.deepCopy())
         ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
       FFCondition_Relation.NOT_EQUAL_TO,
       varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
     ).variable;
-    setConditionalVisibility(wrapper, variable: hasLogo);
+    setConditionalVisibility(
+      wrapper,
+      variable: aanId == null
+          ? hasLogo
+          : andConditionsVar([
+              hasLogo,
+              conditionVar(
+                varFromAppState(aanId.deepCopy())
+                  ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+                FFCondition_Relation.EQUAL_TO,
+                varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+              ).variable,
+            ]).variable,
+    );
 
     appBarNode.children.add(wrapper);
     final existing = appBarNode.childPropertyMap['actions'];
@@ -12518,7 +12826,7 @@ void _applyBrandingToAllAppBars(FFProject project) {
   final primaryColorId = _findAppStateFieldId(project, 'primaryColor');
   if (primaryColorId == null) return;
 
-  final brandingBg = colorFromStringVar(varFromAppState(primaryColorId.deepCopy()));
+  final brandingBg = _stijlKleurVar(project, 'primaryColor', '#1E3A5F');
   final whiteColor = FFColorValue(
     inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_BACKGROUND),
   );
@@ -16760,6 +17068,13 @@ Future<String> refreshCurrentTeam() async {
       if (_club.isNotEmpty) FFAppState().clubName = _club;
       final _logo = (club['logo_url'] as String?) ?? '';
       if (_logo.isNotEmpty) FFAppState().clubLogoUrl = _logo;
+      // Ook het uiterlijk verversen, zodat een club die haar startscherm
+      // aanpast niet hoeft te wachten tot iedereen opnieuw inlogt. Kleuren
+      // blijven hier bewust buiten: die staan al goed en halverwege omklappen
+      // ziet er kapotter uit dan een dag te laat bijwerken.
+      FFAppState().clubAppIconUrl  = (club['app_icon_url']    as String?) ?? '';
+      FFAppState().clubSplashUrl   = (club['splash_url']      as String?) ?? '';
+      FFAppState().clubSplashColor = (club['splash_bg_color'] as String?) ?? '';
       FFAppState().relatiecode = (user['relatiecode'] as String?) ?? '';
       FFAppState().profilePhotoUrl =
           (user['profile_photo_url'] as String?) ?? '';
@@ -27827,6 +28142,10 @@ void _rebuildDashboardBody(FFProject project) {
 
   final sections = <FFNode?>[
     _dashHeader(project, wc, switcher),
+    // Eén keer, bij de eerste keer inloggen: wil je de app in de stijl van je
+    // club? Boven de rol-tabs, want zolang de vraag openstaat is dit het enige
+    // wat er van je gevraagd wordt.
+    _dashClubStyleCard(project, wc),
     _dashRoleTabs(project, wc),
     // Loopt er nu een wedstrijd, dan hoort die bovenaan.
     _dashLiveCard(project, wc),
@@ -27845,6 +28164,126 @@ void _rebuildDashboardBody(FFProject project) {
   ].whereType<FFNode>().toList();
 
   bodyCol.children.addAll(sections);
+}
+
+/// "Wil je de app in de stijl van je club?" — één keer, na de eerste login.
+///
+/// Een kaart bovenaan het dashboard en geen echte dialoog: een dialoog die
+/// vanzelf opengaat op een pagina die tegelijk zes API-aanroepen doet, komt
+/// soms te vroeg of helemaal niet. Deze kaart staat er gewoon, en verdwijnt
+/// zodra je hebt gekozen.
+FFNode? _dashClubStyleCard(FFProject project, FFWidgetClass wc) {
+  final gevraagdId = _findAppStateFieldId(project, 'clubStyleAsked');
+  final clubNaamId = _findAppStateFieldId(project, 'clubName');
+  final logoId = _findAppStateFieldId(project, 'clubLogoUrl');
+  if (gevraagdId == null || clubNaamId == null) return null;
+
+  final scaffoldKey = wc.node.key;
+  FFVariable app(FFIdentifier id) => varFromAppState(id.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  final titel = UI.text('',
+      name: 'DashClubStyleTitle',
+      style: UITextStyle.titleSmall,
+      maxLines: 2,
+      textOverflow: UITextOverflow.ellipsis);
+  titel.props.text.textValue = interpolateVar(
+      ['De app in de stijl van ', app(clubNaamId), '?']);
+
+  final uitleg = UI.text(
+      'Dan krijgt de app de kleuren en het logo van je club. '
+      'Je kunt dit later altijd wijzigen in je profiel.',
+      name: 'DashClubStyleText',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText,
+      maxLines: 3);
+
+  FFNode knop(String label, String naam, bool aan) {
+    final btn = UI.button(label, name: naam, borderRadius: 10);
+    Actions.onTap(
+      btn,
+      Actions.updateAppState(project, updates: [
+        StateFieldUpdate.set('clubStyle', aan ? 'true' : 'false'),
+        // Allebei de knoppen sluiten de vraag af; anders komt hij bij elke
+        // dashboard-load terug bij wie "nee" zei.
+        StateFieldUpdate.set('clubStyleAsked', 'true'),
+      ]),
+    );
+    return btn;
+  }
+
+  final kinderen = <FFNode>[];
+  if (logoId != null) {
+    final logo = FFNode(
+      key: generateRandomAlphaNumericString(),
+      type: FFWidgetType.Image,
+      name: 'DashClubStyleLogo',
+      props: FFWidgetProperties(
+        image: FFImage(
+          type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
+          pathValue: FFStringValue(variable: app(logoId)),
+          fit: FFBoxFit.FF_BOX_FIT_CONTAIN,
+          cached: true,
+          dimensions: FFDimensions(
+            width: FFDim(pixelsValue: FFDoubleValue(inputValue: 56.0)),
+            height: FFDim(pixelsValue: FFDoubleValue(inputValue: 56.0)),
+          ),
+        ),
+      ),
+    );
+    setConditionalVisibility(logo,
+        variable: conditionVar(
+          app(logoId),
+          FFCondition_Relation.NOT_EQUAL_TO,
+          varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+        ).variable);
+    kinderen.add(logo);
+  }
+
+  kinderen.addAll([
+    titel,
+    uitleg,
+    UI.row(
+      name: 'DashClubStyleButtons',
+      spacing: 8,
+      children: [
+        UI.expanded(knop('Ja, graag', 'DashClubStyleYes', true)),
+        UI.expanded(knop('Liever niet', 'DashClubStyleNo', false)),
+      ],
+    ),
+  ]);
+
+  final kaart = _dashCard(
+    name: 'DashClubStyleCard',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    padding: UIEdgeInsets.all(14),
+    child: UI.column(
+      name: 'DashClubStyleCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: kinderen,
+    ),
+  );
+
+  // Alleen zolang de vraag openstaat, en alleen als we weten bij welke club je
+  // hoort - zonder clubnaam is de vraag betekenisloos.
+  setConditionalVisibility(
+    kaart,
+    variable: andConditionsVar([
+      conditionVar(
+        app(gevraagdId),
+        FFCondition_Relation.EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.FALSE),
+      ).variable,
+      conditionVar(
+        app(clubNaamId),
+        FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+      ).variable,
+    ]).variable,
+  );
+
+  return kaart;
 }
 
 /// Rode kop: begroeting, profielfoto, meldingsbel en teamkeuze.

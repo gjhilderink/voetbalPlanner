@@ -87,6 +87,9 @@ class ManageSettings extends Page
             'primary_color'       => $club?->primary_color ?? '#1e3a5f',
             'secondary_color'     => $club?->secondary_color ?? '#3b82f6',
             'accent_color'        => $club?->accent_color ?? '#10b981',
+            'app_icon_path'       => $club?->app_icon_path,
+            'splash_path'         => $club?->splash_path,
+            'splash_bg_color'     => $club?->splash_bg_color,
             'email_header_text'   => $club?->email_header_text,
             'email_intro_text'    => $club?->email_intro_text,
             'email_footer_text'   => $club?->email_footer_text,
@@ -235,6 +238,39 @@ class ManageSettings extends Page
                             ->maxLength(255),
                     ])
                     ->columns(2),
+
+                Section::make('App-uiterlijk')
+                    ->description('Het icoon en het startscherm van de app, in de stijl van de club.')
+                    ->schema([
+                        FileUpload::make('app_icon_path')
+                            ->label('App-icoon')
+                            ->image()
+                            ->disk('logos')
+                            ->imageEditor()
+                            ->imageEditorAspectRatios(['1:1'])
+                            ->imagePreviewHeight('80')
+                            ->maxSize(2048)
+                            ->helperText('Vierkant en zonder witruimte eromheen, minstens 1024×1024. '
+                                . 'Een telefoon snijdt het icoon rond of met afgeronde hoeken uit, '
+                                . 'dus een gewoon logo met veel wit wordt een postzegel in het midden. '
+                                . 'Let op: het icoon op het beginscherm van de telefoon wisselt hier '
+                                . 'nog niet mee — dat kan alleen met iconen die in de app zelf zijn '
+                                . 'meegebouwd. Het bestand ligt hier klaar voor dat moment.'),
+                        FileUpload::make('splash_path')
+                            ->label('Startscherm')
+                            ->image()
+                            ->disk('logos')
+                            ->imagePreviewHeight('120')
+                            ->maxSize(4096)
+                            ->helperText('Wordt getoond terwijl de app opstart. Staand beeld met ruimte '
+                                . 'rondom het logo; leeg laten betekent: het gewone clublogo.'),
+                        ColorPicker::make('splash_bg_color')
+                            ->label('Achtergrond startscherm')
+                            ->hex()
+                            ->helperText('Leeg laten = de primaire kleur hierboven.'),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
 
                 Section::make('Huisstijl')
                     ->description('Kies de kleuren en e-mailopmaak die bij de club passen.')
@@ -454,6 +490,9 @@ class ManageSettings extends Page
                 'primary_color'      => $data['primary_color'] ?? $club->primary_color,
                 'secondary_color'    => $data['secondary_color'] ?? $club->secondary_color,
                 'accent_color'       => $data['accent_color'] ?? $club->accent_color,
+                'app_icon_path'      => $data['app_icon_path'] ?? null,
+                'splash_path'        => $data['splash_path'] ?? null,
+                'splash_bg_color'    => $data['splash_bg_color'] ?? null,
                 'email_header_text'  => $data['email_header_text'] ?? null,
                 'email_intro_text'   => $data['email_intro_text'] ?? null,
                 'email_footer_text'  => $data['email_footer_text'] ?? null,

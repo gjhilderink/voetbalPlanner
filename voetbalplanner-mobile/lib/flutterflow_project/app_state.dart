@@ -83,6 +83,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<ClothingSizeOption>>",
     persisted: false,
   );
+  static const clubAppIconUrl = ffai.ProjectAppStateFieldHandle(
+    name: "clubAppIconUrl",
+    key: "f5jkaf97",
+    typeName: "String",
+    persisted: true,
+  );
   static const clubLogoUrl = ffai.ProjectAppStateFieldHandle(
     name: "clubLogoUrl",
     key: "1bfk2ib7",
@@ -93,6 +99,30 @@ abstract final class AppState {
     name: "clubName",
     key: "e298h9gr",
     typeName: "String",
+    persisted: true,
+  );
+  static const clubSplashColor = ffai.ProjectAppStateFieldHandle(
+    name: "clubSplashColor",
+    key: "fi12her3",
+    typeName: "String",
+    persisted: true,
+  );
+  static const clubSplashUrl = ffai.ProjectAppStateFieldHandle(
+    name: "clubSplashUrl",
+    key: "rq88muze",
+    typeName: "String",
+    persisted: true,
+  );
+  static const clubStyle = ffai.ProjectAppStateFieldHandle(
+    name: "clubStyle",
+    key: "y776uzsu",
+    typeName: "Boolean",
+    persisted: true,
+  );
+  static const clubStyleAsked = ffai.ProjectAppStateFieldHandle(
+    name: "clubStyleAsked",
+    key: "p7ug2n3c",
+    typeName: "Boolean",
     persisted: true,
   );
   static const confirmDeleteAccount = ffai.ProjectAppStateFieldHandle(
@@ -697,8 +727,13 @@ abstract final class AppState {
     clothingRows,
     clothingSizeOptions,
     clothingSizes,
+    clubAppIconUrl,
     clubLogoUrl,
     clubName,
+    clubSplashColor,
+    clubSplashUrl,
+    clubStyle,
+    clubStyleAsked,
     confirmDeleteAccount,
     currentConversationId,
     currentTeamId,

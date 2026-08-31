@@ -66,16 +66,22 @@ class UserResource extends JsonResource
             'email'         => $this->email,
             'phone'         => $this->phone,
             'club_id'       => $this->club_id,
+            // Dit is de plek waar de app zijn clubhuisstijl vandaan haalt: bij
+            // het inloggen en bij elke dashboard-load. Wat hier niet in staat,
+            // kent de app niet.
             'club'          => $this->club ? [
                 'id'              => $this->club->id,
                 'name'            => $this->club->name,
                 'slug'            => $this->club->slug,
                 'logo_path'       => $this->club->logo_path,
-                'logo_url'        => $this->club->logo_path ? \Illuminate\Support\Facades\Storage::disk('logos')->url($this->club->logo_path) : '',
+                'logo_url'        => self::logoUrl($this->club->logo_path),
                 'primary_color'   => $this->club->primary_color ?? '#1e3a5f',
                 'secondary_color' => $this->club->secondary_color ?? '#3b82f6',
                 'accent_color'    => $this->club->accent_color ?? '#10b981',
-            ] : ['id' => '', 'name' => '', 'slug' => '', 'logo_path' => null, 'logo_url' => '', 'primary_color' => '#1e3a5f', 'secondary_color' => '#3b82f6', 'accent_color' => '#10b981'],
+                'app_icon_url'    => self::logoUrl($this->club->app_icon_path),
+                'splash_url'      => self::logoUrl($this->club->splash_path),
+                'splash_bg_color' => $this->club->splash_bg_color ?? '',
+            ] : self::legeClub(),
             'roles'         => $this->getRoleNames()->values(),
             'managed_teams' => $this->managedTeams->map(fn($t) => [
                 'id'   => $t->id,
@@ -100,6 +106,35 @@ class UserResource extends JsonResource
                 : ($this->member?->photoUrl() ?? ''),
             'is_active'     => $this->is_active,
             'created_at'    => $this->created_at?->toISOString(),
+        ];
+    }
+
+    /** Publieke URL van een bestand op de logo-disk, of leeg. */
+    private static function logoUrl(?string $pad): string
+    {
+        return $pad
+            ? \Illuminate\Support\Facades\Storage::disk('logos')->url($pad)
+            : '';
+    }
+
+    /**
+     * Een gebruiker zonder club krijgt dezelfde sleutels met lege waarden.
+     *
+     * Uitgeschreven en niet weggelaten: de app leest deze velden blind uit het
+     * antwoord, en een ontbrekende sleutel is daar een fout in plaats van een
+     * lege waarde.
+     *
+     * @return array<string, string|null>
+     */
+    private static function legeClub(): array
+    {
+        return [
+            'id' => '', 'name' => '', 'slug' => '',
+            'logo_path' => null, 'logo_url' => '',
+            'primary_color' => '#1e3a5f',
+            'secondary_color' => '#3b82f6',
+            'accent_color' => '#10b981',
+            'app_icon_url' => '', 'splash_url' => '', 'splash_bg_color' => '',
         ];
     }
 }
