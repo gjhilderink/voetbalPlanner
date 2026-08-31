@@ -5014,22 +5014,13 @@ void _maakProfielScrollbaar(FFProject project) {
   );
 }
 
-/// De uitlogknop.
+/// Wat er gebeurt bij uitloggen: de sessie- en huisstijlvelden wissen en terug
+/// naar het inlogscherm.
 ///
-/// Stond in het oorspronkelijke FlutterFlow-ontwerp en wordt nu door de DSL
-/// gemaakt, zodat hij niet meer aan een knoopsleutel hangt die niemand kan zien.
-/// De keten is dezelfde die het verwijderen van een account gebruikt: de
-/// sessie- en huisstijlvelden wissen en terug naar het inlogscherm.
-void _addProfielLogoutButton(FFProject project) {
-  final wc = findPage(project, name: 'ProfielPage');
-  if (wc == null) return;
-  _removeProfielButton(project, 'LogoutButton');
-
-  final knop = _profielKnop('Uitloggen', 'LogoutButton', 'logout');
-
-  Actions.onTapChain(
-    knop,
-    FFActionNode(
+/// Eén functie voor beide uitlogknoppen — die op het profiel en die onderaan
+/// Meer. Twee keer dezelfde lijst velden onderhouden gaat een keer mis, en dan
+/// blijft er bij de ene knop iets staan wat bij de andere verdwijnt.
+FFActionNode _uitlogKeten(FFProject project) => FFActionNode(
       key: generateRandomAlphaNumericString(),
       action: Actions.updateAppState(project, updates: [
         StateFieldUpdate.set('authToken', ''),
@@ -5052,8 +5043,19 @@ void _addProfielLogoutButton(FFProject project) {
         key: generateRandomAlphaNumericString(),
         action: Actions.navigate(project, pageName: 'LoginPage', replaceRoute: true),
       ),
-    ),
-  );
+    );
+
+/// De uitlogknop op het profiel.
+///
+/// Stond in het oorspronkelijke FlutterFlow-ontwerp en wordt nu door de DSL
+/// gemaakt, zodat hij niet meer aan een knoopsleutel hangt die niemand kan zien.
+void _addProfielLogoutButton(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+  _removeProfielButton(project, 'LogoutButton');
+
+  final knop = _profielKnop('Uitloggen', 'LogoutButton', 'logout');
+  Actions.onTapChain(knop, _uitlogKeten(project));
 
   // Bovenaan het knoppenblok: uitloggen is waar mensen naar zoeken.
   FFNode? kolom;
@@ -12941,6 +12943,7 @@ void _applyBrandingToAllButtons(FFProject project) {
       if (const {
         'DeleteAccountButton',
         'LogoutButton',
+        'MeerLogoutButton',
         'OnboardingResetButton',
         'ClubStyleOnButton',
         'ClubStyleOffButton',
@@ -30230,12 +30233,33 @@ void _wireMeerPage(FFProject project) {
     tile('MeerTileBug', 'Probleem melden', 'bug_report', 'BugReportPage'),
   ].whereType<FFNode>().toList();
 
+  // Uitloggen onderaan, los van de tegels. In dezelfde rode tint als "Live
+  // volgen": een kleur die verder nergens in deze lijst voorkomt, zodat je hem
+  // niet per ongeluk aantikt als je naar een tegel zocht.
+  final uitloggen = UI.button(
+    'Uitloggen',
+    name: 'MeerLogoutButton',
+    width: double.infinity,
+    iconName: 'logout',
+    iconSize: 20,
+    borderRadius: 12,
+    padding: UIEdgeInsets.all(14),
+    color: UIColor.hex(0xFFEF4444),
+    textColor: UIColor.white,
+  );
+  Actions.onTapChain(uitloggen, _uitlogKeten(project));
+
   container.children.add(UI.column(
     name: 'MeerTilesCol',
     crossAxisAlignment: UICrossAxisAlignment.stretch,
     spacing: 10,
-    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    children: tiles,
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 14, bottom: 24),
+    children: [
+      ...tiles,
+      // Wat lucht tussen de laatste tegel en de uitlogknop.
+      UI.container(name: 'MeerLogoutSpacer', height: 10),
+      uitloggen,
+    ],
   ));
 }
 
