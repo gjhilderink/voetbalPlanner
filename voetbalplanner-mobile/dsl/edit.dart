@@ -32931,9 +32931,14 @@ void _addLiveEndpoints(FFProject project) {
     name: 'AddLiveEvent',
     url: '/matches/[matchId]/live/event'
         '?type=[type]&side=[side]&member_id=[memberId]'
-        '&related_member_id=[relatedMemberId]&card_type=[cardType]',
+        '&related_member_id=[relatedMemberId]&card_type=[cardType]'
+        '&detail=[detail]',
     variables: const [
       'token', 'matchId', 'type', 'side', 'memberId', 'relatedMemberId', 'cardType',
+      // Strafschop of eigen doelpunt. De server kende dit veld al en zet het in
+      // de tijdlijn achter de naam ("Jan · strafschop"); alleen de app vroeg er
+      // nooit om.
+      'detail',
     ],
     method: FFApiEndpoint_CallType.POST,
   );
@@ -33135,6 +33140,10 @@ void _buildLiveMatchPage(App app) {
       'pickedId': string.withDefault(''),
       'pickedName': string.withDefault(''),
       'cardKind': string.withDefault('yellow'),
+      // Soort treffer: leeg voor een gewoon doelpunt, 'penalty' voor een
+      // strafschop. Wordt gezet bij het openen van de spelerkeuze en pas
+      // gebruikt als de gebeurtenis wordt weggeschreven.
+      'goalDetail': string.withDefault(''),
     },
     body: Column(
       children: [
@@ -33159,6 +33168,11 @@ void _wireLiveMatchPage(FFProject project) {
       liveMatchIdId == null) {
     return;
   }
+
+  // Pagina-state idempotent bijprikken: ensurePage voegt niets toe aan een
+  // pagina die er al staat, dus zonder dit bestaat het veld alleen in de
+  // declaratie en niet in het project.
+  _ensurePageStateField(wc, 'goalDetail', FFBaseDataType.String);
 
   final scaffoldKey = wc.node.key;
 
@@ -33546,7 +33560,27 @@ void _wireLiveMatchPage(FFProject project) {
     eventNode(
       nodeKey: oppGoalBtn.key,
       output: 'liveOppGoal',
-      statics: {'type': 'goal', 'side': 'opponent', 'memberId': '', 'relatedMemberId': '', 'cardType': ''},
+      statics: {'type': 'goal', 'side': 'opponent', 'memberId': '', 'relatedMemberId': '', 'cardType': '', 'detail': ''},
+    ),
+  );
+
+  // Strafschop tegen: net als een tegendoelpunt in één tik, want de maker van
+  // de tegenstander leggen we niet vast.
+  final oppPenaltyBtn =
+      coachButton('Strafschop tegen', 'sports_soccer', UIColor.secondaryText);
+  Actions.onTapChain(
+    oppPenaltyBtn,
+    eventNode(
+      nodeKey: oppPenaltyBtn.key,
+      output: 'liveOppPenalty',
+      statics: {
+        'type': 'goal',
+        'side': 'opponent',
+        'memberId': '',
+        'relatedMemberId': '',
+        'cardType': '',
+        'detail': 'penalty',
+      },
     ),
   );
 
@@ -33560,7 +33594,7 @@ void _wireLiveMatchPage(FFProject project) {
     eventNode(
       nodeKey: shotBtn.key,
       output: 'liveShotOwn',
-      statics: {'type': 'shot', 'side': 'own', 'memberId': '', 'relatedMemberId': '', 'cardType': ''},
+      statics: {'type': 'shot', 'side': 'own', 'memberId': '', 'relatedMemberId': '', 'cardType': '', 'detail': ''},
     ),
   );
 
@@ -33570,13 +33604,32 @@ void _wireLiveMatchPage(FFProject project) {
     eventNode(
       nodeKey: oppShotBtn.key,
       output: 'liveShotOpponent',
-      statics: {'type': 'shot', 'side': 'opponent', 'memberId': '', 'relatedMemberId': '', 'cardType': ''},
+      statics: {'type': 'shot', 'side': 'opponent', 'memberId': '', 'relatedMemberId': '', 'cardType': '', 'detail': ''},
     ),
   );
 
-  FFNode panelButton(String label, String iconName, UIColor color, String panel) {
+  FFNode panelButton(String label, String iconName, UIColor color, String panel,
+      {String? detail}) {
     final btn = coachButton(label, iconName, color);
-    Actions.onTap(btn, setPanel(panel));
+
+    if (detail == null) {
+      Actions.onTap(btn, setPanel(panel));
+      return btn;
+    }
+
+    // Soort treffer én paneel in één keer: anders houdt de volgende
+    // doelpuntknop de strafschop van de vorige vast.
+    Actions.onTap(
+      btn,
+      Actions.updatePageState(
+        project,
+        widgetClassName: 'LiveMatchPage',
+        updates: [
+          StateFieldUpdate.set('panel', panel),
+          StateFieldUpdate.set('goalDetail', detail),
+        ],
+      ),
+    );
     return btn;
   }
 
@@ -33588,7 +33641,7 @@ void _wireLiveMatchPage(FFProject project) {
       eventNode(
         nodeKey: btn.key,
         output: output,
-        statics: {'type': type, 'side': '', 'memberId': '', 'relatedMemberId': '', 'cardType': ''},
+        statics: {'type': type, 'side': '', 'memberId': '', 'relatedMemberId': '', 'cardType': '', 'detail': ''},
       ),
     );
     return btn;
@@ -33862,8 +33915,22 @@ void _wireLiveMatchPage(FFProject project) {
           name: 'LiveCoachRowA',
           spacing: 8,
           children: [
-            panelButton('Doelpunt', 'sports_soccer', UIColor.success, 'scorer'),
+            panelButton('Doelpunt', 'sports_soccer', UIColor.success, 'scorer',
+                detail: ''),
             oppGoalBtn,
+          ],
+        ),
+        // Strafschop: dezelfde spelerkeuze als een doelpunt, maar de treffer
+        // komt met "strafschop" in de tijdlijn te staan. Een eigen knop en geen
+        // vinkje achteraf: op het moment dat de bal erin gaat wil je één tik
+        // doen, niet eerst iets aanzetten.
+        UI.row(
+          name: 'LiveCoachRowPenalty',
+          spacing: 8,
+          children: [
+            panelButton('Strafschop', 'sports_soccer', UIColor.warning, 'scorer',
+                detail: 'penalty'),
+            oppPenaltyBtn,
           ],
         ),
         // Schoten onder de doelpunten: dezelfde indeling eigen/tegenstander,
@@ -34138,7 +34205,12 @@ FFNode _livePickerPanels(
       nodeKey: geenAssist.key,
       output: 'liveGoalNoAssist',
       statics: {'type': 'goal', 'side': 'own', 'relatedMemberId': '', 'cardType': ''},
-      dynamics: {'memberId': pageState('pickedId')},
+      dynamics: {
+        'memberId': pageState('pickedId'),
+        // Leeg bij een gewoon doelpunt, 'penalty' als je via de
+        // strafschopknop bent binnengekomen.
+        'detail': pageState('goalDetail'),
+      },
     ),
   );
 
@@ -34154,6 +34226,7 @@ FFNode _livePickerPanels(
       dynamics: {
         'memberId': pageState('pickedId'),
         'relatedMemberId': generatorVarField(list.key, 'id'),
+        'detail': pageState('goalDetail'),
       },
     ),
   );
@@ -34180,7 +34253,7 @@ FFNode _livePickerPanels(
     onPick: (list, item) => eventNode(
       nodeKey: item.key,
       output: 'liveSub',
-      statics: {'type': 'substitution', 'side': '', 'cardType': ''},
+      statics: {'type': 'substitution', 'side': '', 'cardType': '', 'detail': ''},
       dynamics: {
         'memberId': generatorVarField(list.key, 'id'),
         'relatedMemberId': pageState('pickedId'),
@@ -34250,7 +34323,7 @@ FFNode _livePickerPanels(
     onPick: (list, item) => eventNode(
       nodeKey: item.key,
       output: 'liveCard',
-      statics: {'type': 'card', 'side': 'own', 'relatedMemberId': ''},
+      statics: {'type': 'card', 'side': 'own', 'relatedMemberId': '', 'detail': ''},
       dynamics: {
         'memberId': generatorVarField(list.key, 'id'),
         'cardType': pageState('cardKind'),
