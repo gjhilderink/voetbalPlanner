@@ -41759,6 +41759,9 @@ void _ensureClothingStructs(FFProject project) {
       'memberId', 'memberName', 'ownerLabel',
       'ownerKey', 'ownerTitle', 'ownerSummary', 'isFirstOfOwner',
       'itemId', 'itemName', 'sizeId', 'sizeLabel', 'melding',
+      // Het nummer op dit kledingstuk, bijvoorbeeld het rugnummer op een shirt.
+      // Leeg als er geen is.
+      'number',
     ],
   );
   _ensureFlatStringStruct(
@@ -41860,6 +41863,27 @@ void _addClothingEndpoints(FFProject project) {
         'memberId': FFDataTypeV2(scalarType: FFBaseDataType.String),
         'itemId': FFDataTypeV2(scalarType: FFBaseDataType.String),
         'sizeId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      },
+      headers: ['Authorization: Bearer [token]'],
+    );
+  }
+
+  // Het nummer heeft een eigen weg. Bij SetClothingSize betekent een lege maat
+  // "haal de opgave weg"; een leeg nummer meesturen zou daar de hele regel
+  // wissen.
+  if (findApiEndpoint(project, name: 'SetClothingNumber', groupName: groupName) == null) {
+    addEndpointToGroup(
+      project,
+      groupName: groupName,
+      name: 'SetClothingNumber',
+      url: '/profile/clothing/number?member_id=[memberId]&item_id=[itemId]&number=[number]',
+      method: FFApiEndpoint_CallType.POST,
+      bodyType: FFApiEndpoint_BodyType.NONE,
+      variables: {
+        'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'memberId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'itemId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+        'number': FFDataTypeV2(scalarType: FFBaseDataType.String),
       },
       headers: ['Authorization: Bearer [token]'],
     );
@@ -42005,6 +42029,7 @@ void _addProfielClothing(FFProject project) {
     'ProfielKledingLabel', 'ProfielKledingList', 'ProfielKledingLeeg',
     'ProfielKledingItem', 'ProfielKledingKop',
     'ProfielMaatLabel', 'ProfielMaatList',
+    'ProfielNummerBlok', 'ProfielNummerVeld', 'ProfielNummerKnop',
   ]) {
     for (final n in findDescendants(wc.node, (x) => x.name == naam).toList()) {
       removeByKey(wc.node, n.key);
@@ -42048,9 +42073,31 @@ void _addProfielClothing(FFProject project) {
   }
 
 
-  final maat = gebonden('ProfielKledingMaat', 'sizeLabel',
-      UITextStyle.bodyMedium,
-      gewicht: UIFontWeight.w700);
+  // "M · 7" als er een nummer is, anders alleen de maat.
+  final maat = UI.text('',
+      name: 'ProfielKledingMaat',
+      style: UITextStyle.bodyMedium,
+      fontWeight: UIFontWeight.w700,
+      maxLines: 1);
+  maat.props.text.textValue = FFStringValue(
+    variable: codeExpressionVar(
+      expression: "((n ?? '') != '') ? ((m ?? '') + ' · ' + (n ?? '')) : (m ?? '')",
+      arguments: [
+        CodeExpressionArg(
+          name: 'm',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: generatorVarField(lijst.key, 'sizeLabel')),
+        ),
+        CodeExpressionArg(
+          name: 'n',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: generatorVarField(lijst.key, 'number')),
+        ),
+      ],
+      returnType:
+          FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    ),
+  );
 
   // Niets opgegeven: dat hoort er te staan, anders lijkt de regel af.
   final geenMaat = UI.text('Nog niet ingevuld',
@@ -42226,6 +42273,81 @@ void _addProfielClothing(FFProject project) {
   maatLabel.props.text.textValue =
       interpolateVar(['Kies een maat voor ', app(itemNaamId)]);
 
+  // ── Het nummer op dat kledingstuk ────────────────────────────────────────
+  //
+  // Een eigen veld met een eigen knop, en niet meeliftend op het aantikken van
+  // een maat: je wilt het nummer ook kunnen wijzigen zonder de maat opnieuw te
+  // kiezen. Numeriek toetsenbord, want er komt niets anders dan een getal in.
+  final nummerVeld = UI.textField(
+    name: 'ProfielNummerVeld',
+    labelText: 'Nummer',
+    hintText: 'Bijvoorbeeld 7',
+    keyboardType: UIKeyboardType.number,
+    borderRadius: 10,
+  );
+
+  final nummerKnop = UI.button(
+    'Nummer opslaan',
+    name: 'ProfielNummerKnop',
+    width: double.infinity,
+    iconName: 'tag',
+    iconSize: 18,
+    borderRadius: 10,
+    padding: UIEdgeInsets.all(12),
+  );
+
+  final nummerBlok = UI.column(
+    name: 'ProfielNummerBlok',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 8,
+    children: [nummerVeld, nummerKnop],
+  );
+
+  if (findApiEndpoint(project,
+          name: 'SetClothingNumber', groupName: 'VoetbalPlannerAPI') !=
+      null) {
+    final bewaarNummer = Actions.apiCallNode(
+      project,
+      endpointName: 'SetClothingNumber',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'token': varFromAppState(authTokenId.deepCopy()),
+        'memberId': varFromAppState(memberIdId.deepCopy()),
+        'itemId': varFromAppState(itemIdId.deepCopy()),
+        'number': varFromTextFieldValue(nummerVeld.key),
+      },
+      outputVariableName: 'kledingNummer',
+      nodeKey: nummerKnop.key,
+      onSuccess: (ctx) => Actions.chain([
+        _snackBarUitAntwoord(ctx, nummerKnop.key),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Kon het nummer niet opslaan.'),
+      ]),
+    );
+
+    // Herladen achter de aanroep, net als bij de maat: dan staat het nieuwe
+    // nummer meteen op de regel erboven.
+    _hangAchteraan(
+      _ketenStaart(bewaarNummer),
+      Actions.apiCallNode(
+        project,
+        endpointName: 'GetClothing',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {'token': varFromAppState(authTokenId.deepCopy())},
+        outputVariableName: 'kledingNummerHerlaad',
+        nodeKey: nummerKnop.key,
+        onSuccess: (c2) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('clothingRows', c2.responseVar),
+          ]),
+        ]),
+      ),
+    );
+
+    Actions.onTapChain(nummerKnop, bewaarNummer);
+  }
+
   final maatLijst = UI.listView(
     name: 'ProfielMaatList',
     shrinkWrap: true,
@@ -42307,8 +42429,9 @@ void _addProfielClothing(FFProject project) {
   final gekozen = _equalsLiteral(app(itemIdId), '', negate: true);
   setConditionalVisibility(maatLabel, variable: gekozen);
   setConditionalVisibility(maatLijst, variable: gekozen.deepCopy());
+  setConditionalVisibility(nummerBlok, variable: gekozen.deepCopy());
 
-  target.children.addAll([label, leeg, lijst, maatLabel, maatLijst]);
+  target.children.addAll([label, leeg, lijst, maatLabel, maatLijst, nummerBlok]);
 }
 
 /// Haalt de kledingregels en de maten op bij het openen van het profiel.

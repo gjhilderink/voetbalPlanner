@@ -68,7 +68,12 @@ class ClothingSizesExport implements FromCollection, WithHeadings, WithMapping, 
         return [
             'Lid',
             'Elftal',
-            ...$this->kledingstukken()->pluck('name')->all(),
+            // Twee kolommen per kledingstuk. In het scherm staan maat en nummer
+            // samen in één badge om de tabel smal te houden; in een spreadsheet
+            // wil je er juist op kunnen sorteren en filteren.
+            ...$this->kledingstukken()
+                ->flatMap(fn (ClothingItem $stuk) => [$stuk->name, $stuk->name . ' nr.'])
+                ->all(),
         ];
     }
 
@@ -85,8 +90,14 @@ class ClothingSizesExport implements FromCollection, WithHeadings, WithMapping, 
             $member->name,
             $elftallen,
             ...$this->kledingstukken()
-                ->map(fn (ClothingItem $stuk) => $member->clothingSizes
-                    ->firstWhere('clothing_item_id', $stuk->id)?->size?->label ?? '')
+                ->flatMap(function (ClothingItem $stuk) use ($member) {
+                    $rij = $member->clothingSizes->firstWhere('clothing_item_id', $stuk->id);
+
+                    return [
+                        $rij?->size?->label ?? '',
+                        $rij?->number === null ? '' : (string) $rij->number,
+                    ];
+                })
                 ->all(),
         ];
     }

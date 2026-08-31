@@ -251,6 +251,8 @@ Route::prefix('v1')->group(function () {
         // invullen: jezelf en je gekoppelde kinderen.
         Route::get('/profile/clothing', [ClothingController::class, 'index']);
         Route::post('/profile/clothing', [ClothingController::class, 'store']);
+        // Het nummer op een kledingstuk, los van de maat.
+        Route::post('/profile/clothing/number', [ClothingController::class, 'setNumber']);
         Route::get('/clothing/sizes', [ClothingController::class, 'sizes']);
 
         Route::patch('/profile/photo', [ProfileController::class, 'updatePhoto']);

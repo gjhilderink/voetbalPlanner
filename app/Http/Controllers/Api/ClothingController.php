@@ -59,7 +59,8 @@ class ClothingController extends Controller
             $ingevuld = $stukken->filter(fn (ClothingItem $s) => $gekozen->has($s->id))->count();
 
             foreach ($stukken as $positie => $stuk) {
-                $maat = $gekozen->get($stuk->id)?->size;
+                $rij  = $gekozen->get($stuk->id);
+                $maat = $rij?->size;
 
                 $rijen[] = [
                     'memberId'   => (string) $lid->id,
@@ -77,6 +78,9 @@ class ClothingController extends Controller
                     'itemName'   => (string) $stuk->name,
                     'sizeId'     => (string) ($maat->id ?? ''),
                     'sizeLabel'  => (string) ($maat->label ?? ''),
+                    // Het nummer op dit kledingstuk. Leeg als er geen is; de app
+                    // toont dan niets in plaats van een nul.
+                    'number'     => (string) ($rij?->number ?? ''),
                     'melding'    => '',
                 ];
             }
@@ -193,6 +197,74 @@ class ClothingController extends Controller
         return response()->json([
             'success' => true,
             'message' => "{$voor}{$stuk->name}: {$maat->label}.",
+        ]);
+    }
+
+    /**
+     * POST /v1/profile/clothing/number?member_id=&item_id=&number=
+     *
+     * Een eigen weg naast het kiezen van een maat, en niet een extra parameter
+     * daarop: bij die aanroep betekent een lege maat "haal de opgave weg", en
+     * dan zou een leeg nummer meesturen de hele regel wissen.
+     *
+     * Leeg nummer = het nummer weghalen, de maat blijft staan.
+     */
+    public function setNumber(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'member_id' => ['required', 'uuid'],
+            'item_id'   => ['required', 'uuid'],
+            'number'    => ['nullable', 'integer', 'min:0', 'max:999'],
+        ]);
+
+        $lid = $this->personen($request)->firstWhere('id', $validated['member_id']);
+
+        if (! $lid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je kunt het nummer van dit lid niet aanpassen.',
+            ], 403);
+        }
+
+        $stuk = $this->kledingstukken($lid)->firstWhere('id', $validated['item_id']);
+
+        if (! $stuk) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dit kledingstuk bestaat niet (meer).',
+            ], 422);
+        }
+
+        $rij = MemberClothingSize::where('member_id', $lid->id)
+            ->where('clothing_item_id', $stuk->id)
+            ->first();
+
+        // Zonder maat is er geen regel om een nummer aan te hangen. Er zelf een
+        // aanmaken kan niet: clothing_size_id is verplicht, en een maat gokken
+        // is erger dan om de maat vragen.
+        if (! $rij) {
+            return response()->json([
+                'success' => false,
+                'message' => "Kies eerst een maat voor {$stuk->name}.",
+            ], 422);
+        }
+
+        $nummer = $validated['number'] ?? null;
+
+        $rij->forceFill([
+            'number'             => $nummer,
+            'updated_by_user_id' => $request->user()?->id,
+        ])->save();
+
+        $voor = $lid->id === $request->user()?->resolveMember()?->id
+            ? ''
+            : $lid->name . ' — ';
+
+        return response()->json([
+            'success' => true,
+            'message' => $nummer === null
+                ? "{$voor}{$stuk->name}: nummer weggehaald."
+                : "{$voor}{$stuk->name}: nummer {$nummer}.",
         ]);
     }
 

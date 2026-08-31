@@ -124,8 +124,20 @@ class ClothingSizes extends Page implements HasTable
                     ->label($stuk->name)
                     ->badge()
                     ->color(fn (?string $state): string => $state === null ? 'gray' : 'success')
-                    ->getStateUsing(fn (Member $record): ?string => $record->clothingSizes
-                        ->firstWhere('clothing_item_id', $stuk->id)?->size?->label)
+                    // Maat en nummer in één badge: "M · 7". Een eigen kolom per
+                    // nummer zou de tabel bij vijf kledingstukken verdubbelen,
+                    // en dan past hij op geen enkel scherm meer.
+                    ->getStateUsing(function (Member $record) use ($stuk): ?string {
+                        $rij = $record->clothingSizes->firstWhere('clothing_item_id', $stuk->id);
+
+                        if (! $rij?->size) {
+                            return null;
+                        }
+
+                        return $rij->number === null
+                            ? $rij->size->label
+                            : $rij->size->label . ' · ' . $rij->number;
+                    })
                     ->placeholder('—'))->all(),
             ])
             ->filters([
@@ -167,20 +179,46 @@ class ClothingSizes extends Page implements HasTable
                     ->icon('heroicon-o-pencil-square')
                     ->modalHeading(fn (Member $record): string => 'Kledingmaten van ' . $record->name)
                     ->modalSubmitActionLabel('Opslaan')
-                    ->fillForm(fn (Member $record): array => $stukken
-                        ->mapWithKeys(fn (ClothingItem $stuk) => [
-                            $stuk->id => $record->clothingSizes
-                                ->firstWhere('clothing_item_id', $stuk->id)?->clothing_size_id,
-                        ])
-                        ->all())
-                    ->form($stukken->map(fn (ClothingItem $stuk) => Forms\Components\Select::make($stuk->id)
-                        ->label($stuk->name)
-                        ->options($stuk->sizes->pluck('label', 'id')->all())
-                        ->placeholder('Niet opgegeven'))->all())
+                    // Per kledingstuk twee velden: de maat en het nummer. De
+                    // sleutels krijgen een voorvoegsel, want een veldnaam die
+                    // gelijk is aan het kledingstuk-id kan er maar één zijn.
+                    ->fillForm(function (Member $record) use ($stukken): array {
+                        $waarden = [];
+                        foreach ($stukken as $stuk) {
+                            $rij = $record->clothingSizes
+                                ->firstWhere('clothing_item_id', $stuk->id);
+                            $waarden['maat_' . $stuk->id] = $rij?->clothing_size_id;
+                            $waarden['nr_' . $stuk->id] = $rij?->number;
+                        }
+
+                        return $waarden;
+                    })
+                    ->form($stukken->flatMap(fn (ClothingItem $stuk) => [
+                        Forms\Components\Select::make('maat_' . $stuk->id)
+                            ->label($stuk->name)
+                            ->options($stuk->sizes->pluck('label', 'id')->all())
+                            ->placeholder('Niet opgegeven')
+                            ->columnSpan(2),
+                        Forms\Components\TextInput::make('nr_' . $stuk->id)
+                            ->label('Nummer')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(999)
+                            ->placeholder('—')
+                            ->columnSpan(1),
+                    ])->all())
+                    ->modalWidth('lg')
                     ->action(function (Member $record, array $data) use ($stukken): void {
                         foreach ($stukken as $stuk) {
-                            $maatId = $data[$stuk->id] ?? null;
+                            $maatId = $data['maat_' . $stuk->id] ?? null;
+                            $nummer = $data['nr_' . $stuk->id];
+                            $nummer = ($nummer === null || $nummer === '')
+                                ? null
+                                : (int) $nummer;
 
+                            // Zonder maat is er niets om een nummer aan te
+                            // hangen: de rij bestaat per kledingstuk, en een
+                            // nummer zonder maat is een halve opgave.
                             if (! $maatId) {
                                 // Leeg = terug naar "niet opgegeven", en niet:
                                 // laat staan wat er stond.
@@ -195,6 +233,7 @@ class ClothingSizes extends Page implements HasTable
                                 ['member_id' => $record->id, 'clothing_item_id' => $stuk->id],
                                 [
                                     'clothing_size_id'   => $maatId,
+                                    'number'             => $nummer,
                                     'updated_by_user_id' => auth()->id(),
                                 ],
                             );

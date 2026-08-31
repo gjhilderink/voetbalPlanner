@@ -12,14 +12,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * De maat die één lid voor één kledingstuk heeft opgegeven.
  *
  * Eén rij per lid per kledingstuk; de unieke sleutel in de migratie bewaakt dat.
+ * `number` is het nummer op dat kledingstuk - het rugnummer op een shirt - en
+ * mag leeg blijven; op een tas staat niets.
  */
 class MemberClothingSize extends Model
 {
     use HasUuids;
 
     protected $fillable = [
-        'member_id', 'clothing_item_id', 'clothing_size_id', 'updated_by_user_id',
+        'member_id', 'clothing_item_id', 'clothing_size_id', 'number', 'updated_by_user_id',
     ];
+
+    protected function casts(): array
+    {
+        return ['number' => 'integer'];
+    }
 
     public function member(): BelongsTo
     {

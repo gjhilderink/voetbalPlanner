@@ -131,6 +131,7 @@ abstract final class Structs {
       "melding": ffai.string,
       "memberId": ffai.string,
       "memberName": ffai.string,
+      "number": ffai.string,
       "ownerKey": ffai.string,
       "ownerLabel": ffai.string,
       "ownerSummary": ffai.string,
