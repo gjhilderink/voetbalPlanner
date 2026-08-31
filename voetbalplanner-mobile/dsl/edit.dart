@@ -421,25 +421,14 @@ void buildEditFlow(App app) {
     _fixLoginButtonBindings(project);
   });
 
-  // Make all containers and buttons on ProfielPage full width.
-  app.editPage(ff.Pages.profielPage, (page) {
-    for (final key in const [
-      'Container_uw9q34os', // ProfielInfoCard
-      'Container_cbnepclh', // original avatar/info container
-    ]) {
-      try {
-        page.update(page.findByKey(key), (p) => p.size(width: double.infinity));
-      } catch (_) {}
-    }
-    // Uitloggen — HandleidingButton/BugReportButton verhuisd naar AppDrawer.
-    for (final key in const [
-      'Button_wvz4j2lc', // Uitloggen
-    ]) {
-      try {
-        page.update(page.findByKey(key), (p) => p.size(width: double.infinity));
-      } catch (_) {}
-    }
-  });
+  // Hier stonden drie knopen van de ProfielPage op volle breedte gezet, elk via
+  // een knoopsleutel uit het oorspronkelijke FlutterFlow-ontwerp. Die knopen
+  // bestaan niet meer: de infokaart, de avatar en de uitlogknop worden nu alle
+  // drie door de DSL zelf gemaakt, mét width: double.infinity.
+  //
+  // De try/catch eromheen hielp trouwens niet — page.update() wordt pas bij het
+  // samenstellen uitgevoerd, dus een ontbrekende sleutel liet de hele push
+  // alsnog stuklopen.
 
   // Biometric button on LoginPage
   _addBiometricButton(app);
@@ -689,6 +678,7 @@ void buildEditFlow(App app) {
   // reset-knop op het profiel (beide navigeren naar OnboardingPage).
   _buildOnboardingPage(app);
   app.raw((project) => _gateWedstrijdenOnboarding(project));
+  app.raw((project) => _addProfielLogoutButton(project));
   app.raw((project) => _addOnboardingResetButton(project));
   app.raw((project) => _addClubStyleToggle(project));
   app.raw((project) => _addClubBrandingToLogin(project));
@@ -718,6 +708,7 @@ void buildEditFlow(App app) {
 
   app.raw((project) => _addSwapStructFields(project));
   // ProfielPage teamlijst — ná _addSwapStructFields zodat TeamOption.role bestaat.
+  app.raw((project) => _hefProfielKopSamen(project));
   app.raw((project) => _addProfielTeamsList(project));
   app.raw((project) => _addProfielGuardianLinks(project));
   app.raw((project) => _addProfielClothing(project));
@@ -4906,6 +4897,114 @@ void _removeProfielButton(FFProject project, String nodeName) {
 // (AppState.availableTeams) — zo zie je meteen of je aan meerdere teams hangt.
 // Read-only lijst; de data wordt automatisch ververst door RefreshCurrentTeam
 // op de ProfielPage-load (geen opnieuw inloggen nodig). Idempotent.
+/// De profielkop: één foto, één naam, bovenaan.
+///
+/// Het profiel had twee blokken die allebei met de naam begonnen — het blok dat
+/// de DSL bouwt, en daaronder de oorspronkelijke FlutterFlow-kaart met de foto,
+/// de naam, het e-mailadres en de club nog een keer.
+///
+/// Deze functie bouwt de kop zelf op in plaats van hem te verplaatsen. Een
+/// eerdere versie zocht de oude kaart op en verwijderde die, maar de body van
+/// deze pagina is een Stack met één wrapper erin: die wrapper wás de hele
+/// pagina, en de "kaart" die eruit gehaald werd nam alles mee. Zelf opbouwen is
+/// niet alleen veiliger, het maakt de pagina ook volledig van de DSL — er
+/// blijven geen onzichtbare knopen over waar een volgende wijziging over
+/// struikelt.
+///
+/// Idempotent: bestaat de avatar al, dan wordt alleen de opmaak bijgewerkt.
+void _hefProfielKopSamen(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+
+  final inhoud =
+      findDescendants(wc.node, (n) => n.name == 'ProfielInfoContent').firstOrNull;
+  if (inhoud == null || inhoud.type != FFWidgetType.Column) return;
+
+  // Staat de avatar ergens anders op de pagina? Dan hoort hij daar niet meer;
+  // losmaken en hieronder opnieuw plaatsen.
+  final bestaande = findDescendants(wc.node, (n) => n.name == 'Avatar').firstOrNull;
+  if (bestaande != null) {
+    if (inhoud.children.any((c) => c.key == bestaande.key)) return;
+    final ouder =
+        findDescendants(wc.node, (n) => n.children.any((c) => c.key == bestaande.key))
+            .firstOrNull;
+    ouder?.children.removeWhere((c) => c.key == bestaande.key);
+    inhoud.children.insert(0, bestaande);
+    return;
+  }
+
+  // Nog geen avatar: er zelf een maken. _setupProfielAvatar hangt de foto en de
+  // tik-om-te-uploaden hieraan op, en zoekt op precies deze naam.
+  final avatar = UI.container(
+    name: 'Avatar',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    color: UIColor.hex(0xFFEFF1F5),
+    alignment: UIAlignment.center,
+    child: UI.icon('person', size: 38, color: UIColor.secondaryText),
+  );
+  inhoud.children.insert(0, avatar);
+
+  // En meteen de foto erin hangen. _setupProfielAvatar draait eerder in de rij,
+  // toen deze container nog niet bestond; zonder deze tweede aanroep blijft het
+  // bij het grijze poppetje.
+  _setupProfielAvatar(project, wc, _findAppStateFieldId(project, 'profilePhotoUrl'));
+}
+
+/// De uitlogknop.
+///
+/// Stond in het oorspronkelijke FlutterFlow-ontwerp en wordt nu door de DSL
+/// gemaakt, zodat hij niet meer aan een knoopsleutel hangt die niemand kan zien.
+/// De keten is dezelfde die het verwijderen van een account gebruikt: de
+/// sessie- en huisstijlvelden wissen en terug naar het inlogscherm.
+void _addProfielLogoutButton(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+  _removeProfielButton(project, 'LogoutButton');
+
+  final knop = UI.button('Uitloggen', name: 'LogoutButton', width: double.infinity);
+
+  Actions.onTapChain(
+    knop,
+    FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.set('authToken', ''),
+        StateFieldUpdate.set('userName', ''),
+        StateFieldUpdate.set('userEmail', ''),
+        StateFieldUpdate.set('clubName', ''),
+        // Ook de huisstijl, anders kijkt de volgende gebruiker op het
+        // inlogscherm naar het logo en de kleuren van zijn voorganger.
+        StateFieldUpdate.set('primaryColor', ''),
+        StateFieldUpdate.set('secondaryColor', ''),
+        StateFieldUpdate.set('accentColor', ''),
+        StateFieldUpdate.set('clubLogoUrl', ''),
+        StateFieldUpdate.set('clubAppIconUrl', ''),
+        StateFieldUpdate.set('clubSplashUrl', ''),
+        StateFieldUpdate.set('clubSplashColor', ''),
+        StateFieldUpdate.set('clubStyleAsked', 'false'),
+        StateFieldUpdate.set('clubStyle', 'true'),
+      ]),
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.navigate(project, pageName: 'LoginPage', replaceRoute: true),
+      ),
+    ),
+  );
+
+  // Bovenaan het knoppenblok: uitloggen is waar mensen naar zoeken.
+  FFNode? kolom;
+  for (final c in findDescendants(wc.node, (n) => n.type == FFWidgetType.Column)) {
+    if (c.children.any((ch) => ch.name == 'GuardianButton')) { kolom = c; break; }
+  }
+  kolom ??= () {
+    final b = getPropertyChild(wc.node, 'body');
+    return (b != null && b.type == FFWidgetType.Column) ? b : null;
+  }();
+  (kolom ?? wc.node).children.add(knop);
+}
+
 void _addProfielTeamsList(FFProject project) {
   final wc = findPage(project, name: 'ProfielPage');
   if (wc == null) return;
@@ -4944,13 +5043,15 @@ void _addProfielTeamsList(FFProject project) {
   list.props.listView = lv;
 
   // Toon "Team — Functie" (bv. "MO13-1 — Coach"); zonder rol alleen de teamnaam.
+  // Alle functies binnen dit elftal, of anders de ene rol. 'roles' draagt er
+  // meerdere; is die leeg, dan valt hij terug op 'role'.
   final labelVar = codeExpressionVar(
-    expression: "((role ?? '') != '') ? ((name ?? '') + ' — ' + (role ?? '')) : (name ?? '')",
+    expression: "((alle ?? '') != '') ? alle! : (role ?? '')",
     arguments: [
       CodeExpressionArg(
-        name: 'name',
+        name: 'alle',
         dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-        value: FFValue(variable: generatorVarField(list.key, 'name')),
+        value: FFValue(variable: generatorVarField(list.key, 'roles')),
       ),
       CodeExpressionArg(
         name: 'role',
@@ -4960,19 +5061,65 @@ void _addProfielTeamsList(FFProject project) {
     ],
     returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
   );
-  final nameText = UI.text('', name: 'ProfielTeamName', style: UITextStyle.bodyMedium);
-  nameText.props.text.textValue = FFStringValue(variable: labelVar);
+  // Zelfde kaartvorm als de koppelingen eronder: dit zijn allebei lijstjes van
+  // "waar hoor je bij", en twee verschillende vormen op één pagina laten die
+  // twee blokken los van elkaar staan.
+  final nameText = UI.text('',
+      name: 'ProfielTeamName',
+      style: UITextStyle.bodyMedium,
+      fontWeight: UIFontWeight.w600,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  nameText.props.text.textValue =
+      FFStringValue(variable: generatorVarField(list.key, 'name'));
 
-  final tile = UI.row(
-    name: 'ProfielTeamRow',
-    spacing: 6,
-    crossAxisAlignment: UICrossAxisAlignment.center,
-    children: [
-      UI.icon('groups', size: 16, color: UIColor.primary),
-      nameText,
-    ],
+  // De rol op een eigen regel eronder, net als "Jouw kind · Goedgekeurd" bij een
+  // koppeling. Op één regel met een streepje ertussen werd het bij een lange
+  // teamnaam afgekapt.
+  final roleText = UI.text('',
+      name: 'ProfielTeamRol',
+      style: UITextStyle.labelSmall,
+      color: UIColor.secondaryText,
+      maxLines: 1,
+      textOverflow: UITextOverflow.ellipsis);
+  roleText.props.text.textValue = FFStringValue(variable: labelVar);
+  setConditionalVisibility(
+    roleText,
+    variable: conditionVar(
+      generatorVarField(list.key, 'role'),
+      FFCondition_Relation.NOT_EQUAL_TO,
+      varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+    ).variable,
   );
-  list.children.add(tile);
+
+  final icoon = UI.container(
+    name: 'ProfielTeamIcoon',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    color: UIColor.hex(0xFFEFF1F5),
+    alignment: UIAlignment.center,
+    child: UI.icon('groups', size: 18, color: UIColor.primary),
+  );
+
+  list.children.add(_dashCard(
+    name: 'ProfielTeamKaart',
+    padding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    child: UI.row(
+      name: 'ProfielTeamRow',
+      spacing: 10,
+      crossAxisAlignment: UICrossAxisAlignment.center,
+      children: [
+        icoon,
+        UI.expanded(UI.column(
+          name: 'ProfielTeamCol',
+          crossAxisAlignment: UICrossAxisAlignment.start,
+          spacing: 2,
+          children: [nameText, roleText],
+        )),
+      ],
+    ),
+  ));
 
   target.children.add(label);
   target.children.add(list);
