@@ -1113,6 +1113,46 @@ class ReleaseNotesSeeder extends Seeder
                     . 'opnieuw opende klopte het. Na Einde kom je nu op een verse wedstrijd uit, met alles er '
                     . 'meteen op.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Toegangscontrole bij activiteiten',
+                'description' => 'Bij een activiteit in de agenda kun je nu toegang regelen. In de portal maak '
+                    . 'of importeer je toegangscodes, die je als QR uitdeelt — per stuk of als PDF-vel met drie '
+                    . 'kaartjes per rij om te knippen. Per code stel je in hoe vaak hij gebruikt mag worden, en '
+                    . 'je ziet meelopen hoe vaak dat al gebeurd is. Bij de ingang scant iemand ze met de app: '
+                    . 'groen scherm met een vink als de code geldig is, rood met een kruis als hij op is of niet '
+                    . 'klopt. Onder Binnenkomsten staat wie er binnen is.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Je eigen toegangscode in de app',
+                'description' => 'In het menu linksboven staat Mijn toegangscode: jouw lidnummer als QR-code. '
+                    . 'Zet de club bij een activiteit "gratis voor leden" aan, dan kom je daarmee binnen — één '
+                    . 'keer per activiteit. De code wordt op je eigen toestel getekend en werkt dus ook zonder '
+                    . 'internet, wat in een zaal of kantine nogal eens uitmaakt. Lukt het scannen niet, dan staat '
+                    . 'je lidnummer er in cijfers onder.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Nieuwe rol: Toegangscontrole',
+                'description' => 'Een gebruiker kan de rol Toegangscontrole krijgen. Daarmee komt in de app onder '
+                    . 'Meer de scanpagina beschikbaar, en in de portal het beheer van toegangscodes. Verder geeft '
+                    . 'de rol nergens toegang toe — handig voor de vrijwilliger die alleen bij de deur staat.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Banners op trainingen en agenda',
+                'description' => 'Een banner kan nu ook boven de trainingen- en agendapagina staan. In de portal '
+                    . 'staan die twee gewoon tussen de plekken waar je een banner kunt tonen.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Kledingnummer kon niet worden opgeslagen',
+                'description' => 'Een nummer invullen bij een kledingstuk gaf de melding dat het niet kon worden '
+                    . 'opgeslagen. Het nummer hing aan de maat: stond er nog geen maat, dan was er ook niets om '
+                    . 'het nummer aan te hangen. Maat en nummer staan nu los van elkaar, dus je kunt alleen een '
+                    . 'nummer invullen. En de maat weghalen laat een ingevuld nummer voortaan staan.',
+            ],
         ];
 
         $sort = 0;
