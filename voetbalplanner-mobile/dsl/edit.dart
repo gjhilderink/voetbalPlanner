@@ -681,6 +681,8 @@ void buildEditFlow(App app) {
   app.raw((project) => _addProfielLogoutButton(project));
   app.raw((project) => _addOnboardingResetButton(project));
   app.raw((project) => _addClubStyleToggle(project));
+  // Als laatste: pas dan staan alle knoppen op de pagina.
+  app.raw((project) => _maakProfielScrollbaar(project));
   app.raw((project) => _addClubBrandingToLogin(project));
   // Slides per club aanpasbaar: struct/endpoint/app-state + custom icon-widget,
   // daarna de PageView data-gedreven maken (laden + generator).
@@ -4863,11 +4865,19 @@ void _addGuardianButton(FFProject project) {
 
   if (findPage(project, name: 'GuardianPage') == null) return;
 
-  if (findDescendants(wc.node, (n) => n.name == 'GuardianButton').isNotEmpty) return;
+  // Vers opbouwen en niet overslaan als hij er al staat: anders houdt de knop
+  // voor altijd de vorm van de eerste push, en komen icoon of breedte er nooit
+  // meer bij.
+  _removeProfielButton(project, 'GuardianButton');
 
   final button = UI.button(
     'Ouder / Verzorger',
     name: 'GuardianButton',
+    width: double.infinity,
+    iconName: 'supervised_user_circle',
+    iconSize: 20,
+    borderRadius: 12,
+    padding: UIEdgeInsets.all(14),
   );
   Actions.onTap(button, Actions.navigate(project, pageName: 'GuardianPage'));
 
@@ -4952,6 +4962,58 @@ void _hefProfielKopSamen(FFProject project) {
   _setupProfielAvatar(project, wc, _findAppStateFieldId(project, 'profilePhotoUrl'));
 }
 
+/// Een rustige knop op het profiel: lichte vulling, donkere tekst, icoon ervoor.
+///
+/// Staat los van _applyBrandingToAllButtons, dat elke knop de clubkleur geeft.
+/// Vijf gekleurde knoppen onder elkaar leveren een muur op waarin je niets meer
+/// terugvindt; alleen "Ouder / Verzorger" houdt de clubkleur en "Account
+/// verwijderen" blijft rood.
+FFNode _profielKnop(String label, String naam, String icoon) => UI.button(
+      label,
+      name: naam,
+      width: double.infinity,
+      iconName: icoon,
+      iconSize: 20,
+      borderRadius: 12,
+      padding: UIEdgeInsets.all(14),
+      color: UIColor.hex(0xFFEFF1F5, dark: 0xFF20242C),
+      textColor: UIColor.primaryText,
+    );
+
+/// Maakt de profielpagina scrollbaar en geeft de knoppen onderaan lucht.
+///
+/// De body is een gewone Column met mainAxisSize.max: alles wat niet op het
+/// scherm past viel er onderlangs uit, en scrollen kon niet. Dat viel pas op
+/// toen de kop, de teams, de koppelingen en de kledingmaten er allemaal boven
+/// stonden.
+///
+/// Draait als laatste van de profielfuncties, zodat alle knoppen er al staan.
+void _maakProfielScrollbaar(FFProject project) {
+  final wc = findPage(project, name: 'ProfielPage');
+  if (wc == null) return;
+
+  final body = getPropertyChild(wc.node, 'body');
+  if (body == null || body.type != FFWidgetType.Column) return;
+
+  // Een lege Stack met Expanded eromheen slokt alle resterende hoogte op, en
+  // duwt daarmee de knoppen van het scherm af. Dit is wat er over is van de
+  // oorspronkelijke body: die was een Stack, en de inhoud daarvan is naar de
+  // infokaart verhuisd. Een lege huls die het scherm opeet.
+  body.children.removeWhere((n) =>
+      n.type == FFWidgetType.Stack && n.children.isEmpty);
+
+  final kolom = body.props.column.deepCopy();
+  kolom.scrollable = true;
+  body.props.column = kolom;
+
+  // Ruimte onder de laatste knop. Zonder dit plakt "Account verwijderen" tegen
+  // de onderrand, en op een toestel met een streepje in plaats van een knop
+  // valt hij deels achter de systeembalk.
+  body.props.padding = FFPadding(
+    bottomValue: FFDoubleValue(inputValue: 24),
+  );
+}
+
 /// De uitlogknop.
 ///
 /// Stond in het oorspronkelijke FlutterFlow-ontwerp en wordt nu door de DSL
@@ -4963,7 +5025,7 @@ void _addProfielLogoutButton(FFProject project) {
   if (wc == null) return;
   _removeProfielButton(project, 'LogoutButton');
 
-  final knop = UI.button('Uitloggen', name: 'LogoutButton', width: double.infinity);
+  final knop = _profielKnop('Uitloggen', 'LogoutButton', 'logout');
 
   Actions.onTapChain(
     knop,
@@ -5817,6 +5879,10 @@ void _addDeleteAccountButton(FFProject project) {
     'Account verwijderen',
     name: 'DeleteAccountButton',
     width: double.infinity,
+    iconName: 'delete_forever',
+    iconSize: 20,
+    borderRadius: 12,
+    padding: UIEdgeInsets.all(14),
     color: UIColor.error,
     textColor: UIColor.secondaryBackground,
   );
@@ -6132,8 +6198,8 @@ void _addOnboardingResetButton(FFProject project) {
   if (project.getWidgetClassByName('OnboardingPage') == null) return;
   _removeProfielButton(project, 'OnboardingResetButton');
 
-  final button = UI.button('Onboarding opnieuw bekijken',
-      name: 'OnboardingResetButton', width: double.infinity);
+  final button = _profielKnop(
+      'Onboarding opnieuw bekijken', 'OnboardingResetButton', 'slideshow');
   final resetNode = FFActionNode(
     key: generateRandomAlphaNumericString(),
     action: Actions.updateAppState(project, updates: [StateFieldUpdate.set('onboardingSeen', 'false')]),
@@ -6341,7 +6407,7 @@ void _addClubStyleToggle(FFProject project) {
     ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
 
   FFNode knop(String label, String naam, bool aan) {
-    final btn = UI.button(label, name: naam, width: double.infinity);
+    final btn = _profielKnop(label, naam, aan ? 'palette' : 'format_color_reset');
     Actions.onTap(
       btn,
       Actions.updateAppState(project, updates: [
@@ -12868,7 +12934,17 @@ void _applyBrandingToAllButtons(FFProject project) {
   for (final wc in project.widgetClasses.values.where((wc) => wc.isPage)) {
     for (final btn in findDescendants(wc.node, (n) => n.props.hasButton())) {
       // Destructieve knop houdt zijn eigen (rode) kleur — niet overschrijven.
-      if (btn.name == 'DeleteAccountButton') continue;
+      // Deze houden hun eigen kleur. Op het profiel staan vijf knoppen onder
+      // elkaar; als die allemaal de clubkleur krijgen is het een muur van rood
+      // of groen waarin niets meer opvalt. Eén gekleurde knop, de rest rustig,
+      // en verwijderen in het rood.
+      if (const {
+        'DeleteAccountButton',
+        'LogoutButton',
+        'OnboardingResetButton',
+        'ClubStyleOnButton',
+        'ClubStyleOffButton',
+      }.contains(btn.name)) continue;
       final proto = btn.props.button.deepCopy();
       proto.fillColorValue = clubColor.deepCopy();
       proto.innerPadding = padding.deepCopy();

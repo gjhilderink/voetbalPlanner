@@ -46,20 +46,20 @@ abstract final class QuickActionsSheetWidgets {
       name: "QuickActionsSheet",
       children: <ffai.ProjectWidgetHandle>[
         ffai.ProjectWidgetHandle(
-          key: "Column_7zl3fbr9",
+          key: "Column_o2k3nchv",
           type: "Column",
           path: "QuickActionsSheet.children[0]",
           name: "Column",
           children: <ffai.ProjectWidgetHandle>[
             ffai.ProjectWidgetHandle(
-              key: "Text_bvs3kmv8",
+              key: "Text_cawpuvt7",
               type: "Text",
               path: "QuickActionsSheet.children[0].children[0]",
               name: "Text",
               text: "Snelle acties",
             ),
             ffai.ProjectWidgetHandle(
-              key: "Button_7exkf4ug",
+              key: "Button_mkzcf25x",
               type: "Button",
               path: "QuickActionsSheet.children[0].children[1]",
               name: "QaChatButton",
@@ -69,7 +69,7 @@ abstract final class QuickActionsSheetWidgets {
               ],
             ),
             ffai.ProjectWidgetHandle(
-              key: "Button_akpysuz6",
+              key: "Button_avwpfrqf",
               type: "Button",
               path: "QuickActionsSheet.children[0].children[2]",
               name: "QaSwapBarButton",
@@ -79,7 +79,7 @@ abstract final class QuickActionsSheetWidgets {
               ],
             ),
             ffai.ProjectWidgetHandle(
-              key: "Button_gld5ycy3",
+              key: "Button_prslto1a",
               type: "Button",
               path: "QuickActionsSheet.children[0].children[3]",
               name: "QaSwapDriveButton",
@@ -89,7 +89,7 @@ abstract final class QuickActionsSheetWidgets {
               ],
             ),
             ffai.ProjectWidgetHandle(
-              key: "Button_s79rbgn0",
+              key: "Button_ff5pyoln",
               type: "Button",
               path: "QuickActionsSheet.children[0].children[4]",
               name: "QaAfmeldButton",
