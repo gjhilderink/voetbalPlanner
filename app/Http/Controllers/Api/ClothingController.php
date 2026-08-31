@@ -56,7 +56,12 @@ class ClothingController extends Controller
                 ->get()
                 ->keyBy('clothing_item_id');
 
-            $ingevuld = $stukken->filter(fn (ClothingItem $s) => $gekozen->has($s->id))->count();
+            // Op de maat en niet op het bestaan van de regel: sinds een nummer
+            // zonder maat mag, kan er een regel staan waarvan de maat nog
+            // ontbreekt. "3 van 5 ingevuld" gaat over de maten.
+            $ingevuld = $stukken
+                ->filter(fn (ClothingItem $s) => $gekozen->get($s->id)?->clothing_size_id !== null)
+                ->count();
 
             foreach ($stukken as $positie => $stuk) {
                 $rij  = $gekozen->get($stuk->id);
@@ -157,11 +162,22 @@ class ClothingController extends Controller
             ], 422);
         }
 
-        // Leeg = de opgave weer weghalen.
+        // Leeg = de maat weer weghalen. Staat er een nummer bij, dan blijft de
+        // regel staan met alleen dat nummer: het rugnummer op een shirt heeft
+        // niets met de maat te maken en hoort niet mee te verdwijnen.
         if (empty($validated['size_id'])) {
-            MemberClothingSize::where('member_id', $lid->id)
+            $rij = MemberClothingSize::where('member_id', $lid->id)
                 ->where('clothing_item_id', $stuk->id)
-                ->delete();
+                ->first();
+
+            if ($rij && $rij->number !== null) {
+                $rij->forceFill([
+                    'clothing_size_id'   => null,
+                    'updated_by_user_id' => $request->user()?->id,
+                ])->save();
+            } else {
+                $rij?->delete();
+            }
 
             return response()->json([
                 'success' => true,
@@ -235,26 +251,43 @@ class ClothingController extends Controller
             ], 422);
         }
 
+        $nummer = $validated['number'] ?? null;
+
         $rij = MemberClothingSize::where('member_id', $lid->id)
             ->where('clothing_item_id', $stuk->id)
             ->first();
 
-        // Zonder maat is er geen regel om een nummer aan te hangen. Er zelf een
-        // aanmaken kan niet: clothing_size_id is verplicht, en een maat gokken
-        // is erger dan om de maat vragen.
-        if (! $rij) {
+        // Geen regel en geen nummer: er valt niets te bewaren en niets te
+        // wissen. Wel meteen goed melden, want "nummer weggehaald" bij een leeg
+        // veld klopt ook.
+        if (! $rij && $nummer === null) {
             return response()->json([
-                'success' => false,
-                'message' => "Kies eerst een maat voor {$stuk->name}.",
-            ], 422);
+                'success' => true,
+                'message' => "{$stuk->name}: geen nummer.",
+            ]);
         }
 
-        $nummer = $validated['number'] ?? null;
-
-        $rij->forceFill([
-            'number'             => $nummer,
-            'updated_by_user_id' => $request->user()?->id,
-        ])->save();
+        if ($rij) {
+            // Nummer weg én geen maat: dan blijft er niets over om te bewaren.
+            if ($nummer === null && $rij->clothing_size_id === null) {
+                $rij->delete();
+            } else {
+                $rij->forceFill([
+                    'number'             => $nummer,
+                    'updated_by_user_id' => $request->user()?->id,
+                ])->save();
+            }
+        } else {
+            // Nog geen regel voor dit kledingstuk: er komt er een met alleen een
+            // nummer. De maat mag later.
+            MemberClothingSize::create([
+                'member_id'          => $lid->id,
+                'clothing_item_id'   => $stuk->id,
+                'clothing_size_id'   => null,
+                'number'             => $nummer,
+                'updated_by_user_id' => $request->user()?->id,
+            ]);
+        }
 
         $voor = $lid->id === $request->user()?->resolveMember()?->id
             ? ''

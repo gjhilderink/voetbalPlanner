@@ -130,13 +130,21 @@ class ClothingSizes extends Page implements HasTable
                     ->getStateUsing(function (Member $record) use ($stuk): ?string {
                         $rij = $record->clothingSizes->firstWhere('clothing_item_id', $stuk->id);
 
-                        if (! $rij?->size) {
+                        // Maat en nummer staan los: er kan er maar één van de
+                        // twee bekend zijn. Een nummer zonder maat toont als
+                        // "nr. 7", zodat de kolom niet leeg lijkt terwijl er
+                        // wel iets ingevuld is.
+                        $maat   = $rij?->size?->label;
+                        $nummer = $rij?->number;
+
+                        if ($maat === null && $nummer === null) {
                             return null;
                         }
+                        if ($maat === null) {
+                            return 'nr. ' . $nummer;
+                        }
 
-                        return $rij->number === null
-                            ? $rij->size->label
-                            : $rij->size->label . ' · ' . $rij->number;
+                        return $nummer === null ? $maat : $maat . ' · ' . $nummer;
                     })
                     ->placeholder('—'))->all(),
             ])
@@ -163,9 +171,15 @@ class ClothingSizes extends Page implements HasTable
                         // Minder ingevulde maten dan er kledingstukken zijn. Zo
                         // vallen ook leden op die er de helft hebben staan; die
                         // zijn met een simpele "heeft niets"-controle onzichtbaar.
+                        //
+                        // Op de maat en niet op het bestaan van de regel: sinds
+                        // een nummer zonder maat mag, kan er een regel staan
+                        // waar de maat nog ontbreekt. Die hoort hier juist wél
+                        // op te vallen.
                         return $query->whereRaw(
                             '(select count(*) from member_clothing_sizes
                               where member_clothing_sizes.member_id = members.id
+                                and member_clothing_sizes.clothing_size_id is not null
                                 and member_clothing_sizes.clothing_item_id in ('
                             . implode(',', array_fill(0, $stukken->count(), '?'))
                             . ')) < ?',
@@ -216,12 +230,11 @@ class ClothingSizes extends Page implements HasTable
                                 ? null
                                 : (int) $nummer;
 
-                            // Zonder maat is er niets om een nummer aan te
-                            // hangen: de rij bestaat per kledingstuk, en een
-                            // nummer zonder maat is een halve opgave.
-                            if (! $maatId) {
-                                // Leeg = terug naar "niet opgegeven", en niet:
-                                // laat staan wat er stond.
+                            // Maat en nummer staan los van elkaar. Alleen als
+                            // allebei leeg zijn valt er niets te bewaren; dan
+                            // terug naar "niet opgegeven", en niet: laat staan
+                            // wat er stond.
+                            if (! $maatId && $nummer === null) {
                                 MemberClothingSize::where('member_id', $record->id)
                                     ->where('clothing_item_id', $stuk->id)
                                     ->delete();
@@ -232,7 +245,7 @@ class ClothingSizes extends Page implements HasTable
                             MemberClothingSize::updateOrCreate(
                                 ['member_id' => $record->id, 'clothing_item_id' => $stuk->id],
                                 [
-                                    'clothing_size_id'   => $maatId,
+                                    'clothing_size_id'   => $maatId ?: null,
                                     'number'             => $nummer,
                                     'updated_by_user_id' => auth()->id(),
                                 ],
