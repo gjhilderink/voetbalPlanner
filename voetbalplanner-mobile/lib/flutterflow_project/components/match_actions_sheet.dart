@@ -46,26 +46,26 @@ abstract final class MatchActionsSheetWidgets {
       name: "MatchActionsSheet",
       children: <ffai.ProjectWidgetHandle>[
         ffai.ProjectWidgetHandle(
-          key: "Column_g7ity0ah",
+          key: "Column_uo9lwzrh",
           type: "Column",
           path: "MatchActionsSheet.children[0]",
           name: "MatchActionsRoot",
           children: <ffai.ProjectWidgetHandle>[
             ffai.ProjectWidgetHandle(
-              key: "Text_bdg99awp",
+              key: "Text_j56470dc",
               type: "Text",
               path: "MatchActionsSheet.children[0].children[0]",
               name: "MaTitle",
               text: "Wedstrijd-actie",
             ),
             ffai.ProjectWidgetHandle(
-              key: "Column_6to47aak",
+              key: "Column_z5sj5zq3",
               type: "Column",
               path: "MatchActionsSheet.children[0].children[1]",
               name: "MaMenuView",
               children: <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Button_nhbqplae",
+                  key: "Button_8pbllom5",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[1].children[0]",
                   name: "MaMenuBtn_drivers",
@@ -75,7 +75,7 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_li4s9oc9",
+                  key: "Button_7sc8ho5z",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[1].children[1]",
                   name: "MaMenuBtn_flag",
@@ -85,7 +85,7 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_zc0i3r2k",
+                  key: "Button_hwl6bisz",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[1].children[2]",
                   name: "MaMenuBtn_fruit",
@@ -95,17 +95,31 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_bic1kvp1",
-                  type: "Button",
+                  key: "Stack_vj3by0yz",
+                  type: "Stack",
                   path: "MatchActionsSheet.children[0].children[1].children[3]",
-                  name: "MaMenuBtn_invite",
-                  text: "Gastspeler uitnodigen",
-                  triggers: const <String>[
-                    "ON_TAP",
+                  name: "Doel_menu_gastspeler",
+                  children: <ffai.ProjectWidgetHandle>[
+                    ffai.ProjectWidgetHandle(
+                      key: "Button_w48wtwrk",
+                      type: "Button",
+                      path: "MatchActionsSheet.children[0].children[1].children[3].children[0]",
+                      name: "MaMenuBtn_invite",
+                      text: "Gastspeler uitnodigen",
+                      triggers: const <String>[
+                        "ON_TAP",
+                      ],
+                    ),
+                    ffai.ProjectWidgetHandle(
+                      key: "Container_a5pogrro",
+                      type: "Container",
+                      path: "MatchActionsSheet.children[0].children[1].children[3].children[1]",
+                      name: "TourTarget_menu_gastspeler",
+                    ),
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_5hmuythd",
+                  key: "Button_49os03hm",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[1].children[4]",
                   name: "MaMenuBtn_note",
@@ -117,32 +131,32 @@ abstract final class MatchActionsSheetWidgets {
               ],
             ),
             ffai.ProjectWidgetHandle(
-              key: "Column_o1ksgh8r",
+              key: "Column_wmj14mgv",
               type: "Column",
               path: "MatchActionsSheet.children[0].children[2]",
               name: "MaGoalView",
               children: <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_44rbx50t",
+                  key: "Text_zgn6owcj",
                   type: "Text",
                   path: "MatchActionsSheet.children[0].children[2].children[0]",
                   name: "MaGoalLabel",
                   text: "Kies de speler en plaats:",
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Container_xopadymd",
+                  key: "Container_gl18luxq",
                   type: "Container",
                   path: "MatchActionsSheet.children[0].children[2].children[1]",
                   name: "MaScorerScroll",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "ListView_mdcyerxt",
+                      key: "ListView_ezih27ls",
                       type: "ListView",
                       path: "MatchActionsSheet.children[0].children[2].children[1].children[0]",
                       name: "MaScorerList",
                       children: <ffai.ProjectWidgetHandle>[
                         ffai.ProjectWidgetHandle(
-                          key: "Container_gb3adzdp",
+                          key: "Container_sawrmw7l",
                           type: "Container",
                           path: "MatchActionsSheet.children[0].children[2].children[1].children[0].children[0]",
                           name: "MaScorerRow",
@@ -151,7 +165,7 @@ abstract final class MatchActionsSheetWidgets {
                           ],
                           children: <ffai.ProjectWidgetHandle>[
                             ffai.ProjectWidgetHandle(
-                              key: "Text_0k4uzm1v",
+                              key: "Text_o49va36j",
                               type: "Text",
                               path: "MatchActionsSheet.children[0].children[2].children[1].children[0].children[0].children[0]",
                               name: "MaScorerName",
@@ -163,14 +177,14 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "TextField_l1opf2up",
+                  key: "TextField_tzgqfg8y",
                   type: "TextField",
                   path: "MatchActionsSheet.children[0].children[2].children[2]",
                   name: "MaMinuteField",
                   text: "Minuut (optioneel)",
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_97xelfhh",
+                  key: "Button_9tsszof1",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[2].children[3]",
                   name: "MaPlaceBtn",
@@ -180,10 +194,10 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_gptimyu2",
+                  key: "Button_mqqav7m3",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[2].children[4]",
-                  name: "MaBackBtn_58alse51",
+                  name: "MaBackBtn_ztgqagem",
                   text: "Terug",
                   triggers: const <String>[
                     "ON_TAP",
@@ -192,27 +206,27 @@ abstract final class MatchActionsSheetWidgets {
               ],
             ),
             ffai.ProjectWidgetHandle(
-              key: "Column_ua9h9hq2",
+              key: "Column_m32wtyrd",
               type: "Column",
               path: "MatchActionsSheet.children[0].children[3]",
               name: "MaNoteView",
               children: <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_80odrvmo",
+                  key: "Text_whydaekt",
                   type: "Text",
                   path: "MatchActionsSheet.children[0].children[3].children[0]",
                   name: "MaNoteLabel",
                   text: "Zichtbaar voor iedereen bij deze wedstrijd. Laat leeg om te wissen.",
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "TextField_urjt23g2",
+                  key: "TextField_f4fql134",
                   type: "TextField",
                   path: "MatchActionsSheet.children[0].children[3].children[1]",
                   name: "MaNoteField",
                   text: "Notitie bij deze wedstrijd",
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_ec6amkwo",
+                  key: "Button_qhm8zfet",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[3].children[2]",
                   name: "MaSaveNoteBtn",
@@ -222,10 +236,10 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_sznntg3b",
+                  key: "Button_s0vf38hs",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[3].children[3]",
-                  name: "MaBackBtn_8xj2orem",
+                  name: "MaBackBtn_ah8kqlt4",
                   text: "Terug",
                   triggers: const <String>[
                     "ON_TAP",
@@ -234,32 +248,32 @@ abstract final class MatchActionsSheetWidgets {
               ],
             ),
             ffai.ProjectWidgetHandle(
-              key: "Column_i28e2cz3",
+              key: "Column_i2paqtk5",
               type: "Column",
               path: "MatchActionsSheet.children[0].children[4]",
               name: "MaRijderView",
               children: <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_f2zoh3r3",
+                  key: "Text_3gqr7twl",
                   type: "Text",
                   path: "MatchActionsSheet.children[0].children[4].children[0]",
                   name: "MaRijderLabel",
                   text: "Kies een speler en zet hem aan of uit als rijder. Wie al rijdt staat gemarkeerd; aantikken en bevestigen haalt hem er weer uit.",
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Container_t5husjc6",
+                  key: "Container_0cgqzay5",
                   type: "Container",
                   path: "MatchActionsSheet.children[0].children[4].children[1]",
                   name: "MaRijderScroll",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "ListView_zvd6vb7o",
+                      key: "ListView_2xtujzcc",
                       type: "ListView",
                       path: "MatchActionsSheet.children[0].children[4].children[1].children[0]",
                       name: "MaRijderList",
                       children: <ffai.ProjectWidgetHandle>[
                         ffai.ProjectWidgetHandle(
-                          key: "Container_ok6fihk2",
+                          key: "Container_4lzeg7yf",
                           type: "Container",
                           path: "MatchActionsSheet.children[0].children[4].children[1].children[0].children[0]",
                           name: "MaRijderRow",
@@ -268,7 +282,7 @@ abstract final class MatchActionsSheetWidgets {
                           ],
                           children: <ffai.ProjectWidgetHandle>[
                             ffai.ProjectWidgetHandle(
-                              key: "Text_x8j35k47",
+                              key: "Text_kg7ydw2z",
                               type: "Text",
                               path: "MatchActionsSheet.children[0].children[4].children[1].children[0].children[0].children[0]",
                               name: "MaRijderName",
@@ -280,19 +294,19 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Column_ax5j77k6",
+                  key: "Column_z7glcnpg",
                   type: "Column",
                   path: "MatchActionsSheet.children[0].children[4].children[2]",
                   name: "MaRijderConfirm",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "Text_s906fvg3",
+                      key: "Text_i8nbr5xs",
                       type: "Text",
                       path: "MatchActionsSheet.children[0].children[4].children[2].children[0]",
                       name: "MaRijderSelected",
                     ),
                     ffai.ProjectWidgetHandle(
-                      key: "Button_6s0ioibp",
+                      key: "Button_wbgiyf3v",
                       type: "Button",
                       path: "MatchActionsSheet.children[0].children[4].children[2].children[1]",
                       name: "MaAddRijderBtn",
@@ -304,7 +318,7 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_pmdi252i",
+                  key: "Button_l3p449qo",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[4].children[3]",
                   name: "MaRijderKlaarBtn",
@@ -314,10 +328,10 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_2g7o0d5w",
+                  key: "Button_ixgec8f3",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[4].children[4]",
-                  name: "MaBackBtn_680xk8hk",
+                  name: "MaBackBtn_grb8vy3r",
                   text: "Terug",
                   triggers: const <String>[
                     "ON_TAP",
@@ -326,32 +340,32 @@ abstract final class MatchActionsSheetWidgets {
               ],
             ),
             ffai.ProjectWidgetHandle(
-              key: "Column_kwzpyzot",
+              key: "Column_d56mu59r",
               type: "Column",
               path: "MatchActionsSheet.children[0].children[5]",
               name: "MaFlagView",
               children: <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_pnk2bks3",
+                  key: "Text_7f8zsnd9",
                   type: "Text",
                   path: "MatchActionsSheet.children[0].children[5].children[0]",
                   name: "MaFlagLabel",
                   text: "Kies de vlagger (uit het team):",
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Container_6bw2jby1",
+                  key: "Container_uk2eegbb",
                   type: "Container",
                   path: "MatchActionsSheet.children[0].children[5].children[1]",
                   name: "MaFlagScroll",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "ListView_w1b3bcym",
+                      key: "ListView_iv748bti",
                       type: "ListView",
                       path: "MatchActionsSheet.children[0].children[5].children[1].children[0]",
                       name: "MaFlagList",
                       children: <ffai.ProjectWidgetHandle>[
                         ffai.ProjectWidgetHandle(
-                          key: "Container_yh9wqbuj",
+                          key: "Container_riqtfav1",
                           type: "Container",
                           path: "MatchActionsSheet.children[0].children[5].children[1].children[0].children[0]",
                           name: "MaFlagRow",
@@ -360,7 +374,7 @@ abstract final class MatchActionsSheetWidgets {
                           ],
                           children: <ffai.ProjectWidgetHandle>[
                             ffai.ProjectWidgetHandle(
-                              key: "Text_skmw03uy",
+                              key: "Text_d6kl6cqi",
                               type: "Text",
                               path: "MatchActionsSheet.children[0].children[5].children[1].children[0].children[0].children[0]",
                               name: "MaFlagName",
@@ -372,19 +386,19 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Column_f5mefurn",
+                  key: "Column_w9gs2r6n",
                   type: "Column",
                   path: "MatchActionsSheet.children[0].children[5].children[2]",
                   name: "MaFlagConfirm",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "Text_0po0npkg",
+                      key: "Text_4h1mqzid",
                       type: "Text",
                       path: "MatchActionsSheet.children[0].children[5].children[2].children[0]",
                       name: "MaFlagSelected",
                     ),
                     ffai.ProjectWidgetHandle(
-                      key: "Button_x3bg3a0m",
+                      key: "Button_mcnfbwsz",
                       type: "Button",
                       path: "MatchActionsSheet.children[0].children[5].children[2].children[1]",
                       name: "MaAddFlagBtn",
@@ -396,7 +410,7 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_t6bgdi4l",
+                  key: "Button_5z44cenh",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[5].children[3]",
                   name: "MaClearFlagBtn",
@@ -406,10 +420,10 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_rng8z5wa",
+                  key: "Button_q4r7di3b",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[5].children[4]",
-                  name: "MaBackBtn_8wcixnk2",
+                  name: "MaBackBtn_vf68yd10",
                   text: "Terug",
                   triggers: const <String>[
                     "ON_TAP",
@@ -418,32 +432,32 @@ abstract final class MatchActionsSheetWidgets {
               ],
             ),
             ffai.ProjectWidgetHandle(
-              key: "Column_qpfxkode",
+              key: "Column_yy51lvah",
               type: "Column",
               path: "MatchActionsSheet.children[0].children[6]",
               name: "MaFruitView",
               children: <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_9mre7n1i",
+                  key: "Text_6t9m3vez",
                   type: "Text",
                   path: "MatchActionsSheet.children[0].children[6].children[0]",
                   name: "MaFruitLabel",
                   text: "Kies de fruitheld (uit het team):",
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Container_6ilwu94g",
+                  key: "Container_0qpeb94e",
                   type: "Container",
                   path: "MatchActionsSheet.children[0].children[6].children[1]",
                   name: "MaFruitScroll",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "ListView_xb47cf47",
+                      key: "ListView_cbwhmz0p",
                       type: "ListView",
                       path: "MatchActionsSheet.children[0].children[6].children[1].children[0]",
                       name: "MaFruitList",
                       children: <ffai.ProjectWidgetHandle>[
                         ffai.ProjectWidgetHandle(
-                          key: "Container_039f48xp",
+                          key: "Container_bkqbaysx",
                           type: "Container",
                           path: "MatchActionsSheet.children[0].children[6].children[1].children[0].children[0]",
                           name: "MaFruitRow",
@@ -452,7 +466,7 @@ abstract final class MatchActionsSheetWidgets {
                           ],
                           children: <ffai.ProjectWidgetHandle>[
                             ffai.ProjectWidgetHandle(
-                              key: "Text_kf99dqpi",
+                              key: "Text_roxgrrsp",
                               type: "Text",
                               path: "MatchActionsSheet.children[0].children[6].children[1].children[0].children[0].children[0]",
                               name: "MaFruitName",
@@ -464,19 +478,19 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Column_h5ioebik",
+                  key: "Column_5e2a4pqd",
                   type: "Column",
                   path: "MatchActionsSheet.children[0].children[6].children[2]",
                   name: "MaFruitConfirm",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "Text_4bwwnlqt",
+                      key: "Text_zvuw7l7w",
                       type: "Text",
                       path: "MatchActionsSheet.children[0].children[6].children[2].children[0]",
                       name: "MaFruitSelected",
                     ),
                     ffai.ProjectWidgetHandle(
-                      key: "Button_jcn9kslv",
+                      key: "Button_rnymi3cx",
                       type: "Button",
                       path: "MatchActionsSheet.children[0].children[6].children[2].children[1]",
                       name: "MaAddFruitBtn",
@@ -488,7 +502,7 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_x3hd4ku3",
+                  key: "Button_ih3lkawv",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[6].children[3]",
                   name: "MaClearFruitBtn",
@@ -498,10 +512,10 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_l5gygvsv",
+                  key: "Button_itrhkdld",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[6].children[4]",
-                  name: "MaBackBtn_lgunur6j",
+                  name: "MaBackBtn_kbiy9uqx",
                   text: "Terug",
                   triggers: const <String>[
                     "ON_TAP",
@@ -510,88 +524,116 @@ abstract final class MatchActionsSheetWidgets {
               ],
             ),
             ffai.ProjectWidgetHandle(
-              key: "Column_mj0h6th3",
+              key: "Column_dd3lkbne",
               type: "Column",
               path: "MatchActionsSheet.children[0].children[7]",
               name: "MaInviteView",
               children: <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_sqzaon0c",
+                  key: "Text_5kj0bql1",
                   type: "Text",
                   path: "MatchActionsSheet.children[0].children[7].children[0]",
                   name: "MaInviteLabel",
                   text: "Kies eerst het team:",
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Container_apf2s373",
-                  type: "Container",
+                  key: "Stack_e3svzuhk",
+                  type: "Stack",
                   path: "MatchActionsSheet.children[0].children[7].children[1]",
-                  name: "MaTeamsScroll",
+                  name: "Doel_team_kiezen",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "ListView_dyn53ovb",
-                      type: "ListView",
+                      key: "Container_j33drb1w",
+                      type: "Container",
                       path: "MatchActionsSheet.children[0].children[7].children[1].children[0]",
-                      name: "MaTeamsList",
+                      name: "MaTeamsScroll",
                       children: <ffai.ProjectWidgetHandle>[
                         ffai.ProjectWidgetHandle(
-                          key: "Container_u92ohobo",
-                          type: "Container",
+                          key: "ListView_y6e12s7u",
+                          type: "ListView",
                           path: "MatchActionsSheet.children[0].children[7].children[1].children[0].children[0]",
-                          name: "MaTeamRow",
-                          triggers: const <String>[
-                            "ON_TAP",
-                          ],
+                          name: "MaTeamsList",
                           children: <ffai.ProjectWidgetHandle>[
                             ffai.ProjectWidgetHandle(
-                              key: "Text_4z12g79t",
-                              type: "Text",
+                              key: "Container_h3d4dgyd",
+                              type: "Container",
                               path: "MatchActionsSheet.children[0].children[7].children[1].children[0].children[0].children[0]",
-                              name: "MaTeamName",
+                              name: "MaTeamRow",
+                              triggers: const <String>[
+                                "ON_TAP",
+                              ],
+                              children: <ffai.ProjectWidgetHandle>[
+                                ffai.ProjectWidgetHandle(
+                                  key: "Text_gog45ee2",
+                                  type: "Text",
+                                  path: "MatchActionsSheet.children[0].children[7].children[1].children[0].children[0].children[0].children[0]",
+                                  name: "MaTeamName",
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ],
                     ),
+                    ffai.ProjectWidgetHandle(
+                      key: "Container_nvi1ks3p",
+                      type: "Container",
+                      path: "MatchActionsSheet.children[0].children[7].children[1].children[1]",
+                      name: "TourTarget_team_kiezen",
+                    ),
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Column_nb3f1n4c",
+                  key: "Column_4hv2gjab",
                   type: "Column",
                   path: "MatchActionsSheet.children[0].children[7].children[2]",
                   name: "MaGuestSection",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "Text_d3t03pt0",
+                      key: "Text_n4dzkh51",
                       type: "Text",
                       path: "MatchActionsSheet.children[0].children[7].children[2].children[0]",
                       name: "MaGuestLabel",
                       text: "Kies de gastspeler:",
                     ),
                     ffai.ProjectWidgetHandle(
-                      key: "TextField_z19i1mma",
-                      type: "TextField",
+                      key: "Stack_unr4lkab",
+                      type: "Stack",
                       path: "MatchActionsSheet.children[0].children[7].children[2].children[1]",
-                      name: "MaGuestZoek",
-                      text: "Zoek een speler",
-                      triggers: const <String>[
-                        "ON_TEXTFIELD_CHANGE",
+                      name: "Doel_gastspeler_zoeken",
+                      children: <ffai.ProjectWidgetHandle>[
+                        ffai.ProjectWidgetHandle(
+                          key: "TextField_5ufxe6is",
+                          type: "TextField",
+                          path: "MatchActionsSheet.children[0].children[7].children[2].children[1].children[0]",
+                          name: "MaGuestZoek",
+                          text: "Zoek een speler",
+                          triggers: const <String>[
+                            "ON_TEXTFIELD_CHANGE",
+                          ],
+                        ),
+                        ffai.ProjectWidgetHandle(
+                          key: "Container_6w411g6n",
+                          type: "Container",
+                          path: "MatchActionsSheet.children[0].children[7].children[2].children[1].children[1]",
+                          name: "TourTarget_gastspeler_zoeken",
+                        ),
                       ],
                     ),
                     ffai.ProjectWidgetHandle(
-                      key: "Container_g8fcej8m",
+                      key: "Container_ezomy43d",
                       type: "Container",
                       path: "MatchActionsSheet.children[0].children[7].children[2].children[2]",
                       name: "MaGuestScroll",
                       children: <ffai.ProjectWidgetHandle>[
                         ffai.ProjectWidgetHandle(
-                          key: "ListView_6anj089c",
+                          key: "ListView_g4wt4uu7",
                           type: "ListView",
                           path: "MatchActionsSheet.children[0].children[7].children[2].children[2].children[0]",
                           name: "MaGuestList",
                           children: <ffai.ProjectWidgetHandle>[
                             ffai.ProjectWidgetHandle(
-                              key: "Container_rgnhg3qa",
+                              key: "Container_hz1z0rci",
                               type: "Container",
                               path: "MatchActionsSheet.children[0].children[7].children[2].children[2].children[0].children[0]",
                               name: "MaGuestRow",
@@ -600,7 +642,7 @@ abstract final class MatchActionsSheetWidgets {
                               ],
                               children: <ffai.ProjectWidgetHandle>[
                                 ffai.ProjectWidgetHandle(
-                                  key: "Text_9pk280kn",
+                                  key: "Text_8r42gp09",
                                   type: "Text",
                                   path: "MatchActionsSheet.children[0].children[7].children[2].children[2].children[0].children[0].children[0]",
                                   name: "MaGuestName",
@@ -612,25 +654,39 @@ abstract final class MatchActionsSheetWidgets {
                       ],
                     ),
                     ffai.ProjectWidgetHandle(
-                      key: "Column_x4a8k6ru",
+                      key: "Column_e1oivbmp",
                       type: "Column",
                       path: "MatchActionsSheet.children[0].children[7].children[2].children[3]",
                       name: "MaGuestConfirm",
                       children: <ffai.ProjectWidgetHandle>[
                         ffai.ProjectWidgetHandle(
-                          key: "Text_tjzht83u",
+                          key: "Text_du3k3986",
                           type: "Text",
                           path: "MatchActionsSheet.children[0].children[7].children[2].children[3].children[0]",
                           name: "MaGuestSelected",
                         ),
                         ffai.ProjectWidgetHandle(
-                          key: "Button_ubim5l8k",
-                          type: "Button",
+                          key: "Stack_a7dmgwbm",
+                          type: "Stack",
                           path: "MatchActionsSheet.children[0].children[7].children[2].children[3].children[1]",
-                          name: "MaAddGuestBtn",
-                          text: "Gastspeler toevoegen",
-                          triggers: const <String>[
-                            "ON_TAP",
+                          name: "Doel_gastspeler_toevoegen",
+                          children: <ffai.ProjectWidgetHandle>[
+                            ffai.ProjectWidgetHandle(
+                              key: "Button_pyodaxo5",
+                              type: "Button",
+                              path: "MatchActionsSheet.children[0].children[7].children[2].children[3].children[1].children[0]",
+                              name: "MaAddGuestBtn",
+                              text: "Gastspeler toevoegen",
+                              triggers: const <String>[
+                                "ON_TAP",
+                              ],
+                            ),
+                            ffai.ProjectWidgetHandle(
+                              key: "Container_1d50iwom",
+                              type: "Container",
+                              path: "MatchActionsSheet.children[0].children[7].children[2].children[3].children[1].children[1]",
+                              name: "TourTarget_gastspeler_toevoegen",
+                            ),
                           ],
                         ),
                       ],
@@ -638,10 +694,10 @@ abstract final class MatchActionsSheetWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Button_50ach3sb",
+                  key: "Button_rsqreo7f",
                   type: "Button",
                   path: "MatchActionsSheet.children[0].children[7].children[3]",
-                  name: "MaBackBtn_8mzl1zx7",
+                  name: "MaBackBtn_m719j7ok",
                   text: "Terug",
                   triggers: const <String>[
                     "ON_TAP",

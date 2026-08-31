@@ -1324,6 +1324,14 @@ void buildEditFlow(App app) {
   // rebuilds lopen anders herschrijft die de gehighlighte tree weer terug.
   app.raw((project) => _wireOwnNameHighlight(project));
 
+  // Het fundament van de rondleiding staat hier en niet verderop: de
+  // wedstrijdpagina hangt er markeringen aan, en die heeft de custom widget dus
+  // al nodig voordat hij zichzelf opbouwt.
+  app.raw((project) {
+    _ensureTourFundament(project);
+    _ensureTourActies(project);
+  });
+
   // Wire WedstrijdDetailPage: add fruitheld + rijden swap buttons into MatchInfoColumn.
   app.raw((project) => _wireMatchSwap(project));
   // Af-/aanmelden met reden op WedstrijdDetailPage (ná de info-kolom + swap-knoppen).
@@ -1359,6 +1367,9 @@ void buildEditFlow(App app) {
   _buildMatchActionsSheet(app);
   app.raw((project) => _ensureGuestFilterAction(project));
   app.raw((project) => _buildMatchActionsDialogBody(project));
+  // Markeringen op de coach-knop en het menu. Moet hierna: die knooppunten
+  // bestaan pas als de twee passes hierboven klaar zijn.
+  app.raw((project) => _zetTourDoelenOpWedstrijd(project));
 
   // ─── Banner (marketing) feature ────────────────────────────────────────────
   // Banner struct for the GetBanners API response.
@@ -1643,8 +1654,6 @@ void buildEditFlow(App app) {
     _ensureLineupBoardStruct(project);
     _ensureLineupBoardAppState(project);
     _ensureLineupBoardActions(project);
-    _ensureTourFundament(project);
-    _ensureTourActies(project);
     _ensureLineupBoardWidget(project);
     _wireOpstellingPage(project);
     _ensurePlannedSubsWidget(project);
@@ -28274,10 +28283,16 @@ void _wireWedstrijdAfmelden(FFProject project) {
   // Idempotent: verwijder vorige instances.
   for (final k in findDescendants(
     infoColumn,
-    (n) => const {
-      'MatchAfmeldButton', 'MatchAanmeldButton', 'MatchReasonField', 'MatchAfmeldHeader',
-      'MatchAfgelastBanner', 'MatchAfgelastButton', 'MatchVrijgeefButton',
-    }.contains(n.name),
+    (n) =>
+        const {
+          'MatchAfmeldButton', 'MatchAanmeldButton', 'MatchReasonField', 'MatchAfmeldHeader',
+          'MatchAfgelastBanner', 'MatchAfgelastButton', 'MatchVrijgeefButton',
+        }.contains(n.name) ||
+        // Ook de wikkels van de rondleiding. Die staan om de knoppen hierboven
+        // heen; haal je alleen de knop weg, dan blijft er een lege Stack met
+        // een markering achter en wijst de rondleiding daar de volgende keer
+        // naartoe - naar niets dus.
+        n.name.startsWith('Doel_afgelasten_'),
   ).map((n) => n.key).toList()) {
     removeByKey(wc.node, k);
   }
@@ -28644,15 +28659,22 @@ void _wireWedstrijdAfmelden(FFProject project) {
     afgelastNodes.addAll([banner, afgelastBtn, vrijgeefBtn]);
   }
 
+  // De markeringen voor de rondleiding gaan hier mee naar binnen en niet in een
+  // aparte pas: het blok hierboven gooit deze knooppunten bij elke push weg op
+  // naam en bouwt ze opnieuw, dus een losse wikkelpas zou telkens een lege
+  // Stack achterlaten en de knop ernaast.
+  FFNode doel(FFNode n, String stepId) => _metTourDoel(project, n, stepId);
+
   infoColumn.children.addAll([
     // De melding eerst: gaat de wedstrijd niet door, dan hoef je niet meer na
     // te denken over af- of aanmelden.
-    ...afgelastNodes.take(1),
+    ...afgelastNodes.take(1).map((n) => doel(n, 'afgelasten_melding')),
     UI.text('Af-/aanmelden', name: 'MatchAfmeldHeader', style: UITextStyle.titleSmall),
-    reasonField,
+    doel(reasonField, 'afgelasten_reden'),
     afmeldBtn,
     aanmeldBtn,
-    ...afgelastNodes.skip(1),
+    ...afgelastNodes.skip(1).indexed.map(
+        (e) => doel(e.$2, e.$1 == 0 ? 'afgelasten_knop' : 'afgelasten_terug')),
   ]);
 }
 
@@ -38738,6 +38760,73 @@ Future<String> publishLineup(String? matchId, bool? published) async {
   );
 }
 
+/// Wikkelt een knooppunt in een Stack met een rondleiding-markering erover.
+///
+/// De markering neemt zelf geen ruimte in, dus de Stack houdt precies de maat
+/// van het knooppunt; TourRegistry leest die maat af bij de eerste Stack boven
+/// zich. Staat de custom widget nog niet in het project, dan komt het
+/// knooppunt onveranderd terug - liever geen markering dan een kapotte pagina.
+///
+/// Heeft het knooppunt een zichtbaarheidsregel, dan blijft die op het
+/// knooppunt zelf staan. Is het onzichtbaar, dan is de Stack nul groot en slaat
+/// de rondleiding die stap over. Precies goed: uitleg over een knop die er niet
+/// staat heeft niemand iets aan.
+FFNode _metTourDoel(FFProject project, FFNode knooppunt, String stepId) {
+  final widget = findCustomWidget(project, name: 'TourTarget');
+  if (widget == null) return knooppunt;
+
+  final markering = UI.customWidget(
+    widget,
+    name: 'TourTarget_$stepId',
+    params: {'stepId': StaticParamValue(stepId)},
+  );
+  return UI.stack(name: 'Doel_$stepId', children: [knooppunt, markering]);
+}
+
+/// Zet markeringen op knooppunten die elders al opgebouwd zijn: de zwevende
+/// coach-knop en de onderdelen van het coach-menu.
+///
+/// Deze moeten achteraf, want ze worden door andere passes gebouwd. De
+/// onderdelen van het afgelasten zitten juist wél in hun eigen bouwfunctie:
+/// die worden daar bij elke push op naam weggegooid en opnieuw aangemaakt, en
+/// een losse wikkelpas zou daar een lege Stack achterlaten.
+void _zetTourDoelenOpWedstrijd(FFProject project) {
+  if (findCustomWidget(project, name: 'TourTarget') == null) return;
+
+  void doel(FFWidgetClass? wc, String knooppuntNaam, String stepId) {
+    if (wc == null) return;
+
+    // Een eerdere wikkel eruit: anders krijg je bij elke push een Stack in een
+    // Stack, en dan meet de rondleiding de buitenste.
+    for (final oud
+        in findDescendants(wc.node, (n) => n.name == 'Doel_$stepId').toList()) {
+      final binnenste = oud.children.isNotEmpty ? oud.children.first : null;
+      final ouderVanOud = findParentByKey(wc.node, oud.key);
+      if (binnenste != null && ouderVanOud != null) {
+        _replaceChildRef(ouderVanOud.parent, oud, binnenste);
+      }
+    }
+
+    final knooppunt =
+        findDescendants(wc.node, (n) => n.name == knooppuntNaam).firstOrNull;
+    if (knooppunt == null) return;
+    final ouder = findParentByKey(wc.node, knooppunt.key);
+    if (ouder == null) return;
+
+    _replaceChildRef(
+        ouder.parent, knooppunt, _metTourDoel(project, knooppunt, stepId));
+  }
+
+  final detail = findPage(project, name: 'WedstrijdDetailPage');
+  doel(detail, 'MatchActionsFab', 'coach_menu');
+
+  final sheet = findComponent(project, name: 'MatchActionsSheet');
+  doel(sheet, 'MaMenuBtn_invite', 'menu_gastspeler');
+  doel(sheet, 'MaTeamsScroll', 'team_kiezen');
+  doel(sheet, 'MaGuestZoek', 'gastspeler_zoeken');
+  doel(sheet, 'MaAddGuestBtn', 'gastspeler_toevoegen');
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // IN-APP RONDLEIDING (coach marks)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -38768,6 +38857,10 @@ import 'package:flutter/rendering.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+// Het coach-menu, zodat de rondleiding het zelf kan openen. Wordt dit
+// component ooit hernoemd, dan breekt de build hier hoorbaar - en dat is beter
+// dan een rondleiding die stilletjes halverwege stopt.
+import '/components/match_actions_sheet_widget.dart';
 
 /// Houdt bij welke doel-widgets op dit moment op het scherm staan.
 ///
@@ -38948,6 +39041,7 @@ class TourStap {
     this.vorm = 'rect',
     this.uitlijning = 'onder',
     this.optioneel = false,
+    this.voorbereiding = '',
   });
 
   /// Verwijst naar de TourTarget met dezelfde stepId. Staat die niet op het
@@ -38968,9 +39062,20 @@ class TourStap {
   final String uitlijning;
 
   /// Mag deze stap ontbreken? Zo ja, dan wordt hij stil overgeslagen als het
-  /// doel niet gevonden wordt. Anders komt er een regel in de log — een
-  /// ontbrekend doel is dan een fout in de demopagina, geen normaal geval.
+  /// doel niet gevonden wordt. Anders komt er een regel in de log - een
+  /// ontbrekend doel is dan een fout in de opbouw, geen normaal geval.
   final bool optioneel;
+
+  /// Wat er moet gebeuren voordat deze stap te zien is.
+  ///
+  /// De rondleiding zet het scherm zelf klaar. Dat moet ook: het pakket legt
+  /// over het aangewezen element een doorzichtig vlak in een InkWell, dus een
+  /// tik komt nooit bij de knop eronder aan. "Doe dit nu zelf" bestaat niet;
+  /// wat je moet zien, moet de rondleiding zelf tevoorschijn halen.
+  ///
+  /// Bekend: '' (niets), 'open_menu' (het coach-menu openen),
+  /// 'menu_uitnodigen' (in dat menu naar de uitnodigen-weergave).
+  final String voorbereiding;
 }
 
 /// Alle rondleidingen. De Nederlandse teksten staan uitsluitend hier, zodat
@@ -38986,44 +39091,45 @@ class TourDefinities {
   static const Map<String, List<TourStap>> tours = {
     'wedstrijd_afgelasten': [
       TourStap(
-        stepId: 'wedstrijd_openen',
-        titel: 'Open de wedstrijd',
-        tekst: 'Tik op de wedstrijd die niet doorgaat.',
-      ),
-      TourStap(
         stepId: 'afgelasten_reden',
         titel: 'Geef eerst een reden',
-        tekst: 'Vul in waarom de wedstrijd niet doorgaat. Zonder reden kun je '
-            'niet afgelasten, en iedereen krijgt deze tekst te zien.',
+        tekst: 'Vul hier in waarom de wedstrijd niet doorgaat. Zonder reden kun '
+            'je niet afgelasten, en iedereen krijgt deze tekst te zien.',
       ),
+      // De volgende drie sluiten elkaar uit: bij een wedstrijd die gewoon
+      // doorgaat bestaat alleen de afgelast-knop, bij een afgelaste alleen de
+      // melding en de knop om het terug te draaien. Daarom optioneel - wat er
+      // niet staat wordt stil overgeslagen.
       TourStap(
         stepId: 'afgelasten_knop',
         titel: 'Wedstrijd afgelasten',
-        tekst: "Tik op 'Wedstrijd afgelasten'. Het gaat meteen door; er komt "
-            'geen extra bevestiging.',
-        // De knop staat onderaan het Info-tabblad, dus de ballon moet erboven.
+        tekst: "Met 'Wedstrijd afgelasten' gaat het meteen door; er komt geen "
+            'extra bevestiging.',
         uitlijning: 'boven',
+        optioneel: true,
       ),
       TourStap(
         stepId: 'afgelasten_melding',
         titel: 'Zo ziet het eruit',
-        tekst: 'Bovenaan de wedstrijd staat nu een rode melding met jouw '
+        tekst: 'Bovenaan de wedstrijd staat dan deze rode melding met jouw '
             'reden. Ook op het dashboard is te zien dat de wedstrijd niet '
             'doorgaat.',
+        optioneel: true,
       ),
       TourStap(
         stepId: 'afgelasten_terug',
         titel: 'Toch weer door?',
         tekst: "Met 'Toch laten doorgaan' draai je het terug.",
         uitlijning: 'boven',
+        optioneel: true,
       ),
     ],
     'gastspeler_uitnodigen': [
       TourStap(
         stepId: 'coach_menu',
-        titel: 'Open het coach-menu',
-        tekst: 'Tik rechtsonder op de plusknop. Daar staan alle acties voor '
-            'deze wedstrijd.',
+        titel: 'Het coach-menu',
+        tekst: 'Rechtsonder staat de plusknop. Daar staan alle acties voor deze '
+            'wedstrijd bij elkaar.',
         // De zwevende knop is rond; een rechthoekige uitsnede eromheen ziet
         // eruit als een fout.
         vorm: 'cirkel',
@@ -39032,26 +39138,32 @@ class TourDefinities {
       TourStap(
         stepId: 'menu_gastspeler',
         titel: 'Gastspeler uitnodigen',
-        tekst: "Kies 'Gastspeler uitnodigen'.",
+        tekst: 'In dat menu kies je Gastspeler uitnodigen.',
+        // De rondleiding doet het menu zelf open. Zelf tikken kan niet: over
+        // het aangewezen element ligt een doorzichtig vlak dat de tik opvangt.
+        voorbereiding: 'open_menu',
       ),
       TourStap(
         stepId: 'team_kiezen',
         titel: 'Kies eerst het elftal',
         tekst: 'Uit welk elftal komt de speler? Je ziet alle elftallen van de '
             'club.',
+        voorbereiding: 'menu_uitnodigen',
       ),
       TourStap(
         stepId: 'gastspeler_zoeken',
         titel: 'Zoek op naam',
         tekst: 'Typ een deel van de naam. Bij een grote club scheelt dat een '
-            'hoop scrollen.',
+            'hoop scrollen. Tik de speler daarna aan.',
       ),
       TourStap(
         stepId: 'gastspeler_toevoegen',
         titel: 'Uitnodigen',
-        tekst: "Tik de speler aan en daarna op 'Gastspeler toevoegen'. Hij "
-            "staat meteen onderaan je opstelling, met het label 'Gast'.",
+        tekst: "Met 'Gastspeler toevoegen' staat hij meteen onderaan je "
+            "opstelling, met het label 'Gast'.",
         uitlijning: 'boven',
+        // Verschijnt pas als er een speler gekozen is.
+        optioneel: true,
       ),
     ],
   };
@@ -39089,6 +39201,11 @@ class TourLoper {
   static int _index = 0;
   static int _richting = 1;
   static BuildContext? _context;
+
+  /// Heeft de rondleiding het coach-menu zelf opengezet? Dan doet hij het aan
+  /// het eind ook zelf weer dicht; anders blijft de gebruiker in een menu
+  /// achter dat hij nooit heeft geopend.
+  static bool _menuOpen = false;
 
   /// Wordt aangeroepen als een rondleiding klaar is of wordt weggeklikt.
   /// Zit hier als terugroep en niet als rechtstreekse schrijfactie, zodat dit
@@ -39136,9 +39253,11 @@ class TourLoper {
   static void _afronden() {
     _actief = null;
     final id = _tourId;
+    final ctx = _context;
     _tourId = '';
     _stappen = const <TourStap>[];
     _context = null;
+    _sluitMenu(ctx);
     if (id.isNotEmpty) bijEinde?.call(id);
   }
 
@@ -39153,6 +39272,16 @@ class TourLoper {
       return;
     }
     final stap = _stappen[index];
+
+    // Het scherm klaarzetten voor deze stap, en daarna een frame gunnen zodat
+    // het doel er ook echt staat.
+    if (stap.voorbereiding.isNotEmpty) {
+      await _voorbereiden(ctx, stap.voorbereiding);
+      if (!ctx.mounted) {
+        _afronden();
+        return;
+      }
+    }
 
     // Eerst in beeld brengen. Zonder scrollbare voorouder gebeurt er niets, en
     // dat is precies goed: dan staat het doel al waar het staat.
@@ -39249,6 +39378,55 @@ class TourLoper {
   static void vorige(TutorialCoachMarkController controller) {
     _richting = -1;
     controller.next();
+  }
+
+  /// Zet het scherm klaar voor de volgende stap.
+  ///
+  /// Alles loopt via app-state, want dat is precies waar het coach-menu zijn
+  /// weergave op omschakelt. Eén uitzondering: het menu zelf openen, want dat
+  /// is een bottom sheet en die moet als route worden neergezet.
+  static Future<void> _voorbereiden(BuildContext ctx, String wat) async {
+    switch (wat) {
+      case 'open_menu':
+        if (!_menuOpen) {
+          _menuOpen = true;
+          FFAppState().update(() {
+            FFAppState().dialogView = 'menu';
+          });
+          // Niet awaiten: deze future loopt pas af als het menu weer dichtgaat.
+          showModalBottomSheet<void>(
+            context: ctx,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => Padding(
+              padding: MediaQuery.viewInsetsOf(ctx),
+              child: const MatchActionsSheetWidget(),
+            ),
+          ).whenComplete(() => _menuOpen = false);
+        } else {
+          FFAppState().update(() {
+            FFAppState().dialogView = 'menu';
+          });
+        }
+        break;
+
+      case 'menu_uitnodigen':
+        FFAppState().update(() {
+          FFAppState().dialogView = 'invite';
+        });
+        break;
+    }
+    // Eén frame is niet genoeg als er een route bijkomt.
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+  }
+
+  /// Het menu weer dichtdoen als de rondleiding het heeft opengezet.
+  static void _sluitMenu(BuildContext? ctx) {
+    if (!_menuOpen) return;
+    _menuOpen = false;
+    if (ctx != null && ctx.mounted && Navigator.of(ctx).canPop()) {
+      Navigator.of(ctx).pop();
+    }
   }
 }
 
