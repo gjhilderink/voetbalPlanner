@@ -38765,6 +38765,7 @@ const String _kTourTargetCode = r'''
 import 'package:flutter/material.dart';
 // Voor RenderStack: material.dart geeft die niet gegarandeerd door.
 import 'package:flutter/rendering.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 
@@ -38827,12 +38828,35 @@ class TourRegistry {
     return doel.localToGlobal(Offset.zero) & doel.size;
   }
 
+  /// De context van de markering zelf. Nodig om naar het doel te scrollen.
+  static BuildContext? context(String stepId) =>
+      _sleutels[stepId]?.currentContext;
+
   /// Staat dit doel op het scherm, en is er een rechthoek van te maken?
   ///
   /// Alleen op de map afgaan is niet genoeg: een widget kan zijn afgebroken
   /// zonder dispose (bij een fout in de boom), en dan hangt er een key zonder
   /// context. tutorial_coach_mark loopt daarop stuk.
   static bool bestaat(String stepId) => rechthoek(stepId) != null;
+
+  /// Is deze rechthoek bruikbaar als uitsnede op een scherm van deze maat?
+  ///
+  /// Hier zat het zwarte scherm. Een lange pagina in een SingleChildScrollView
+  /// bouwt ook alles onder de vouw, dus een markering op y 1300 van een scherm
+  /// van 800 hoog heeft gewoon een rechthoek. Werd die aan de overlay gegeven,
+  /// dan viel het gat buiten beeld: je zag alleen de zwarte sluier, en de
+  /// ballon stond er ook buiten.
+  ///
+  /// De bovengrens is het tweede vangnet. Een uitsnede die zowat het hele
+  /// scherm beslaat komt niet voor bij een knop of een veld; dat is een
+  /// meetfout, en die levert weer precies dat zwarte vlak op.
+  static bool bruikbaar(Rect? rect, Size scherm) {
+    if (rect == null || rect.isEmpty) return false;
+    if (!rect.overlaps(Offset.zero & scherm)) return false;
+    if (rect.width > scherm.width * 0.95 &&
+        rect.height > scherm.height * 0.9) return false;
+    return true;
+  }
 
   /// Meldt een doel af. Alleen als de key nog van deze widget is: bij een snelle
   /// heropbouw meldt de nieuwe zich aan vóórdat de oude zich afmeldt, en dan zou
@@ -38901,6 +38925,11 @@ class _TourTargetState extends State<TourTarget> {
   @override
   void dispose() {
     TourRegistry.vergeet(widget.stepId, _sleutel);
+    // Verdwijnt het doel terwijl de rondleiding er nog op staat - je tikt
+    // terug, de pagina gaat weg - dan moet de overlay mee. Die hangt in de
+    // Navigator en niet in de route, dus hij blijft anders over de hele app
+    // liggen zonder iets eronder.
+    TourLoper.stopVoor(widget.stepId);
     super.dispose();
   }
 
@@ -39039,6 +39068,253 @@ class TourDefinities {
   /// de demopagina's terugkomt.
   static List<String> get ids => tours.keys.toList();
 }
+
+/// Loopt een rondleiding af, één stap tegelijk.
+///
+/// Waarom niet alle stappen in één keer aan tutorial_coach_mark geven, zoals
+/// eerst: dat pakket bevriest de posities die het meekrijgt en meet nooit
+/// opnieuw. Een doel dat onder de vouw ligt kreeg zo een rechthoek buiten
+/// beeld, en dan tekent het pakket het hele scherm zwart met het gat erbuiten.
+/// Dat was het vastlopen.
+///
+/// Nu wordt elke stap gemeten op het moment dat hij aan de beurt is, en eerst
+/// in beeld gescrold. Dat is ook wat nodig is om straks mee te kunnen lopen
+/// naar een ander scherm: wat er nog niet is, kan pas later gemeten worden.
+class TourLoper {
+  TourLoper._();
+
+  static TutorialCoachMark? _actief;
+  static String _tourId = '';
+  static List<TourStap> _stappen = const <TourStap>[];
+  static int _index = 0;
+  static int _richting = 1;
+  static BuildContext? _context;
+
+  /// Wordt aangeroepen als een rondleiding klaar is of wordt weggeklikt.
+  /// Zit hier als terugroep en niet als rechtstreekse schrijfactie, zodat dit
+  /// bestand niets van de app-state hoeft te weten.
+  static void Function(String tourId)? bijEinde;
+
+  static bool get loopt => _actief != null;
+
+  static String get huidigeStap =>
+      (_index >= 0 && _index < _stappen.length) ? _stappen[_index].stepId : '';
+
+  static Future<void> start(
+    BuildContext context,
+    String tourId,
+    List<TourStap> stappen,
+    int vanaf,
+  ) async {
+    _stop();
+    _tourId = tourId;
+    _stappen = stappen;
+    _context = context;
+    _richting = 1;
+    await _toon(vanaf.clamp(0, stappen.length - 1), 1);
+  }
+
+  /// Sluit de rondleiding als hij op deze stap staat.
+  ///
+  /// Nodig omdat de overlay in de Navigator hangt en niet in de route: zonder
+  /// dit bleef bij terugtikken de zwarte laag over de hele app staan, zonder
+  /// pagina eronder en zonder knop om hem weg te krijgen.
+  static void stopVoor(String stepId) {
+    if (_actief != null && huidigeStap == stepId) {
+      _stop();
+      _afronden();
+    }
+  }
+
+  static void _stop() {
+    // removeOverlayEntry en niet finish: finish roept onFinish aan, en die
+    // laat juist de volgende stap zien.
+    _actief?.removeOverlayEntry();
+    _actief = null;
+  }
+
+  static void _afronden() {
+    _actief = null;
+    final id = _tourId;
+    _tourId = '';
+    _stappen = const <TourStap>[];
+    _context = null;
+    if (id.isNotEmpty) bijEinde?.call(id);
+  }
+
+  static Future<void> _toon(int index, int richting) async {
+    final ctx = _context;
+    if (ctx == null || !ctx.mounted) {
+      _afronden();
+      return;
+    }
+    if (index < 0 || index >= _stappen.length) {
+      _afronden();
+      return;
+    }
+    final stap = _stappen[index];
+
+    // Eerst in beeld brengen. Zonder scrollbare voorouder gebeurt er niets, en
+    // dat is precies goed: dan staat het doel al waar het staat.
+    final doelCtx = TourRegistry.context(stap.stepId);
+    if (doelCtx != null &&
+        doelCtx.mounted &&
+        Scrollable.maybeOf(doelCtx) != null) {
+      await Scrollable.ensureVisible(
+        doelCtx,
+        alignment: 0.35,
+        duration: const Duration(milliseconds: 250),
+      );
+      // Het scrollen zelf duurt even; pas daarna klopt de meting.
+      await Future<void>.delayed(const Duration(milliseconds: 90));
+    }
+    if (!ctx.mounted) {
+      _afronden();
+      return;
+    }
+
+    final rect = TourRegistry.rechthoek(stap.stepId);
+    if (!TourRegistry.bruikbaar(rect, MediaQuery.sizeOf(ctx))) {
+      if (!stap.optioneel) {
+        debugPrint(
+            '[tour] stap "${stap.stepId}" overgeslagen: niet in beeld te krijgen.');
+      }
+      return _toon(index + richting, richting);
+    }
+
+    _index = index;
+    // Na een sprong terug loopt hij verder vooruit; anders blijf je heen en
+    // weer gaan tussen twee stappen.
+    _richting = 1;
+
+    final coach = TutorialCoachMark(
+      targets: [
+        TargetFocus(
+          identify: stap.stepId,
+          targetPosition: TargetPosition(rect!.size, rect.topLeft),
+          shape: stap.vorm == 'cirkel'
+              ? ShapeLightFocus.Circle
+              : ShapeLightFocus.RRect,
+          radius: 8,
+          // Een tik naast de uitsnede gaat verder. Samen met de knop hieronder
+          // zijn dat twee uitwegen; eerder was er geen enkele.
+          enableOverlayTab: true,
+          enableTargetTab: false,
+          contents: [
+            TargetContent(
+              align: stap.uitlijning == 'boven'
+                  ? ContentAlign.top
+                  : ContentAlign.bottom,
+              builder: (ballonContext, controller) => tourBallon(
+                ballonContext,
+                controller,
+                stap,
+                index + 1,
+                _stappen.length,
+              ),
+            ),
+          ],
+        ),
+      ],
+      // Zwart en niet uit het thema: dit is de verduistering rondom de
+      // uitsnede. In het donkere thema is primaryText juist licht, en dan wordt
+      // de sluier een witte waas over het scherm.
+      colorShadow: Colors.black,
+      opacityShadow: 0.8,
+      paddingFocus: 6,
+      textSkip: 'Sluiten',
+      textStyleSkip: const TextStyle(
+          color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+      onSkip: () {
+        _afronden();
+        return true;
+      },
+      onFinish: () {
+        _actief = null;
+        final volgendeIndex = _index + _richting;
+        final volgendeRichting = _richting;
+        // Even wachten tot de vorige laag echt weg is; anders knippert het.
+        Future<void>.delayed(const Duration(milliseconds: 120),
+            () => _toon(volgendeIndex, volgendeRichting));
+      },
+    );
+
+    _actief = coach;
+    // rootOverlay, zodat de laag boven een eventuele bottom sheet uitkomt.
+    coach.show(context: ctx, rootOverlay: true);
+  }
+
+  /// Terug naar de vorige stap. Via next() en niet via een eigen weg, zodat er
+  /// maar één plek is waar een stap wordt afgesloten.
+  static void vorige(TutorialCoachMarkController controller) {
+    _richting = -1;
+    controller.next();
+  }
+}
+
+/// De ballon met uitleg. Kleuren komen uit het thema, zodat licht en donker
+/// allebei leesbaar zijn.
+Widget tourBallon(
+  BuildContext context,
+  TutorialCoachMarkController controller,
+  TourStap stap,
+  int nummer,
+  int totaal,
+) {
+  final thema = FlutterFlowTheme.of(context);
+  final laatste = nummer == totaal;
+
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: thema.secondaryBackground,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Stap $nummer van $totaal',
+          style: thema.labelSmall.copyWith(color: thema.secondaryText),
+        ),
+        const SizedBox(height: 4),
+        Text(stap.titel, style: thema.titleSmall),
+        const SizedBox(height: 6),
+        Text(stap.tekst, style: thema.bodyMedium),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            TextButton(
+              onPressed: controller.skip,
+              child: Text(
+                'Sluiten',
+                style: thema.labelMedium.copyWith(color: thema.secondaryText),
+              ),
+            ),
+            const Spacer(),
+            if (nummer > 1)
+              TextButton(
+                onPressed: () => TourLoper.vorige(controller),
+                child: Text('Vorige', style: thema.labelMedium),
+              ),
+            const SizedBox(width: 4),
+            FilledButton(
+              onPressed: controller.next,
+              style: FilledButton.styleFrom(backgroundColor: thema.primary),
+              child: Text(
+                laatste ? 'Klaar' : 'Volgende',
+                // Wit en niet uit het thema: de knop is in beide thema's groen.
+                style: thema.labelMedium.copyWith(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
 ''';
 
 /// Zet de bouwstenen van de rondleiding klaar. Idempotent.
@@ -39162,10 +39438,9 @@ Future<void> resetAllTours() async {
 
   // ── de rondleiding zelf ────────────────────────────────────────────────
   //
-  // Wat hier vooral gebeurt is het weglaten van stappen. Een doel dat niet op
-  // het scherm staat levert bij tutorial_coach_mark geen nette fout op maar een
-  // crash, dus filteren we alles zonder gemonteerde key eruit. Een demopagina
-  // waarin een TourTarget ontbreekt hoort de gebruiker niet te merken.
+  // Bewust een dun laagje: de actie zet de loper aan en is verder klaar. Het
+  // aflopen zelf gebeurt in TourLoper, want dat moet tussen twee stappen door
+  // blijven bestaan.
   const startCode = r'''
 // Automatic FlutterFlow imports
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -39175,9 +39450,14 @@ import 'package:flutter/material.dart';
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
-import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import '/custom_code/widgets/tour_target.dart';
 
+/// Start een rondleiding. Het echte werk zit in TourLoper.
+///
+/// Dat staat bij de markering en de definities in plaats van hier, omdat de
+/// loper tussen twee stappen door moet blijven bestaan: hij meet elke stap pas
+/// op het moment dat die aan de beurt is. Een custom action is daar de
+/// verkeerde plek voor - die is na één aanroep klaar.
 Future<void> startTour(
   BuildContext context,
   String? tourId,
@@ -39186,149 +39466,18 @@ Future<void> startTour(
   final id = tourId ?? '';
   final alle = TourDefinities.stappen(id);
   if (alle.isEmpty) {
-    debugPrint('[tour] onbekende rondleiding: "$id"');
+    if (id.isNotEmpty) debugPrint('[tour] onbekende rondleiding: "$id"');
     return;
   }
 
   // Even wachten. Deze actie hangt aan On Page Load en draait dus voordat het
   // eerste frame is opgebouwd; op dat moment heeft geen enkele TourTarget een
   // context en zou de hele rondleiding worden weggefilterd.
-  await Future.delayed(const Duration(milliseconds: 300));
+  await Future<void>.delayed(const Duration(milliseconds: 350));
   if (!context.mounted) return;
 
-  final vanaf = (startStep ?? 0).clamp(0, alle.length - 1);
-  final zichtbaar = <TourStap>[];
-  for (final stap in alle.skip(vanaf)) {
-    if (TourRegistry.bestaat(stap.stepId)) {
-      zichtbaar.add(stap);
-    } else if (!stap.optioneel) {
-      // Stil overslaan zou dit onvindbaar maken: een verplichte stap zonder
-      // doel is een fout in de demopagina, niet een normaal geval.
-      debugPrint(
-          '[tour] stap "${stap.stepId}" overgeslagen: geen doel op het scherm.');
-    }
-  }
-  if (zichtbaar.isEmpty) {
-    debugPrint('[tour] "$id" heeft geen enkel zichtbaar doel; niets getoond.');
-    return;
-  }
-
-  final doelen = <TargetFocus>[];
-  for (var i = 0; i < zichtbaar.length; i++) {
-    final stap = zichtbaar[i];
-    // Nog een keer opvragen kan niet misgaan: het filter hierboven heeft er
-    // net een gekregen en er is sindsdien geen frame voorbij.
-    final rect = TourRegistry.rechthoek(stap.stepId);
-    if (rect == null) continue;
-    doelen.add(TargetFocus(
-      identify: stap.stepId,
-      targetPosition: TargetPosition(rect.size, rect.topLeft),
-      shape: stap.vorm == 'cirkel'
-          ? ShapeLightFocus.Circle
-          : ShapeLightFocus.RRect,
-      radius: 8,
-      enableOverlayTab: false,
-      contents: [
-        TargetContent(
-          align: stap.uitlijning == 'boven'
-              ? ContentAlign.top
-              : ContentAlign.bottom,
-          builder: (ballonContext, controller) => tourBallon(
-            ballonContext,
-            controller,
-            stap,
-            i + 1,
-            zichtbaar.length,
-          ),
-        ),
-      ],
-    ));
-  }
-
-  TutorialCoachMark(
-    targets: doelen,
-    // Zwart en niet uit het thema: dit is de verduistering rondom de uitsnede.
-    // In het donkere thema is primaryText juist licht, en dan wordt de sluier
-    // een witte waas over het scherm.
-    colorShadow: Colors.black,
-    opacityShadow: 0.8,
-    paddingFocus: 6,
-    // Overslaan zit in de ballon; de standaardknop staat er los overheen en
-    // valt in dit ontwerp uit de toon.
-    hideSkip: true,
-    onFinish: () {
-      markTourCompleted(id);
-    },
-    onSkip: () {
-      // Ook overslaan telt als gezien: anders krijg je hem elke keer opnieuw.
-      markTourCompleted(id);
-      return true;
-    },
-  ).show(context: context);
-}
-
-/// De ballon met uitleg. Kleuren komen uit het thema, zodat licht en donker
-/// allebei leesbaar zijn.
-Widget tourBallon(
-  BuildContext context,
-  TutorialCoachMarkController controller,
-  TourStap stap,
-  int nummer,
-  int totaal,
-) {
-  final thema = FlutterFlowTheme.of(context);
-  final laatste = nummer == totaal;
-
-  return Container(
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: thema.secondaryBackground,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Stap $nummer van $totaal',
-          style: thema.labelSmall.copyWith(color: thema.secondaryText),
-        ),
-        const SizedBox(height: 4),
-        Text(stap.titel, style: thema.titleSmall),
-        const SizedBox(height: 6),
-        Text(stap.tekst, style: thema.bodyMedium),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            TextButton(
-              onPressed: controller.skip,
-              child: Text(
-                'Overslaan',
-                style: thema.labelMedium.copyWith(color: thema.secondaryText),
-              ),
-            ),
-            const Spacer(),
-            if (nummer > 1)
-              TextButton(
-                onPressed: controller.previous,
-                child: Text('Vorige', style: thema.labelMedium),
-              ),
-            const SizedBox(width: 4),
-            FilledButton(
-              onPressed: controller.next,
-              style: FilledButton.styleFrom(backgroundColor: thema.primary),
-              child: Text(
-                laatste ? 'Klaar' : 'Volgende',
-                // Wit en niet uit het thema: de knop is in beide thema's groen.
-                style: thema.labelMedium.copyWith(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
+  TourLoper.bijEinde = (afgerondeTour) => markTourCompleted(afgerondeTour);
+  await TourLoper.start(context, id, alle, startStep ?? 0);
 }
 ''';
 
