@@ -34367,6 +34367,32 @@ void _wireLiveMatchPage(FFProject project) {
         key: generateRandomAlphaNumericString(),
         action: Actions.snackBar('Het verslag is afgesloten.'),
       );
+      tail = tail.followUpAction;
+
+      // Terug naar de wedstrijd, en wel naar een verse.
+      //
+      // Bijna alles op de wedstrijddetail staat in de pagina-state van die
+      // pagina en wordt één keer gevuld door GetMatchDetail bij het opbouwen.
+      // Gewoon terugtikken laat die pagina staan zoals je hem achterliet: de
+      // eindstand, de status en het Verslag-tabblad bleven op de stand van
+      // vóór het afsluiten hangen tot je de wedstrijd sloot en opnieuw opende.
+      //
+      // replaceRoute haalt de livepagina uit de stapel, zodat je niet eerst
+      // langs het verslag terug hoeft. De knop die hierheen navigeerde doet
+      // hetzelfde, dus de verouderde detailpagina staat er ook niet meer
+      // onder.
+      tail.followUpAction = FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.navigate(
+          project,
+          pageName: 'WedstrijdDetailPage',
+          replaceRoute: true,
+          params: {
+            'matchId':
+                VariableParamValue(varFromAppState(liveMatchIdId.deepCopy())),
+          },
+        ),
+      );
       return refresh;
     },
     onFailure: (ctx) => Actions.chain([
@@ -35122,11 +35148,21 @@ void _addLiveMatchButton(FFProject project) {
 
   // Alle drie de knoppen doen hetzelfde: naar de livepagina. Alleen het opschrift
   // verschilt, en dat hangt af van wie je bent en of er al een verslag loopt.
-  FFAction naarLive() =>
-      Actions.navigate(project, pageName: 'LiveMatchPage', params: {
-        'matchId': VariableParamValue(matchIdVar.deepCopy()),
-        'teamId': VariableParamValue(pageState('matchTeamId')),
-      });
+  //
+  // De livepagina vervangt deze pagina in plaats van erbovenop te komen. Anders
+  // blijft deze versie onder in de stapel staan met de gegevens van vóór het
+  // verslag, en kom je hem tegen zodra je één keer terugtikt. Sluit je het
+  // verslag af, dan navigeert dat blok naar een verse wedstrijddetail - en die
+  // hoort de enige te zijn.
+  FFAction naarLive() => Actions.navigate(
+        project,
+        pageName: 'LiveMatchPage',
+        replaceRoute: true,
+        params: {
+          'matchId': VariableParamValue(matchIdVar.deepCopy()),
+          'teamId': VariableParamValue(pageState('matchTeamId')),
+        },
+      );
 
   // m = mag ik beheren, g = is er al een verslag aangemaakt.
   FFVariable regel(String expressie) => codeExpressionVar(
