@@ -25,6 +25,7 @@ import 'pages/live_match_page.dart' show liveMatchPageHandle;
 import 'pages/login_page.dart' show loginPageHandle;
 import 'pages/magic_link_verify_page.dart' show magicLinkVerifyPageHandle;
 import 'pages/meer_page.dart' show meerPageHandle;
+import 'pages/mijn_code_page.dart' show mijnCodePageHandle;
 import 'pages/news_page.dart' show newsPageHandle;
 import 'pages/onboarding_page.dart' show onboardingPageHandle;
 import 'pages/opstelling_page.dart' show opstellingPageHandle;
@@ -67,6 +68,7 @@ abstract final class Pages {
   static final loginPage = loginPageHandle;
   static final magicLinkVerifyPage = magicLinkVerifyPageHandle;
   static final meerPage = meerPageHandle;
+  static final mijnCodePage = mijnCodePageHandle;
   static final newsPage = newsPageHandle;
   static final onboardingPage = onboardingPageHandle;
   static final opstellingPage = opstellingPageHandle;
@@ -108,6 +110,7 @@ abstract final class Pages {
     loginPage,
     magicLinkVerifyPage,
     meerPage,
+    mijnCodePage,
     newsPage,
     onboardingPage,
     opstellingPage,

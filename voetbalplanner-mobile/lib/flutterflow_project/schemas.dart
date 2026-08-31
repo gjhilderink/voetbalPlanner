@@ -1532,6 +1532,7 @@ abstract final class CustomCode {
     "ConvUnreadBadge",
     "DynamicMaterialIcon",
     "HighlightedNameList",
+    "LidQrCode",
     "LineupBoard",
     "PlannedSubs",
     "TourTarget",

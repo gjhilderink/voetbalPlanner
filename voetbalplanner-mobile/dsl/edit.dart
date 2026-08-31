@@ -1521,6 +1521,9 @@ void buildEditFlow(App app) {
   _buildTrainingenPage(app);
   _buildTeamStatsPage(app);
   _buildMeerPage(app);
+  // Vóór de drawer: die zoekt de pagina op naam en slaat de tegel over als
+  // hij nog niet bestaat.
+  _buildMijnCodePage(app);
   // Live wedstrijdverslag. De pagina hier aanmaken zodat de knoppen die ernaar
   // verwijzen hem verderop kunnen vinden.
   _buildLiveMatchPage(app);
@@ -1615,6 +1618,8 @@ void buildEditFlow(App app) {
     _ensureRoleAppStateFields(project);
     _ensureSyncUserRolesAction(project);
     _wireSyncUserRolesOnLoad(project);
+    _ensureLidQrWidget(project);
+    _wireMijnCodePage(project);
     _wireTrainingenPage(project);
     // Banners bovenaan de pagina's die allemaal dezelfde vorm hebben. Ná het
     // inrichten van die pagina's: wie eerder invoegt wordt overschreven.
@@ -22013,6 +22018,7 @@ FFNode _buildAppDrawerNode(FFProject project) {
   final newsTile = tile('DrawerTileNews', 'Nieuws', 'newspaper', 'NewsPage');
   final docsTile = tile('DrawerTileDocs', 'Handleiding', 'menu_book', 'DocumentatiePage');
   final profileTile = tile('DrawerTileProfiel', 'Profiel', 'person', 'ProfielPage');
+  final codeTile = tile('DrawerTileMijnCode', 'Mijn toegangscode', 'qr_code_2', 'MijnCodePage');
   final bugTile = tile('DrawerTileBug', 'Bug melden', 'bug_report', 'BugReportPage');
 
   // ── Footer: clublogo onderaan de drawer ─────────────────────────────────────
@@ -22073,6 +22079,7 @@ FFNode _buildAppDrawerNode(FFProject project) {
       newsTile,
       docsTile,
       profileTile,
+      codeTile,
       bugTile,
       ...footerChildren,
     ],
@@ -38452,6 +38459,194 @@ void _zetTourDoelenOpWedstrijd(FFProject project) {
   doel(sheet, 'MaTeamsScroll', 'team_kiezen');
   doel(sheet, 'MaGuestZoek', 'gastspeler_zoeken');
   doel(sheet, 'MaAddGuestBtn', 'gastspeler_toevoegen');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOEGANGSCONTROLE
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Twee kanten. Elk lid heeft een eigen QR met zijn lidnummer erin, te vinden in
+// het hamburgermenu. En wie de rol 'toegang' heeft kan bij de ingang scannen.
+//
+// Het lidnummer staat al in app-state (relatiecode, gevuld vanuit /auth/me), dus
+// de persoonlijke code hoeft niets op te halen. Dat is ook precies wat je wilt:
+// aan de deur is de wifi vaak slecht, en je eigen pas hoort het altijd te doen.
+
+const String _kLidQrCode = r"""
+import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/app_state.dart';
+
+/// De persoonlijke toegangscode van het ingelogde lid: zijn lidnummer als QR.
+///
+/// Wordt lokaal getekend en niet als plaatje opgehaald. Bij de ingang van een
+/// zaal is het netwerk vaak matig, en dan hoort je eigen pas gewoon te werken.
+class LidQrCode extends StatelessWidget {
+  const LidQrCode({super.key, this.width, this.height});
+
+  final double? width;
+  final double? height;
+
+  @override
+  Widget build(BuildContext context) {
+    final thema = FlutterFlowTheme.of(context);
+    final code = FFAppState().relatiecode;
+
+    if (code.isEmpty) {
+      // Geen lidnummer bekend. Dat overkomt accounts die (nog) niet aan een
+      // lid gekoppeld zijn - een lege QR tonen zou alleen maar verwarren.
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: thema.secondaryBackground,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.badge_outlined, size: 40, color: thema.secondaryText),
+            const SizedBox(height: 12),
+            Text(
+              'Er is nog geen lidnummer aan je account gekoppeld.',
+              textAlign: TextAlign.center,
+              style: thema.bodyMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Neem contact op met de club, dan zetten ze het goed.',
+              textAlign: TextAlign.center,
+              style: thema.bodySmall.copyWith(color: thema.secondaryText),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Altijd op wit, ook in het donkere thema: een QR op een donkere
+        // ondergrond leest de helft van de scanners niet.
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: QrImageView(
+            data: code,
+            version: QrVersions.auto,
+            size: 240,
+            backgroundColor: Colors.white,
+            // Wat kwaliteitsverlies opvangen: een telefoonscherm met vingers
+            // erop of een kras op de hoes is zo gebeurd.
+            errorCorrectionLevel: QrErrorCorrectLevel.M,
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Het nummer er ook in cijfers bij, voor als het scannen niet lukt.
+        Text(
+          code,
+          style: thema.titleMedium.copyWith(letterSpacing: 2),
+        ),
+      ],
+    );
+  }
+}
+""";
+
+/// De pub-afhankelijkheid en de widget voor de persoonlijke code.
+void _ensureLidQrWidget(FFProject project) {
+  _ensurePubDepVersion(project, 'qr_flutter', '^4.1.0');
+
+  const beschrijving =
+      'De persoonlijke toegangscode van het ingelogde lid: zijn lidnummer als QR. '
+      'Leest AppState.relatiecode en tekent lokaal, zodat de code ook zonder '
+      'netwerk werkt.';
+
+  if (findCustomWidget(project, name: 'LidQrCode') == null) {
+    addCustomWidget(
+      project,
+      name: 'LidQrCode',
+      description: beschrijving,
+      parameters: const [],
+      code: _kLidQrCode,
+    );
+  } else {
+    // Zonder parameters: updateCustomWidget spuit anders een verse
+    // dimensions-parameter met een nieuwe sleutel in, en dan verliezen de al
+    // geplaatste knooppunten hun afmetingen.
+    updateCustomWidget(
+      project,
+      name: 'LidQrCode',
+      code: _kLidQrCode,
+      description: beschrijving,
+    );
+  }
+}
+
+/// De pagina met je eigen toegangscode.
+void _buildMijnCodePage(App app) {
+  app.ensurePage(
+    'MijnCodePage',
+    description:
+        'De persoonlijke toegangscode van het lid: zijn lidnummer als QR-code.',
+    route: 'mijn-code',
+    body: Column(children: [Container(name: 'MijnCodeContainer')]),
+  );
+}
+
+/// Vult MijnCodePage. Vers opgebouwd bij elke push.
+void _wireMijnCodePage(FFProject project) {
+  final wc = findPage(project, name: 'MijnCodePage');
+  if (wc == null) return;
+  final widget = findCustomWidget(project, name: 'LidQrCode');
+  if (widget == null) return;
+
+  if (getPropertyChild(wc.node, 'appBar') == null) {
+    final titel = UI.text('Mijn toegangscode',
+        name: 'MijnCodeAppBarTitle', style: UITextStyle.titleLarge);
+    final appBar = UI.appBar(titleWidget: titel);
+    wc.node.children.add(appBar);
+    wc.node.childPropertyMap['appBar'] =
+        FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: appBar.key)]);
+  }
+
+  final houder =
+      findDescendants(wc.node, (n) => n.name == 'MijnCodeContainer').firstOrNull;
+  if (houder == null) return;
+  houder.children.clear();
+
+  final qr = UI.customWidget(widget, name: 'MijnCodeQr');
+
+  final naam = UI.text('', name: 'MijnCodeNaam', style: UITextStyle.titleSmall);
+  final naamId = _findAppStateFieldId(project, 'userName');
+  if (naamId != null) {
+    naam.props.text.textValue = FFStringValue(
+        variable: varFromAppState(naamId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key));
+  }
+
+  final uitleg = UI.text(
+      'Laat deze code zien bij de ingang van een activiteit waar de club '
+      'toegang voor leden heeft aangezet. Hij werkt één keer per activiteit.',
+      name: 'MijnCodeUitleg',
+      style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center);
+
+  final kolom = UI.column(
+    name: 'MijnCodeKolom',
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    scrollable: true,
+    spacing: 16,
+    padding: UIEdgeInsets.symmetric(horizontal: 24, vertical: 28),
+    children: [qr, naam, uitleg],
+  );
+
+  houder.children.add(kolom);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
