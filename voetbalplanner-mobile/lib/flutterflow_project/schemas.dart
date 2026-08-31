@@ -1535,6 +1535,7 @@ abstract final class CustomCode {
     "LidQrCode",
     "LineupBoard",
     "PlannedSubs",
+    "ToegangScanner",
     "TourTarget",
   ];
 }

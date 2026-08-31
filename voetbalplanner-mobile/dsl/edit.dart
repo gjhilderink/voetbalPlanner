@@ -1524,6 +1524,7 @@ void buildEditFlow(App app) {
   // Vóór de drawer: die zoekt de pagina op naam en slaat de tegel over als
   // hij nog niet bestaat.
   _buildMijnCodePage(app);
+  _buildToegangPage(app);
   // Live wedstrijdverslag. De pagina hier aanmaken zodat de knoppen die ernaar
   // verwijzen hem verderop kunnen vinden.
   _buildLiveMatchPage(app);
@@ -1620,6 +1621,8 @@ void buildEditFlow(App app) {
     _wireSyncUserRolesOnLoad(project);
     _ensureLidQrWidget(project);
     _wireMijnCodePage(project);
+    _ensureToegangScannerWidget(project);
+    _wireToegangPage(project);
     _wireTrainingenPage(project);
     // Banners bovenaan de pagina's die allemaal dezelfde vorm hebben. Ná het
     // inrichten van die pagina's: wie eerder invoegt wordt overschreven.
@@ -8222,6 +8225,7 @@ Future<String> verifyMagicLink(String? token) async {
       FFAppState().clubSplashColor = (club['splash_bg_color'] as String?) ?? '';
       FFAppState().relatiecode     = (user['relatiecode']     as String?) ?? '';
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
+      FFAppState().magScannen      = (user['can_scan_access'] == true) ? 'true' : 'false';
     });
     // Register this user so the direct-chat member strip shows only app users.
     // Fire-and-forget: previously this was awaited, but Firestore can hang
@@ -8447,6 +8451,7 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().clubSplashColor = (club['splash_bg_color'] as String?) ?? '';
       FFAppState().relatiecode     = (user['relatiecode']     as String?) ?? '';
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
+      FFAppState().magScannen      = (user['can_scan_access'] == true) ? 'true' : 'false';
     });
 
     // Register this user so the direct-chat member strip shows only app users.
@@ -8576,6 +8581,9 @@ void _fixLoginButtonBindings(FFProject project) {
 
   // Nieuw: relatiecode (lidnummer) en profielfoto-URL.
   _ensureAppStateField(project, 'relatiecode',      FFBaseDataType.String, persisted: true);
+  // Mag deze gebruiker bij de ingang scannen? Als tekst 'true'/'false', zoals
+  // alle vlaggen die uit de API komen - de app-structs typeren die zo.
+  _ensureAppStateField(project, 'magScannen',       FFBaseDataType.String, persisted: true);
   _ensureAppStateField(project, 'profilePhotoUrl',  FFBaseDataType.String, persisted: true);
 
   // onboardingSeen wordt al persistent gedeclareerd via app.state (persisted: true).
@@ -30393,8 +30401,29 @@ void _wireMeerPage(FFProject project) {
     tile('MeerTileNieuws', 'Nieuws', 'newspaper', 'NewsPage'),
     tile('MeerTileDocs', 'Handleiding', 'menu_book', 'DocumentatiePage'),
     tile('MeerTileProfiel', 'Profiel', 'person', 'ProfielPage'),
+    tile('MeerTileToegang', 'Toegangscontrole', 'qr_code_scanner', 'ToegangPage',
+        subtitle: 'Scan toegangscodes bij de ingang'),
     tile('MeerTileBug', 'Probleem melden', 'bug_report', 'BugReportPage'),
   ].whereType<FFNode>().toList();
+
+  // De scan-tegel alleen voor wie de rol toegang heeft. De vlag komt uit
+  // /auth/me: de app leidt zijn eigen rollen af uit teamfuncties en kent de
+  // portalrollen niet.
+  final magScannenId = _findAppStateFieldId(project, 'magScannen');
+  final scanTegel =
+      // Op de kaartnaam en niet op de rijnaam: tile() geeft de _dashCard
+      // eromheen terug, en die heet '...Card'.
+      tiles.where((n) => n.name == 'MeerTileToegangCard').firstOrNull;
+  if (magScannenId != null && scanTegel != null) {
+    setConditionalVisibility(
+      scanTegel,
+      variable: _equalsLiteral(
+        varFromAppState(magScannenId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        'true',
+      ),
+    );
+  }
 
   // Uitloggen onderaan, los van de tegels. In dezelfde rode tint als "Live
   // volgen": een kleur die verder nergens in deze lijst voorkomt, zodat je hem
@@ -38471,6 +38500,472 @@ void _zetTourDoelenOpWedstrijd(FFProject project) {
 // Het lidnummer staat al in app-state (relatiecode, gevuld vanuit /auth/me), dus
 // de persoonlijke code hoeft niets op te halen. Dat is ook precies wat je wilt:
 // aan de deur is de wifi vaak slecht, en je eigen pas hoort het altijd te doen.
+
+const String _kToegangScannerCode = r"""
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:mobile_scanner/mobile_scanner.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/app_state.dart';
+
+/// Toegangscontrole bij de ingang: kies de activiteit, scan, groen of rood.
+///
+/// Deze widget doet alles zelf - de activiteiten ophalen, de camera, de
+/// controle bij de server en het resultaat tonen. Dat is met opzet: een custom
+/// widget kan geen terugroep aan de actieketens van FlutterFlow doorgeven, en
+/// een scan die eerst door pagina-state moet reizen voelt traag aan de deur.
+class ToegangScanner extends StatefulWidget {
+  const ToegangScanner({super.key, this.width, this.height});
+
+  final double? width;
+  final double? height;
+
+  @override
+  State<ToegangScanner> createState() => _ToegangScannerState();
+}
+
+class _ToegangScannerState extends State<ToegangScanner> {
+  static const String _basis = 'https://voetbalplanner.nubix.nl/api/v1';
+
+  List<Map<String, dynamic>> _activiteiten = <Map<String, dynamic>>[];
+  String _fout = '';
+  bool _laden = true;
+
+  String? _gekozenId;
+  String _gekozenTitel = '';
+
+  MobileScannerController? _camera;
+
+  /// Uitslag van de laatste scan: 'ok', 'used', 'unknown' of 'inactive'.
+  String? _status;
+  String _melding = '';
+  String _naam = '';
+
+  /// Wat er als laatste is gescand, en wanneer. Zonder deze rem gaat dezelfde
+  /// code drie keer achter elkaar af terwijl je hem nog voor de lens houdt.
+  String _laatsteCode = '';
+  DateTime? _laatsteTijd;
+  bool _bezig = false;
+  Timer? _wisser;
+
+  @override
+  void initState() {
+    super.initState();
+    _haalActiviteiten();
+  }
+
+  @override
+  void dispose() {
+    _wisser?.cancel();
+    _camera?.dispose();
+    super.dispose();
+  }
+
+  Map<String, String> get _kop => {
+        'Authorization': 'Bearer ${FFAppState().authToken}',
+        'Accept': 'application/json',
+      };
+
+  Future<void> _haalActiviteiten() async {
+    setState(() {
+      _laden = true;
+      _fout = '';
+    });
+
+    try {
+      final antwoord = await http.get(
+        Uri.parse('$_basis/access/events'),
+        headers: _kop,
+      );
+
+      if (antwoord.statusCode == 403) {
+        setState(() {
+          _laden = false;
+          _fout = 'Je hebt geen rechten om te scannen.';
+        });
+        return;
+      }
+      if (antwoord.statusCode != 200) {
+        setState(() {
+          _laden = false;
+          _fout = 'Kon de activiteiten niet ophalen.';
+        });
+        return;
+      }
+
+      final lijst = (jsonDecode(antwoord.body) as List)
+          .cast<Map<String, dynamic>>()
+          .toList();
+
+      setState(() {
+        _activiteiten = lijst;
+        _laden = false;
+      });
+    } catch (_) {
+      setState(() {
+        _laden = false;
+        _fout = 'Geen verbinding.';
+      });
+    }
+  }
+
+  void _kies(Map<String, dynamic> activiteit) {
+    setState(() {
+      _gekozenId = (activiteit['id'] ?? '').toString();
+      _gekozenTitel = (activiteit['title'] ?? '').toString();
+      _camera = MobileScannerController(
+        detectionSpeed: DetectionSpeed.normal,
+        facing: CameraFacing.back,
+      );
+    });
+  }
+
+  void _terugNaarKeuze() {
+    _wisser?.cancel();
+    _camera?.dispose();
+    setState(() {
+      _camera = null;
+      _gekozenId = null;
+      _status = null;
+      _laatsteCode = '';
+    });
+    _haalActiviteiten();
+  }
+
+  Future<void> _opVondst(BarcodeCapture vangst) async {
+    if (_bezig || _gekozenId == null) return;
+
+    final code = vangst.barcodes.isNotEmpty
+        ? (vangst.barcodes.first.rawValue ?? '')
+        : '';
+    if (code.isEmpty) return;
+
+    // Dezelfde code binnen drie seconden: nog steeds dezelfde persoon die zijn
+    // telefoon voor de lens houdt.
+    final nu = DateTime.now();
+    if (code == _laatsteCode &&
+        _laatsteTijd != null &&
+        nu.difference(_laatsteTijd!).inSeconds < 3) {
+      return;
+    }
+
+    _bezig = true;
+    _laatsteCode = code;
+    _laatsteTijd = nu;
+
+    try {
+      final antwoord = await http.post(
+        Uri.parse(
+            '$_basis/access/scan?event_id=$_gekozenId&code=${Uri.encodeQueryComponent(code)}'),
+        headers: _kop,
+      );
+
+      if (antwoord.statusCode != 200) {
+        _toon('unknown', 'Kon niet controleren. Probeer opnieuw.', '');
+        return;
+      }
+
+      final data = jsonDecode(antwoord.body) as Map<String, dynamic>;
+      _toon(
+        (data['status'] ?? 'unknown').toString(),
+        (data['message'] ?? '').toString(),
+        (data['label'] ?? '').toString(),
+      );
+    } catch (_) {
+      _toon('unknown', 'Geen verbinding.', '');
+    }
+  }
+
+  void _toon(String status, String melding, String naam) {
+    if (!mounted) return;
+
+    setState(() {
+      _status = status;
+      _melding = melding;
+      _naam = naam;
+    });
+
+    _wisser?.cancel();
+    _wisser = Timer(const Duration(milliseconds: 1800), () {
+      if (!mounted) return;
+      setState(() => _status = null);
+      _bezig = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final thema = FlutterFlowTheme.of(context);
+
+    if (_laden) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_fout.isNotEmpty) {
+      return _bericht(thema, Icons.wifi_off, _fout, 'Opnieuw proberen',
+          _haalActiviteiten);
+    }
+
+    if (_gekozenId == null) {
+      if (_activiteiten.isEmpty) {
+        return _bericht(
+          thema,
+          Icons.event_busy,
+          'Er is nu geen activiteit met toegangscontrole.',
+          'Opnieuw kijken',
+          _haalActiviteiten,
+        );
+      }
+      return _keuzelijst(thema);
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        MobileScanner(controller: _camera!, onDetect: _opVondst),
+        _balk(thema),
+        if (_status != null) _uitslagScherm(thema),
+      ],
+    );
+  }
+
+  /// Wat controleer je? Eerst kiezen, dan pas de camera. Dat scheelt een
+  /// verkeerde scan bij twee activiteiten op dezelfde avond.
+  Widget _keuzelijst(dynamic thema) => ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _activiteiten.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text('Wat controleer je?', style: thema.titleSmall),
+            );
+          }
+
+          final activiteit = _activiteiten[index - 1];
+          final gratis = (activiteit['freeForMembers'] ?? '') == 'true';
+          final codes = (activiteit['codeCount'] ?? '0').toString();
+          final binnen = (activiteit['entryCount'] ?? '0').toString();
+
+          return InkWell(
+            onTap: () => _kies(activiteit),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: thema.secondaryBackground,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text((activiteit['title'] ?? '').toString(),
+                            style: thema.titleSmall, maxLines: 2),
+                        const SizedBox(height: 2),
+                        Text(
+                          (activiteit['dateLabel'] ?? '').toString(),
+                          style: thema.bodySmall
+                              .copyWith(color: thema.secondaryText),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$binnen binnen · $codes codes'
+                          '${gratis ? ' · gratis voor leden' : ''}',
+                          style: thema.labelSmall
+                              .copyWith(color: thema.secondaryText),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: thema.secondaryText),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+  Widget _bericht(dynamic thema, IconData icoon, String tekst, String knop,
+          VoidCallback opTik) =>
+      Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icoon, size: 44, color: thema.secondaryText),
+              const SizedBox(height: 14),
+              Text(tekst, textAlign: TextAlign.center, style: thema.bodyMedium),
+              const SizedBox(height: 18),
+              FilledButton(onPressed: opTik, child: Text(knop)),
+            ],
+          ),
+        ),
+      );
+
+  /// De balk onderin met welke activiteit je controleert.
+  Widget _balk(dynamic thema) => Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: thema.secondaryBackground,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Je controleert',
+                        style: thema.labelSmall
+                            .copyWith(color: thema.secondaryText)),
+                    Text(_gekozenTitel,
+                        style: thema.titleSmall, maxLines: 1),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: _terugNaarKeuze,
+                child: Text('Wisselen', style: thema.labelMedium),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  /// Groen of rood over het hele scherm. Geen halve melding in een hoekje:
+  /// aan de deur moet je vanaf een meter afstand kunnen zien wat er gebeurde.
+  Widget _uitslagScherm(dynamic thema) {
+    final goed = _status == 'ok';
+    final kleur = goed ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+    final icoon = goed ? Icons.check_circle : Icons.cancel;
+
+    return Positioned.fill(
+      child: Container(
+        color: kleur,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icoon, size: 120, color: Colors.white),
+                const SizedBox(height: 20),
+                Text(
+                  goed ? 'Welkom' : 'Niet geldig',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (_naam.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _naam,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontSize: 20),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Text(
+                  _melding,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+""";
+
+/// De pub-afhankelijkheid en de scanner-widget.
+void _ensureToegangScannerWidget(FFProject project) {
+  _ensurePubDepVersion(project, 'mobile_scanner', '^5.2.3');
+
+  const beschrijving =
+      'Toegangscontrole bij de ingang: kiest de activiteit, scant QR-codes en '
+      'toont groen of rood over het hele scherm. Doet zijn eigen API-aanroepen.';
+
+  if (findCustomWidget(project, name: 'ToegangScanner') == null) {
+    addCustomWidget(
+      project,
+      name: 'ToegangScanner',
+      description: beschrijving,
+      parameters: const [],
+      code: _kToegangScannerCode,
+    );
+  } else {
+    updateCustomWidget(
+      project,
+      name: 'ToegangScanner',
+      code: _kToegangScannerCode,
+      description: beschrijving,
+    );
+  }
+}
+
+/// De scanpagina.
+void _buildToegangPage(App app) {
+  app.ensurePage(
+    'ToegangPage',
+    description:
+        'Toegangscontrole: activiteit kiezen en QR-codes scannen bij de ingang.',
+    route: 'toegang',
+    body: Column(children: [Container(name: 'ToegangContainer')]),
+  );
+}
+
+/// Vult ToegangPage. Vers opgebouwd bij elke push.
+void _wireToegangPage(FFProject project) {
+  final wc = findPage(project, name: 'ToegangPage');
+  if (wc == null) return;
+  final widget = findCustomWidget(project, name: 'ToegangScanner');
+  if (widget == null) return;
+
+  if (getPropertyChild(wc.node, 'appBar') == null) {
+    final titel = UI.text('Toegangscontrole',
+        name: 'ToegangAppBarTitle', style: UITextStyle.titleLarge);
+    final appBar = UI.appBar(titleWidget: titel);
+    wc.node.children.add(appBar);
+    wc.node.childPropertyMap['appBar'] =
+        FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: appBar.key)]);
+  }
+
+  final houder =
+      findDescendants(wc.node, (n) => n.name == 'ToegangContainer').firstOrNull;
+  if (houder == null) return;
+  houder.children.clear();
+
+  // De widget vult de hele body: de camera hoort het scherm te vullen, en de
+  // uitslag moet er overheen kunnen.
+  final scanner = UI.customWidget(widget, name: 'ToegangScannerWidget');
+  final wrap = UI.container(
+    name: 'ToegangScannerWrap',
+    width: double.infinity,
+    height: double.infinity,
+    child: scanner,
+  );
+
+  houder.children.add(UI.expanded(wrap));
+}
 
 const String _kLidQrCode = r"""
 import 'package:flutter/material.dart';

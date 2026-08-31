@@ -437,6 +437,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const magScannen = ffai.ProjectAppStateFieldHandle(
+    name: "magScannen",
+    key: "eq75v5c9",
+    typeName: "String",
+    persisted: true,
+  );
   static const matchActionMode = ffai.ProjectAppStateFieldHandle(
     name: "matchActionMode",
     key: "5esalezy",
@@ -804,6 +810,7 @@ abstract final class AppState {
     loginEmail,
     loginError,
     loginPassword,
+    magScannen,
     matchActionMode,
     matchGoals,
     matchGoalsList,
