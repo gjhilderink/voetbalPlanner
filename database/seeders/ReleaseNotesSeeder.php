@@ -1076,6 +1076,43 @@ class ReleaseNotesSeeder extends Seeder
                 'title'       => 'Uitgezette handleidingonderwerpen kwamen terug',
                 'description' => 'Na een update stonden onderwerpen die de club had uitgezet weer aan.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Toon mij dit: uitleg in de app zelf',
+                'description' => 'Bij een onderwerp in de handleiding kan een knop "Toon mij dit" staan. '
+                    . 'Die opent het echte scherm en zet er een uitleg overheen: de rest van het scherm '
+                    . 'wordt donker, het onderdeel waar het om gaat blijft zichtbaar en daarnaast staat in '
+                    . 'een paar zinnen wat het doet. Met Volgende loop je er stap voor stap doorheen, en met '
+                    . 'Sluiten stop je wanneer je wilt. Er wordt onderweg niets gewijzigd — het is meekijken, '
+                    . 'geen doe-het-zelf. Op dit moment zijn er twee: een wedstrijd afgelasten en een '
+                    . 'gastspeler uitnodigen.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Handleiding per doelgroep',
+                'description' => 'Elk onderwerp in de handleiding heeft nu een doelgroep: iedereen, of alleen '
+                    . 'coaches en leiders. Uitleg over knoppen die een speler niet heeft verdwijnt daarmee uit '
+                    . 'zijn handleiding. De onderwerpen over het beheerportaal en de koppelingen staan meteen '
+                    . 'op "alleen coaches en leiders"; de club kan dat per onderwerp aanpassen.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Strafschop: benut of gemist',
+                'description' => 'Tik je in het live verslag op Strafschop, dan kies je eerst wie hem nam en '
+                    . 'daarna of hij erin ging. Een gemiste strafschop komt met de naam van de nemer in de '
+                    . 'tijdlijn te staan. Hij telt niet mee als doelpunt en ook niet als schot op doel, dus de '
+                    . 'stand en de schotenteller kloppen. De vraag naar een assist is bij een strafschop '
+                    . 'vervallen; die stond er alleen omdat een strafschop dezelfde route volgde als een gewoon '
+                    . 'doelpunt.',
+            ],
+            [
+                'type'        => 'bugfix',
+                'title'       => 'Wedstrijd bleef op de oude stand staan na het live verslag',
+                'description' => 'Sloot je het live verslag af, dan stonden de tabbladen van de wedstrijd nog '
+                    . 'op de stand van daarvoor: geen eindstand, geen verslag. Pas als je de wedstrijd sloot en '
+                    . 'opnieuw opende klopte het. Na Einde kom je nu op een verse wedstrijd uit, met alles er '
+                    . 'meteen op.',
+            ],
         ];
 
         $sort = 0;

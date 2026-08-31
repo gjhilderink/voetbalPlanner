@@ -123,6 +123,35 @@ class DocumentationSeeder extends Seeder
                 'title'      => 'Snelmenu (+ knop op het dashboard)',
                 'body'       => "Op het dashboard (Home) staat rechtsonder een blauwe **+** knop. Tik erop voor een menu met snelle acties dat van onderen omhoog schuift (bottom sheet):\n- **Chatten** — opent direct de Chats-pagina.\n- **Wissel bardienst** — opent de bardienstenlijst; kies daar de dienst waarvoor je wilt ruilen en vraag de wissel aan.\n- **Wissel rijden** — opent het rijschema; kies de rit waarvoor je wilt ruilen.\n- **Afmelden wedstrijd** — opent de wedstrijdenlijst; open de betreffende wedstrijd om je af te melden.\n\nTik naast het menu of veeg het omlaag om het te sluiten. De concrete wissel- of afmeldstap doorloop je op de pagina waar je terechtkomt; de + knop is enkel de snelkoppeling erheen.",
             ],
+            [
+                'category'   => 'app',
+                'sort_order' => 41,
+                'title'      => 'Toon mij dit — uitleg in de app zelf',
+                'body'       => "Bij sommige onderwerpen in deze handleiding staat onderaan een knop **Toon mij dit**. Die laat het niet zien op een plaatje, maar in de app zelf.\n\nWat er gebeurt: de app opent het scherm waar het over gaat en legt er een uitleg overheen. De rest van het scherm wordt donker, het onderdeel waar het om draait blijft zichtbaar, en daarnaast staat in een paar zinnen wat het doet. Met **Volgende** loop je er stap voor stap doorheen, met **Vorige** ga je terug en met **Sluiten** stop je wanneer je wilt. Een tik naast de uitleg werkt ook als Volgende.\n\nEr wordt onderweg niets gewijzigd. Je kijkt mee; de knoppen die worden aangewezen doen niets zolang de uitleg loopt. Zo kun je rustig een keer zien hoe iets werkt zonder dat er per ongeluk een wedstrijd wordt afgelast.\n\nTwee dingen om te weten:\n- Niet elk onderwerp heeft zo'n knop. Hij staat er alleen als er een rondleiding aan gekoppeld is.\n- De uitleg draait op een echte wedstrijd van je eigen elftal. Staat er op dit moment geen wedstrijd gepland, of gaat de uitleg over knoppen die jij niet hebt, dan krijg je daar een melding over en gebeurt er verder niets.",
+            ],
+            [
+                'category'   => 'app',
+                'audience'   => 'staff',
+                'sort_order' => 42,
+                'title'      => 'Een wedstrijd afgelasten',
+                'tour_id'    => 'wedstrijd_afgelasten',
+                'body'       => "Gaat een wedstrijd niet door, dan kun je hem als coach of leider afgelasten. Open de wedstrijd; onderaan het Info-tabblad staan de knoppen.\n\n1. Vul eerst een **reden** in. Dat is hetzelfde veld als bij afmelden, met het label \"Reden (bij afmelden)\". Zonder reden kun je niet afgelasten, en iedereen krijgt die tekst te zien.\n2. Tik op **Wedstrijd afgelasten**. Het gaat meteen door; er komt geen extra bevestiging.\n\nDaarna staat bovenaan de wedstrijd een rode melding met jouw reden, en ook op het dashboard is bij de komende activiteiten te zien dat de wedstrijd niet doorgaat.\n\nGaat hij toch door? Met **Toch laten doorgaan** draai je het terug. De melding verdwijnt en de wedstrijd staat er weer gewoon bij.\n\nDezelfde knoppen zitten op een training, via de Trainingen-pagina of via de training op het dashboard.",
+            ],
+            [
+                'category'   => 'app',
+                'audience'   => 'staff',
+                'sort_order' => 43,
+                'title'      => 'Een gastspeler uitnodigen',
+                'tour_id'    => 'gastspeler_uitnodigen',
+                'body'       => "Kom je spelers tekort, dan nodig je een speler uit een ander elftal van de club uit.\n\n1. Open de wedstrijd en tik rechtsonder op de **plusknop**. Daar staan alle acties voor deze wedstrijd bij elkaar.\n2. Kies **Gastspeler uitnodigen**.\n3. Kies eerst het **elftal** waar de speler uit komt. Je ziet alle elftallen van de club.\n4. Zoek de speler op naam — bij een grote club scheelt dat een hoop scrollen — en tik hem aan.\n5. Tik op **Gastspeler toevoegen**.\n\nDe gast staat daarna meteen onderaan je selectie met het label **Gast**, dus je kunt hem direct indelen in de opstelling. Er is geen accepteerstap: hij hoeft niets te doen. Hij krijgt wel een melding op zijn telefoon en ziet de wedstrijd in zijn eigen app.\n\nAlleen leden van de eigen club zijn uit te nodigen; iemand op e-mailadres uitnodigen kan niet.",
+            ],
+            [
+                'category'   => 'app',
+                'audience'   => 'staff',
+                'sort_order' => 44,
+                'title'      => 'Live verslag bijhouden',
+                'body'       => "Tijdens de wedstrijd kun je een live verslag bijhouden. Iedereen die de wedstrijd volgt ziet de stand en de gebeurtenissen meelopen, ook familie zonder app via een deelbare link.\n\nOp de wedstrijd staat **Start live verslag**. Is er al een verslag gestart, dan staat er **Open live verslag** — zo kunnen twee coaches het samen bijhouden. Boven in beeld zie je hoeveel mensen meekijken.\n\nWat je kunt vastleggen: doelpunt (met of zonder assist), tegendoelpunt, strafschop, schot op doel, gele en rode kaart, wissel, rust en tweede helft.\n\n**Strafschop.** Je kiest eerst wie hem nam en daarna of hij erin ging: **Benut** of **Gemist**. Een gemiste strafschop komt met naam in de tijdlijn te staan, maar telt niet mee als doelpunt en ook niet als schot op doel.\n\n**Vergist?** Met **Ongedaan** haal je de laatste gebeurtenis weg. Heb je halverwege een verkeerde keuze gemaakt, dan staat er in elk keuzescherm een **Annuleren**-knop.\n\nAan het eind tik je op **Einde**. Je komt dan terug op de wedstrijd, met de eindstand en het verslag er meteen op.",
+            ],
 
             // ── Het Platform ─────────────────────────────────────────────────
             [
@@ -183,7 +212,7 @@ class DocumentationSeeder extends Seeder
                 'category'   => 'platform',
                 'sort_order' => 18,
                 'title'      => 'Documentatie Beheren',
-                'body'       => "Via Documentatie in het platform beheer je de handleiding die leden in de app zien.\n\nSecties zijn ingedeeld in drie categorieën:\n- De App: uitleg over het gebruik van de app\n- Het Platform: uitleg voor beheerders\n- Koppelingen: technische uitleg over de integraties\n\nEen sectie aanpassen: open de sectie en bewerk de titel of inhoud. Gebruik de volgorde om de weergavevolgorde in de app te bepalen.\n\n**Per sectie aan/uit zetten in de app**\nElke sectie heeft een toggle \"Tonen in app\". Zet 'm uit als je een sectie tijdelijk niet wilt tonen — de inhoud blijft hier wel bewerkbaar en je kunt 'm later weer aanzetten. In het overzicht zie je per regel een groene/grijze indicator in de kolom \"In app\".\n\n**Alleen super_admins** kunnen secties aanmaken, bewerken of verwijderen. Club_admins zien de handleiding in alleen-lezen.",
+                'body'       => "Via Documentatie in het platform beheer je de handleiding die leden in de app zien.\n\nSecties zijn ingedeeld in drie categorieën:\n- De App: uitleg over het gebruik van de app\n- Het Platform: uitleg voor beheerders\n- Koppelingen: technische uitleg over de integraties\n\nEen sectie aanpassen: open de sectie en bewerk de titel of inhoud. Gebruik de volgorde om de weergavevolgorde in de app te bepalen.\n\n**Per sectie aan/uit zetten in de app**\nElke sectie heeft een toggle \"Tonen in app\". Zet 'm uit als je een sectie tijdelijk niet wilt tonen — de inhoud blijft hier wel bewerkbaar en je kunt 'm later weer aanzetten. In het overzicht zie je per regel een groene/grijze indicator in de kolom \"In app\".\n\n**Voor wie is de sectie?**\nBij Voor wie kies je tussen \"Iedereen\" en \"Alleen coaches en leiders\". Kies je het tweede, dan krijgen spelers en ouders de sectie helemaal niet te zien — ook niet als ze de app doorspitten. Bedoeld voor uitleg over knoppen die zij toch niet hebben; dat is voor hen alleen maar verwarrend. Het platform en de koppelingen staan hier standaard op.\n\n**Rondleiding koppelen**\nBij Rondleiding koppel je een sectie aan een uitleg in de app zelf. Staat er een gekozen, dan verschijnt onder die sectie de knop \"Toon mij dit\", die het echte scherm opent met de uitleg eroverheen. Met Beginnen bij stap laat je een sectie halverwege instappen — handig als twee secties dezelfde rondleiding delen maar over een ander stuk gaan. Geen rondleiding gekozen betekent geen knop.\n\n**Alleen super_admins** kunnen secties aanmaken, bewerken of verwijderen. Club_admins zien de handleiding in alleen-lezen.",
             ],
 
             // ── Koppelingen ───────────────────────────────────────────────────
@@ -259,9 +288,18 @@ class DocumentationSeeder extends Seeder
             // staf. Daarna is het aan de beheerder.
             if (! $onderwerp->exists) {
                 $onderwerp->is_active = true;
-                $onderwerp->audience  = in_array($section['category'], ['platform', 'koppelingen'], true)
-                    ? Documentation::AUDIENCE_STAFF
-                    : Documentation::AUDIENCE_ALL;
+                // Staat er een doelgroep bij het onderwerp, dan wint die. Anders
+                // de categorie: het platform en de koppelingen gaan over het
+                // beheerportaal en zijn dus voor de staf.
+                $onderwerp->audience = $section['audience']
+                    ?? (in_array($section['category'], ['platform', 'koppelingen'], true)
+                        ? Documentation::AUDIENCE_STAFF
+                        : Documentation::AUDIENCE_ALL);
+                // Een gekoppelde rondleiding alleen bij het aanmaken. Haalt een
+                // beheerder hem later weg, dan is dat een keuze.
+                if (isset($section['tour_id'])) {
+                    $onderwerp->tour_id = $section['tour_id'];
+                }
             }
 
             $onderwerp->save();
