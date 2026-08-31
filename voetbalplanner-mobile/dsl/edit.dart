@@ -34614,16 +34614,19 @@ void _wireLiveMatchPage(FFProject project) {
             oppGoalBtn,
           ],
         ),
-        // Strafschop: dezelfde spelerkeuze als een doelpunt, maar de treffer
-        // komt met "strafschop" in de tijdlijn te staan. Een eigen knop en geen
-        // vinkje achteraf: op het moment dat de bal erin gaat wil je één tik
-        // doen, niet eerst iets aanzetten.
+        // Strafschop: eerst wie hem nam, dan of hij erin ging. Een eigen knop
+        // en geen vinkje achteraf: op het moment dat de bal erin gaat wil je
+        // één tik doen, niet eerst iets aanzetten.
+        //
+        // De strafschop deelt niet langer de doelpuntketen. Die vroeg daarna
+        // om een assist - bij een strafschop een zinloze vraag - en er was
+        // geen manier om vast te leggen dat hij gemist werd.
         UI.row(
           name: 'LiveCoachRowPenalty',
           spacing: 8,
           children: [
-            panelButton('Strafschop', 'sports_soccer', UIColor.warning, 'scorer',
-                detail: 'penalty'),
+            panelButton('Strafschop', 'sports_soccer', UIColor.warning,
+                'penaltyTaker', detail: 'penalty'),
             oppPenaltyBtn,
           ],
         ),
@@ -34957,7 +34960,107 @@ FFNode _livePickerPanels(
     ),
   );
 
-  // 3. Wissel — eerst wie eruit gaat, dan wie erin komt.
+  // 3. Strafschop — eerst de nemer, dan de afloop.
+  final penaltyTakerPanel = panel(
+    key: 'LivePenTaker',
+    title: 'Wie nam de strafschop?',
+    panelValue: 'penaltyTaker',
+    onPick: (list, item) => FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: rememberPicked(list),
+      followUpAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: setPanel('penaltyResult'),
+      ),
+    ),
+  );
+
+  /// Benut of gemist. Twee knoppen en geen lijst, dus buiten panel() om.
+  FFNode penaltyKnop(
+      String label, UIColor kleur, FFActionNode Function(FFNode btn) keten) {
+    final btn = UI.container(
+      name: 'LivePen${label}Btn',
+      innerPadding: UIEdgeInsets.symmetric(vertical: 12),
+      borderRadius: 12,
+      color: kleur,
+      child: UI.text(label,
+          name: 'LivePen${label}Label',
+          style: UITextStyle.labelMedium,
+          color: UIColor.white,
+          textAlign: UITextAlign.center),
+    );
+    Actions.onTapChain(btn, keten(btn));
+    return btn;
+  }
+
+  final penaltyResultPanel = _dashCard(
+    name: 'LivePenResultPanel',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.column(
+      name: 'LivePenResultCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: [
+        UI.row(
+          name: 'LivePenResultHead',
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.expanded(UI.text('Ging hij erin?',
+                name: 'LivePenResultTitle', style: UITextStyle.titleSmall)),
+            annuleerKnop('LivePenResult'),
+          ],
+        ),
+        UI.row(
+          name: 'LivePenResultRow',
+          spacing: 10,
+          children: [
+            UI.expanded(penaltyKnop(
+              'Benut',
+              UIColor.hex(0xFF16A34A),
+              (btn) => eventNode(
+                nodeKey: btn.key,
+                output: 'livePenaltyScored',
+                statics: {
+                  'type': 'goal',
+                  'side': 'own',
+                  'relatedMemberId': '',
+                  'cardType': '',
+                },
+                dynamics: {
+                  'memberId': pageState('pickedId'),
+                  // Staat op 'penalty' sinds de strafschopknop; zo komt de
+                  // treffer met "strafschop" in de tijdlijn.
+                  'detail': pageState('goalDetail'),
+                },
+              ),
+            )),
+            UI.expanded(penaltyKnop(
+              'Gemist',
+              UIColor.hex(0xFFEF4444),
+              (btn) => eventNode(
+                nodeKey: btn.key,
+                output: 'livePenaltyMissed',
+                // Een eigen soort en geen schot: een strafschop naast het doel
+                // is geen schot op doel, en de stand verandert er niet van.
+                statics: {
+                  'type': 'penalty_miss',
+                  'side': 'own',
+                  'relatedMemberId': '',
+                  'cardType': '',
+                  'detail': '',
+                },
+                dynamics: {'memberId': pageState('pickedId')},
+              ),
+            )),
+          ],
+        ),
+      ],
+    ),
+  );
+  setConditionalVisibility(penaltyResultPanel,
+      variable: _equalsLiteral(pageState('panel'), 'penaltyResult'));
+
+  // 4. Wissel — eerst wie eruit gaat, dan wie erin komt.
   final subOutPanel = panel(
     key: 'LiveSubOut',
     title: 'Wie gaat eruit?',
@@ -35073,6 +35176,8 @@ FFNode _livePickerPanels(
     children: [
       scorerPanel,
       assistPanel,
+      penaltyTakerPanel,
+      penaltyResultPanel,
       subOutPanel,
       subInPanel,
       cardKindPanel,

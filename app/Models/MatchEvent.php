@@ -25,6 +25,15 @@ class MatchEvent extends Model
     /** Schot op doel. Alleen de kant telt; wie schoot leggen we niet vast. */
     public const TYPE_SHOT         = 'shot';
 
+    /**
+     * Een gemiste strafschop.
+     *
+     * Een eigen soort en niet een schot met een detail: een strafschop naast
+     * het doel is geen schot op doel, en die twee op een hoop gooien vervuilt
+     * het schotenaantal. Ook geen doelpunt, dus de stand blijft ongemoeid.
+     */
+    public const TYPE_PENALTY_MISS = 'penalty_miss';
+
     public const TYPES = [
         self::TYPE_KICKOFF,
         self::TYPE_HALFTIME,
@@ -34,6 +43,7 @@ class MatchEvent extends Model
         self::TYPE_CARD,
         self::TYPE_SUBSTITUTION,
         self::TYPE_SHOT,
+        self::TYPE_PENALTY_MISS,
     ];
 
     public const SIDE_OWN      = 'own';
@@ -83,6 +93,7 @@ class MatchEvent extends Model
             self::TYPE_CARD         => 'style',
             self::TYPE_SUBSTITUTION => 'swap_horiz',
             self::TYPE_SHOT         => 'my_location',
+            self::TYPE_PENALTY_MISS => 'block',
             self::TYPE_HALFTIME,
             self::TYPE_FULLTIME     => 'sports',
             default                 => 'play_arrow',
@@ -117,6 +128,12 @@ class MatchEvent extends Model
             self::TYPE_SHOT => $this->side === self::SIDE_OPPONENT
                 ? 'Schot op doel ' . $tegen
                 : ($naam !== '' ? 'Schot op doel · ' . $naam : 'Schot op doel'),
+
+            self::TYPE_PENALTY_MISS => $this->side === self::SIDE_OPPONENT
+                ? 'Strafschop gemist ' . $tegen
+                : ($naam !== ''
+                    ? $naam . ' · strafschop gemist'
+                    : 'Strafschop gemist'),
 
             self::TYPE_CARD => trim(
                 ($this->card_type === self::CARD_RED ? 'Rood' : 'Geel')

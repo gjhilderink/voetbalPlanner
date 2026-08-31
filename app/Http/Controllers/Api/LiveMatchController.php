@@ -344,10 +344,20 @@ class LiveMatchController extends Controller
                 MatchEvent::TYPE_GOAL,
                 MatchEvent::TYPE_CARD,
                 MatchEvent::TYPE_SHOT,
+                MatchEvent::TYPE_PENALTY_MISS,
             ], true)
             && empty($data['side'])
         ) {
             return 'Geef aan of het om het eigen team of de tegenstander gaat.';
+        }
+        // Bij een eigen gemiste strafschop hoort de nemer erbij. Dat is de hele
+        // reden dat dit soort bestaat: anders was het genoeg geweest om niets
+        // vast te leggen.
+        if ($type === MatchEvent::TYPE_PENALTY_MISS
+            && ($data['side'] ?? null) === MatchEvent::SIDE_OWN
+            && empty($data['member_id'])
+        ) {
+            return 'Kies de speler die de strafschop nam.';
         }
         if ($type === MatchEvent::TYPE_CARD && empty($data['card_type'])) {
             return 'Geef aan of het een gele of rode kaart is.';
