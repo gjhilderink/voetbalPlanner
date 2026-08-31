@@ -49,23 +49,7 @@
 <body class="bg-white text-gray-900 antialiased font-sans">
 
 {{-- Navigatie --}}
-<nav class="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
-    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-        <a href="/" class="flex items-center gap-2">
-            <svg class="w-8 h-8 text-green-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 2c1.29 0 2.516.26 3.633.727L13.5 7H10.5L8.367 4.727A7.963 7.963 0 0112 4zM6.25 5.86L8 8.5l-2 3H3.1A8.007 8.007 0 016.25 5.86zm11.5 0A8.007 8.007 0 0120.9 11.5H18l-2-3 1.75-2.64zM10 9h4l1.5 2.5L14 14h-4l-1.5-2.5L10 9zm-4.6 4H8l1.5 3-1.75 2.64A8.007 8.007 0 015.4 13zm13.2 0a8.007 8.007 0 01-1.85 5.64L15 16l1.5-3h2.6zM10.5 17h3l2.133 2.273A7.963 7.963 0 0112 20a7.963 7.963 0 01-3.633-.727L10.5 17z"/>
-            </svg>
-            <span class="text-xl font-bold text-gray-900 tracking-tight">VoetbalPlanner</span>
-        </a>
-        <div class="flex items-center gap-5">
-            <a href="/" class="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors hidden sm:inline">Home</a>
-            <a href="/admin/login"
-               class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
-                Inloggen
-            </a>
-        </div>
-    </div>
-</nav>
+@include('partials.nav')
 
 {{-- Hero met de drie bedragen --}}
 <section class="bg-gradient-to-br from-green-800 via-green-700 to-emerald-600 text-white py-20 px-6">

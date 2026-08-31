@@ -17,26 +17,8 @@
 </head>
 <body class="bg-white text-gray-900 antialiased font-sans">
 
-{{-- Navigatie --}}
-<div class="hoekstreep"></div>
-<nav class="bg-navy-900 sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
-        <a href="/" class="flex items-center gap-3">
-            <img src="{{ asset('brand/app-icon-180.png') }}" alt=""
-                 class="w-9 h-9 rounded-lg" width="36" height="36">
-            <span class="wordmark text-white text-2xl leading-none">
-                Voetbal<span class="groen">planner</span><span class="tld groen">.nl</span>
-            </span>
-        </a>
-        <div class="flex items-center gap-5">
-            <a href="{{ route('pricing') }}" class="text-sm font-medium text-white/70 hover:text-white transition-colors">Tarieven</a>
-            <a href="/admin/login"
-               class="btn-brand px-5 py-2 rounded-lg text-sm font-semibold">
-                Inloggen
-            </a>
-        </div>
-    </div>
-</nav>
+@include('partials.nav')
+
 {{-- Hero --}}
 <section class="tactisch text-white py-20 px-6">
     <div class="max-w-6xl mx-auto grid lg:grid-cols-[1.15fr,0.85fr] gap-12 items-center">
@@ -47,7 +29,7 @@
                 Klaar voor jouw club
             </div>
 
-            <h1 class="display text-5xl sm:text-6xl lg:text-7xl mb-6">
+            <h1 class="display text-4xl sm:text-6xl lg:text-7xl mb-6">
                 De slimme voetbalplanner<br>
                 <span style="color:var(--brand)">voor jouw club</span>
             </h1>
