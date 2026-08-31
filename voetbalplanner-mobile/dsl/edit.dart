@@ -39011,15 +39011,28 @@ void _wireToegangPage(FFProject project) {
 
   // De widget vult de hele body: de camera hoort het scherm te vullen, en de
   // uitslag moet er overheen kunnen.
-  final scanner = UI.customWidget(widget, name: 'ToegangScannerWidget');
-  final wrap = UI.container(
-    name: 'ToegangScannerWrap',
-    width: double.infinity,
-    height: double.infinity,
-    child: scanner,
-  );
+  //
+  // De hoogte komt van een Expanded om de houder heen, en niet van een
+  // height: infinity erbinnen. Dat laatste leverde een blanco scherm op: een
+  // Expanded binnen een Container overleeft de codegen niet, en wat overbleef
+  // was een oneindig hoge Container in een Column die zich juist zo klein
+  // mogelijk maakt. Die klapt tot nul in.
+  houder.children.add(UI.customWidget(widget, name: 'ToegangScannerWidget'));
 
-  houder.children.add(UI.expanded(wrap));
+  final ouder = findParentByKey(wc.node, houder.key);
+  if (ouder == null) return;
+
+  // De body-Column moet de ruimte pakken in plaats van krimpen.
+  if (ouder.parent.type == FFWidgetType.Column) {
+    final kolom = ouder.parent.props.column.deepCopy();
+    kolom.minSizeValue = FFBooleanValue(inputValue: false);
+    ouder.parent.props.column = kolom;
+  }
+
+  // UI.expanded wikkelt niets: het zet een eigenschap op het knooppunt zelf.
+  // Twee keer aanroepen is dus onschadelijk, en de houder is een direct kind
+  // van de Column - precies waar een Expanded thuishoort.
+  UI.expanded(houder);
 }
 
 const String _kLidQrCode = r"""
