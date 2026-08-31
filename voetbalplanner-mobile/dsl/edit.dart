@@ -38073,6 +38073,136 @@ class _TourTargetState extends State<TourTarget> {
     );
   }
 }
+
+/// Eén stap in een rondleiding.
+class TourStap {
+  const TourStap({
+    required this.stepId,
+    required this.titel,
+    required this.tekst,
+    this.vorm = 'rect',
+    this.uitlijning = 'onder',
+    this.optioneel = false,
+  });
+
+  /// Verwijst naar de TourTarget met dezelfde stepId. Staat die niet op het
+  /// scherm, dan wordt de stap overgeslagen.
+  final String stepId;
+
+  final String titel;
+  final String tekst;
+
+  /// 'rect' of 'cirkel'. Losse tekst en geen enum uit tutorial_coach_mark:
+  /// deze definities zijn gewone gegevens en horen niet aan dat pakket vast te
+  /// zitten. De vertaalslag gebeurt in startTour.
+  final String vorm;
+
+  /// 'boven' of 'onder' — waar de ballon ten opzichte van de uitsnede komt.
+  /// Onder werkt bijna altijd; boven is voor doelen laag op het scherm, waar
+  /// een ballon eronder buiten beeld zou vallen.
+  final String uitlijning;
+
+  /// Mag deze stap ontbreken? Zo ja, dan wordt hij stil overgeslagen als het
+  /// doel niet gevonden wordt. Anders komt er een regel in de log — een
+  /// ontbrekend doel is dan een fout in de demopagina, geen normaal geval.
+  final bool optioneel;
+}
+
+/// Alle rondleidingen. De Nederlandse teksten staan uitsluitend hier, zodat
+/// een tekstwijziging nooit in de opbouw van een pagina gezocht hoeft te
+/// worden.
+///
+/// De teksten beschrijven de app zoals hij is en niet zoals hij ooit bedoeld
+/// was: er is geen drie-puntjesmenu, geen bevestigingsdialoog bij afgelasten,
+/// geen tabbladen in het coach-menu en geen accepteerstap voor een gastspeler.
+class TourDefinities {
+  TourDefinities._();
+
+  static const Map<String, List<TourStap>> tours = {
+    'wedstrijd_afgelasten': [
+      TourStap(
+        stepId: 'wedstrijd_openen',
+        titel: 'Open de wedstrijd',
+        tekst: 'Tik op de wedstrijd die niet doorgaat.',
+      ),
+      TourStap(
+        stepId: 'afgelasten_reden',
+        titel: 'Geef eerst een reden',
+        tekst: 'Vul in waarom de wedstrijd niet doorgaat. Zonder reden kun je '
+            'niet afgelasten, en iedereen krijgt deze tekst te zien.',
+      ),
+      TourStap(
+        stepId: 'afgelasten_knop',
+        titel: 'Wedstrijd afgelasten',
+        tekst: "Tik op 'Wedstrijd afgelasten'. Het gaat meteen door; er komt "
+            'geen extra bevestiging.',
+        // De knop staat onderaan het Info-tabblad, dus de ballon moet erboven.
+        uitlijning: 'boven',
+      ),
+      TourStap(
+        stepId: 'afgelasten_melding',
+        titel: 'Zo ziet het eruit',
+        tekst: 'Bovenaan de wedstrijd staat nu een rode melding met jouw '
+            'reden. Ook op het dashboard is te zien dat de wedstrijd niet '
+            'doorgaat.',
+      ),
+      TourStap(
+        stepId: 'afgelasten_terug',
+        titel: 'Toch weer door?',
+        tekst: "Met 'Toch laten doorgaan' draai je het terug.",
+        uitlijning: 'boven',
+      ),
+    ],
+    'gastspeler_uitnodigen': [
+      TourStap(
+        stepId: 'coach_menu',
+        titel: 'Open het coach-menu',
+        tekst: 'Tik rechtsonder op de plusknop. Daar staan alle acties voor '
+            'deze wedstrijd.',
+        // De zwevende knop is rond; een rechthoekige uitsnede eromheen ziet
+        // eruit als een fout.
+        vorm: 'cirkel',
+        uitlijning: 'boven',
+      ),
+      TourStap(
+        stepId: 'menu_gastspeler',
+        titel: 'Gastspeler uitnodigen',
+        tekst: "Kies 'Gastspeler uitnodigen'.",
+      ),
+      TourStap(
+        stepId: 'team_kiezen',
+        titel: 'Kies eerst het elftal',
+        tekst: 'Uit welk elftal komt de speler? Je ziet alle elftallen van de '
+            'club.',
+      ),
+      TourStap(
+        stepId: 'gastspeler_zoeken',
+        titel: 'Zoek op naam',
+        tekst: 'Typ een deel van de naam. Bij een grote club scheelt dat een '
+            'hoop scrollen.',
+      ),
+      TourStap(
+        stepId: 'gastspeler_toevoegen',
+        titel: 'Uitnodigen',
+        tekst: "Tik de speler aan en daarna op 'Gastspeler toevoegen'. Hij "
+            "staat meteen onderaan je opstelling, met het label 'Gast'.",
+        uitlijning: 'boven',
+      ),
+    ],
+  };
+
+  /// De stappen van een rondleiding, of een lege lijst bij een onbekende id.
+  /// Geen uitzondering: een handleiding-item met een verkeerd ingevulde tour
+  /// hoort geen crash op te leveren.
+  static List<TourStap> stappen(String tourId) =>
+      tours[tourId] ?? const <TourStap>[];
+
+  static bool bestaat(String tourId) => tours.containsKey(tourId);
+
+  /// Voor de keuzelijst in de portal en om te controleren dat elke stepId in
+  /// de demopagina's terugkomt.
+  static List<String> get ids => tours.keys.toList();
+}
 ''';
 
 /// Zet de bouwstenen van de rondleiding klaar. Idempotent.
