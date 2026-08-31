@@ -178,6 +178,8 @@ abstract final class Structs {
       "category": ffai.string,
       "id": ffai.string,
       "title": ffai.string,
+      "tourId": ffai.string,
+      "tourStartStep": ffai.int_,
     },
     description: ffai.generatedProjectStructDescription,
   );

@@ -64,14 +64,14 @@ abstract final class GroupChatPageWidgets {
       slots: <String, List<ffai.ProjectWidgetHandle>>{
         "appBar": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "AppBar_h0k13ipt",
+            key: "AppBar_rud25xqq",
             type: "AppBar",
             path: "GroupChatPage.appBar[0]",
             name: "AppBar",
             slots: <String, List<ffai.ProjectWidgetHandle>>{
               "actions": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "IconButton_dpum83n2",
+                  key: "IconButton_lbomfm3c",
                   type: "IconButton",
                   path: "GroupChatPage.appBar[0].actions[0]",
                   name: "DeleteGroupButton",
@@ -80,13 +80,13 @@ abstract final class GroupChatPageWidgets {
                   ],
                 ),
                 ffai.ProjectWidgetHandle(
-                  key: "Container_k9ob5s9i",
+                  key: "Container_a0771gax",
                   type: "Container",
                   path: "GroupChatPage.appBar[0].actions[1]",
                   name: "ClubLogoAppBarWrap",
                   children: <ffai.ProjectWidgetHandle>[
                     ffai.ProjectWidgetHandle(
-                      key: "yq66t3py",
+                      key: "xmx7dhbo",
                       type: "Image",
                       path: "GroupChatPage.appBar[0].actions[1].children[0]",
                       name: "ClubLogoAppBar",
@@ -96,7 +96,7 @@ abstract final class GroupChatPageWidgets {
               ],
               "title": <ffai.ProjectWidgetHandle>[
                 ffai.ProjectWidgetHandle(
-                  key: "Text_6mnsm5xy",
+                  key: "Text_jkpjyfjg",
                   type: "Text",
                   path: "GroupChatPage.appBar[0].title[0]",
                   name: "AppBar Title",
@@ -157,31 +157,31 @@ abstract final class GroupChatPageWidgets {
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_sc1lme4e",
+                        key: "Container_zfattkzm",
                         type: "Container",
                         path: "GroupChatPage.body[0].children[1].children[0].children[0]",
                         name: "OtherBubble",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_i17spgxn",
+                            key: "Column_nsl4r50o",
                             type: "Column",
                             path: "GroupChatPage.body[0].children[1].children[0].children[0].children[0]",
                             name: "OtherMsgCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_uaxx8p2v",
+                                key: "Text_5dmxubpf",
                                 type: "Text",
                                 path: "GroupChatPage.body[0].children[1].children[0].children[0].children[0].children[0]",
                                 name: "OtherSenderName",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_oxad3a5f",
+                                key: "Text_hyeuc04v",
                                 type: "Text",
                                 path: "GroupChatPage.body[0].children[1].children[0].children[0].children[0].children[1]",
                                 name: "OtherMsgText",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_pux4pfqz",
+                                key: "Text_5bg1dgjb",
                                 type: "Text",
                                 path: "GroupChatPage.body[0].children[1].children[0].children[0].children[0].children[2]",
                                 name: "OtherMsgTime",
@@ -191,37 +191,37 @@ abstract final class GroupChatPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_l455zhnm",
+                        key: "Container_63bcd6v0",
                         type: "Container",
                         path: "GroupChatPage.body[0].children[1].children[0].children[1]",
                         name: "OwnBubble",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_75tb1lw4",
+                            key: "Column_wds1mhzu",
                             type: "Column",
                             path: "GroupChatPage.body[0].children[1].children[0].children[1].children[0]",
                             name: "OwnMsgCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_gj3hptyb",
+                                key: "Text_qgon80sl",
                                 type: "Text",
                                 path: "GroupChatPage.body[0].children[1].children[0].children[1].children[0].children[0]",
                                 name: "OwnSenderName",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_hl1apooa",
+                                key: "Text_tjfy94ef",
                                 type: "Text",
                                 path: "GroupChatPage.body[0].children[1].children[0].children[1].children[0].children[1]",
                                 name: "OwnMsgText",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_zo5onvk0",
+                                key: "Row_x8oqmh7b",
                                 type: "Row",
                                 path: "GroupChatPage.body[0].children[1].children[0].children[1].children[0].children[2]",
                                 name: "OwnMsgMeta",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_zx37w1sd",
+                                    key: "Text_yb08kiaj",
                                     type: "Text",
                                     path: "GroupChatPage.body[0].children[1].children[0].children[1].children[0].children[2].children[0]",
                                     name: "OwnMsgTime",
@@ -229,13 +229,13 @@ abstract final class GroupChatPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_bl2zja8a",
+                                key: "Row_77efznme",
                                 type: "Row",
                                 path: "GroupChatPage.body[0].children[1].children[0].children[1].children[0].children[3]",
                                 name: "OwnActionsRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "IconButton_n2pzepl7",
+                                    key: "IconButton_k8k8o2g5",
                                     type: "IconButton",
                                     path: "GroupChatPage.body[0].children[1].children[0].children[1].children[0].children[3].children[0]",
                                     name: "OwnEditBtn",
@@ -244,7 +244,7 @@ abstract final class GroupChatPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "IconButton_ioa53e52",
+                                    key: "IconButton_qm2g9umm",
                                     type: "IconButton",
                                     path: "GroupChatPage.body[0].children[1].children[0].children[1].children[0].children[3].children[1]",
                                     name: "OwnSaveBtn",
@@ -253,7 +253,7 @@ abstract final class GroupChatPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "IconButton_qsdlvrd8",
+                                    key: "IconButton_p0v0y8p3",
                                     type: "IconButton",
                                     path: "GroupChatPage.body[0].children[1].children[0].children[1].children[0].children[3].children[2]",
                                     name: "OwnCancelBtn",
@@ -262,7 +262,7 @@ abstract final class GroupChatPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "IconButton_cjtcesnm",
+                                    key: "IconButton_dw6jlu9f",
                                     type: "IconButton",
                                     path: "GroupChatPage.body[0].children[1].children[0].children[1].children[0].children[3].children[3]",
                                     name: "OwnDeleteBtn",
@@ -277,13 +277,13 @@ abstract final class GroupChatPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_lsbc6frr",
+                        key: "Container_i127n5hr",
                         type: "Container",
                         path: "GroupChatPage.body[0].children[1].children[0].children[2]",
                         name: "DeletedBubble",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_xyuuqr8o",
+                            key: "Text_9qnfnu3i",
                             type: "Text",
                             path: "GroupChatPage.body[0].children[1].children[0].children[2].children[0]",
                             name: "DeletedBubbleText",

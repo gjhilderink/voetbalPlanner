@@ -142,20 +142,20 @@ abstract final class LoginPageWidgets {
                 name: "LedenLoginSection",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Divider_fo8gedsr",
+                    key: "Divider_1a3h72m7",
                     type: "Divider",
                     path: "LoginPage.body[0].children[9].children[0]",
                     name: "Divider",
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Text_5xga1lch",
+                    key: "Text_57a89dqi",
                     type: "Text",
                     path: "LoginPage.body[0].children[9].children[1]",
                     name: "LedenLoginLabel",
                     text: "Inloggen leden",
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "TextField_o2itmniu",
+                    key: "TextField_a2uld5a9",
                     type: "TextField",
                     path: "LoginPage.body[0].children[9].children[2]",
                     name: "MagicLinkEmailField",
@@ -165,7 +165,7 @@ abstract final class LoginPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Button_a6o4tqd5",
+                    key: "Button_tchg8jma",
                     type: "Button",
                     path: "LoginPage.body[0].children[9].children[3]",
                     name: "SendMagicLinkButton",

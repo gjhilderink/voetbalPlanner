@@ -207,6 +207,36 @@ class User extends Authenticatable implements FilamentUser, HasTenants
      * guardian_links). Uniek op id. Gebruikt voor de teamkeuze in de app
      * (bv. een ouder met kinderen in meerdere teams).
      */
+    /**
+     * Heeft dit account ergens een staffunctie: coach, assistent of leider?
+     *
+     * Niet per elftal, in tegenstelling tot canManageLineup(): dit beantwoordt
+     * "krijgt deze persoon coach-uitleg te zien", en dat is één antwoord voor
+     * de hele app. Wie van één elftal de coach is en van een ander de ouder,
+     * hoort de coach-uitleg gewoon te zien.
+     *
+     * Assistent-trainers tellen mee, terwijl MANAGEMENT_ROLES ze weglaat. Daar
+     * gaat het om wie de opstelling mág wijzigen; hier om wie de uitleg
+     * erover nodig heeft, en dat is een ruimere groep.
+     */
+    public function hasStaffFunction(): bool
+    {
+        if ($this->hasAnyRole(['super_admin', 'club_admin'])) {
+            return true;
+        }
+
+        $staf = [Member::ROLE_COACH, Member::ROLE_ASSISTANT, Member::ROLE_LEIDER];
+
+        if ($this->managedTeams()->wherePivotIn('role', $staf)->exists()) {
+            return true;
+        }
+
+        return (bool) $this->resolveMember()
+            ?->teams()
+            ->wherePivotIn('role', $staf)
+            ->exists();
+    }
+
     /** Per-request memoisatie (voorkomt N+1 als een Resource dit per item aanroept). */
     protected ?\Illuminate\Support\Collection $accessibleTeamsCache = null;
 

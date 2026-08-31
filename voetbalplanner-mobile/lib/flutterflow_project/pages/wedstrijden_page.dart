@@ -143,13 +143,13 @@ abstract final class WedstrijdenPageWidgets {
                             name: "WelcomeGreetingText",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_y6cua05f",
+                                key: "Text_22bjszsn",
                                 type: "Text",
                                 path: "WedstrijdenPage.body[0].children[0].children[0].children[1].children[0].children[0]",
                                 name: "WelcomeClubText",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_jqxobpis",
+                                key: "Text_xvy88zh1",
                                 type: "Text",
                                 path: "WedstrijdenPage.body[0].children[0].children[0].children[1].children[0].children[1]",
                                 name: "WelcomeGreetingText",
@@ -260,43 +260,43 @@ abstract final class WedstrijdenPageWidgets {
         ],
         "drawer": <ffai.ProjectWidgetHandle>[
           ffai.ProjectWidgetHandle(
-            key: "Drawer_ubr26k83",
+            key: "Drawer_c8bj7qh7",
             type: "Drawer",
             path: "WedstrijdenPage.drawer[0]",
             name: "AppDrawer",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Column_azu04hif",
+                key: "Column_409fqoco",
                 type: "Column",
                 path: "WedstrijdenPage.drawer[0].children[0]",
                 name: "DrawerMenuColumn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_8xo62db3",
+                    key: "Container_jhvbpl2h",
                     type: "Container",
                     path: "WedstrijdenPage.drawer[0].children[0].children[0]",
                     name: "DrawerHeader",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_80r9ben5",
+                        key: "Column_3h5ntvgw",
                         type: "Column",
                         path: "WedstrijdenPage.drawer[0].children[0].children[0].children[0]",
                         name: "DrawerHeaderColumn",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_4f379eo4",
+                            key: "Container_9rjw3s7q",
                             type: "Container",
                             path: "WedstrijdenPage.drawer[0].children[0].children[0].children[0].children[0]",
                             name: "DrawerHeaderAvatar",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "t8f6xkv4",
+                                key: "j9jnivl8",
                                 type: "CircleImage",
                                 path: "WedstrijdenPage.drawer[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "DrawerHeaderPhoto",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_1f0eyzyb",
+                                key: "Icon_lpmwr2se",
                                 type: "Icon",
                                 path: "WedstrijdenPage.drawer[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "Icon",
@@ -304,13 +304,13 @@ abstract final class WedstrijdenPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_lhf1m9m4",
+                            key: "Text_m6p114u9",
                             type: "Text",
                             path: "WedstrijdenPage.drawer[0].children[0].children[0].children[0].children[1]",
                             name: "DrawerHeaderName",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_mqhbnij9",
+                            key: "Text_dn12xrdq",
                             type: "Text",
                             path: "WedstrijdenPage.drawer[0].children[0].children[0].children[0].children[2]",
                             name: "DrawerHeaderEmail",
@@ -320,7 +320,7 @@ abstract final class WedstrijdenPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_4v2x0fkb",
+                    key: "ListTile_er362bjm",
                     type: "ListTile",
                     path: "WedstrijdenPage.drawer[0].children[0].children[1]",
                     name: "DrawerTileHome",
@@ -329,7 +329,7 @@ abstract final class WedstrijdenPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_n3t3tfsw",
+                    key: "ListTile_qj04p5ri",
                     type: "ListTile",
                     path: "WedstrijdenPage.drawer[0].children[0].children[2]",
                     name: "DrawerTileNews",
@@ -338,7 +338,7 @@ abstract final class WedstrijdenPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_47tu60cn",
+                    key: "ListTile_0pnqtmuq",
                     type: "ListTile",
                     path: "WedstrijdenPage.drawer[0].children[0].children[3]",
                     name: "DrawerTileDocs",
@@ -347,7 +347,7 @@ abstract final class WedstrijdenPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_uykcr56c",
+                    key: "ListTile_zv1e2r4l",
                     type: "ListTile",
                     path: "WedstrijdenPage.drawer[0].children[0].children[4]",
                     name: "DrawerTileProfiel",
@@ -356,7 +356,7 @@ abstract final class WedstrijdenPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "ListTile_ndwn0wph",
+                    key: "ListTile_xmsqjni5",
                     type: "ListTile",
                     path: "WedstrijdenPage.drawer[0].children[0].children[5]",
                     name: "DrawerTileBug",
@@ -365,25 +365,25 @@ abstract final class WedstrijdenPageWidgets {
                     ],
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_wtzo8k8i",
+                    key: "Container_5bmigzo7",
                     type: "Container",
                     path: "WedstrijdenPage.drawer[0].children[0].children[6]",
                     name: "DrawerFooterSpacer",
                   ),
                   ffai.ProjectWidgetHandle(
-                    key: "Container_kwxt4i1k",
+                    key: "Container_316pq0go",
                     type: "Container",
                     path: "WedstrijdenPage.drawer[0].children[0].children[7]",
                     name: "DrawerFooterLogoWrap",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Row_5k6f5cej",
+                        key: "Row_xqlejrda",
                         type: "Row",
                         path: "WedstrijdenPage.drawer[0].children[0].children[7].children[0]",
                         name: "DrawerFooterLogoRow",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "q6mzosu6",
+                            key: "orqxky58",
                             type: "Image",
                             path: "WedstrijdenPage.drawer[0].children[0].children[7].children[0].children[0]",
                             name: "DrawerFooterLogo",

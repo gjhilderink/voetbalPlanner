@@ -652,14 +652,44 @@ void buildEditFlow(App app) {
 
   // Documentation page for members + handleiding button on ProfielPage.
   final documentSection = ff.Structs.documentSection;
-  try {
-    app.struct('DocumentSection', {
-      'id':       string,
-      'category': string,
-      'title':    string,
-      'body':     string,
-    });
-  } catch (_) {}
+  // Geen app.struct meer voor deze struct.
+  //
+  // Die vergelijkt zijn hele lading met wat er staat en gooit bij het kleinste
+  // verschil, ook binnen een try: het gooien gebeurt tijdens het compileren,
+  // niet bij de aanroep. Zodra hier een veld bij komt, faalt elke volgende push
+  // tot de opgeslagen versie precies weer gelijk is - en dat gelijktrekken
+  // moet dan weer via een raw-pas, dus dan kan die het net zo goed helemaal
+  // doen.
+  app.raw((project) {
+    var st = findDataStruct(project, name: 'DocumentSection');
+    if (st == null) {
+      addDataStruct(
+        project,
+        name: 'DocumentSection',
+        description: 'Eén sectie uit de handleiding.',
+        fields: [
+          structField('id', stringType, description: 'Sectie-id'),
+          structField('category', stringType, description: 'Categorie'),
+          structField('title', stringType, description: 'Titel'),
+          structField('body', stringType, description: 'Tekst'),
+        ],
+      );
+      st = findDataStruct(project, name: 'DocumentSection');
+      if (st == null) return;
+    }
+    final struct = st;
+    void veld(String naam, FFBaseDataType type) {
+      if (struct.fields.any((f) => f.identifier.name == naam)) return;
+      struct.fields.add(FFParameter(
+        identifier:
+            FFIdentifier(name: naam, key: generateRandomAlphaNumericString()),
+        dataType: FFDataTypeV2(scalarType: type),
+      ));
+    }
+    // Leeg = geen rondleiding bij deze sectie, en dan verschijnt er geen knop.
+    veld('tourId', FFBaseDataType.String);
+    veld('tourStartStep', FFBaseDataType.Integer);
+  });
   // Fix de FlutterFlow web-deploy: twee FF-default packages compileren niet meer
   // op recente Flutter (de deploy faalde hierop). Forceer compatibele versies.
   app.raw((project) => _fixIncompatiblePubVersions(project));
@@ -668,6 +698,7 @@ void buildEditFlow(App app) {
   _buildDemoAfgelastenPage(app);
   _buildDemoGastspelerPage(app);
   app.raw((project) => _wireDocumentationPageLoad(project));
+  app.raw((project) => _addTourButtonsToDocumentatie(project));
   // Handleiding + Bug-melden zijn naar de AppDrawer verhuisd; ruim eventuele
   // bestaande knoppen op ProfielPage op.
   app.raw((project) => _removeProfielButton(project, 'HandleidingButton'));
@@ -5284,6 +5315,68 @@ void _buildDemoAfgelastenPage(App app) {
   );
 }
 
+/// Zet onder elke handleiding-sectie de knop "Toon mij dit".
+///
+/// Moet via een raw-pas: ensurePage bouwt een bestaande pagina niet opnieuw op,
+/// dus de opbouw in _buildDocumentatiePage geldt alleen voor een leeg project.
+///
+/// Eén knop per rondleiding, elk met een eigen zichtbaarheidsregel. Liever één
+/// knop die de bestemming uit tourId afleidt, maar dat kan niet: waar een
+/// navigatie heen gaat ligt bij het bouwen vast en is geen variabele. Bij twee
+/// rondleidingen is dat prima; bij tien wordt het een lijstje om bij te houden.
+/// Vergeet je er een, dan blijft de sectie gewoon werken - alleen zonder knop.
+void _addTourButtonsToDocumentatie(FFProject project) {
+  final wc = findPage(project, name: 'DocumentatiePage');
+  if (wc == null) return;
+
+  final lijst = findDescendants(wc.node, (n) => n.type == FFWidgetType.ListView)
+      .firstOrNull;
+  if (lijst == null) return;
+
+  // De kolom in de kaart: de eerste kolom binnen de lijst-generator.
+  final kaartKolom =
+      findDescendants(lijst, (n) => n.type == FFWidgetType.Column).firstOrNull;
+  if (kaartKolom == null) return;
+
+  void knop(String tourId, String pagina) {
+    final naam = 'TourKnop_$tourId';
+    // Elke push opnieuw opbouwen in plaats van overslaan: zo landen wijzigingen
+    // aan de tekst of de actie ook echt.
+    kaartKolom.children.removeWhere((n) => n.name == naam);
+    if (project.getWidgetClassByName(pagina) == null) return;
+
+    final b = UI.button(
+      'Toon mij dit',
+      name: naam,
+      iconName: 'play_circle_outline',
+      width: double.infinity,
+    );
+    Actions.onTap(
+      b,
+      Actions.navigate(
+        project,
+        pageName: pagina,
+        params: {
+          'tourId': VariableParamValue(generatorVarField(lijst.key, 'tourId')),
+          // Waar de rondleiding begint staat per sectie ingesteld, zodat twee
+          // secties dezelfde rondleiding kunnen delen en elk op hun eigen plek
+          // starten.
+          'startStep':
+              VariableParamValue(generatorVarField(lijst.key, 'tourStartStep')),
+        },
+      ),
+    );
+    setConditionalVisibility(
+      b,
+      variable: _equalsLiteral(generatorVarField(lijst.key, 'tourId'), tourId),
+    );
+    kaartKolom.children.add(b);
+  }
+
+  knop('wedstrijd_afgelasten', 'DemoWedstrijdAfgelastenPage');
+  knop('gastspeler_uitnodigen', 'DemoGastspelerPage');
+}
+
 void _buildDocumentatiePage(App app, StructHandle documentSection) {
   app.ensurePage(
     'DocumentatiePage',
@@ -5325,6 +5418,10 @@ void _buildDocumentatiePage(App app, StructHandle documentSection) {
                     ItemRef()['body'],
                     style: Styles.bodySmall,
                   ),
+                  // De knoppen "Toon mij dit" komen er in
+                  // _addTourButtonsToDocumentatie bij: ensurePage laat een
+                  // bestaande pagina met rust, dus hier bijschrijven zou pas
+                  // bij een nieuw project iets doen.
                 ],
               ),
             ),

@@ -252,8 +252,16 @@ class DocumentationSeeder extends Seeder
             // De zichtbaarheid niet. Heeft een beheerder een onderwerp
             // uitgezet, dan is dat een keuze - en die stond na elke deploy weer
             // aan, zonder dat iemand doorhad waar het vandaan kwam.
+            //
+            // Voor wie de sectie bedoeld is werkt hetzelfde. Nieuwe secties
+            // krijgen een startpunt op basis van de categorie: het platform en
+            // de koppelingen gaan over het beheerportaal en zijn dus voor de
+            // staf. Daarna is het aan de beheerder.
             if (! $onderwerp->exists) {
                 $onderwerp->is_active = true;
+                $onderwerp->audience  = in_array($section['category'], ['platform', 'koppelingen'], true)
+                    ? Documentation::AUDIENCE_STAFF
+                    : Documentation::AUDIENCE_ALL;
             }
 
             $onderwerp->save();

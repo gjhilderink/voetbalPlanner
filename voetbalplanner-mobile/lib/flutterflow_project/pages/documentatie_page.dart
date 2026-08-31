@@ -130,6 +130,26 @@ abstract final class DocumentatiePageWidgets {
                             path: "DocumentatiePage.body[0].children[1].children[0].children[0].children[1]",
                             name: "Text",
                           ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Button_h487q39v",
+                            type: "Button",
+                            path: "DocumentatiePage.body[0].children[1].children[0].children[0].children[2]",
+                            name: "TourKnop_wedstrijd_afgelasten",
+                            text: "Toon mij dit",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Button_g7xeowg6",
+                            type: "Button",
+                            path: "DocumentatiePage.body[0].children[1].children[0].children[0].children[3]",
+                            name: "TourKnop_gastspeler_uitnodigen",
+                            text: "Toon mij dit",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
+                          ),
                         ],
                       ),
                     ],

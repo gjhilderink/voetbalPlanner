@@ -62,6 +62,14 @@ class DocumentationResource extends Resource
                     ->default(0)
                     ->columnSpan(1),
 
+                Forms\Components\Select::make('audience')
+                    ->label('Voor wie')
+                    ->options(Documentation::$audienceLabels)
+                    ->default(Documentation::AUDIENCE_ALL)
+                    ->required()
+                    ->helperText('Kies je "Alleen coaches en leiders", dan krijgen spelers en ouders deze sectie niet te zien. Bedoeld voor uitleg over knoppen die zij toch niet hebben.')
+                    ->columnSpan(1),
+
                 Forms\Components\TextInput::make('title')
                     ->label('Titel')
                     ->required()
@@ -73,6 +81,24 @@ class DocumentationResource extends Resource
                     ->required()
                     ->rows(14)
                     ->columnSpanFull(),
+
+                Forms\Components\Select::make('tour_id')
+                    ->label('Rondleiding')
+                    ->options(Documentation::$tourLabels)
+                    ->placeholder('Geen')
+                    ->helperText('Kies je er een, dan krijgt deze sectie in de app de knop "Toon mij dit". De rondleiding draait op een nagebootst scherm, dus er kan niets misgaan met echte gegevens.')
+                    ->live()
+                    ->columnSpan(1),
+
+                Forms\Components\TextInput::make('tour_start_step')
+                    ->label('Beginnen bij stap')
+                    ->numeric()
+                    ->minValue(0)
+                    ->default(0)
+                    ->helperText('0 = vanaf het begin. Alleen nodig als deze sectie over een later deel van dezelfde rondleiding gaat.')
+                    // Zonder rondleiding zegt dit veld niets.
+                    ->visible(fn($get) => filled($get('tour_id')))
+                    ->columnSpan(1),
 
                 Forms\Components\Toggle::make('is_active')
                     ->label('Tonen in app')
@@ -116,6 +142,19 @@ class DocumentationResource extends Resource
                     ->alignCenter()
                     ->width(70),
 
+                Tables\Columns\TextColumn::make('audience')
+                    ->label('Voor wie')
+                    ->badge()
+                    ->formatStateUsing(fn($state) => Documentation::$audienceLabels[$state] ?? $state)
+                    ->color(fn($state) => $state === Documentation::AUDIENCE_STAFF ? 'warning' : 'gray'),
+
+                Tables\Columns\TextColumn::make('tour_id')
+                    ->label('Rondleiding')
+                    ->badge()
+                    ->color('success')
+                    ->formatStateUsing(fn($state) => Documentation::$tourLabels[$state] ?? $state)
+                    ->placeholder('-'),
+
                 Tables\Columns\TextColumn::make('updated_at')
                     ->label('Bijgewerkt')
                     ->date('d-m-Y')
@@ -135,6 +174,10 @@ class DocumentationResource extends Resource
                 Tables\Filters\SelectFilter::make('category')
                     ->label('Categorie')
                     ->options(Documentation::$categoryLabels),
+
+                Tables\Filters\SelectFilter::make('audience')
+                    ->label('Voor wie')
+                    ->options(Documentation::$audienceLabels),
             ])
             ->actions([
                 Actions\EditAction::make()
