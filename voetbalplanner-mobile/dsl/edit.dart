@@ -36689,7 +36689,55 @@ class _LineupBoardState extends State<LineupBoard> {
       alles.where((s) => _periodeVan(s) == periode).toList();
 
   List<LineupSlotStruct> get _veld =>
-      _vanPeriode(FFAppState().lineupField, _periode);
+      _metPlekken(_vanPeriode(FFAppState().lineupField, _periode));
+
+  /// Veldspelers zonder coordinaten krijgen er alsnog een.
+  ///
+  /// Zulke spelers komen uit een oudere manier van opstellen, die alleen bijhield
+  /// wie er speelde en niet waar. De tekenroutine valt bij een lege coordinaat
+  /// terug op het midden van het veld, en dan liggen ze allemaal op hetzelfde
+  /// punt met hun namen over elkaar heen. Het ziet eruit alsof de halve ploeg
+  /// ontbreekt, terwijl er niemand mist.
+  ///
+  /// Dezelfde vaste plekken als de knop 'Opstellen' gebruikt, en wat al bezet is
+  /// slaan we over. Het resultaat gaat mee naar _schrijf, dus zodra de coach iets
+  /// opslaat staan de coordinaten er ook echt in en is het eenmalig.
+  List<LineupSlotStruct> _metPlekken(List<LineupSlotStruct> veld) {
+    bool zonderPlek(LineupSlotStruct s) =>
+        _getal(s.posX, -1) < 0 || _getal(s.posY, -1) < 0;
+
+    final teVullen = veld.where(zonderPlek).map((s) => s.memberId).toSet();
+    if (teVullen.isEmpty) return veld;
+
+    final bezet = veld
+        .where((s) => !teVullen.contains(s.memberId))
+        .map((s) => Offset(_getal(s.posX, 0.5), _getal(s.posY, 0.5)))
+        .toList();
+
+    final vrij = _plekken
+        .where((p) => bezet.every((b) =>
+            (b.dx - p[0]).abs() > 0.08 || (b.dy - p[1]).abs() > 0.08))
+        .toList();
+
+    var i = 0;
+
+    return veld.map((s) {
+      if (!teVullen.contains(s.memberId)) return s;
+
+      // Meer spelers dan vaste plekken: dan rond het midden uitwaaieren, net
+      // als de knop doet. Op elkaar landen ze dan nog steeds niet.
+      final plek = i < vrij.length
+          ? vrij[i]
+          : [0.5 + ((i % 3) - 1) * 0.09, 0.5 + ((i % 2) - 0.5) * 0.09];
+      i++;
+
+      return _kopie(
+        s,
+        posX: plek[0].toStringAsFixed(4),
+        posY: plek[1].toStringAsFixed(4),
+      );
+    }).toList();
+  }
 
   /// Hoeveel spelers er volgens de instelling in het veld horen. 0 betekent
   /// niet ingesteld; dan valt er ook niets te controleren en zwijgen we liever
