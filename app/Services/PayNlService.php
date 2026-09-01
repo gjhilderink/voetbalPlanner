@@ -82,6 +82,11 @@ class PayNlService
             return ['ok' => false, 'error' => 'De betaalkoppeling is nog niet ingesteld.'];
         }
 
+        // In reference laat Pay.nl alleen letters en cijfers toe. Ons
+        // bestelnummer heeft een streepje (VP-ABC123) en daar loopt de hele
+        // transactie op stuk, met een validatiefout en geen betaalpagina.
+        $referentie = preg_replace('/[^A-Za-z0-9]/', '', $order->order_number) ?? '';
+
         $body = [
             'serviceId'   => $this->serviceId,
             'amount'      => [
@@ -90,14 +95,18 @@ class PayNlService
             ],
             'returnUrl'   => $returnUrl,
             'exchangeUrl' => $exchangeUrl,
-            'reference'   => $order->order_number,
+            'reference'   => $referentie,
+            // Hooguit tweeëndertig tekens; dit past ruim.
             'description' => 'Kaarten ' . $order->order_number,
             'customer'    => [
                 'email' => $order->buyer_email,
             ],
-            // Zonder dit rekent Pay.nl een echte betaling af, ook op een
-            // testaccount.
-            'testMode'    => $this->testModus,
+            // Testmodus hoort in het integration-object. Bovenin doet hij
+            // niets, en dan rekent Pay.nl een echte betaling af terwijl de
+            // instelling zegt dat je aan het testen bent.
+            'integration' => [
+                'testMode' => $this->testModus,
+            ],
         ];
 
         try {
@@ -118,11 +127,14 @@ class PayNlService
                     'body'   => self::kortVoorLog($data),
                 ]);
 
-                return ['ok' => false, 'error' => 'De betaling kon niet worden gestart.'];
+                return [
+                    'ok'    => false,
+                    'error' => 'De betaling kon niet worden gestart.' . $this->uitleg($data),
+                ];
             }
 
-            $url = $data['links']['redirect']
-                ?? $data['paymentUrl']
+            $url = $data['paymentUrl']
+                ?? ($data['links']['redirect'] ?? null)
                 ?? ($data['transaction']['paymentUrl'] ?? null);
             $id  = $data['id'] ?? ($data['orderId'] ?? null);
 
@@ -201,6 +213,55 @@ class PayNlService
 
             return ['ok' => false, 'error' => 'De betaaldienst is even niet bereikbaar.'];
         }
+    }
+
+    /**
+     * Wat Pay.nl zelf van de afwijzing zei, maar alleen in testmodus.
+     *
+     * Tijdens het inregelen is "er ging iets mis" nutteloos: je wilt weten dát
+     * het bijvoorbeeld over het service-ID gaat. Zodra de club echt verkoopt
+     * staat testmodus uit en zien kopers alleen de nette zin.
+     *
+     * @param  array<mixed>  $data
+     */
+    private function uitleg(array $data): string
+    {
+        if (! $this->testModus) {
+            return '';
+        }
+
+        // Een validatiefout zegt in violations welk veld niet deugt. Dat is
+        // precies wat je wilt lezen, dus die gaat voor op de algemene titel.
+        if (is_array($data['violations'] ?? null)) {
+            $regels = [];
+
+            foreach ($data['violations'] as $schending) {
+                if (! is_array($schending)) {
+                    continue;
+                }
+
+                $veld    = (string) ($schending['propertyPath'] ?? '');
+                $melding = (string) ($schending['message'] ?? '');
+                $regel   = trim($veld === '' ? $melding : $veld . ' - ' . $melding);
+
+                if ($regel !== '') {
+                    $regels[] = $regel;
+                }
+            }
+
+            if ($regels !== []) {
+                return ' Pay.nl zei: ' . mb_substr(implode('; ', $regels), 0, 200);
+            }
+        }
+
+        $tekst = $data['detail']
+            ?? ($data['title'] ?? ($data['message'] ?? ($data['error'] ?? null)));
+
+        if (! is_string($tekst) || trim($tekst) === '') {
+            return '';
+        }
+
+        return ' Pay.nl zei: ' . trim(mb_substr($tekst, 0, 200));
     }
 
     /**
