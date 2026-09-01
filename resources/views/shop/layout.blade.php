@@ -117,7 +117,7 @@
         @unless ($embed)
             <div class="kop">
                 @if ($club->logo_path)
-                    <img src="{{ asset('storage/' . $club->logo_path) }}" alt="{{ $club->name }}">
+                    <img src="{{ asset('logos/' . basename($club->logo_path)) }}" alt="{{ $club->name }}">
                 @endif
                 <div>
                     <h1>@yield('titel', 'Kaarten')</h1>
