@@ -29,6 +29,13 @@ class PayNlService
     /** De REST-API van Pay.nl. Basic auth met de AT-code en het token. */
     private const BASIS_URL = 'https://rest.pay.nl/v2';
 
+    /**
+     * Onszelf bij naam noemen. De standaardnaam van Guzzle wordt aan de rand
+     * van sommige netwerken tegengehouden, en dat ziet er precies zo uit als
+     * een geweigerde sleutel: een 403 zonder inhoud.
+     */
+    private const USER_AGENT = 'VoetbalPlanner (+https://voetbalplanner.nl)';
+
     private ?string $clubId    = null;
     private string  $serviceId = '';
     private string  $tokenCode = '';
@@ -52,9 +59,12 @@ class PayNlService
     {
         $id = $this->clubId;
 
-        $this->serviceId = (string) (Setting::get('paynl_service_id', '', $id) ?? '');
-        $this->tokenCode = (string) (Setting::get('paynl_token_code', '', $id) ?? '');
-        $this->apiToken  = (string) (Setting::get('paynl_api_token', '', $id) ?? '');
+        // Trimmen, want deze drie worden geplakt uit het Pay.nl-account. Een
+        // meegekomen spatie of regeleinde levert een 403 op waar niets aan te
+        // zien is: de sleutel lijkt goed en werkt toch niet.
+        $this->serviceId = trim((string) (Setting::get('paynl_service_id', '', $id) ?? ''));
+        $this->tokenCode = trim((string) (Setting::get('paynl_token_code', '', $id) ?? ''));
+        $this->apiToken  = trim((string) (Setting::get('paynl_api_token', '', $id) ?? ''));
         $this->testModus = filter_var(
             Setting::get('paynl_test_mode', true, $id),
             FILTER_VALIDATE_BOOLEAN,
@@ -111,6 +121,7 @@ class PayNlService
 
         try {
             $antwoord = Http::withBasicAuth($this->tokenCode, $this->apiToken)
+                ->withUserAgent(self::USER_AGENT)
                 ->acceptJson()
                 ->timeout(20)
                 // Twee pogingen, en niet werpen bij een 4xx: een afwijzing van
@@ -121,15 +132,22 @@ class PayNlService
             $data = $antwoord->json() ?? [];
 
             if (! $antwoord->successful()) {
+                // Ook de ruwe tekst, want een 403 van de rand van hun netwerk
+                // heeft een leeg json-antwoord en dan staat er alleen [] in de
+                // log. En erbij wat we meestuurden, gemaskeerd, zodat te zien
+                // is of de sleutels overkomen zoals bedoeld.
                 Log::error('[Pay.nl] transactie starten mislukt', [
-                    'order'  => $order->order_number,
-                    'status' => $antwoord->status(),
-                    'body'   => self::kortVoorLog($data),
+                    'order'      => $order->order_number,
+                    'status'     => $antwoord->status(),
+                    'body'       => self::kortVoorLog($data),
+                    'ruw'        => mb_substr($antwoord->body(), 0, 500),
+                    'verstuurd'  => $this->sleutelsVoorLog(),
                 ]);
 
                 return [
                     'ok'    => false,
-                    'error' => 'De betaling kon niet worden gestart.' . $this->uitleg($data),
+                    'error' => 'De betaling kon niet worden gestart.'
+                        . $this->uitleg($data, $antwoord->status()),
                 ];
             }
 
@@ -179,6 +197,7 @@ class PayNlService
 
         try {
             $antwoord = Http::withBasicAuth($this->tokenCode, $this->apiToken)
+                ->withUserAgent(self::USER_AGENT)
                 ->acceptJson()
                 ->timeout(20)
                 ->retry(2, 500, null, false)
@@ -188,6 +207,8 @@ class PayNlService
                 Log::error('[Pay.nl] status opvragen mislukt', [
                     'transaction' => $transactionId,
                     'status'      => $antwoord->status(),
+                    'ruw'         => mb_substr($antwoord->body(), 0, 500),
+                    'verstuurd'   => $this->sleutelsVoorLog(),
                 ]);
 
                 return ['ok' => false, 'error' => 'Kon de betaalstatus niet opvragen.'];
@@ -216,6 +237,25 @@ class PayNlService
     }
 
     /**
+     * De sleutels zoals ze de deur uitgaan, veilig genoeg voor een logregel.
+     *
+     * Het service-ID en de tokencode zijn geen geheim - ze staan zichtbaar in
+     * de instellingen. Van het token gaat alleen de lengte mee: daaraan zie je
+     * of het compleet is overgekomen, zonder het op te schrijven.
+     *
+     * @return array<string, mixed>
+     */
+    private function sleutelsVoorLog(): array
+    {
+        return [
+            'serviceId'   => $this->serviceId,
+            'tokenCode'   => $this->tokenCode,
+            'tokenLengte' => strlen($this->apiToken),
+            'testModus'   => $this->testModus,
+        ];
+    }
+
+    /**
      * Wat Pay.nl zelf van de afwijzing zei, maar alleen in testmodus.
      *
      * Tijdens het inregelen is "er ging iets mis" nutteloos: je wilt weten dát
@@ -224,7 +264,7 @@ class PayNlService
      *
      * @param  array<mixed>  $data
      */
-    private function uitleg(array $data): string
+    private function uitleg(array $data, int $status): string
     {
         if (! $this->testModus) {
             return '';
@@ -258,7 +298,13 @@ class PayNlService
             ?? ($data['title'] ?? ($data['message'] ?? ($data['error'] ?? null)));
 
         if (! is_string($tekst) || trim($tekst) === '') {
-            return '';
+            // Een 403 komt zonder inhoud binnen. Dan is de code zelf het enige
+            // aanknopingspunt, en die hoort iemand die zit in te regelen te
+            // zien in plaats van "er ging iets mis".
+            return ' Pay.nl antwoordde met HTTP ' . $status . '.'
+                . ($status === 401 || $status === 403
+                    ? ' Controleer het service-ID, de tokencode en het API-token.'
+                    : '');
         }
 
         return ' Pay.nl zei: ' . trim(mb_substr($tekst, 0, 200));
