@@ -130,7 +130,16 @@ class TicketTypesRelationManager extends RelationManager
                 ->helperText('Bijvoorbeeld 7,50. Nul mag ook — dan is de kaart gratis maar wel te reserveren.')
                 ->formatStateUsing(fn (?int $state): string => number_format(($state ?? 0) / 100, 2, ',', ''))
                 ->dehydrateStateUsing(fn (?string $state): int => Geld::naarCenten($state))
-                ->rule('regex:/^\s*€?\s*\d{1,5}([.,]\d{1,2})?\s*$/'),
+                // De u-vlag hoort erbij: zonder die vlag leest PCRE het
+                // euroteken als drie losse bytes en maakt het vraagteken
+                // alleen de laatste optioneel, waardoor 7,50 werd afgekeurd.
+                ->rule('regex:/^\s*€?\s*\d{1,5}([.,]\d{1,2})?\s*$/u')
+                // Er is geen nl-vertaling in dit project, dus de standaard
+                // regex-melding komt er in het Engels uit. Voor dit veld
+                // zegt een eigen zin bovendien meteen wat er wel mag.
+                ->validationMessages([
+                    'regex' => 'Vul een bedrag in zoals 7,50.',
+                ]),
 
             Forms\Components\TextInput::make('stock')
                 ->label('Voorraad')
