@@ -1146,6 +1146,24 @@ class ReleaseNotesSeeder extends Seeder
                     . 'staan die twee gewoon tussen de plekken waar je een banner kunt tonen.',
             ],
             [
+                'type'        => 'feature',
+                'title'       => 'Ticketshop: kaarten online verkopen',
+                'description' => 'Clubs kunnen nu kaarten verkopen voor een activiteit. Per activiteit stel je '
+                    . 'kaartsoorten in met een eigen prijs en voorraad — volwassene, kind, vrijwilliger — en de '
+                    . 'winkel staat op voetbalplanner.nl met de naam van je club in het adres. Betalen gaat via '
+                    . 'Pay.nl, met je eigen account, dus het geld komt rechtstreeks bij de club binnen. De koper '
+                    . 'krijgt zijn QR-codes per mail en die werken meteen bij de ingang: het zijn gewone '
+                    . 'toegangscodes, met de naam van de koper erop. Alle bestellingen staan in de portal onder '
+                    . 'Beheer, waar je ook de kaarten kunt bekijken en de mail opnieuw kunt sturen.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Ticketshop in je eigen website',
+                'description' => 'De winkel is met één regel HTML in een WordPress-pagina te zetten. Bezoekers '
+                    . 'kopen dan hun kaarten zonder je site te verlaten; het venster groeit vanzelf mee met de '
+                    . 'inhoud. Het knipsel staat kant-en-klaar bij Instellingen → Ticketshop.',
+            ],
+            [
                 'type'        => 'bugfix',
                 'title'       => 'Kledingnummer kon niet worden opgeslagen',
                 'description' => 'Een nummer invullen bij een kledingstuk gaf de melding dat het niet kon worden '
