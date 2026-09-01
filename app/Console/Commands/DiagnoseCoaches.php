@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * Diagnose + backfill van de default-coach op wedstrijden.
  *
- *   php artisan coaches:diagnose            # alleen rapporteren
- *   php artisan coaches:diagnose --backfill # ontbrekende coaches alsnog koppelen
+ *   php artisan coaches:diagnose             # alleen rapporteren
+ *   php artisan coaches:diagnose --backfill  # ontbrekende coaches alsnog koppelen
+ *   php artisan coaches:diagnose --team=O12-2 # wie zit er in de selectie, en waarom
  *
  * Beantwoordt de vraag "worden leden met rol coach wel aan teams gekoppeld?"
  * en zet, met --backfill, de team-coach(es) op wedstrijden die er nog geen
@@ -22,13 +23,17 @@ use Illuminate\Support\Facades\DB;
  */
 class DiagnoseCoaches extends Command
 {
-    protected $signature   = 'coaches:diagnose {--backfill : Koppel de team-coach(es) aan wedstrijden zonder coach} {--email= : Toon hoe deze gebruiker aan zijn teams hangt}';
+    protected $signature   = 'coaches:diagnose {--backfill : Koppel de team-coach(es) aan wedstrijden zonder coach} {--email= : Toon hoe deze gebruiker aan zijn teams hangt} {--team= : Toon de selectie van dit elftal met de rol per lid}';
     protected $description  = 'Rapporteert coach-koppelingen en kan wedstrijden zonder coach alsnog koppelen.';
 
     public function handle(): int
     {
         if ($this->option('email')) {
             return $this->reportUser((string) $this->option('email'));
+        }
+
+        if ($this->option('team')) {
+            return $this->reportTeam((string) $this->option('team'));
         }
 
         // 1. Rolverdeling in member_team.
@@ -93,6 +98,63 @@ class DiagnoseCoaches extends Command
             $this->info("Klaar. Wedstrijden bijgekoppeld: {$coupled}");
         } else {
             $this->comment('Tip: draai met --backfill om wedstrijden zonder coach alsnog te koppelen.');
+        }
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Wie komt er in de opstelling van dit elftal terecht, en waarom.
+     *
+     * De selectie in de app komt uit Team::playingMembers(). Die kijkt eerst
+     * naar de teamfunctie en pas als die leeg is naar de hoofdrol bij de club.
+     * Staat er iemand tussen die er niet hoort - een coach bij de wissels - dan
+     * zit het in een van die twee waarden, en die zijn nergens in de app te
+     * zien. Hier staan ze naast elkaar.
+     */
+    private function reportTeam(string $naam): int
+    {
+        $teams = Team::where('name', 'like', '%' . $naam . '%')->orderBy('name')->get();
+
+        if ($teams->isEmpty()) {
+            $this->error("Geen elftal gevonden waarvan de naam op '{$naam}' lijkt.");
+            return self::FAILURE;
+        }
+
+        foreach ($teams as $team) {
+            $this->info("Elftal: {$team->name} (id {$team->id})");
+
+            // Dezelfde afbakening als de opstelling in de app: playingMembers
+            // plus de eis dat het lid actief is. Anders zegt deze kolom JA
+            // bij iemand die in de app helemaal niet verschijnt.
+            $spelend = $team->playingMembers()
+                ->where('members.is_active', true)
+                ->pluck('members.id')
+                ->all();
+            $allen   = $team->members()->orderBy('members.name')->get();
+
+            if ($allen->isEmpty()) {
+                $this->line('  — geen leden gekoppeld');
+                continue;
+            }
+
+            $this->line(sprintf('  %-28s %-18s %-14s %s',
+                'Naam', 'teamfunctie', 'clubrol', 'in de selectie?'));
+
+            foreach ($allen as $lid) {
+                $inSelectie = in_array($lid->id, $spelend, true);
+
+                $this->line(sprintf('  %-28s %-18s %-14s %s',
+                    mb_strimwidth($lid->name, 0, 28, '…'),
+                    $lid->pivot->role ?: '(leeg)',
+                    $lid->role ?: '(leeg)',
+                    $inSelectie ? 'JA' : 'nee',
+                ));
+            }
+
+            $this->line('');
+            $this->comment('  Iemand die er niet in hoort? Pas de teamfunctie aan bij het lid;'
+                . ' die beslist, en alleen als hij leeg is telt de clubrol mee.');
         }
 
         return self::SUCCESS;
