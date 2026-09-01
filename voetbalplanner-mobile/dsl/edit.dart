@@ -13381,6 +13381,27 @@ FFAction _snackBarUitAntwoord(dynamic ctx, String nodeKey) => FFAction(
       ),
     );
 
+/// Een vaste foutzin met erachter wat de server ervan zei.
+///
+/// De vaste zin alleen zegt niets. Weigert de server de opgave, dan staat de
+/// reden in het antwoord - "Dit kledingstuk bestaat niet (meer)." - en dat is
+/// precies wat iemand moet lezen. Komt er niets terug, bijvoorbeeld omdat het
+/// toestel offline is, dan blijft de vaste zin over.
+FFAction _snackBarFoutUitAntwoord(dynamic ctx, String nodeKey, String vaste) =>
+    FFAction(
+      key: generateRandomAlphaNumericString(),
+      snackBar: FFSnackBarAction(
+        textMessage: FFValue(
+          variable: interpolateVar([
+            vaste,
+            ' ',
+            _jsonBodyVar(ctx, r'$.message', nodeKey),
+          ]).variable,
+        ),
+        durationMillis: 6000,
+      ),
+    );
+
 // ─── Banner feature ───────────────────────────────────────────────────────────
 
 void _addBannerEndpoint(FFProject project) {
@@ -44392,7 +44413,8 @@ void _addProfielClothing(FFProject project) {
   // "M · 7" als er een nummer is, anders alleen de maat.
   final maat = UI.text('',
       name: 'ProfielKledingMaat',
-      style: UITextStyle.bodyMedium,
+      style: UITextStyle.bodyLarge,
+      color: UIColor.primary,
       fontWeight: UIFontWeight.w700,
       maxLines: 1);
   maat.props.text.textValue = FFStringValue(
@@ -44418,7 +44440,7 @@ void _addProfielClothing(FFProject project) {
   // Niets opgegeven: dat hoort er te staan, anders lijkt de regel af.
   final geenMaat = UI.text('Nog niet ingevuld',
       name: 'ProfielKledingGeen',
-      style: UITextStyle.bodySmall,
+      style: UITextStyle.bodyMedium,
       color: UIColor.secondaryText,
       maxLines: 1);
   setConditionalVisibility(
@@ -44435,12 +44457,12 @@ void _addProfielClothing(FFProject project) {
   final rij = UI.container(
     name: 'ProfielKledingRij',
     width: double.infinity,
-    borderRadius: 10,
+    borderRadius: 14,
     color: UIColor.secondaryBackground,
-    padding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 10),
+    padding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 14),
     child: UI.row(
       name: 'ProfielKledingRijRow',
-      spacing: 10,
+      spacing: 12,
       crossAxisAlignment: UICrossAxisAlignment.center,
       children: [
         UI.expanded(UI.column(
@@ -44448,13 +44470,13 @@ void _addProfielClothing(FFProject project) {
           crossAxisAlignment: UICrossAxisAlignment.start,
           spacing: 2,
           children: [
-            gebonden('ProfielKledingStuk', 'itemName', UITextStyle.bodyMedium,
+            gebonden('ProfielKledingStuk', 'itemName', UITextStyle.bodyLarge,
                 gewicht: UIFontWeight.w600),
           ],
         )),
         maat,
         geenMaat,
-        UI.icon('chevron_right', size: 18, color: UIColor.secondaryText),
+        UI.icon('chevron_right', size: 22, color: UIColor.secondaryText),
       ],
     ),
   );
@@ -44473,30 +44495,40 @@ void _addProfielClothing(FFProject project) {
 
   // ── De kop van een sectie ────────────────────────────────────────────────
   final kopTitel = gebonden('ProfielKledingKopTitel', 'ownerTitle',
-      UITextStyle.bodyMedium,
+      UITextStyle.titleSmall,
       gewicht: UIFontWeight.w700);
   final kopTelling = gebonden('ProfielKledingKopTelling', 'ownerSummary',
-      UITextStyle.labelSmall,
+      UITextStyle.bodySmall,
       kleur: UIColor.secondaryText);
 
   final kop = UI.container(
     name: 'ProfielKledingKop',
     width: double.infinity,
-    borderRadius: 10,
-    padding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 12),
+    borderRadius: 14,
+    padding: UIEdgeInsets.symmetric(horizontal: 10, vertical: 14),
     child: UI.row(
       name: 'ProfielKledingKopRij',
-      spacing: 10,
+      spacing: 12,
       crossAxisAlignment: UICrossAxisAlignment.center,
       children: [
-        UI.icon('checkroom', size: 20, color: UIColor.primary),
+        // Het icoon in een eigen vlak. Dat geeft de kop een ankerpunt links,
+        // zodat hij ook zonder achtergrondkleur als kop leest.
+        UI.container(
+          name: 'ProfielKledingKopIcoon',
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          color: UIColor.secondaryBackground,
+          alignment: UIAlignment.center,
+          child: UI.icon('checkroom', size: 22, color: UIColor.primary),
+        ),
         UI.expanded(UI.column(
           name: 'ProfielKledingKopCol',
           crossAxisAlignment: UICrossAxisAlignment.start,
           spacing: 2,
           children: [kopTitel, kopTelling],
         )),
-        UI.icon('expand_more', size: 20, color: UIColor.secondaryText),
+        UI.icon('expand_more', size: 24, color: UIColor.secondaryText),
       ],
     ),
   );
@@ -44561,7 +44593,7 @@ void _addProfielClothing(FFProject project) {
   lijst.children.add(UI.column(
     name: 'ProfielKledingItem',
     crossAxisAlignment: UICrossAxisAlignment.stretch,
-    spacing: 4,
+    spacing: 8,
     children: [kop, rij],
   ));
 
@@ -44583,8 +44615,8 @@ void _addProfielClothing(FFProject project) {
   // ── De maten van het gekozen kledingstuk ─────────────────────────────────
   final maatLabel = UI.text('',
       name: 'ProfielMaatLabel',
-      style: UITextStyle.labelMedium,
-      fontWeight: UIFontWeight.w600,
+      style: UITextStyle.bodyLarge,
+      fontWeight: UIFontWeight.w700,
       maxLines: 1);
   maatLabel.props.text.textValue =
       interpolateVar(['Kies een maat voor ', app(itemNaamId)]);
@@ -44599,7 +44631,7 @@ void _addProfielClothing(FFProject project) {
     labelText: 'Nummer',
     hintText: 'Bijvoorbeeld 7',
     keyboardType: UIKeyboardType.number,
-    borderRadius: 10,
+    borderRadius: 12,
   );
 
   final nummerKnop = UI.button(
@@ -44607,9 +44639,9 @@ void _addProfielClothing(FFProject project) {
     name: 'ProfielNummerKnop',
     width: double.infinity,
     iconName: 'tag',
-    iconSize: 18,
-    borderRadius: 10,
-    padding: UIEdgeInsets.all(12),
+    iconSize: 20,
+    borderRadius: 12,
+    padding: UIEdgeInsets.all(14),
   );
 
   final nummerBlok = UI.column(
@@ -44638,7 +44670,8 @@ void _addProfielClothing(FFProject project) {
         _snackBarUitAntwoord(ctx, nummerKnop.key),
       ]),
       onFailure: (ctx) => Actions.chain([
-        Actions.snackBar('Kon het nummer niet opslaan.'),
+        _snackBarFoutUitAntwoord(
+            ctx, nummerKnop.key, 'Kon het nummer niet opslaan.'),
       ]),
     );
 
@@ -44667,13 +44700,13 @@ void _addProfielClothing(FFProject project) {
   final maatLijst = UI.listView(
     name: 'ProfielMaatList',
     shrinkWrap: true,
-    spacing: 6,
+    spacing: 8,
     dynamicSource: DynamicSource(variable: optiesVar, itemName: 'maatoptie'),
   );
 
   final maatTekst = UI.text('',
       name: 'ProfielMaatTekst',
-      style: UITextStyle.bodyMedium,
+      style: UITextStyle.bodyLarge,
       fontWeight: UIFontWeight.w600,
       maxLines: 1);
   maatTekst.props.text.textValue =
@@ -44682,9 +44715,10 @@ void _addProfielClothing(FFProject project) {
   final maatRij = UI.container(
     name: 'ProfielMaatRij',
     width: double.infinity,
-    borderRadius: 10,
+    borderRadius: 14,
     color: UIColor.secondaryBackground,
-    padding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    // Ruim genoeg om met een duim te raken; dit is de knop van dit scherm.
+    padding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 15),
     alignment: UIAlignment.center,
     child: maatTekst,
   );
@@ -44713,7 +44747,8 @@ void _addProfielClothing(FFProject project) {
         ]),
       ]),
       onFailure: (ctx) => Actions.chain([
-        Actions.snackBar('Kon de maat niet opslaan.'),
+        _snackBarFoutUitAntwoord(
+            ctx, maatRij.key, 'Kon de maat niet opslaan.'),
       ]),
     );
 
