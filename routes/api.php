@@ -52,6 +52,13 @@ Route::prefix('v1')->group(function () {
     Route::post('/guardian/self-register', [GuardianController::class, 'selfRegister'])
          ->middleware(['throttle:10,1']);
 
+    // Terugmelding van Pay.nl na een betaling. Publiek, want Pay.nl logt
+    // nergens in - de inhoud wordt niet geloofd, de stand wordt daarna bij
+    // Pay.nl zelf opgehaald. Een ruimere limiet dan de rest: Pay.nl probeert
+    // het bij twijfel meerdere keren.
+    Route::post('/paynl/exchange', \App\Http\Controllers\Api\PayNlWebhookController::class)
+         ->middleware(['throttle:120,1']);
+
     // Health
     Route::get('/health', fn() => response()->json(['status' => 'ok', 'timestamp' => now()]));
 

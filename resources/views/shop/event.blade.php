@@ -7,11 +7,14 @@
         ← Alle activiteiten
     </a>
 
-    @if ($errors->any())
+    {{-- Fouten komen als gewone variabele mee en niet uit de sessie: zonder
+         sessie doet withErrors() niets, en in een iframe op een ander domein is
+         er geen sessie. --}}
+    @if (! empty($fouten))
         <div class="fout">
             <strong>Er ging iets mis:</strong>
             <ul>
-                @foreach ($errors->all() as $fout)
+                @foreach ($fouten as $fout)
                     <li>{{ $fout }}</li>
                 @endforeach
             </ul>
@@ -38,7 +41,7 @@
          iframe op een ander domein werkt. De afrekenroute staat daarom in de
          CSRF-uitzondering en leunt op throttling en reCAPTCHA. --}}
     <form class="kaart" method="POST"
-          action="{{ url("/{$club->slug}/ticketshop/{$activiteit->id}/afrekenen") }}">
+          action="{{ route('shop.checkout', ['clubslug' => $club->slug, 'event' => $activiteit->id]) }}">
         <input type="hidden" name="embed" value="{{ $embed ? '1' : '0' }}">
 
         <h2 style="margin-bottom:6px">Kies je kaarten</h2>
@@ -66,7 +69,7 @@
                 @else
                     <select name="aantal[{{ $soort->id }}]" aria-label="Aantal {{ $soort->name }}">
                         @for ($i = 0; $i <= $over; $i++)
-                            <option value="{{ $i }}" @selected((int) old('aantal.' . $soort->id) === $i)>{{ $i }}</option>
+                            <option value="{{ $i }}" @selected((int) ($ingevuld['aantal'][$soort->id] ?? 0) === $i)>{{ $i }}</option>
                         @endfor
                     </select>
                 @endif
@@ -77,14 +80,14 @@
 
         <div class="veld">
             <label for="buyer_name">Naam</label>
-            <input type="text" id="buyer_name" name="buyer_name" value="{{ old('buyer_name') }}"
+            <input type="text" id="buyer_name" name="buyer_name" value="{{ $ingevuld['buyer_name'] ?? '' }}"
                    maxlength="150" required autocomplete="name">
             <p class="hulp">Deze naam komt op je kaarten te staan.</p>
         </div>
 
         <div class="veld">
             <label for="buyer_email">E-mailadres</label>
-            <input type="email" id="buyer_email" name="buyer_email" value="{{ old('buyer_email') }}"
+            <input type="email" id="buyer_email" name="buyer_email" value="{{ $ingevuld['buyer_email'] ?? '' }}"
                    maxlength="190" required autocomplete="email">
             <p class="hulp">Hier sturen we je kaarten naartoe. Kijk hem goed na.</p>
         </div>

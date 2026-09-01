@@ -18,6 +18,20 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\App\Http\Middleware\HandleCorsApi::class);
         $middleware->api(prepend: [\App\Http\Middleware\HandleCorsApi::class]);
         $middleware->throttleApi('60,1');
+
+        // Het afrekenen in de ticketshop draait bewust zonder sessie: die winkel
+        // hangt in een iframe op de website van een club, en een sessiecookie
+        // met SameSite=lax komt op een ander domein niet mee - dan zou elke
+        // bestelling stranden op een 419.
+        //
+        // Wat ervoor in de plaats komt: een limiet van twintig pogingen per
+        // minuut op die route, reCAPTCHA als de beheerder dat aan heeft staan,
+        // en het feit dat er niets onomkeerbaars gebeurt. Het ergste wat iemand
+        // kan aanrichten is een onbetaalde bestelling die na een half uur
+        // vanzelf verloopt en zijn kaarten teruggeeft.
+        $middleware->validateCsrfTokens(except: [
+            '*/ticketshop/*/afrekenen',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // De snelheidsbegrenzer gooit "Too Many Attempts." — Engels, zonder

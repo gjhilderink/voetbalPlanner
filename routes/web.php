@@ -120,5 +120,20 @@ Route::get('/{clubslug}/ticketshop/{event}', [\App\Http\Controllers\TicketShopCo
     ->where('event', '[0-9a-fA-F-]{36}')
     ->name('shop.event');
 
+// Afrekenen. Zit in de CSRF-uitzondering in bootstrap/app.php, want de winkel
+// draait zonder sessie. Een krappe limiet per IP is wat daarvoor in de plaats
+// komt; er gebeurt hier niets onomkeerbaars, alleen een bestelling die vanzelf
+// verloopt als er niet betaald wordt.
+Route::post('/{clubslug}/ticketshop/{event}/afrekenen', [\App\Http\Controllers\TicketShopController::class, 'checkout'])
+    ->where('clubslug', '[a-z0-9][a-z0-9-]*')
+    ->where('event', '[0-9a-fA-F-]{36}')
+    ->middleware('throttle:20,1')
+    ->name('shop.checkout');
+
+Route::get('/{clubslug}/ticketshop/klaar/{token}', [\App\Http\Controllers\TicketShopController::class, 'klaar'])
+    ->where('clubslug', '[a-z0-9][a-z0-9-]*')
+    ->where('token', '[a-zA-Z0-9]{64}')
+    ->name('shop.klaar');
+
 // Impersonation routes (guarded by the package middleware)
 Route::impersonate();

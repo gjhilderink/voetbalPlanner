@@ -38,3 +38,8 @@ Schedule::command('guardian:expire')->dailyAt('02:00')->name('guardian-expire');
 Schedule::call(fn () => \App\Models\LiveViewer::where(
     'last_seen_at', '<', now()->subDay(),
 )->delete())->dailyAt('03:30')->name('live-viewers-opruimen');
+
+// Onbetaalde bestellingen in de ticketshop geven hun kaarten terug. Elke vijf
+// minuten: de reservering duurt een half uur, dus dat is ruim op tijd zonder
+// dat het iets kost.
+Schedule::command('ticketshop:verlopen')->everyFiveMinutes()->name('ticketshop-verlopen');
