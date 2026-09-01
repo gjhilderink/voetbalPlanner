@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Mail\TicketMail;
 use App\Models\AccessCode;
 use App\Models\AgendaItem;
 use App\Models\Club;
 use App\Models\Order;
-use App\Models\OrderLine;
 use App\Models\TicketType;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Bestellingen aanmaken en afronden.
@@ -239,16 +240,45 @@ class OrderService
     /**
      * De kaarten naar de koper mailen.
      *
-     * Komt in de volgende stap. Nu al aanroepen vanuit afronden() zodat er
-     * straks maar één regel bij hoeft, en de bestelling ondertussen gewoon
-     * betaald en voorzien van codes in de portal staat.
+     * Synchroon, want op deze hosting draait geen queue-worker: een mail in de
+     * wachtrij zou nooit aankomen.
+     *
+     * Mislukken is niet fataal. De bestelling is betaald, de codes bestaan en
+     * staan op de bevestigingspagina; de beheerder kan de mail opnieuw sturen
+     * vanuit de portal. Een uitzondering hier zou de afronding laten stranden
+     * ná de betaling, en dát is pas een probleem.
      */
     public function stuurTickets(Order $order): bool
     {
-        Log::info('[Ticketshop] bestelling afgerond, mail volgt zodra die er is', [
-            'order' => $order->order_number,
-        ]);
+        $order->loadMissing(['lines', 'accessCodes', 'agendaItem', 'club']);
 
-        return false;
+        if ($order->accessCodes->isEmpty()) {
+            Log::warning('[Ticketshop] geen kaarten om te mailen', [
+                'order' => $order->order_number,
+            ]);
+
+            return false;
+        }
+
+        try {
+            Mail::to($order->buyer_email)->send(new TicketMail($order));
+
+            $order->update(['mail_sent_at' => now()]);
+
+            Log::info('[Ticketshop] kaarten gemaild', [
+                'order' => $order->order_number,
+                'aan'   => $order->buyer_email,
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('[Ticketshop] kaarten mailen mislukt', [
+                'order' => $order->order_number,
+                'aan'   => $order->buyer_email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 }

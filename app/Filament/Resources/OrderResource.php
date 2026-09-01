@@ -7,6 +7,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\OrderResource\Pages;
 use App\Models\AccessCode;
 use App\Models\Order;
+use App\Services\OrderService;
 use App\Support\Geld;
 use Filament\Actions;
 use Filament\Notifications\Notification;
@@ -19,10 +20,11 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * De bestellingen uit de ticketshop.
  *
- * Alleen lezen: een bestelling is een vastgelegd feit. Wat je er wél mee kunt is
- * hem intrekken - dat zet de codes op niet-actief, zodat ze bij de ingang
- * geweigerd worden. Geld terugstorten gebeurt bij Pay.nl en niet hier; dit
- * scherm weet niets van de rekening.
+ * Alleen lezen: een bestelling is een vastgelegd feit. Wat je er wél mee kunt
+ * is de mail opnieuw sturen en de bestelling intrekken - dat laatste zet de
+ * codes op niet-actief, zodat ze bij de ingang geweigerd worden. Geld
+ * terugstorten gebeurt bij Pay.nl en niet hier; dit scherm weet niets van de
+ * rekening.
  */
 class OrderResource extends Resource
 {
@@ -163,9 +165,26 @@ class OrderResource extends Resource
                         'order' => $record->load(['lines', 'accessCodes']),
                     ])),
 
-                // De knop "mail opnieuw sturen" komt erbij zodra de ticketmail
-                // bestaat. Hem nu al neerzetten zou een knop opleveren die bij
-                // het indrukken op een ontbrekende klasse stukloopt.
+                Actions\Action::make('mail')
+                    ->label('Mail opnieuw sturen')
+                    ->icon('heroicon-o-envelope')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading('Kaarten opnieuw mailen')
+                    ->modalDescription(fn (Order $record): string => 'De kaarten gaan opnieuw naar ' . $record->buyer_email . '.')
+                    ->visible(fn (Order $record): bool => $record->isBetaald())
+                    ->action(function (Order $record): void {
+                        $gelukt = app(OrderService::class)->stuurTickets($record);
+
+                        Notification::make()
+                            ->title($gelukt ? 'Mail verstuurd' : 'Versturen mislukt')
+                            ->body($gelukt
+                                ? 'De kaarten zijn opnieuw naar ' . $record->buyer_email . ' gestuurd.'
+                                : 'Kijk in de logboeken onder [Ticketshop] wat er misging.')
+                            ->color($gelukt ? 'success' : 'danger')
+                            ->persistent(! $gelukt)
+                            ->send();
+                    }),
 
                 Actions\Action::make('intrekken')
                     ->label('Intrekken')
