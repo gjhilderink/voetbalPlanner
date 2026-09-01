@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\AgendaItemResource\RelationManagers;
 
 use App\Models\TicketType;
+use App\Support\Geld;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -43,7 +44,7 @@ class TicketTypesRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('price_cents')
                     ->label('Prijs')
-                    ->formatStateUsing(fn (int $state): string => static::bedrag($state))
+                    ->formatStateUsing(fn (int $state): string => Geld::euro($state))
                     ->alignEnd(),
 
                 Tables\Columns\TextColumn::make('voorraad')
@@ -128,7 +129,7 @@ class TicketTypesRelationManager extends RelationManager
                 ->required()
                 ->helperText('Bijvoorbeeld 7,50. Nul mag ook — dan is de kaart gratis maar wel te reserveren.')
                 ->formatStateUsing(fn (?int $state): string => number_format(($state ?? 0) / 100, 2, ',', ''))
-                ->dehydrateStateUsing(fn (?string $state): int => static::naarCenten($state))
+                ->dehydrateStateUsing(fn (?string $state): int => Geld::naarCenten($state))
                 ->rule('regex:/^\s*€?\s*\d{1,5}([.,]\d{1,2})?\s*$/'),
 
             Forms\Components\TextInput::make('stock')
@@ -151,24 +152,5 @@ class TicketTypesRelationManager extends RelationManager
                 ->default(true)
                 ->helperText('Uit = niet zichtbaar in de winkel. Al verkochte kaarten blijven gewoon geldig.'),
         ];
-    }
-
-    /**
-     * Een ingetypt bedrag naar hele centen.
-     *
-     * Accepteert komma én punt, met of zonder euroteken. Afronden op de cent en
-     * niet afkappen: 7,505 hoort 751 te worden en geen 750.
-     */
-    public static function naarCenten(?string $ruw): int
-    {
-        $schoon = str_replace(',', '.', preg_replace('/[^0-9,.]/', '', (string) $ruw) ?? '');
-
-        return (int) round(((float) $schoon) * 100);
-    }
-
-    /** Centen naar een bedrag zoals je het in Nederland opschrijft. */
-    public static function bedrag(int $centen): string
-    {
-        return '€ ' . number_format($centen / 100, 2, ',', '.');
     }
 }

@@ -7,6 +7,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\OrderResource\Pages;
 use App\Models\AccessCode;
 use App\Models\Order;
+use App\Support\Geld;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -114,7 +115,7 @@ class OrderResource extends Resource
                 Tables\Columns\TextColumn::make('total_cents')
                     ->label('Bedrag')
                     ->alignEnd()
-                    ->formatStateUsing(fn (int $state): string => static::bedrag($state))
+                    ->formatStateUsing(fn (int $state): string => Geld::euro($state))
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('status')
@@ -185,12 +186,6 @@ class OrderResource extends Resource
                             ->send();
                     }),
             ]);
-    }
-
-    /** Centen naar een bedrag zoals je het in Nederland opschrijft. */
-    public static function bedrag(int $centen): string
-    {
-        return '€ ' . number_format($centen / 100, 2, ',', '.');
     }
 
     public static function getPages(): array

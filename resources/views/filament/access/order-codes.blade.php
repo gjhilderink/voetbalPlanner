@@ -15,13 +15,13 @@
             <div class="flex items-center justify-between px-3 py-2 text-sm">
                 <span>{{ $line->quantity }}× {{ $line->type_name }}</span>
                 <span class="text-gray-500 dark:text-gray-400">
-                    {{ \App\Filament\Resources\OrderResource::bedrag($line->line_total_cents) }}
+                    {{ \App\Support\Geld::euro($line->line_total_cents) }}
                 </span>
             </div>
         @endforeach
         <div class="flex items-center justify-between px-3 py-2 text-sm font-bold">
             <span>Totaal</span>
-            <span>{{ \App\Filament\Resources\OrderResource::bedrag($order->total_cents) }}</span>
+            <span>{{ \App\Support\Geld::euro($order->total_cents) }}</span>
         </div>
     </div>
 

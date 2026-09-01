@@ -105,5 +105,20 @@ Route::get('/live/{token}/state', [\App\Http\Controllers\LivePageController::cla
     ->middleware('throttle:120,1')
     ->name('live.state');
 
+// De publieke ticketshop van een club. Geen login en geen sessie: de winkel moet
+// ook in een iframe op de eigen website van een club werken, en een sessiecookie
+// met SameSite=lax komt daar niet mee.
+//
+// Helemaal onderaan, zodat elke vaste route hierboven voorgaat. De slug mag
+// alleen kleine letters, cijfers en streepjes zijn; de controller weigert
+// daarnaast de namen die al iets anders betekenen.
+Route::get('/{clubslug}/ticketshop', [\App\Http\Controllers\TicketShopController::class, 'show'])
+    ->where('clubslug', '[a-z0-9][a-z0-9-]*')
+    ->name('shop.show');
+Route::get('/{clubslug}/ticketshop/{event}', [\App\Http\Controllers\TicketShopController::class, 'event'])
+    ->where('clubslug', '[a-z0-9][a-z0-9-]*')
+    ->where('event', '[0-9a-fA-F-]{36}')
+    ->name('shop.event');
+
 // Impersonation routes (guarded by the package middleware)
 Route::impersonate();
