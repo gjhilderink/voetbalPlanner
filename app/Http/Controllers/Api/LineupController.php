@@ -34,8 +34,16 @@ class LineupController extends Controller
             return response()->json([]);
         }
 
+        // Hetzelfde filter als bij het bord: staf die ooit in de opstelling
+        // terecht is gekomen hoort er nergens meer in te staan, ook niet op
+        // de livepagina die deze weg gebruikt.
+        $stafIds = $this->stafVan($match);
+
         return response()->json(
-            $lineup->players->map(fn($p) => (new LineupPlayerResource($p))->resolve())->values()
+            $lineup->players
+                ->reject(fn (LineupPlayer $p) => in_array($p->member_id, $stafIds, true))
+                ->map(fn ($p) => (new LineupPlayerResource($p))->resolve())
+                ->values()
         );
     }
 
@@ -108,7 +116,19 @@ class LineupController extends Controller
             'period'     => (string) ($p->period ?? 1),
         ];
 
-        $spelers = $lineup?->players ?? collect();
+        // Staf die ooit in de opstelling terecht is gekomen hoort er niet meer
+        // in te staan. Ze uit de selectie weren helpt alleen voor wat je nog
+        // moet kiezen; wie al opgeslagen was bleef gewoon bij de wissels staan,
+        // in elke wedstrijd apart weg te halen. Daarom hier bij het ophalen.
+        //
+        // Alleen staf van dít elftal, en niet "iedereen die niet in de selectie
+        // zit": een gastspeler van een ander team hoort er wél in, en een
+        // speler die inmiddels vertrokken is hoort in een gespeelde wedstrijd
+        // te blijven staan. Geschiedenis herschrijven we niet.
+        $stafIds = $this->stafVan($match);
+
+        $spelers = ($lineup?->players ?? collect())
+            ->reject(fn (LineupPlayer $p) => in_array($p->member_id, $stafIds, true));
 
         return response()->json([
             'magBeheren'     => $magBeheren ? 'true' : 'false',
@@ -181,6 +201,32 @@ class LineupController extends Controller
             $leden->map(fn ($m) => $regel($m, false))->values()->all(),
             $extra,
         );
+    }
+
+    /**
+     * De leden van dit elftal die staf zijn: coach, trainer, leider, verzorger.
+     *
+     * Het verschil tussen alle leden en de spelende leden. Zo staat de
+     * afbakening op één plek - in Team::playingMembers() - en kan die hier niet
+     * van afwijken.
+     *
+     * @return array<int, string>
+     */
+    private function stafVan(FootballMatch $match): array
+    {
+        $team = $match->team;
+
+        if (! $team) {
+            return [];
+        }
+
+        $spelend = $team->playingMembers()->pluck('members.id')->all();
+
+        return $team->members()
+            ->pluck('members.id')
+            ->reject(fn ($id) => in_array($id, $spelend, true))
+            ->values()
+            ->all();
     }
 
     /**
