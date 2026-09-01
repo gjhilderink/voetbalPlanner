@@ -13,6 +13,8 @@ use App\Models\MemberClothingSize;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 /**
  * Kledingmaten in de app.
@@ -227,28 +229,45 @@ class ClothingController extends Controller
      */
     public function setNumber(Request $request): JsonResponse
     {
-        $validated = $request->validate([
+        // Zelf valideren in plaats van $request->validate(): die gooit een
+        // uitzondering die Laravel meteen in een 422 verandert, en dan staat er
+        // nergens waarom. Deze aanroep komt uit de app, waar niemand het veld
+        // even opnieuw invult - dus hoort de reden in de log te belanden.
+        $controle = Validator::make($request->all(), [
             'member_id' => ['required', 'uuid'],
             'item_id'   => ['required', 'uuid'],
             'number'    => ['nullable', 'integer', 'min:0', 'max:999'],
         ]);
 
+        if ($controle->fails()) {
+            return $this->nummerGeweigerd(
+                $request,
+                $controle->errors()->first(),
+                422,
+                ['fouten' => $controle->errors()->all()],
+            );
+        }
+
+        $validated = $controle->validated();
+
         $lid = $this->personen($request)->firstWhere('id', $validated['member_id']);
 
         if (! $lid) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Je kunt het nummer van dit lid niet aanpassen.',
-            ], 403);
+            return $this->nummerGeweigerd(
+                $request,
+                'Je kunt het nummer van dit lid niet aanpassen.',
+                403,
+            );
         }
 
         $stuk = $this->kledingstukken($lid)->firstWhere('id', $validated['item_id']);
 
         if (! $stuk) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dit kledingstuk bestaat niet (meer).',
-            ], 422);
+            return $this->nummerGeweigerd(
+                $request,
+                'Dit kledingstuk bestaat niet (meer).',
+                422,
+            );
         }
 
         $nummer = $validated['number'] ?? null;
@@ -299,6 +318,34 @@ class ClothingController extends Controller
                 ? "{$voor}{$stuk->name}: nummer weggehaald."
                 : "{$voor}{$stuk->name}: nummer {$nummer}.",
         ]);
+    }
+
+    /**
+     * Een geweigerd nummer: hetzelfde antwoord aan de app, en een regel in de
+     * log zodat er van buitenaf iets te zien is.
+     *
+     * De app toont de melding uit dit antwoord, dus de tekst is voor de
+     * gebruiker. Wat er precies binnenkwam is voor wie meekijkt in de log.
+     *
+     * @param  array<string, mixed>  $extra
+     */
+    private function nummerGeweigerd(
+        Request $request,
+        string $melding,
+        int $status,
+        array $extra = [],
+    ): JsonResponse {
+        Log::warning('[Kleding] nummer niet opgeslagen', array_merge([
+            'melding'   => $melding,
+            'status'    => $status,
+            'gebruiker' => $request->user()?->id,
+            'invoer'    => $request->only(['member_id', 'item_id', 'number']),
+        ], $extra));
+
+        return response()->json([
+            'success' => false,
+            'message' => $melding,
+        ], $status);
     }
 
     /**
