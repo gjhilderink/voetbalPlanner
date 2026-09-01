@@ -34,6 +34,27 @@ class Member extends Model
     /** Functies die beheerrechten (opstelling & score) geven voor dat team. */
     public const MANAGEMENT_ROLES = [self::ROLE_COACH, self::ROLE_LEIDER];
 
+    /**
+     * Alles wat geen speler is, in beide woordenlijsten.
+     *
+     * De functie per team (member_team.role) en de hoofdrol bij de club
+     * (members.role) komen uit verschillende bronnen en gebruiken niet dezelfde
+     * woorden: de een kent 'assistant_coach' en 'leider', de ander 'medical' en
+     * 'staff'. Wie op een van beide plekken staf is, is geen speler - dus geldt
+     * hier de samenvoeging.
+     *
+     * Twee aparte lijstjes hebben hier eerder een coach in de opstelling laten
+     * belanden: zijn teamfunctie stond op 'staff', en dat woord kwam alleen in
+     * het andere lijstje voor.
+     */
+    public const STAF_ROLES = [
+        self::ROLE_COACH,
+        self::ROLE_ASSISTANT,
+        self::ROLE_LEIDER,
+        'medical',
+        'staff',
+    ];
+
     protected $fillable = [
         'external_id', 'user_id', 'name', 'last_name', 'email', 'phone',
         'date_of_birth', 'role', 'profile_photo', 'sportlink_photo',

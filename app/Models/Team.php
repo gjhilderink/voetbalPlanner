@@ -59,15 +59,17 @@ class Team extends Model
      */
     public function playingMembers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        $teamStaf = [Member::ROLE_COACH, Member::ROLE_ASSISTANT, Member::ROLE_LEIDER];
-        $clubStaf = ['coach', 'medical', 'staff'];
+        // Eén lijst voor allebei de takken. Ze stonden eerder los van elkaar,
+        // en dan glipt er iemand door: een teamfunctie 'staff' kwam alleen in
+        // het clublijstje voor, dus stond die persoon gewoon bij de wissels.
+        $staf = Member::STAF_ROLES;
 
-        return $this->members()->where(function ($q) use ($teamStaf, $clubStaf) {
+        return $this->members()->where(function ($q) use ($staf) {
             // Teamfunctie ingevuld: die beslist, en alleen die.
             $q->where(fn ($sub) => $sub
                 ->whereNotNull('member_team.role')
                 ->where('member_team.role', '!=', '')
-                ->whereNotIn('member_team.role', $teamStaf));
+                ->whereNotIn('member_team.role', $staf));
 
             // Geen teamfunctie: dan valt de club-hoofdrol terug in.
             $q->orWhere(fn ($sub) => $sub
@@ -76,7 +78,7 @@ class Team extends Model
                     ->orWhere('member_team.role', '=', ''))
                 ->where(fn ($rol) => $rol
                     ->whereNull('members.role')
-                    ->orWhereNotIn('members.role', $clubStaf)));
+                    ->orWhereNotIn('members.role', $staf)));
         });
     }
 
