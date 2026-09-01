@@ -90,6 +90,18 @@ class AgendaItem extends Model
         return $this->belongsToMany(StaffGroup::class, 'agenda_item_staff_group');
     }
 
+    /** De kaartsoorten die voor deze activiteit te koop zijn. */
+    public function ticketTypes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TicketType::class);
+    }
+
+    /** De bestellingen uit de ticketshop voor deze activiteit. */
+    public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
     /** De uitgedeelde toegangscodes voor deze activiteit. */
     public function accessCodes(): \Illuminate\Database\Eloquent\Relations\HasMany
     {

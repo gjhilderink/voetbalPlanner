@@ -23,13 +23,15 @@ class Club extends Model
         'email_header_text', 'email_intro_text', 'email_footer_text', 'email_subject',
         'app_icon_path', 'splash_path', 'splash_bg_color',
         'access_enabled',
+        'ticketshop_enabled',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active'      => 'boolean',
-            'access_enabled' => 'boolean',
+            'access_enabled'     => 'boolean',
+            'ticketshop_enabled' => 'boolean',
         ];
     }
 

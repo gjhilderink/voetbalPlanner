@@ -27,6 +27,7 @@ class AccessCode extends Model
     protected $fillable = [
         'club_id',
         'agenda_item_id',
+        'order_id',
         'code',
         'label',
         'max_uses',
@@ -56,6 +57,18 @@ class AccessCode extends Model
     public function entries(): HasMany
     {
         return $this->hasMany(AccessEntry::class);
+    }
+
+    /** Gevuld bij een gekocht kaartje; leeg bij een code die de club zelf maakte. */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
+    /** Is dit kaartje verkocht via de ticketshop? */
+    public function isVerkocht(): bool
+    {
+        return $this->order_id !== null;
     }
 
     /** Is er nog gebruik over? */

@@ -29,6 +29,7 @@ use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 class ManageSettings extends Page
@@ -78,6 +79,14 @@ class ManageSettings extends Page
             'whatsapp_api_key'    => Setting::get('whatsapp_api_key', '', $clubId),
             'debug_enabled'       => filter_var(Setting::get('debug_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
             'access_enabled'      => (bool) ($club?->access_enabled ?? false),
+            'ticketshop_enabled'  => (bool) ($club?->ticketshop_enabled ?? false),
+            'paynl_service_id'    => Setting::get('paynl_service_id', '', $clubId),
+            'paynl_token_code'    => Setting::get('paynl_token_code', '', $clubId),
+            // Bewust leeg: het token wordt niet teruggestuurd naar de browser.
+            // De bestaande sleutelvelden hier doen dat wel, en dan staat een
+            // wachtwoord in de paginabron van elke sessie.
+            'paynl_api_token'     => '',
+            'paynl_test_mode'     => filter_var(Setting::get('paynl_test_mode', true, $clubId), FILTER_VALIDATE_BOOLEAN),
             'club_name'           => $club?->name,
             'club_address'        => $club?->address,
             'club_city'           => $club?->city,
@@ -245,11 +254,65 @@ class ManageSettings extends Page
                     ->schema([
                         Toggle::make('access_enabled')
                             ->label('Toegangscontrole')
+                            ->live()
                             ->helperText('Toegangscodes maken bij een activiteit en die bij de ingang scannen met de app. '
                                 . 'Aan zetten geeft ook elk lid een persoonlijke QR-code in het menu van de app. '
                                 . 'Wie mag scannen bepaal je met de rol Toegangscontrole bij Gebruikers.'),
+
+                        Toggle::make('ticketshop_enabled')
+                            ->label('Ticketshop')
+                            ->live()
+                            // Zonder toegangscontrole is er niets te verkopen:
+                            // een gekocht kaartje ís een toegangscode.
+                            ->visible(fn (Get $get): bool => (bool) $get('access_enabled'))
+                            ->helperText('Kaarten verkopen voor een activiteit, met betaling via Pay.nl. '
+                                . 'De koper krijgt zijn QR-codes per mail en die werken meteen bij de ingang.'),
                     ])
                     ->columns(1)
+                    ->collapsible(),
+
+                Section::make('Ticketshop')
+                    ->description('De betaalkoppeling en het adres van je winkel.')
+                    ->visible(fn (Get $get): bool => (bool) $get('ticketshop_enabled'))
+                    ->schema([
+                        Placeholder::make('shop_url')
+                            ->label('Adres van je winkel')
+                            ->content(fn (): string => filament()->getTenant()
+                                ? url('/' . filament()->getTenant()->slug . '/ticketshop')
+                                : 'Kies eerst een club.'),
+
+                        Placeholder::make('shop_embed')
+                            ->label('In je eigen website zetten')
+                            ->content(fn (): string => filament()->getTenant()
+                                ? '<iframe src="' . url('/' . filament()->getTenant()->slug . '/ticketshop?embed=1')
+                                    . '" style="width:100%;border:0" height="900"></iframe>'
+                                : '—')
+                            ->helperText('Plak deze regel in een WordPress-pagina. De winkel groeit vanzelf mee in hoogte.'),
+
+                        TextInput::make('paynl_service_id')
+                            ->label('Pay.nl service-ID')
+                            ->placeholder('SL-1234-5678')
+                            ->maxLength(64)
+                            ->helperText('Staat in je Pay.nl-account onder Services.'),
+
+                        TextInput::make('paynl_token_code')
+                            ->label('Pay.nl tokencode')
+                            ->placeholder('AT-1234-5678')
+                            ->maxLength(64)
+                            ->helperText('De AT-code die bij je API-token hoort.'),
+
+                        TextInput::make('paynl_api_token')
+                            ->label('Pay.nl API-token')
+                            ->password()
+                            ->revealable()
+                            ->maxLength(191)
+                            ->helperText('Laat leeg om het huidige token te laten staan. Het wordt versleuteld bewaard en nooit teruggetoond.'),
+
+                        Toggle::make('paynl_test_mode')
+                            ->label('Testmodus')
+                            ->helperText('Aan: er wordt niets echt afgeschreven. Zet dit uit zodra je klaar bent om te verkopen.'),
+                    ])
+                    ->columns(2)
                     ->collapsible(),
 
                 Section::make('App-uiterlijk')
@@ -490,6 +553,16 @@ class ManageSettings extends Page
 
         Setting::set('debug_enabled', $data['debug_enabled'] ? '1' : '0', 'app', false, $clubId);
 
+        Setting::set('paynl_service_id', $data['paynl_service_id'] ?? '', 'ticketshop', false, $clubId);
+        Setting::set('paynl_token_code', $data['paynl_token_code'] ?? '', 'ticketshop', false, $clubId);
+        Setting::set('paynl_test_mode', ($data['paynl_test_mode'] ?? true) ? '1' : '0', 'ticketshop', false, $clubId);
+        // Alleen schrijven als er iets is ingevuld. De andere sleutelvelden op
+        // deze pagina overschrijven blind, en dan wist opslaan met een leeg veld
+        // de koppeling zonder dat iemand het doorheeft.
+        if (filled($data['paynl_api_token'] ?? null)) {
+            Setting::set('paynl_api_token', $data['paynl_api_token'], 'ticketshop', true, $clubId);
+        }
+
         $club = filament()->getTenant();
         if ($club) {
             $club->update([
@@ -507,6 +580,7 @@ class ManageSettings extends Page
                 'splash_path'        => $data['splash_path'] ?? null,
                 'splash_bg_color'    => $data['splash_bg_color'] ?? null,
                 'access_enabled'     => (bool) ($data['access_enabled'] ?? false),
+                'ticketshop_enabled' => (bool) ($data['access_enabled'] ?? false) && (bool) ($data['ticketshop_enabled'] ?? false),
                 'email_header_text'  => $data['email_header_text'] ?? null,
                 'email_intro_text'   => $data['email_intro_text'] ?? null,
                 'email_footer_text'  => $data['email_footer_text'] ?? null,
