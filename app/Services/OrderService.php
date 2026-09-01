@@ -265,9 +265,15 @@ class OrderService
 
             $order->update(['mail_sent_at' => now()]);
 
+            // De mailer erbij, want "gemaild" zegt alleen dat het versturen
+            // niet klapte. Staat mail.default op log of array, dan komt er
+            // precies dezelfde regel uit terwijl er niets de deur uitgaat.
             Log::info('[Ticketshop] kaarten gemaild', [
-                'order' => $order->order_number,
-                'aan'   => $order->buyer_email,
+                'order'   => $order->order_number,
+                'aan'     => $order->buyer_email,
+                'mailer'  => config('mail.default'),
+                'van'     => config('mail.from.address'),
+                'bijlagen' => $order->accessCodes->count(),
             ]);
 
             return true;
