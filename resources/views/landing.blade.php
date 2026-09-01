@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>VoetbalPlanner — Slimme clubplanning</title>
-    <meta name="description" content="VoetbalPlanner helpt voetbalclubs hun wedstrijden, opstellingen, bardiensten, rijschema's, clubdocumentatie en communicatie eenvoudig te beheren via één app.">
+    <meta name="description" content="VoetbalPlanner helpt voetbalclubs met wedstrijden, opstellingen, bardiensten, rijschema's, communicatie, kaartverkoop en toegangscontrole — alles in één app.">
 
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
         @vite(['resources/css/app.css', 'resources/js/app.js'])

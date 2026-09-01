@@ -43,6 +43,8 @@ class PricingContent
             . "Trainingsschema's met af- en aanmelden\n"
             . "Team- en groepschat met pushberichten\n"
             . "Nieuws, agenda en clubdocumenten\n"
+            . "Ticketshop met iDEAL-betaling via uw eigen Pay.nl-account\n"
+            . "Toegangscontrole met QR-codes bij de ingang\n"
             . "Koppeling van ouders en verzorgers aan hun kind\n"
             . "De app voor iOS en Android\n"
             . "Onbeperkt aantal teams, leden en beheerders\n"
