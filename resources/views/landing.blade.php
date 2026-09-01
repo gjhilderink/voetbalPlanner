@@ -226,6 +226,84 @@
     </div>
 </section>
 
+{{-- Nieuw: ticketshop en toegangscontrole --}}
+<section class="py-20 px-6 bg-white border-t border-gray-100">
+    <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-14">
+            {{-- Groen en niet rood: de rode badge van deze pagina zit in de
+                 hero, en twee accenten heffen elkaar op. --}}
+            <div class="inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-widest mb-6 bg-brand-50 text-brand-700 border border-brand-200">
+                Nieuw
+            </div>
+            <h2 class="display text-4xl sm:text-5xl text-navy-900 mb-4">Kaartverkoop en <span class="streep">toegangscontrole</span></h2>
+            <p class="text-gray-500 text-lg max-w-2xl mx-auto">Verkoop kaarten voor uw wedstrijden en evenementen, en controleer bij de ingang met een scan wie er naar binnen mag. Twee modules die op elkaar aansluiten: een verkocht kaartje ís de toegangscode.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- Ticketshop --}}
+            <div class="bg-gray-50 rounded-2xl p-8 border border-gray-100">
+                <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-5 shadow-sm">
+                    <svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-3">Ticketshop</h3>
+                <p class="text-gray-500 text-sm leading-relaxed mb-5">Uw club krijgt een eigen webwinkel op voetbalplanner.nl. Per activiteit stelt u kaartsoorten in met een eigen prijs en voorraad, en de koper krijgt zijn kaarten direct per mail.</p>
+                <ul class="space-y-2.5 text-sm text-gray-600">
+                    <li class="flex gap-2.5">
+                        <span class="text-brand-600 font-bold shrink-0">&checkmark;</span>
+                        <span>Betalen met iDEAL via uw eigen Pay.nl-account — het geld komt rechtstreeks bij de club binnen</span>
+                    </li>
+                    <li class="flex gap-2.5">
+                        <span class="text-brand-600 font-bold shrink-0">&checkmark;</span>
+                        <span>Kaartsoorten met eigen prijs en voorraad: volwassene, kind, vrijwilliger</span>
+                    </li>
+                    <li class="flex gap-2.5">
+                        <span class="text-brand-600 font-bold shrink-0">&checkmark;</span>
+                        <span>Met één regel HTML in uw eigen clubwebsite te zetten</span>
+                    </li>
+                    <li class="flex gap-2.5">
+                        <span class="text-brand-600 font-bold shrink-0">&checkmark;</span>
+                        <span>Alle bestellingen overzichtelijk in het beheerpaneel</span>
+                    </li>
+                </ul>
+            </div>
+
+            {{-- Toegangscontrole --}}
+            <div class="bg-gray-50 rounded-2xl p-8 border border-gray-100">
+                <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-5 shadow-sm">
+                    <svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-3">Toegangscontrole</h3>
+                <p class="text-gray-500 text-sm leading-relaxed mb-5">Bij de ingang scant een vrijwilliger de QR-code met de app. Het scherm wordt groen bij een geldige code en rood bij een code die al gebruikt is — op een meter afstand te zien, ook in het donker.</p>
+                <ul class="space-y-2.5 text-sm text-gray-600">
+                    <li class="flex gap-2.5">
+                        <span class="text-brand-600 font-bold shrink-0">&checkmark;</span>
+                        <span>Codes maken, importeren of afdrukken vanuit het beheerpaneel</span>
+                    </li>
+                    <li class="flex gap-2.5">
+                        <span class="text-brand-600 font-bold shrink-0">&checkmark;</span>
+                        <span>Per code instelbaar hoe vaak hij gebruikt mag worden</span>
+                    </li>
+                    <li class="flex gap-2.5">
+                        <span class="text-brand-600 font-bold shrink-0">&checkmark;</span>
+                        <span>Is een activiteit gratis voor leden, dan werkt de persoonlijke QR uit de app</span>
+                    </li>
+                    <li class="flex gap-2.5">
+                        <span class="text-brand-600 font-bold shrink-0">&checkmark;</span>
+                        <span>Terug te zien wie wanneer naar binnen ging</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <p class="text-center text-gray-400 text-sm mt-10">Beide modules zet u per club aan of uit — gebruikt u ze niet, dan ziet niemand ze.</p>
+    </div>
+</section>
+
 {{-- Hoe het werkt --}}
 <section class="py-20 px-6 bg-white">
     <div class="max-w-4xl mx-auto">
