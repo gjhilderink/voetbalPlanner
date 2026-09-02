@@ -206,6 +206,40 @@ class MemberResource extends Resource
         };
     }
 
+    /** Alle accounts van de club op e-mailadres, één keer per verzoek opgehaald. */
+    protected static ?\Illuminate\Support\Collection $accountsOpEmail = null;
+
+    /**
+     * Het app-account dat bij dit lid hoort, of niets.
+     *
+     * Twee wegen, want zo is het gegroeid: het lid wijst met user_id naar een
+     * account, of het deelt alleen een e-mailadres met een account. Beide gelden
+     * elders in de applicatie ook (zie User::resolveMember), dus hier ook.
+     */
+    public static function accountVan(Member $record): ?\App\Models\User
+    {
+        if ($record->user) {
+            return $record->user;
+        }
+
+        if (! filled($record->email)) {
+            return null;
+        }
+
+        // In één keer alle accounts van de club, en niet één zoekopdracht per
+        // regel: deze kolom staat in een lijst die honderden leden lang kan zijn.
+        static::$accountsOpEmail ??= \App\Models\User::query()
+            ->when(
+                filament()->getTenant(),
+                fn (Builder $q, $club) => $q->where('club_id', $club->id),
+            )
+            ->whereNotNull('email')
+            ->get()
+            ->keyBy(fn (\App\Models\User $u) => mb_strtolower($u->email));
+
+        return static::$accountsOpEmail->get(mb_strtolower($record->email));
+    }
+
     /**
      * Bouwt losse labels op ("Kind: …", "Ouder: …") voor de personen waarmee dit
      * lid gekoppeld is. Toont actieve (approved) én lopende (pending) koppelingen;
@@ -294,6 +328,29 @@ class MemberResource extends Resource
                     ->getStateUsing(fn($record) => $record->external_id ? 'sync' : 'manual')
                     ->formatStateUsing(fn($state) => $state === 'sync' ? 'Sportlink' : 'Manueel')
                     ->color(fn($state) => $state === 'sync' ? 'info' : 'gray'),
+                // Gebruikt dit lid de app? Een lid is geen account: de meesten
+                // hebben er een, sommigen niet, en wie er wel een heeft kan hem
+                // nog nooit geopend hebben. Die drie toestanden staan hier naast
+                // elkaar in plaats van dat je ze bij Gebruikers moet opzoeken.
+                Tables\Columns\TextColumn::make('app_login')
+                    ->label('In de app')
+                    ->badge()
+                    ->getStateUsing(function (Member $record): string {
+                        $account = self::accountVan($record);
+
+                        if (! $account) {
+                            return 'Geen account';
+                        }
+
+                        return $account->last_app_login_at
+                            ? $account->last_app_login_at->format('d-m-Y')
+                            : 'Nog nooit';
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'Geen account' => 'gray',
+                        'Nog nooit'    => 'warning',
+                        default        => 'success',
+                    }),
                 Tables\Columns\IconColumn::make('is_active')->label('Actief')->boolean(),
                 Tables\Columns\TextColumn::make('last_synced_at')
                     ->label('Laatste sync')
@@ -323,6 +380,62 @@ class MemberResource extends Resource
                         'staff'   => 'Overige staf',
                     ]),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Actief'),
+                // Waar de vraag "gebruiken onze leden de app?" op neerkomt: wie
+                // is er nog nooit binnen geweest. Dat is de lijst waarmee je aan
+                // de slag gaat.
+                Tables\Filters\SelectFilter::make('app_gebruik')
+                    ->label('App')
+                    ->options([
+                        'wel'         => 'Wel eens ingelogd',
+                        'nooit'       => 'Account, nooit ingelogd',
+                        'geen_account' => 'Geen account',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $keuze = $data['value'] ?? null;
+
+                        if (! $keuze) {
+                            return $query;
+                        }
+
+                        // Een lid hangt aan een account via user_id of via het
+                        // e-mailadres; allebei tellen mee, net als elders.
+                        $metAccount = fn (Builder $q) => $q->where(fn (Builder $x) => $x
+                            ->whereHas('user')
+                            ->orWhere(fn (Builder $e) => $e
+                                ->whereNotNull('email')
+                                ->where('email', '!=', '')
+                                ->whereExists(fn ($sub) => $sub
+                                    ->selectRaw('1')
+                                    ->from('users')
+                                    ->whereColumn('users.email', 'members.email')
+                                    ->whereNull('users.deleted_at'))));
+
+                        return match ($keuze) {
+                            'geen_account' => $query->whereDoesntHave('user')
+                                ->whereNotExists(fn ($sub) => $sub
+                                    ->selectRaw('1')
+                                    ->from('users')
+                                    ->whereColumn('users.email', 'members.email')
+                                    ->whereNull('users.deleted_at')),
+                            'wel' => $metAccount($query)->where(fn (Builder $q) => $q
+                                ->whereHas('user', fn (Builder $u) => $u->whereNotNull('last_app_login_at'))
+                                ->orWhereExists(fn ($sub) => $sub
+                                    ->selectRaw('1')
+                                    ->from('users')
+                                    ->whereColumn('users.email', 'members.email')
+                                    ->whereNull('users.deleted_at')
+                                    ->whereNotNull('users.last_app_login_at'))),
+                            'nooit' => $metAccount($query)
+                                ->whereDoesntHave('user', fn (Builder $u) => $u->whereNotNull('last_app_login_at'))
+                                ->whereNotExists(fn ($sub) => $sub
+                                    ->selectRaw('1')
+                                    ->from('users')
+                                    ->whereColumn('users.email', 'members.email')
+                                    ->whereNull('users.deleted_at')
+                                    ->whereNotNull('users.last_app_login_at')),
+                            default => $query,
+                        };
+                    }),
                 // Verwijderde leden waren alleen via de database terug te halen.
                 // Staat standaard uit, dus de lijst blijft tonen wat hij toonde.
                 Tables\Filters\TrashedFilter::make()
@@ -392,7 +505,9 @@ class MemberResource extends Resource
         // verwijderde leden gewoon weer weg.
         $query  = parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
         // Koppelingen (met tegenpartij) eager-loaden voor de "Gekoppeld met"-kolom.
-        $query->with(['guardianLinks.child', 'childLinks.guardian']);
+        // 'user' erbij voor de kolom "In de app": zonder dit haalt elke regel
+        // zijn eigen account op.
+        $query->with(['guardianLinks.child', 'childLinks.guardian', 'user']);
         $user   = auth()->user();
         $tenant = filament()->getTenant();
 

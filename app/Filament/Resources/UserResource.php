@@ -196,12 +196,23 @@ class UserResource extends Resource
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actief')
                     ->boolean(),
+                // In de app en niet zomaar "ingelogd": last_login_at telt ook
+                // het openen van deze portal mee, en dan lijkt een bestuurder
+                // die er dagelijks in zit een trouwe app-gebruiker.
+                Tables\Columns\TextColumn::make('last_app_login_at')
+                    ->label('In de app')
+                    ->dateTime('d-m-Y H:i')
+                    ->placeholder('Nog nooit')
+                    ->badge()
+                    ->color(fn ($state): string => $state ? 'success' : 'gray')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('last_login_at')
                     ->label('Laatste login')
                     ->dateTime('d-m-Y H:i')
                     ->placeholder('Nog nooit')
+                    ->tooltip('Ook via de portal')
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Aangemaakt')
                     ->dateTime('d-m-Y')

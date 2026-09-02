@@ -40,6 +40,10 @@ class AuthController extends Controller
         }
 
         // last_login_at wordt gezet door de Login-event listener (Auth::attempt).
+        // last_app_login_at hier, en niet daar: die listener vuurt ook bij het
+        // openen van de portal, en dan zou een beheerder die nooit de app
+        // gebruikt er precies zo uitzien als een speler die dat wel doet.
+        $user->forceFill(['last_app_login_at' => now()])->saveQuietly();
 
         $user->load('club', 'managedTeams', 'member.teams');
         $token = $user->createToken('flutterflow-app')->plainTextToken;
@@ -227,7 +231,11 @@ class AuthController extends Controller
             $record->update(['used_at' => now()]);
         }
 
-        $user->forceFill(['last_login_at' => now()])->save();
+        // De magic link komt alleen uit de app, dus allebei de stempels.
+        $user->forceFill([
+            'last_login_at'     => now(),
+            'last_app_login_at' => now(),
+        ])->save();
 
         $user->load('club', 'managedTeams', 'member.teams');
 

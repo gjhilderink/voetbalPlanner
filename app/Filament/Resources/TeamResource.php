@@ -150,6 +150,7 @@ class TeamResource extends Resource
                     ->label('Actief')
                     ->default(true),
             ])
+            ->filtersFormColumns(3)
             ->actions([
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
