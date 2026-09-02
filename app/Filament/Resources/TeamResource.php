@@ -37,8 +37,17 @@ class TeamResource extends Resource
                     ->label('Categorie')
                     ->maxLength(100),
                 Forms\Components\TextInput::make('age_group')
-                    ->label('Leeftijdsklasse')
+                    ->label('Leeftijdscategorie')
+                    ->placeholder('JO12, MO15, Senioren')
                     ->maxLength(50),
+                Forms\Components\TextInput::make('match_day')
+                    ->label('Speeldag')
+                    ->placeholder('Zaterdag')
+                    ->maxLength(30),
+                Forms\Components\TextInput::make('gender')
+                    ->label('Geslacht')
+                    ->placeholder('Jongens, Meisjes, Gemengd')
+                    ->maxLength(30),
                 Forms\Components\TextInput::make('season')
                     ->label('Seizoen')
                     ->maxLength(20),
@@ -62,8 +71,23 @@ class TeamResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')->label('Naam')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('category')->label('Categorie')->sortable(),
-                Tables\Columns\TextColumn::make('age_group')->label('Leeftijdsklasse'),
-                Tables\Columns\TextColumn::make('season')->label('Seizoen'),
+                Tables\Columns\TextColumn::make('age_group')
+                    ->label('Leeftijdscategorie')
+                    ->badge()
+                    ->color('gray')
+                    ->placeholder('—')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('match_day')
+                    ->label('Speeldag')
+                    ->placeholder('—')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('gender')
+                    ->label('Geslacht')
+                    ->placeholder('—')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('season')
+                    ->label('Seizoen')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_active')->label('Actief')->boolean(),
                 Tables\Columns\IconColumn::make('is_first_team')->label('1e elftal')->boolean(),
                 Tables\Columns\TextColumn::make('members_count')
@@ -75,6 +99,26 @@ class TeamResource extends Resource
                     ->sortable(),
             ])
             ->filters([
+                // De keuzes komen uit wat er werkelijk in de database staat en
+                // niet uit een vaste lijst. Sportlink bepaalt zelf hoe het een
+                // leeftijdscategorie of speeldag noemt, en een lijst die daar
+                // naast zit levert een filter op dat niets vindt.
+                Tables\Filters\SelectFilter::make('age_group')
+                    ->label('Leeftijdscategorie')
+                    ->options(fn (): array => static::keuzesVoor('age_group'))
+                    ->multiple(),
+                Tables\Filters\SelectFilter::make('match_day')
+                    ->label('Speeldag')
+                    ->options(fn (): array => static::keuzesVoor('match_day'))
+                    ->multiple(),
+                Tables\Filters\SelectFilter::make('gender')
+                    ->label('Geslacht')
+                    ->options(fn (): array => static::keuzesVoor('gender'))
+                    ->multiple(),
+                Tables\Filters\SelectFilter::make('category')
+                    ->label('Competitiesoort')
+                    ->options(fn (): array => static::keuzesVoor('category'))
+                    ->multiple(),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Actief'),
             ])
             ->actions([
@@ -86,6 +130,29 @@ class TeamResource extends Resource
                     Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * De waarden die in deze kolom voorkomen, als filterkeuzes.
+     *
+     * Alleen binnen de eigen club: een beheerder hoort in zijn filter niet de
+     * leeftijdscategorieen van een andere vereniging te zien staan.
+     *
+     * @return array<string, string>
+     */
+    protected static function keuzesVoor(string $kolom): array
+    {
+        return Team::query()
+            ->when(
+                filament()->getTenant(),
+                fn (Builder $q, $club) => $q->where('club_id', $club->id),
+            )
+            ->whereNotNull($kolom)
+            ->where($kolom, '!=', '')
+            ->distinct()
+            ->orderBy($kolom)
+            ->pluck($kolom, $kolom)
+            ->all();
     }
 
     public static function getEloquentQuery(): Builder

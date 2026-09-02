@@ -17,7 +17,7 @@ class Team extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'external_id', 'name', 'category', 'age_group',
+        'external_id', 'name', 'category', 'age_group', 'match_day', 'gender',
         'season', 'photo', 'is_active', 'is_first_team', 'last_synced_at', 'club_id',
         'default_lineup',
     ];
