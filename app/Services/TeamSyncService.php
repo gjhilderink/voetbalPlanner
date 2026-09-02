@@ -41,18 +41,21 @@ class TeamSyncService
             $teamsData = $this->mcpService->getTeams();
             $synced = 0;
 
-            // Alle codes die Sportlink noemt, ook de niet-reguliere. Dit is de
-            // maat voor "bestaat dit elftal nog": een oude jaargang komt
-            // helemaal niet meer terug, in welke competitiesoort dan ook.
+            // Welke elftallen spelen er dit seizoen? Dat zijn de codes die in
+            // een poule zitten. Sportlink noemt een elftal ook zonder poule -
+            // teamsoort 'lokaal', competitiesoort '-' - en dat is een
+            // registratie zonder competitie, geen spelend elftal. Precies zo
+            // bleef Bon Boys 6 onder een oude teamcode rondhangen.
             //
-            // Met opzet los van het reguliere filter hieronder. Zou ik hiervoor
-            // de bewaarde elftallen gebruiken, dan zet één onverwachte waarde in
-            // competitiesoort in één klap de halve club op niet-actief.
+            // De poule en niet de competitiesoort, en dus ook beker meegeteld.
+            // Zou ik hier alleen 'regulier' nemen, dan zet één onverwachte
+            // waarde in dat veld in één klap de halve club op niet-actief.
             $bekendeCodes = [];
             foreach ($teamsData as $teamData) {
-                $code = (string) ($teamData['teamcode'] ?? $teamData['id'] ?? '');
+                $code  = (string) ($teamData['teamcode'] ?? $teamData['id'] ?? '');
+                $poule = trim((string) ($teamData['poulecode'] ?? ''));
 
-                if ($code !== '') {
+                if ($code !== '' && $poule !== '') {
                     $bekendeCodes[$code] = true;
                 }
             }
@@ -147,9 +150,13 @@ class TeamSyncService
     /**
      * Hoort dit elftal bij de reguliere competitie?
      *
-     * Onbekend telt als ja. Sportlink schrijft de soort niet overal hetzelfde
-     * op, en een filter dat te streng is haalt in stilte de halve club weg -
-     * veel erger dan een dubbele regel.
+     * Sportlink schrijft er 'regulier', 'beker' of letterlijk '-' neer. Dat
+     * laatste is een lokale registratie zonder competitie; die hoort niet in
+     * de portal en valt hier dus af.
+     *
+     * Een leeg veld telt wel als ja. Schrijft een andere club het anders op,
+     * dan halen we liever een dubbele regel binnen dan in stilte de halve
+     * vereniging weg te laten.
      *
      * @param  array<string, mixed>  $teamData
      */

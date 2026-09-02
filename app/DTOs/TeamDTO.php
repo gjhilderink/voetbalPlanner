@@ -27,10 +27,11 @@ readonly class TeamDTO
             ageGroup: $data['leeftijdscategorie'] ?? $data['age_group'] ?? $data['leeftijdsklasse'] ?? null,
             season: $data['season'] ?? $data['seizoen'] ?? null,
             isActive: (bool) ($data['active'] ?? $data['actief'] ?? true),
-            // Speeldag en geslacht komen uit Sportlink onder een naam die per
-            // koppeling kan verschillen; vandaar de rij alternatieven. Staat er
-            // geen van allen in, dan blijft het veld leeg en verandert er niets.
-            // 'sportlink:teams' laat zien welke sleutels er werkelijk zijn.
+            // 'speeldag' (Zaterdag/Zondag) en 'geslacht' (man/vrouw) zijn de
+            // namen die Sportlink hier werkelijk gebruikt; nagekeken met
+            // 'sportlink:teams'. De alternatieven blijven staan voor een
+            // koppeling die het anders opschrijft - staat er geen van allen in,
+            // dan blijft het veld leeg en verandert er niets.
             matchDay: self::eersteGevulde($data, ['speeldag', 'match_day', 'dag', 'speeldagsoort']),
             gender: self::eersteGevulde($data, ['geslacht', 'gender', 'sexe', 'teamgeslacht']),
         );
