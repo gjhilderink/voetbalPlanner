@@ -72,7 +72,11 @@
 .bdp-empty-hint { display:flex; align-items:center; justify-content:center; height:60px; pointer-events:none; }
 .bdp-empty-hint svg { width:22px; height:22px; color:#d1d5db; }
 
-.bdp-card       { border-radius:.4rem; border:1px solid; padding:.3rem .4rem; margin-bottom:.3rem; font-size:.75rem; position:relative; }
+.bdp-card       { border-radius:.4rem; border:1px solid; padding:.3rem .4rem; margin-bottom:.3rem; font-size:.75rem; position:relative; cursor:pointer; transition:box-shadow .12s, transform .12s; }
+/* Een kaart is aan te klikken om hem te bewerken. Zonder dit spoor blijft dat
+   verborgen: er is geen knop die het verraadt. */
+.bdp-card:hover { box-shadow:0 2px 6px rgba(0,0,0,.12); transform:translateY(-1px); }
+.bdp-card:focus-visible { outline:2px solid #3b82f6; outline-offset:1px; }
 .bdp-card-open  { background:#fff7ed; border-color:#fed7aa; }
 .dark .bdp-card-open { background:#431407; border-color:#9a3412; }
 .bdp-card-bev   { background:#eff6ff; border-color:#bfdbfe; }
@@ -272,7 +276,14 @@
                                     };
                                 @endphp
 
-                                <div class="bdp-card {{ $cardClass }}">
+                                <div
+                                    class="bdp-card {{ $cardClass }}"
+                                    role="button"
+                                    tabindex="0"
+                                    title="Openen om te bewerken of leden te beheren"
+                                    wire:click="mountAction('editDuty', { duty: '{{ $duty->id }}' })"
+                                    x-on:keydown.enter.prevent="$wire.mountAction('editDuty', { duty: '{{ $duty->id }}' })"
+                                >
                                     <div class="bdp-card-name">
                                         <span class="bdp-card-dot" style="background:{{ $dotColor }};"></span>
                                         {{ $duty->team?->name ?? '—' }}
@@ -294,6 +305,7 @@
                                     <div class="bdp-card-actions">
                                         <button
                                             class="bdp-act-btn"
+                                            x-on:click.stop
                                             wire:click="updateDutyStatus('{{ $duty->id }}', '{{ $nextStatus }}')"
                                             title="Status wijzigen"
                                         >
@@ -301,6 +313,7 @@
                                         </button>
                                         <button
                                             class="bdp-act-btn del"
+                                            x-on:click.stop
                                             wire:click="removeDuty('{{ $duty->id }}')"
                                             wire:confirm="Weet je zeker dat je deze bardienst wilt verwijderen?"
                                             title="Verwijderen"
@@ -353,7 +366,14 @@
                                         default     => 'open',
                                     };
                                 @endphp
-                                <div class="bdp-card {{ $cardClass }}">
+                                <div
+                                    class="bdp-card {{ $cardClass }}"
+                                    role="button"
+                                    tabindex="0"
+                                    title="Openen om te bewerken of leden te beheren"
+                                    wire:click="mountAction('editDuty', { duty: '{{ $duty->id }}' })"
+                                    x-on:keydown.enter.prevent="$wire.mountAction('editDuty', { duty: '{{ $duty->id }}' })"
+                                >
                                     <div style="display:flex;align-items:center;gap:.35rem;font-size:.62rem;font-weight:700;color:#9ca3af;margin-bottom:.15rem;">
                                         <span>{{ $duty->shiftLabel() }}</span>
                                         @if($duty->timeRange())
@@ -379,10 +399,10 @@
                                     @endif
 
                                     <div class="bdp-card-actions">
-                                        <button class="bdp-act-btn" wire:click="updateDutyStatus('{{ $duty->id }}', '{{ $nextStatus }}')" title="Status wijzigen">
+                                        <button class="bdp-act-btn" x-on:click.stop wire:click="updateDutyStatus('{{ $duty->id }}', '{{ $nextStatus }}')" title="Status wijzigen">
                                             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
                                         </button>
-                                        <button class="bdp-act-btn del" wire:click="removeDuty('{{ $duty->id }}')" wire:confirm="Weet je zeker dat je deze bardienst wilt verwijderen?" title="Verwijderen">
+                                        <button class="bdp-act-btn del" x-on:click.stop wire:click="removeDuty('{{ $duty->id }}')" wire:confirm="Weet je zeker dat je deze bardienst wilt verwijderen?" title="Verwijderen">
                                             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                         </button>
                                     </div>

@@ -187,6 +187,208 @@ class BarDutyPlanner extends Page
         unset($this->duties);
     }
 
+    /**
+     * De velden van een bardienst, voor toevoegen en voor bewerken.
+     *
+     * Eén definitie en niet twee: dezelfde vragen op twee plekken lopen na de
+     * eerste wijziging uiteen, en dan mist het ene scherm een veld dat het
+     * andere wel heeft.
+     *
+     * @return array<int, mixed>
+     */
+    private function dutyFormFields(): array
+    {
+        return [
+            Grid::make(2)->schema([
+                Forms\Components\Radio::make('shift_type')
+                    ->label('Soort bardienst')
+                    ->options([
+                        'vast'      => 'Vast dagdeel (za/zo)',
+                        'handmatig' => 'Handmatig (eigen dag & tijd)',
+                    ])
+                    ->inline()
+                    ->dehydrated(false)
+                    ->live()
+                    ->default('vast')
+                    ->afterStateUpdated(function (string $state, Set $set) {
+                        if ($state === 'handmatig') {
+                            $set('shift', null);
+                        } else {
+                            $set('custom_label', null);
+                            $set('start_time', null);
+                            $set('end_time', null);
+                            $set('required_count', null);
+                        }
+                    })
+                    ->columnSpanFull(),
+                Forms\Components\DatePicker::make('date')
+                    ->label('Datum')
+                    ->displayFormat('d-m-Y')
+                    ->default(fn() => Carbon::parse($this->weekStart))
+                    ->live()
+                    ->required(),
+                Forms\Components\Select::make('shift')
+                    ->label('Dagdeel')
+                    ->options(fn(Get $get) => collect(
+                            BarDuty::shiftsForDate(Carbon::parse($get('date') ?: $this->weekStart))
+                        )->mapWithKeys(fn($def, $key) => [
+                            $key => "{$def['label']} ({$def['start']}–{$def['end']})",
+                        ])->all())
+                    ->helperText('Alleen op zaterdag en zondag zijn er dagdelen.')
+                    ->visible(fn(Get $get) => $get('shift_type') !== 'handmatig')
+                    ->required(fn(Get $get) => $get('shift_type') !== 'handmatig')
+                    ->live(),
+                Forms\Components\TextInput::make('custom_label')
+                    ->label('Omschrijving')
+                    ->placeholder('bijv. Toernooi, Feestavond')
+                    ->maxLength(60)
+                    ->visible(fn(Get $get) => $get('shift_type') === 'handmatig'),
+                Forms\Components\TimePicker::make('start_time')
+                    ->label('Begintijd')
+                    ->seconds(false)->format('H:i')->displayFormat('H:i')
+                    ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
+                    ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
+                Forms\Components\TimePicker::make('end_time')
+                    ->label('Eindtijd')
+                    ->seconds(false)->format('H:i')->displayFormat('H:i')
+                    ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
+                    ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
+                Forms\Components\TextInput::make('required_count')
+                    ->label('Aantal personen')
+                    ->numeric()->minValue(1)->maxValue(10)->default(2)
+                    ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
+                    ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
+                Forms\Components\Select::make('team_id')
+                    ->label('Elftal (verantwoordelijk)')
+                    ->options(fn() => Team::where('club_id', filament()->getTenant()?->id)
+                        ->where('is_active', true)->orderBy('name')
+                        ->pluck('name', 'id')->all())
+                    ->searchable()
+                    ->required()
+                    ->live(),
+                Forms\Components\Select::make('status')
+                    ->label('Status')
+                    ->options([
+                        'open'      => 'Open',
+                        'bevestigd' => 'Bevestigd',
+                        'vervuld'   => 'Vervuld',
+                    ])
+                    ->default('open')
+                    ->required(),
+                Forms\Components\Select::make('member_ids')
+                    ->label('Leden')
+                    ->multiple()
+                    ->maxItems(fn(Get $get) => BarDuty::SHIFTS[$get('shift')]['required'] ?? ((int) $get('required_count') ?: 2))
+                    ->options(fn(Get $get) => Member::query()
+                        ->when(
+                            $get('team_id'),
+                            fn($q, $tid) => $q->whereHas('teams', fn($t) => $t->where('teams.id', $tid)),
+                            fn($q) => $q->whereRaw('1=0'),
+                        )
+                        ->where('is_active', true)->orderBy('name')
+                        ->pluck('name', 'id')->all())
+                    ->helperText('Selecteer eerst een elftal. Aantal hangt af van het dagdeel (2 of 3).')
+                    ->columnSpanFull(),
+                Forms\Components\Textarea::make('notes')
+                    ->label('Opmerkingen')
+                    ->rows(2)
+                    ->columnSpanFull(),
+            ]),
+        ];
+    }
+
+    /**
+     * Het bewerkscherm van één ingeplande bardienst.
+     *
+     * Als modal op de planner en niet als aparte pagina: je bent met een week
+     * bezig, en na het aanpassen van één dienst wil je die week nog zien staan.
+     *
+     * De methodenaam is de afspraak waarmee Filament hem terugvindt; de kaart
+     * in de blade roept mountAction('editDuty', { duty: ... }) aan.
+     */
+    public function editDutyAction(): Action
+    {
+        return Action::make('editDuty')
+            ->modalHeading('Bardienst bewerken')
+            ->modalSubmitActionLabel('Opslaan')
+            ->modalWidth('2xl')
+            ->fillForm(fn (array $arguments): array => $this->dutyFormState($arguments['duty'] ?? ''))
+            ->form(fn (): array => $this->dutyFormFields())
+            ->action(function (array $data, array $arguments): void {
+                $duty = $this->findDuty($arguments['duty'] ?? '');
+
+                if (! $duty) {
+                    Notification::make()->danger()->title('Deze bardienst bestaat niet meer')->send();
+
+                    return;
+                }
+
+                $isCustom = empty($data['shift']) || ! isset(BarDuty::SHIFTS[$data['shift']]);
+
+                $duty->update([
+                    'team_id'        => $data['team_id'],
+                    'date'           => $data['date'],
+                    'shift'          => $isCustom ? BarDuty::SHIFT_CUSTOM : $data['shift'],
+                    'status'         => $data['status'] ?? 'open',
+                    'notes'          => $data['notes'] ?? null,
+                    'custom_label'   => $isCustom ? ($data['custom_label'] ?? null) : null,
+                    'start_time'     => $isCustom ? ($data['start_time'] ?? null) : null,
+                    'end_time'       => $isCustom ? ($data['end_time'] ?? null) : null,
+                    'required_count' => $isCustom ? ((int) ($data['required_count'] ?? 2) ?: 2) : null,
+                ]);
+
+                $duty->members()->sync($data['member_ids'] ?? []);
+                $duty->refreshStatus();
+
+                unset($this->duties);
+
+                Notification::make()->success()->title('Bardienst bijgewerkt')->send();
+            });
+    }
+
+    /**
+     * De bestaande dienst als formulierwaarden.
+     *
+     * @return array<string, mixed>
+     */
+    private function dutyFormState(string $id): array
+    {
+        $duty = $this->findDuty($id);
+
+        if (! $duty) {
+            return [];
+        }
+
+        $isCustom = ! isset(BarDuty::SHIFTS[$duty->shift]);
+
+        return [
+            // Bepaalt welke helft van het formulier zichtbaar is; hij wordt zelf
+            // niet bewaard, maar zonder deze waarde opent een handmatige dienst
+            // als een vast dagdeel.
+            'shift_type'     => $isCustom ? 'handmatig' : 'vast',
+            'date'           => $duty->date?->toDateString(),
+            'shift'          => $isCustom ? null : $duty->shift,
+            'custom_label'   => $duty->custom_label,
+            'start_time'     => $isCustom ? $duty->startTime() : null,
+            'end_time'       => $isCustom ? $duty->endTime() : null,
+            'required_count' => $isCustom ? $duty->requiredCount() : null,
+            'team_id'        => $duty->team_id,
+            'status'         => $duty->status,
+            'member_ids'     => $duty->members->pluck('id')->all(),
+            'notes'          => $duty->notes,
+        ];
+    }
+
+    /** Alleen diensten van de eigen club; het id komt uit de pagina. */
+    private function findDuty(string $id): ?BarDuty
+    {
+        if ($id === '') {
+            return null;
+        }
+
+        return BarDuty::where('club_id', filament()->getTenant()?->id)->find($id);
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -194,103 +396,7 @@ class BarDutyPlanner extends Page
                 ->label('Bardienst toevoegen')
                 ->icon('heroicon-o-plus')
                 ->color('primary')
-                ->form([
-                    Grid::make(2)->schema([
-                        Forms\Components\Radio::make('shift_type')
-                            ->label('Soort bardienst')
-                            ->options([
-                                'vast'      => 'Vast dagdeel (za/zo)',
-                                'handmatig' => 'Handmatig (eigen dag & tijd)',
-                            ])
-                            ->inline()
-                            ->dehydrated(false)
-                            ->live()
-                            ->default('vast')
-                            ->afterStateUpdated(function (string $state, Set $set) {
-                                if ($state === 'handmatig') {
-                                    $set('shift', null);
-                                } else {
-                                    $set('custom_label', null);
-                                    $set('start_time', null);
-                                    $set('end_time', null);
-                                    $set('required_count', null);
-                                }
-                            })
-                            ->columnSpanFull(),
-                        Forms\Components\DatePicker::make('date')
-                            ->label('Datum')
-                            ->displayFormat('d-m-Y')
-                            ->default(fn() => Carbon::parse($this->weekStart))
-                            ->live()
-                            ->required(),
-                        Forms\Components\Select::make('shift')
-                            ->label('Dagdeel')
-                            ->options(fn(Get $get) => collect(
-                                    BarDuty::shiftsForDate(Carbon::parse($get('date') ?: $this->weekStart))
-                                )->mapWithKeys(fn($def, $key) => [
-                                    $key => "{$def['label']} ({$def['start']}–{$def['end']})",
-                                ])->all())
-                            ->helperText('Alleen op zaterdag en zondag zijn er dagdelen.')
-                            ->visible(fn(Get $get) => $get('shift_type') !== 'handmatig')
-                            ->required(fn(Get $get) => $get('shift_type') !== 'handmatig')
-                            ->live(),
-                        Forms\Components\TextInput::make('custom_label')
-                            ->label('Omschrijving')
-                            ->placeholder('bijv. Toernooi, Feestavond')
-                            ->maxLength(60)
-                            ->visible(fn(Get $get) => $get('shift_type') === 'handmatig'),
-                        Forms\Components\TimePicker::make('start_time')
-                            ->label('Begintijd')
-                            ->seconds(false)->format('H:i')->displayFormat('H:i')
-                            ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
-                            ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
-                        Forms\Components\TimePicker::make('end_time')
-                            ->label('Eindtijd')
-                            ->seconds(false)->format('H:i')->displayFormat('H:i')
-                            ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
-                            ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
-                        Forms\Components\TextInput::make('required_count')
-                            ->label('Aantal personen')
-                            ->numeric()->minValue(1)->maxValue(10)->default(2)
-                            ->visible(fn(Get $get) => $get('shift_type') === 'handmatig')
-                            ->required(fn(Get $get) => $get('shift_type') === 'handmatig'),
-                        Forms\Components\Select::make('team_id')
-                            ->label('Elftal (verantwoordelijk)')
-                            ->options(fn() => Team::where('club_id', filament()->getTenant()?->id)
-                                ->where('is_active', true)->orderBy('name')
-                                ->pluck('name', 'id')->all())
-                            ->searchable()
-                            ->required()
-                            ->live(),
-                        Forms\Components\Select::make('status')
-                            ->label('Status')
-                            ->options([
-                                'open'      => 'Open',
-                                'bevestigd' => 'Bevestigd',
-                                'vervuld'   => 'Vervuld',
-                            ])
-                            ->default('open')
-                            ->required(),
-                        Forms\Components\Select::make('member_ids')
-                            ->label('Leden')
-                            ->multiple()
-                            ->maxItems(fn(Get $get) => BarDuty::SHIFTS[$get('shift')]['required'] ?? ((int) $get('required_count') ?: 2))
-                            ->options(fn(Get $get) => Member::query()
-                                ->when(
-                                    $get('team_id'),
-                                    fn($q, $tid) => $q->whereHas('teams', fn($t) => $t->where('teams.id', $tid)),
-                                    fn($q) => $q->whereRaw('1=0'),
-                                )
-                                ->where('is_active', true)->orderBy('name')
-                                ->pluck('name', 'id')->all())
-                            ->helperText('Selecteer eerst een elftal. Aantal hangt af van het dagdeel (2 of 3).')
-                            ->columnSpanFull(),
-                        Forms\Components\Textarea::make('notes')
-                            ->label('Opmerkingen')
-                            ->rows(2)
-                            ->columnSpanFull(),
-                    ]),
-                ])
+                ->form(fn (): array => $this->dutyFormFields())
                 ->action(function (array $data): void {
                     $isCustom = empty($data['shift']) || !isset(BarDuty::SHIFTS[$data['shift']]);
 
