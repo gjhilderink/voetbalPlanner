@@ -142,7 +142,13 @@ class TeamResource extends Resource
                     ->label('Zonder wedstrijden')
                     ->toggle()
                     ->query(fn (Builder $query): Builder => $query->doesntHave('matches')),
-                Tables\Filters\TernaryFilter::make('is_active')->label('Actief'),
+                // Standaard alleen de actieve. Vorige jaargangen blijven bestaan
+                // - er hangt een heel seizoen aan - maar horen niet in de weg te
+                // staan bij het dagelijkse werk. Op "Alles" zet je ze terug in
+                // beeld.
+                Tables\Filters\TernaryFilter::make('is_active')
+                    ->label('Actief')
+                    ->default(true),
             ])
             ->actions([
                 Actions\EditAction::make(),

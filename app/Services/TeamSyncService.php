@@ -41,6 +41,22 @@ class TeamSyncService
             $teamsData = $this->mcpService->getTeams();
             $synced = 0;
 
+            // Alle codes die Sportlink noemt, ook de niet-reguliere. Dit is de
+            // maat voor "bestaat dit elftal nog": een oude jaargang komt
+            // helemaal niet meer terug, in welke competitiesoort dan ook.
+            //
+            // Met opzet los van het reguliere filter hieronder. Zou ik hiervoor
+            // de bewaarde elftallen gebruiken, dan zet één onverwachte waarde in
+            // competitiesoort in één klap de halve club op niet-actief.
+            $bekendeCodes = [];
+            foreach ($teamsData as $teamData) {
+                $code = (string) ($teamData['teamcode'] ?? $teamData['id'] ?? '');
+
+                if ($code !== '') {
+                    $bekendeCodes[$code] = true;
+                }
+            }
+
             // Deduplicate by teamcode — same team appears once per competition/poule
             $seen      = [];
             $overgeslagen = 0;
@@ -68,6 +84,8 @@ class TeamSyncService
                 $synced++;
             }
 
+            $verouderd = $this->deactiveerVerdwenen(array_keys($bekendeCodes));
+
             $log->update([
                 'status'         => 'completed',
                 'records_synced' => $synced,
@@ -77,6 +95,7 @@ class TeamSyncService
             Log::info('Teams synced successfully', [
                 'count'        => $synced,
                 'overgeslagen' => $overgeslagen,
+                'verouderd'    => $verouderd,
             ]);
         } catch (\Throwable $e) {
             $log->update([
@@ -89,6 +108,40 @@ class TeamSyncService
         }
 
         return $log;
+    }
+
+    /**
+     * Elftallen die Sportlink niet meer noemt, op niet-actief.
+     *
+     * Zo verdwijnen vorige jaargangen vanzelf uit de portal en uit de app.
+     * Sportlink geeft de elftallen van dit seizoen; wat er niet meer bij staat
+     * is voorbij. Dat is een betrouwbaarder maat dan het seizoenveld, want dat
+     * is niet overal gevuld en niet overal hetzelfde opgeschreven.
+     *
+     * Op niet-actief en niet verwijderd: aan zo'n elftal hangen wedstrijden,
+     * opstellingen en uitslagen van een heel seizoen. Die horen bewaard te
+     * blijven, en één vinkje in de portal zet het terug.
+     *
+     * Twee grenzen. Een leeg antwoord verandert niets - dan weten we niets, en
+     * dat is geen reden om alles uit te zetten. En elftallen zonder externe code
+     * blijven ongemoeid: die zijn met de hand aangemaakt en komen sowieso niet
+     * uit Sportlink.
+     *
+     * @param  array<int, string>  $codes
+     */
+    private function deactiveerVerdwenen(array $codes): int
+    {
+        if ($codes === [] || ! $this->clubId) {
+            return 0;
+        }
+
+        return Team::query()
+            ->where('club_id', $this->clubId)
+            ->where('is_active', true)
+            ->whereNotNull('external_id')
+            ->where('external_id', '!=', '')
+            ->whereNotIn('external_id', $codes)
+            ->update(['is_active' => false]);
     }
 
     /**

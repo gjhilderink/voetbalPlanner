@@ -16,8 +16,17 @@ class UserResource extends JsonResource
         // toegankelijke team (zodat een ouder zonder eigen team tóch een
         // currentTeamId krijgt).
         $accessibleTeams = $this->accessibleTeams();
-        $defaultTeam = $this->managedTeams->first()
-            ?? $this->member?->teams->first()
+
+        // De keuze moet uit $accessibleTeams komen en niet rechtstreeks uit de
+        // relaties: die laatste bevatten ook elftallen van vorig seizoen. Wees
+        // je standaardteam er een aan dat niet in de lijst staat, dan wijst
+        // currentTeamId nergens naar en oogt de app leeg terwijl er niets kapot is.
+        $zichtbaar = fn ($teams) => $teams->first(
+            fn ($t) => $accessibleTeams->contains('id', $t->id),
+        );
+
+        $defaultTeam = $zichtbaar($this->managedTeams)
+            ?? $zichtbaar($this->member?->teams ?? collect())
             ?? $accessibleTeams->first();
 
         // Functies van de gebruiker per team (member_team.role én user_team.role).

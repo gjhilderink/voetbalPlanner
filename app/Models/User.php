@@ -271,7 +271,11 @@ class User extends Authenticatable implements FilamentUser, HasTenants
             return $this->accessibleTeamsCache;
         }
 
-        $teams = $this->managedTeams()->get();
+        // Alleen actieve elftallen. Een lid blijft aan het team van vorig
+        // seizoen gekoppeld, en zonder deze regel stond "Bon Boys 3" twee keer
+        // in de teamwisselaar zonder verschil ertussen. De synchronisatie zet
+        // een jaargang op niet-actief zodra Sportlink hem niet meer noemt.
+        $teams = $this->managedTeams()->where('teams.is_active', true)->get();
 
         // resolveMember() i.p.v. de directe member-relatie: leden die alleen via
         // e-mail aan hun account hangen (geen user_id op het lid) hielden anders
@@ -279,7 +283,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         $member = $this->resolveMember();
 
         if ($member) {
-            $teams = $teams->merge($member->teams);
+            $teams = $teams->merge($member->teams->where('is_active', true));
 
             $childMemberIds = \App\Models\GuardianLink::query()
                 ->where('guardian_member_id', $member->id)
@@ -288,6 +292,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
 
             if ($childMemberIds->isNotEmpty()) {
                 $childTeams = \App\Models\Team::query()
+                    ->where('is_active', true)
                     ->whereHas('members', fn ($q) => $q->whereIn('members.id', $childMemberIds))
                     ->get();
                 $teams = $teams->merge($childTeams);
