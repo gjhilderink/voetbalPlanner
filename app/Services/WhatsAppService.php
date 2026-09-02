@@ -59,17 +59,42 @@ class WhatsAppService
 
         $tools = collect($result['data']['tools'] ?? []);
 
-        $sendTool = $tools->first(fn($t) => str_contains(strtolower($t['name'] ?? ''), 'send'));
+        $sendTool = self::kiesVerzendTool($tools);
+
         if ($sendTool && $this->clubId) {
-            Setting::set('whatsapp_send_tool', $sendTool['name'], 'whatsapp', false, $this->clubId);
-            $this->sendTool = $sendTool['name'];
+            Setting::set('whatsapp_send_tool', $sendTool, 'whatsapp', false, $this->clubId);
+            $this->sendTool = $sendTool;
         }
 
         return [
             'connected' => true,
-            'message'   => 'Verbonden. Tools: ' . $tools->pluck('name')->join(', '),
+            'message'   => 'Verbonden. Verzendtool: ' . ($sendTool ?? $this->sendTool)
+                . '. Tools: ' . $tools->pluck('name')->join(', '),
             'tools'     => $tools->all(),
         ];
+    }
+
+    /**
+     * Welke tool verstuurt een gewoon bericht?
+     *
+     * De eerste met 'send' in de naam volstond zolang er één was. De nieuwe
+     * bridge biedt er twee: send_message en send_template. Op volgorde afgaan
+     * levert dan een kans op send_template, en die wil een sjabloonnaam met
+     * parameters - geen vrije tekst. Het bericht komt dan nooit aan, met een
+     * fout die niets met de naam van de tool te maken lijkt te hebben.
+     *
+     * Sjablonen slaan we hier bewust over: deze klasse stuurt losse tekst.
+     * Ondersteuning voor sjablonen is een eigen aanroep, geen andere naam.
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $tools
+     */
+    private static function kiesVerzendTool(\Illuminate\Support\Collection $tools): ?string
+    {
+        $namen = $tools->pluck('name')->filter(fn ($n) => is_string($n))->values();
+
+        return $namen->first(fn (string $n) => strtolower($n) === 'send_message')
+            ?? $namen->first(fn (string $n) => str_contains(strtolower($n), 'send')
+                && ! str_contains(strtolower($n), 'template'));
     }
 
     public function sendMessage(string $phone, string $message): array
