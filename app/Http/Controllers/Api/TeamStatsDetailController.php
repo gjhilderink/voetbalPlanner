@@ -33,23 +33,28 @@ class TeamStatsDetailController extends Controller
     /** GET /v1/teams/{team}/team-stats */
     public function show(Request $request, Team $team): JsonResponse
     {
-        // Alleen wie het elftal beheert. Dit zijn cijfers over andere mensen -
-        // wie er weinig scoort en wie er vaak afwezig is - en dat gaat een
-        // medespeler niets aan.
-        //
-        // Met een 200 en een melding, niet met een 403. De statistiekkaart op
-        // het dashboard is voor iedereen aan te tikken - met opzet, want een
-        // kaart die soms wel en soms niet reageert is verwarrender dan een
-        // uitleg. Maar de app ziet een 403 als een mislukte aanroep en toont
-        // dan "Kon de teamcijfers niet laden", alsof er iets stuk is. Deze
-        // melding komt netjes op de pagina te staan, net als bij een
-        // opstelling die nog niet is vrijgegeven. Er staat geen enkel gegeven
-        // in dit antwoord, dus er valt hier niets af te schermen.
-        if (! $request->user()?->canManageLineup($team->id)) {
+        $gebruiker = $request->user();
+
+        // Buiten de eigen club valt er niets te zien. Met een 200 en een
+        // melding, niet met een 403: de app leest elke mislukte aanroep als
+        // storing en toont dan "Kon de teamcijfers niet laden", alsof er iets
+        // stuk is. Deze melding komt netjes op de pagina te staan, net als bij
+        // een opstelling die nog niet is vrijgegeven.
+        if (! $gebruiker || ($team->club_id && $gebruiker->club_id !== $team->club_id)) {
             return response()->json(
-                [self::leeg('Alleen de coach of trainer ziet de teamcijfers.')],
+                [self::leeg('Je hebt geen toegang tot de cijfers van dit elftal.')],
             );
         }
+
+        // Twee soorten cijfers op één pagina. Hoe het elftal draait - uitslagen,
+        // doelpunten, topscorers - mag iedereen zien; daar is niets geheims aan
+        // en het is juist leuk om te volgen.
+        //
+        // Wat één speler negatief aanwijst is een ander verhaal: wie er vaak
+        // niet is, en wie de kaarten pakt. Dat is stof voor een gesprek tussen
+        // coach en speler en niet voor de hele selectie. Alleen die twee stukken
+        // hangen aan $magAlles.
+        $magAlles = $gebruiker->canManageLineup($team->id);
 
         [$from, $until] = self::seizoen();
 
@@ -137,6 +142,11 @@ class TeamStatsDetailController extends Controller
                     continue;
                 }
                 $regels[] = self::regel($label . ' totaal', (string) $vanSoort->count());
+
+                if (! $magAlles) {
+                    continue;
+                }
+
                 foreach (self::tel($vanSoort->map(fn (MatchEvent $e) => $e->member?->name)) as $naam => $aantal) {
                     $regels[] = self::regel($label . ' · ' . $naam, (string) $aantal);
                 }
@@ -161,7 +171,10 @@ class TeamStatsDetailController extends Controller
         // aanwezigheid is de rest.
         $trainingen = self::trainingsDatums($team->id, $from, Carbon::today());
 
-        $afmeldingen = Absence::query()
+        // Alleen ophalen als ze ook getoond worden. Dit is precies het stuk
+        // dat een medespeler niet hoort te zien, en dan halen we het ook niet
+        // op.
+        $afmeldingen = ! $magAlles ? collect() : Absence::query()
             ->where(function ($q) use ($gespeeld, $team, $from) {
                 $q->where(fn ($x) => $x->where('type', Absence::TYPE_MATCH)
                         ->whereIn('match_id', $gespeeld->pluck('id')))
@@ -180,7 +193,13 @@ class TeamStatsDetailController extends Controller
         $regels[] = self::regel('Wedstrijden', (string) $gespeeld->count());
         $regels[] = self::regel('Trainingen', (string) count($trainingen));
 
-        if ($momenten > 0) {
+        // Niet stilzwijgend weglaten. Wie de coach ernaar hoort verwijzen en
+        // het zelf niet ziet staan, denkt dat de app iets mist.
+        if (! $magAlles) {
+            $regels[] = self::regel('Per speler', 'alleen voor de coach');
+        }
+
+        if ($magAlles && $momenten > 0) {
             $spelers = $team->playingMembers()->where('members.is_active', true)
                 ->orderBy('members.name')->get();
 
