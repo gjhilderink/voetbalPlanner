@@ -213,11 +213,14 @@ class ClothingSizes extends Page implements HasTable
                             ->options($stuk->sizes->pluck('label', 'id')->all())
                             ->placeholder('Niet opgegeven')
                             ->columnSpan(2),
+                        // Geen ->numeric(): dat maakt er een getalveld van en
+                        // dan is 040 na het opslaan weer 40. Op het kledingstuk
+                        // staat de voorloopnul wel.
                         Forms\Components\TextInput::make('nr_' . $stuk->id)
                             ->label('Nummer')
-                            ->numeric()
-                            ->minValue(0)
-                            ->maxValue(999)
+                            ->maxLength(10)
+                            ->rule('regex:/^[0-9]+$/')
+                            ->validationMessages(['regex' => 'Alleen cijfers.'])
                             ->placeholder('—')
                             ->columnSpan(1),
                     ])->all())
@@ -226,9 +229,9 @@ class ClothingSizes extends Page implements HasTable
                         foreach ($stukken as $stuk) {
                             $maatId = $data['maat_' . $stuk->id] ?? null;
                             $nummer = $data['nr_' . $stuk->id];
-                            $nummer = ($nummer === null || $nummer === '')
+                            $nummer = ($nummer === null || trim((string) $nummer) === '')
                                 ? null
-                                : (int) $nummer;
+                                : trim((string) $nummer);
 
                             // Maat en nummer staan los van elkaar. Alleen als
                             // allebei leeg zijn valt er niets te bewaren; dan

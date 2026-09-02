@@ -236,7 +236,9 @@ class ClothingController extends Controller
         $controle = Validator::make($request->all(), [
             'member_id' => ['required', 'uuid'],
             'item_id'   => ['required', 'uuid'],
-            'number'    => ['nullable', 'integer', 'min:0', 'max:999'],
+            // Een cijferreeks en geen getal: 040 moet 040 blijven. Het
+            // toetsenbord in de app is numeriek, dus letters horen er niet in.
+            'number'    => ['nullable', 'string', 'max:10', 'regex:/^[0-9]+$/'],
         ]);
 
         if ($controle->fails()) {
@@ -271,6 +273,7 @@ class ClothingController extends Controller
         }
 
         $nummer = $validated['number'] ?? null;
+        $nummer = ($nummer === null || $nummer === '') ? null : (string) $nummer;
 
         $rij = MemberClothingSize::where('member_id', $lid->id)
             ->where('clothing_item_id', $stuk->id)

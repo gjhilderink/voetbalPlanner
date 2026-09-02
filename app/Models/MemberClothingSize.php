@@ -14,6 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Eén rij per lid per kledingstuk; de unieke sleutel in de migratie bewaakt dat.
  * `number` is het nummer op dat kledingstuk - het rugnummer op een shirt - en
  * mag leeg blijven; op een tas staat niets.
+ *
+ * Tekst en geen getal: op het kledingstuk staat 040, en dat is iets anders dan
+ * 40. Als getal bewaard verdwijnt die voorloopnul en klopt het opschrift niet
+ * meer met wat je in handen hebt.
  */
 class MemberClothingSize extends Model
 {
@@ -23,10 +27,6 @@ class MemberClothingSize extends Model
         'member_id', 'clothing_item_id', 'clothing_size_id', 'number', 'updated_by_user_id',
     ];
 
-    protected function casts(): array
-    {
-        return ['number' => 'integer'];
-    }
 
     public function member(): BelongsTo
     {
