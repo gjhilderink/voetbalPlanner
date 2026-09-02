@@ -217,7 +217,18 @@ class WhatsAppService
             $contentType = $response->header('Content-Type') ?? '';
             $rawBody     = $response->body();
 
-            Log::debug('WhatsApp bridge', compact('method', 'status', 'contentType', 'rawBody'));
+            // Ook wat we verstuurden. Zonder dat is een fout als "veld to
+            // ontbreekt" niet te rijmen met een aanroep waarin het wel staat:
+            // je ziet dan alleen het antwoord en moet raden wat eraan voorafging.
+            // De sleutel zit in de header en dus niet in deze regel.
+            Log::debug('WhatsApp bridge', [
+                'method'      => $method,
+                'url'         => $this->bridgeUrl,
+                'verzonden'   => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'status'      => $status,
+                'contentType' => $contentType,
+                'rawBody'     => $rawBody,
+            ]);
 
             $parsed = str_contains($contentType, 'text/event-stream')
                 ? $this->parseSse($rawBody)
