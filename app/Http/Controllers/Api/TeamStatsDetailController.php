@@ -36,10 +36,18 @@ class TeamStatsDetailController extends Controller
         // Alleen wie het elftal beheert. Dit zijn cijfers over andere mensen -
         // wie er weinig scoort en wie er vaak afwezig is - en dat gaat een
         // medespeler niets aan.
+        //
+        // Met een 200 en een melding, niet met een 403. De statistiekkaart op
+        // het dashboard is voor iedereen aan te tikken - met opzet, want een
+        // kaart die soms wel en soms niet reageert is verwarrender dan een
+        // uitleg. Maar de app ziet een 403 als een mislukte aanroep en toont
+        // dan "Kon de teamcijfers niet laden", alsof er iets stuk is. Deze
+        // melding komt netjes op de pagina te staan, net als bij een
+        // opstelling die nog niet is vrijgegeven. Er staat geen enkel gegeven
+        // in dit antwoord, dus er valt hier niets af te schermen.
         if (! $request->user()?->canManageLineup($team->id)) {
             return response()->json(
                 [self::leeg('Alleen de coach of trainer ziet de teamcijfers.')],
-                403,
             );
         }
 
