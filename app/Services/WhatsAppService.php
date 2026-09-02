@@ -120,7 +120,7 @@ class WhatsAppService
         }
 
         if ($raw['status'] >= 400) {
-            return ['success' => false, 'error' => 'HTTP ' . $raw['status'] . ': ' . $raw['body']];
+            return ['success' => false, 'error' => $this->foutTekst($raw)];
         }
 
         $body = $raw['parsed'];
@@ -142,6 +142,34 @@ class WhatsAppService
         }
 
         return ['success' => true, 'data' => $result ?: null];
+    }
+
+    /**
+     * Wat er misging, in gewone taal, met het adres van de bridge erbij.
+     *
+     * De bridge stuurt de reden in zijn antwoord mee; die hoort iemand te lezen
+     * in plaats van een statuscode met een lap json erachter. En het adres
+     * erbij, want dat is bij zo'n fout de eerste vraag: welke verbinding
+     * bedoelt hij? Wie net een nieuwe koppeling heeft gemaakt kan dan zien of
+     * de portal nog naar de oude wijst.
+     *
+     * @param  array<string, mixed>  $raw
+     */
+    private function foutTekst(array $raw): string
+    {
+        $reden = is_array($raw['parsed'] ?? null)
+            ? ($raw['parsed']['error'] ?? null)
+            : null;
+
+        if (is_array($reden)) {
+            $reden = $reden['message'] ?? null;
+        }
+
+        if (! is_string($reden) || trim($reden) === '') {
+            return 'HTTP ' . $raw['status'] . ': ' . $raw['body'];
+        }
+
+        return trim($reden) . ' — bridge: ' . $this->bridgeUrl;
     }
 
     private function rawPost(string $method, array|object $params): array
