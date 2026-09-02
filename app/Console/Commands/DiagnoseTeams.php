@@ -110,19 +110,25 @@ class DiagnoseTeams extends Command
             $this->line("  {$naam}");
 
             foreach ($groep as $team) {
+                // Het seizoen erbij: twee records met allebei leden en
+                // wedstrijden zijn meestal niet dubbel maar twee jaargangen,
+                // en dan hoort er niets weg.
                 $this->line(sprintf(
-                    '     ext=%-12s soort=%-14s leden=%-4d wedstrijden=%-4d (id %s)',
+                    '     ext=%-12s seizoen=%-10s soort=%-12s leden=%-4d wedstrijden=%-4d laatste sync=%-11s (id %s)',
                     $team->external_id ?? '—',
+                    $team->season ?: '—',
                     $team->category ?: '—',
                     $team->members()->count(),
                     $team->matches()->count(),
+                    $team->last_synced_at?->format('d-m-Y') ?? 'nooit',
                     $team->id,
                 ));
             }
         }
 
         $this->newLine();
-        $this->comment('De regel met de meeste leden en wedstrijden is doorgaans de echte.'
+        $this->comment('Nul leden en nul wedstrijden: die mag weg. Staan er bij allebei leden'
+            . ' en wedstrijden, kijk dan naar het seizoen - dat zijn twee jaargangen en geen dubbele.'
             . ' Verwijderen doe je met de hand in de portal: aan zo\'n elftal kunnen'
             . ' wedstrijden en opstellingen hangen die je niet wilt kwijtraken.');
 

@@ -92,7 +92,17 @@ class TeamResource extends Resource
                 Tables\Columns\IconColumn::make('is_first_team')->label('1e elftal')->boolean(),
                 Tables\Columns\TextColumn::make('members_count')
                     ->label('Leden')
-                    ->counts('members'),
+                    ->counts('members')
+                    ->badge()
+                    ->color(fn (int $state): string => $state === 0 ? 'danger' : 'gray')
+                    ->sortable(),
+                // Naast het aantal leden, want dat bepaalt of een leeg elftal
+                // echt leeg is. Nul leden en toch wedstrijden betekent dat er
+                // iets aan hangt wat je kwijtraakt als je hem weggooit.
+                Tables\Columns\TextColumn::make('matches_count')
+                    ->label('Wedstrijden')
+                    ->counts('matches')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('last_synced_at')
                     ->label('Laatste sync')
                     ->dateTime('d-m-Y H:i')
@@ -119,6 +129,19 @@ class TeamResource extends Resource
                     ->label('Competitiesoort')
                     ->options(fn (): array => static::keuzesVoor('category'))
                     ->multiple(),
+                // Om de elftallen te vinden die uit een oude of dubbele
+                // synchronisatie zijn blijven staan. Verwijderen gaat met de
+                // gewone knop: een elftal wordt zacht verwijderd, dus het is
+                // terug te halen - maar de synchronisatie zet het bewust niet
+                // terug, want dan stond het er de volgende ochtend weer.
+                Tables\Filters\Filter::make('zonder_leden')
+                    ->label('Zonder leden')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->doesntHave('members')),
+                Tables\Filters\Filter::make('zonder_wedstrijden')
+                    ->label('Zonder wedstrijden')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->doesntHave('matches')),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Actief'),
             ])
             ->actions([
