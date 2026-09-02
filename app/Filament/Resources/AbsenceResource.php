@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AbsenceResource\Pages;
 use App\Models\Absence;
+use App\Models\Team;
 use App\Models\TrainingSchedule;
 use Filament\Actions;
 use Filament\Resources\Resource;
@@ -62,7 +63,15 @@ class AbsenceResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('wie')
                     ->label('Lid / account')
-                    ->getStateUsing(fn(Absence $r) => $r->member?->name ?? $r->user?->name ?? '—'),
+                    ->getStateUsing(fn(Absence $r) => $r->member?->name ?? $r->user?->name ?? '—')
+                    // De naam komt uit twee relaties en staat dus in geen enkele
+                    // kolom van deze tabel; zonder eigen zoekopdracht valt er
+                    // niet op te zoeken. En dat is nu juist waarmee je begint:
+                    // "waarom staat dit lid niet op honderd procent".
+                    ->searchable(query: fn (Builder $query, string $search): Builder => $query
+                        ->where(fn (Builder $q) => $q
+                            ->whereHas('member', fn (Builder $m) => $m->where('name', 'like', "%{$search}%"))
+                            ->orWhereHas('user', fn (Builder $u) => $u->where('name', 'like', "%{$search}%")))),
 
                 Tables\Columns\TextColumn::make('type')
                     ->label('Type')
@@ -101,6 +110,30 @@ class AbsenceResource extends Resource
                         Absence::TYPE_TRAINING => 'Training',
                         Absence::TYPE_MATCH    => 'Wedstrijd',
                     ]),
+
+                // Op elftal, want de opkomstcijfers gaan per elftal. Via het lid
+                // en niet via de wedstrijd of het schema: dan vallen beide
+                // soorten afmeldingen onder hetzelfde filter.
+                Tables\Filters\SelectFilter::make('team')
+                    ->label('Elftal')
+                    ->options(fn (): array => Team::query()
+                        ->when(
+                            filament()->getTenant(),
+                            fn (Builder $q, $club) => $q->where('club_id', $club->id),
+                        )
+                        ->where('is_active', true)
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all())
+                    ->searchable()
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when(
+                            $data['value'] ?? null,
+                            fn (Builder $q, $teamId) => $q->whereHas(
+                                'member.teams',
+                                fn (Builder $t) => $t->where('teams.id', $teamId),
+                            ),
+                        )),
             ])
             ->actions([
                 Actions\DeleteAction::make()
