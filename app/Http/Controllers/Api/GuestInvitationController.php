@@ -130,8 +130,19 @@ class GuestInvitationController extends Controller
             ->when($clubId, fn ($q) => $q->where('club_id', $clubId))
             ->where('is_active', true)
             ->orderBy('name')
+            ->orderBy('match_day')
             ->get()
-            ->map(fn ($t) => ['id' => $t->id, 'name' => $t->name])
+            // De speeldag achter de naam. Dezelfde elftalnaam komt vaker voor -
+            // een zaterdag- en een zondagteam heten allebei "Bon Boys 3" - en dan
+            // staat de coach te kiezen tussen twee regels die identiek zijn.
+            //
+            // Aan de naam geplakt en niet als eigen veld: de app toont deze lijst
+            // alleen en kiest op id. Een extra veld zou een nieuwe struct en dus
+            // een nieuwe app-build vragen voor iets wat hier af is.
+            ->map(fn ($t) => [
+                'id'   => $t->id,
+                'name' => $t->match_day ? $t->name . ' · ' . $t->match_day : $t->name,
+            ])
             ->values();
 
         return response()->json($teams);
