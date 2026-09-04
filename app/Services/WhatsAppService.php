@@ -108,13 +108,74 @@ class WhatsAppService
             return ['success' => false, 'error' => 'Ongeldig telefoonnummer: ' . $phone];
         }
 
-        return $this->mcpRequest('tools/call', [
-            'name'      => $this->sendTool,
-            'arguments' => [
-                'to'      => $formatted,
-                'message' => $message,
-            ],
-        ]);
+        $velden = ['to' => $formatted, 'message' => $message];
+
+        // Twee vormen, want niet elke bridge doet hetzelfde met een tool-aanroep.
+        //
+        // De MCP-afspraak zet de argumenten in params.arguments, en zo werkte de
+        // oude koppeling. De nieuwe cloud-bridge antwoordt daarop met "The to
+        // field is required" - hij pakt die argumenten niet uit en leest de
+        // velden van het hoogste niveau van het verzoek.
+        //
+        // Welke vorm werkt onthouden we per club, zodat het daarna in één keer
+        // goed gaat. Een mislukte poging kost niets: bij een 422 is er niets
+        // verstuurd, alleen afgekeurd.
+        $eersteVorm = Setting::get('whatsapp_arg_style', 'mcp', $this->clubId) ?: 'mcp';
+
+        foreach ($eersteVorm === 'plat' ? ['plat', 'mcp'] : ['mcp', 'plat'] as $vorm) {
+            $antwoord = $vorm === 'mcp'
+                ? $this->mcpRequest('tools/call', ['name' => $this->sendTool, 'arguments' => $velden])
+                : $this->platVerzoek($velden);
+
+            if ($antwoord['success']) {
+                if ($vorm !== $eersteVorm && $this->clubId) {
+                    Setting::set('whatsapp_arg_style', $vorm, 'whatsapp', false, $this->clubId);
+                }
+
+                return $antwoord;
+            }
+
+            // Alleen doorgaan als de bridge de velden miste. Bij een geweigerd
+            // nummer of een verlopen sleutel helpt een andere vorm niet, en dan
+            // hoort die eerste fout te blijven staan.
+            if (! self::mistDeVelden($antwoord['error'] ?? '')) {
+                return $antwoord;
+            }
+
+            $eerste = $antwoord;
+        }
+
+        return $eerste;
+    }
+
+    /**
+     * Het bericht zonder MCP-envelop: de velden rechtstreeks in het lichaam.
+     *
+     * @param  array<string, string>  $velden
+     * @return array<string, mixed>
+     */
+    private function platVerzoek(array $velden): array
+    {
+        $raw = $this->verstuur($velden);
+
+        if ($raw['status'] === 0) {
+            return ['success' => false, 'error' => $raw['body']];
+        }
+
+        if ($raw['status'] >= 400) {
+            return ['success' => false, 'error' => $this->foutTekst($raw)];
+        }
+
+        return ['success' => true, 'data' => $raw['parsed'] ?: null];
+    }
+
+    /** Klaagt de bridge dat hij de velden niet vindt? Dan is de vorm het probleem. */
+    private static function mistDeVelden(string $fout): bool
+    {
+        $fout = mb_strtolower($fout);
+
+        return str_contains($fout, 'field is required')
+            || str_contains($fout, 'veld is verplicht');
     }
 
     /**
@@ -199,14 +260,26 @@ class WhatsAppService
 
     private function rawPost(string $method, array|object $params): array
     {
-        try {
-            $payload = [
-                'jsonrpc' => '2.0',
-                'id'      => $this->requestId++,
-                'method'  => $method,
-                'params'  => $params,
-            ];
+        return $this->verstuur([
+            'jsonrpc' => '2.0',
+            'id'      => $this->requestId++,
+            'method'  => $method,
+            'params'  => $params,
+        ]);
+    }
 
+    /**
+     * Eén verzoek naar de bridge, wat er ook in het lichaam staat.
+     *
+     * Losgetrokken van rawPost omdat niet elke bridge de MCP-envelop uitpakt;
+     * zie sendMessage.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function verstuur(array $payload): array
+    {
+        try {
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
                 'Content-Type'  => 'application/json',
@@ -222,7 +295,7 @@ class WhatsAppService
             // je ziet dan alleen het antwoord en moet raden wat eraan voorafging.
             // De sleutel zit in de header en dus niet in deze regel.
             Log::debug('WhatsApp bridge', [
-                'method'      => $method,
+                'method'      => $payload['method'] ?? 'plat verzoek',
                 'url'         => $this->bridgeUrl,
                 'verzonden'   => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'status'      => $status,
@@ -242,7 +315,10 @@ class WhatsAppService
             ];
 
         } catch (\Throwable $e) {
-            Log::error('WhatsApp bridge exception', ['method' => $method, 'error' => $e->getMessage()]);
+            Log::error('WhatsApp bridge exception', [
+                'method' => $payload['method'] ?? 'plat verzoek',
+                'error'  => $e->getMessage(),
+            ]);
             return ['status' => 0, 'content_type' => '', 'body' => $e->getMessage(), 'parsed' => null];
         }
     }
