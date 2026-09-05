@@ -894,6 +894,14 @@ void buildEditFlow(App app) {
   // intrekken). De schermen komen hierna; ApiCall zoekt een endpoint op naam en
   // faalt als het nog niet bestaat.
   app.raw((project) => _addRoomEndpoints(project));
+  // De ruimteschermen. Eerst de lege pagina's, dan de custom action en de
+  // lijstvelden, en pas daarna het vullen - een ApiCall zoekt zijn endpoint op
+  // naam en een lijstveld heeft de struct nodig die hierboven is aangemaakt.
+  _buildRoomPages(app);
+  app.raw((project) => _ensureRoomActies(project));
+  app.raw((project) => _ensureRoomAppStateLists(project));
+  app.raw((project) => _wireRuimtesPage(project));
+  app.raw((project) => _wireRuimteReserverenPage(project));
   // Verenigingsagenda: structs + endpoints (lijst, categorieën, detail, aan-/afmelden).
   app.raw((project) => _addAgendaEndpoints(project));
   // Agendaschermen — ná _addAgendaEndpoints, want ApiCall resolveert de
@@ -8615,6 +8623,8 @@ void _fixLoginButtonBindings(FFProject project) {
   // Welke ruimte je hebt aangetikt om te reserveren.
   _ensureAppStateField(project, 'roomGekozenId',    FFBaseDataType.String);
   _ensureAppStateField(project, 'roomGekozenNaam',  FFBaseDataType.String);
+  // Staat de reservering die je aan het maken bent op privé?
+  _ensureAppStateField(project, 'roomPrive',        FFBaseDataType.String);
   _ensureAppStateField(project, 'profilePhotoUrl',  FFBaseDataType.String, persisted: true);
 
   // onboardingSeen wordt al persistent gedeclareerd via app.state (persisted: true).
@@ -24114,6 +24124,598 @@ void _addRoomEndpoints(FFProject project) {
   }
 }
 
+// ─── Ruimtes reserveren ───────────────────────────────────────────────────────
+//
+// Twee schermen. Het overzicht toont per dag wat er vastligt; het tweede scherm
+// legt een nieuw tijdvak vast. Bewust geen genest lijstje van reserveringen per
+// ruimte: een lijst in een lijst is in FlutterFlow lastig te sturen, en met de
+// ruimtenaam op elke regel lees je het net zo snel.
+
+/// De datum van het ruimte-overzicht, als custom action.
+///
+/// Dagen optellen in Dart en niet in een code-expressie: dd-mm-jjjj is geen
+/// datum die je met stringbewerkingen kunt opschuiven zonder over maandgrenzen
+/// te struikelen.
+const String _kRoomDatumCode = r"""
+// Automatic FlutterFlow imports
+import '/backend/schema/structs/index.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'index.dart';
+import 'package:flutter/material.dart';
+// Begin custom action code
+// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+
+/// Zet roomDatum een aantal dagen verder. Nul (of een lege datum) zet hem op
+/// vandaag; zo hoeft het openen van de pagina geen aparte actie te hebben.
+Future<String> shiftRoomDatum(String? dagen) async {
+  String tweeCijfers(int n) => n < 10 ? '0$n' : '$n';
+  String schrijf(DateTime d) =>
+      '${tweeCijfers(d.day)}-${tweeCijfers(d.month)}-${d.year}';
+
+  final huidig = FFAppState().roomDatum;
+  DateTime basis;
+
+  if (huidig.isEmpty) {
+    basis = DateTime.now();
+  } else {
+    final delen = huidig.split('-');
+    basis = delen.length == 3
+        ? DateTime(
+            int.tryParse(delen[2]) ?? DateTime.now().year,
+            int.tryParse(delen[1]) ?? DateTime.now().month,
+            int.tryParse(delen[0]) ?? DateTime.now().day,
+          )
+        : DateTime.now();
+    basis = basis.add(Duration(days: int.tryParse(dagen ?? "0") ?? 0));
+  }
+
+  final nieuw = schrijf(basis);
+  FFAppState().update(() => FFAppState().roomDatum = nieuw);
+
+  return nieuw;
+}
+""";
+
+void _ensureRoomActies(FFProject project) {
+  const omschrijving =
+      'Zet AppState.roomDatum op vandaag of schuift hem een aantal dagen op.';
+  final args = [
+    FFParameter(
+      identifier: FFIdentifier(name: 'dagen', key: 'roomdatumdagen'),
+      dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+    ),
+  ];
+
+  if (findCustomAction(project, name: 'ShiftRoomDatum') == null) {
+    addCustomAction(
+      project,
+      name: 'ShiftRoomDatum',
+      description: omschrijving,
+      arguments: args,
+      returnParameter:
+          FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+      code: _kRoomDatumCode,
+    );
+  } else {
+    updateCustomAction(project,
+        name: 'ShiftRoomDatum', code: _kRoomDatumCode, arguments: args);
+  }
+}
+
+/// De twee lege schermen; ze worden hieronder bij elke push vers gevuld.
+void _buildRoomPages(App app) {
+  app.ensurePage(
+    'RuimtesPage',
+    description: 'Overzicht per dag van wat er in de ruimtes van de club vastligt.',
+    route: 'ruimtes',
+    body: Column(children: [Container(name: 'RuimtesContainer')]),
+  );
+
+  app.ensurePage(
+    'RuimteReserverenPage',
+    description: 'Een ruimte kiezen en een tijdvak vastleggen.',
+    route: 'ruimte-reserveren',
+    body: Column(children: [Container(name: 'RuimteReserverenContainer')]),
+  );
+}
+
+/// App-state lijsten voor de ruimtes. Struct-lijsten kunnen niet via
+/// _ensureAppStateField, dat is voor scalairen.
+void _ensureRoomAppStateLists(FFProject project) {
+  void lijst(String veld, String structNaam) {
+    if (project.appState.fields
+        .any((f) => f.parameter.identifier.name == veld)) return;
+
+    final struct = project.backend.dataSchemaConfig.dataStructs
+        .cast<FFDataStruct?>()
+        .firstWhere((s) => s?.identifier.name == structNaam, orElse: () => null);
+    if (struct == null) return;
+
+    final param = FFParameter(
+      identifier: FFIdentifier(
+          name: veld, key: generateRandomAlphaNumericString()),
+      dataType: dataStructType(struct.identifier.deepCopy()),
+    );
+    param.isList = true;
+    project.appState.fields.add(FFAppStateField(parameter: param));
+  }
+
+  lijst('roomLijst', 'Room');
+  lijst('roomBezetting', 'RoomReservation');
+}
+
+/// Vult RuimtesPage: de dag kiezen en zien wat er vastligt.
+void _wireRuimtesPage(FFProject project) {
+  final wc = findPage(project, name: 'RuimtesPage');
+  if (wc == null) return;
+
+  final datumId     = _findAppStateFieldId(project, 'roomDatum');
+  final bezettingId = _findAppStateFieldId(project, 'roomBezetting');
+  final tokenId     = _findAppStateFieldId(project, 'authToken');
+  final shiftActie  = findCustomAction(project, name: 'ShiftRoomDatum');
+  if (datumId == null || bezettingId == null || tokenId == null || shiftActie == null) return;
+  if (findApiEndpoint(project, name: 'GetRoomBezetting', groupName: 'VoetbalPlannerAPI') == null) return;
+
+  final scaffoldKey = wc.node.key;
+  FFVariable app(FFIdentifier id) => varFromAppState(id.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  if (getPropertyChild(wc.node, 'appBar') == null) {
+    final titel = UI.text('Ruimtes',
+        name: 'RuimtesAppBarTitle', style: UITextStyle.titleLarge);
+    final appBar = UI.appBar(titleWidget: titel);
+    wc.node.children.add(appBar);
+    wc.node.childPropertyMap['appBar'] =
+        FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: appBar.key)]);
+  }
+
+  final houder =
+      findDescendants(wc.node, (n) => n.name == 'RuimtesContainer').firstOrNull;
+  if (houder == null) return;
+  houder.children.clear();
+
+  // Het ophalen van de bezetting: één keten die we op drie plekken hergebruiken
+  // (bij het openen en bij allebei de pijlen), zodat er maar één definitie is
+  // van wat "ververs" betekent.
+  FFActionNode haalBezetting(String nodeKey, String uitvoer) => Actions.apiCallNode(
+        project,
+        endpointName: 'GetRoomBezetting',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'datum': app(datumId),
+          'roomId': varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+        },
+        outputVariableName: uitvoer,
+        nodeKey: nodeKey,
+        onSuccess: (ctx) => Actions.chain([
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('roomBezetting', ctx.responseVar),
+          ]),
+        ]),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('De bezetting kon niet worden opgehaald.'),
+        ]),
+      );
+
+  FFActionNode schuif(String dagen, String nodeKey, String uitvoer) {
+    final node = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: shiftActie.identifier.deepCopy(),
+          argumentValues: _actieArgs(shiftActie, {
+            'dagen': FFValue(variable: interpolateVar([dagen]).variable),
+          }),
+        ),
+      ),
+    );
+    node.followUpAction = haalBezetting(nodeKey, uitvoer);
+    return node;
+  }
+
+  // ── De dagbalk ───────────────────────────────────────────────────────────
+  final vorige = UI.container(
+    name: 'RuimtesVorigeDag',
+    innerPadding: UIEdgeInsets.all(10),
+    borderRadius: 10,
+    color: UIColor.secondaryBackground,
+    child: UI.icon('chevron_left', size: 20, color: UIColor.primaryText),
+  );
+  final volgende = UI.container(
+    name: 'RuimtesVolgendeDag',
+    innerPadding: UIEdgeInsets.all(10),
+    borderRadius: 10,
+    color: UIColor.secondaryBackground,
+    child: UI.icon('chevron_right', size: 20, color: UIColor.primaryText),
+  );
+
+  final datumTekst = UI.text('',
+      name: 'RuimtesDatum',
+      style: UITextStyle.titleSmall,
+      textAlign: UITextAlign.center,
+      maxLines: 1);
+  datumTekst.props.text.textValue = FFStringValue(variable: app(datumId));
+
+  Actions.onTapChain(vorige, schuif('-1', vorige.key, 'roomBezettingVorige'));
+  Actions.onTapChain(volgende, schuif('1', volgende.key, 'roomBezettingVolgende'));
+
+  final dagBalk = UI.row(
+    name: 'RuimtesDagBalk',
+    spacing: 10,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [vorige, UI.expanded(datumTekst), volgende],
+  );
+
+  // ── De lijst met wat er vastligt ─────────────────────────────────────────
+  final lijst = UI.listView(
+    name: 'RuimtesBezettingList',
+    shrinkWrap: true,
+    spacing: 8,
+    dynamicSource: DynamicSource(variable: app(bezettingId), itemName: 'rb'),
+  );
+
+  final ruimteNaam = UI.text('',
+      name: 'RuimtesBlokRuimte',
+      style: UITextStyle.bodyLarge,
+      fontWeight: UIFontWeight.w600,
+      maxLines: 1);
+  ruimteNaam.props.text.textValue =
+      FFStringValue(variable: generatorVarField(lijst.key, 'roomName'));
+
+  final tijd = UI.text('',
+      name: 'RuimtesBlokTijd',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.primary,
+      fontWeight: UIFontWeight.w700,
+      maxLines: 1);
+  tijd.props.text.textValue =
+      FFStringValue(variable: generatorVarField(lijst.key, 'timeLabel'));
+
+  // Bij een privé-reservering staat hier 'Gereserveerd'; de echte titel is de
+  // server nooit uit gekomen.
+  final waarvoor = UI.text('',
+      name: 'RuimtesBlokTitel',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      maxLines: 2);
+  waarvoor.props.text.textValue =
+      FFStringValue(variable: generatorVarField(lijst.key, 'title'));
+
+  final blok = UI.container(
+    name: 'RuimtesBlok',
+    width: double.infinity,
+    borderRadius: 14,
+    color: UIColor.secondaryBackground,
+    padding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    child: UI.column(
+      name: 'RuimtesBlokCol',
+      crossAxisAlignment: UICrossAxisAlignment.start,
+      spacing: 4,
+      children: [
+        UI.row(
+          name: 'RuimtesBlokKop',
+          spacing: 10,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [UI.expanded(ruimteNaam), tijd],
+        ),
+        waarvoor,
+      ],
+    ),
+  );
+  lijst.children.add(blok);
+
+  final leeg = UI.text('Er ligt op deze dag niets vast.',
+      name: 'RuimtesLeeg',
+      style: UITextStyle.bodyMedium,
+      color: UIColor.secondaryText,
+      textAlign: UITextAlign.center);
+  setConditionalVisibility(
+    leeg,
+    variable: _equalsLiteral(
+      app(bezettingId)
+        ..operations.add(FFVariableOperation(listNumItems: FFListNumItems())),
+      '0',
+    ),
+  );
+
+  // ── Reserveren ───────────────────────────────────────────────────────────
+  final reserveerKnop = UI.button(
+    'Ruimte reserveren',
+    name: 'RuimtesReserveerKnop',
+    width: double.infinity,
+    iconName: 'add',
+    iconSize: 20,
+    borderRadius: 12,
+    padding: UIEdgeInsets.all(14),
+  );
+  if (findPage(project, name: 'RuimteReserverenPage') != null) {
+    Actions.onTap(
+      reserveerKnop,
+      Actions.navigate(project, pageName: 'RuimteReserverenPage', params: {}),
+    );
+  }
+
+  houder.children.addAll([dagBalk, reserveerKnop, lijst, leeg]);
+
+  // Bij het openen: de datum op vandaag en meteen de bezetting erbij.
+  wc.node.triggerActions.removeWhere((t) =>
+      t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE);
+  Actions.addTriggerChain(
+    wc.node,
+    FFActionTriggerType.ON_INIT_STATE,
+    schuif('0', wc.node.key, 'roomBezettingOpen'),
+  );
+}
+
+/// Vult RuimteReserverenPage: ruimte kiezen en een tijdvak vastleggen.
+void _wireRuimteReserverenPage(FFProject project) {
+  final wc = findPage(project, name: 'RuimteReserverenPage');
+  if (wc == null) return;
+
+  final datumId   = _findAppStateFieldId(project, 'roomDatum');
+  final lijstId   = _findAppStateFieldId(project, 'roomLijst');
+  final gekozenId = _findAppStateFieldId(project, 'roomGekozenId');
+  final gekozenNm = _findAppStateFieldId(project, 'roomGekozenNaam');
+  final priveId   = _findAppStateFieldId(project, 'roomPrive');
+  if (datumId == null || lijstId == null || gekozenId == null
+      || gekozenNm == null || priveId == null) return;
+  if (findApiEndpoint(project, name: 'GetRooms', groupName: 'VoetbalPlannerAPI') == null) return;
+  if (findApiEndpoint(project, name: 'ReserveerRuimte', groupName: 'VoetbalPlannerAPI') == null) return;
+
+  final scaffoldKey = wc.node.key;
+  FFVariable app(FFIdentifier id) => varFromAppState(id.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  if (getPropertyChild(wc.node, 'appBar') == null) {
+    final titel = UI.text('Ruimte reserveren',
+        name: 'RuimteReserverenAppBarTitle', style: UITextStyle.titleLarge);
+    final appBar = UI.appBar(titleWidget: titel);
+    wc.node.children.add(appBar);
+    wc.node.childPropertyMap['appBar'] =
+        FFChildrenKeys(keyRefs: [FFNodeKeyReference(key: appBar.key)]);
+  }
+
+  final houder = findDescendants(
+          wc.node, (n) => n.name == 'RuimteReserverenContainer').firstOrNull;
+  if (houder == null) return;
+  houder.children.clear();
+
+  final bodyCol = getPropertyChild(wc.node, 'body');
+  if (bodyCol != null && bodyCol.type == FFWidgetType.Column) {
+    final c = bodyCol.props.column.deepCopy();
+    c.scrollable = true;
+    bodyCol.props.column = c;
+  }
+
+  // ── De ruimte kiezen ─────────────────────────────────────────────────────
+  final kop1 = UI.text('Welke ruimte?',
+      name: 'ResKop1', style: UITextStyle.bodyLarge, fontWeight: UIFontWeight.w700);
+
+  final ruimteLijst = UI.listView(
+    name: 'ResRuimteList',
+    shrinkWrap: true,
+    spacing: 8,
+    dynamicSource: DynamicSource(variable: app(lijstId), itemName: 'rl'),
+  );
+
+  // Een vinkje voor de gekozen ruimte. Zonder dat verandert er bij een tik
+  // niets zichtbaars en weet je niet of het is aangekomen.
+  final ruimteNaam = UI.text('', name: 'ResRuimteNaam', style: UITextStyle.bodyLarge);
+  ruimteNaam.props.text.textValue = FFStringValue(
+    variable: codeExpressionVar(
+      expression: "(((g ?? '') != '' && (g ?? '') == (n ?? '')) ? '✓  ' : '') + (n ?? '')"
+          " + (((c ?? '') != '') ? '   ·   ' + (c ?? '') : '')",
+      arguments: [
+        CodeExpressionArg(
+          name: 'g',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: app(gekozenNm)),
+        ),
+        CodeExpressionArg(
+          name: 'n',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: generatorVarField(ruimteLijst.key, 'name')),
+        ),
+        CodeExpressionArg(
+          name: 'c',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: generatorVarField(ruimteLijst.key, 'capacityLabel')),
+        ),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    ),
+  );
+
+  final ruimteRij = UI.container(
+    name: 'ResRuimteRij',
+    width: double.infinity,
+    borderRadius: 12,
+    color: UIColor.secondaryBackground,
+    padding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    child: ruimteNaam,
+  );
+  ruimteRij.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable(
+            'roomGekozenId', generatorVarField(ruimteLijst.key, 'id')),
+        StateFieldUpdate.setFromVariable(
+            'roomGekozenNaam', generatorVarField(ruimteLijst.key, 'name')),
+      ]),
+    ),
+  ));
+  ruimteLijst.children.add(ruimteRij);
+
+  // ── Wanneer ──────────────────────────────────────────────────────────────
+  final kop2 = UI.text('Wanneer?',
+      name: 'ResKop2', style: UITextStyle.bodyLarge, fontWeight: UIFontWeight.w700);
+
+  final datumVeld = UI.textField(
+    name: 'ResDatumVeld',
+    labelText: 'Datum',
+    hintText: 'dd-mm-jjjj',
+    borderRadius: 12,
+  );
+  // Voorgevuld met de dag die je op het overzicht bekeek.
+  datumVeld.props.textField.initialText =
+      FFText(textValue: FFStringValue(variable: app(datumId)));
+
+  final vanVeld = UI.textField(
+    name: 'ResVanVeld',
+    labelText: 'Van',
+    hintText: '19:00',
+    keyboardType: UIKeyboardType.number,
+    borderRadius: 12,
+  );
+  final totVeld = UI.textField(
+    name: 'ResTotVeld',
+    labelText: 'Tot',
+    hintText: '21:00',
+    keyboardType: UIKeyboardType.number,
+    borderRadius: 12,
+  );
+
+  final tijdRij = UI.row(
+    name: 'ResTijdRij',
+    spacing: 10,
+    crossAxisAlignment: UICrossAxisAlignment.start,
+    children: [UI.expanded(vanVeld), UI.expanded(totVeld)],
+  );
+
+  // ── Waarvoor ─────────────────────────────────────────────────────────────
+  final titelVeld = UI.textField(
+    name: 'ResTitelVeld',
+    labelText: 'Waarvoor',
+    hintText: 'Bijvoorbeeld: bestuursvergadering',
+    borderRadius: 12,
+  );
+
+  // Privé als aantikbare regel en niet als schakelaar: een Toggle heeft in deze
+  // DSL geen vaste vorm, en een regel met een vinkje leest hier net zo goed.
+  final priveTekst = UI.text('', name: 'ResPriveTekst', style: UITextStyle.bodyMedium);
+  priveTekst.props.text.textValue = FFStringValue(
+    variable: codeExpressionVar(
+      expression: "((p ?? '') == 'true' ? '☑' : '☐') + '   Privé — anderen zien alleen dat het bezet is'",
+      arguments: [
+        CodeExpressionArg(
+          name: 'p',
+          dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+          value: FFValue(variable: app(priveId)),
+        ),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+    ),
+  );
+
+  final priveRij = UI.container(
+    name: 'ResPriveRij',
+    width: double.infinity,
+    borderRadius: 12,
+    color: UIColor.secondaryBackground,
+    padding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    child: priveTekst,
+  );
+  priveRij.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable(
+          'roomPrive',
+          codeExpressionVar(
+            expression: "(p ?? '') == 'true' ? 'false' : 'true'",
+            arguments: [
+              CodeExpressionArg(
+                name: 'p',
+                dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                value: FFValue(variable: app(priveId)),
+              ),
+            ],
+            returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)),
+          ),
+        ),
+      ]),
+    ),
+  ));
+
+  // ── Vastleggen ───────────────────────────────────────────────────────────
+  final knop = UI.button(
+    'Reserveren',
+    name: 'ResKnop',
+    width: double.infinity,
+    iconName: 'event_available',
+    iconSize: 20,
+    borderRadius: 12,
+    padding: UIEdgeInsets.all(14),
+  );
+
+  final bewaar = Actions.apiCallNode(
+    project,
+    endpointName: 'ReserveerRuimte',
+    groupName: 'VoetbalPlannerAPI',
+    dynamicVariables: {
+      'roomId': app(gekozenId),
+      'datum':  varFromTextFieldValue(datumVeld.key),
+      'van':    varFromTextFieldValue(vanVeld.key),
+      'tot':    varFromTextFieldValue(totVeld.key),
+      'titel':  varFromTextFieldValue(titelVeld.key),
+      'prive':  app(priveId),
+    },
+    outputVariableName: 'roomReserveer',
+    nodeKey: knop.key,
+    onSuccess: (ctx) => Actions.chain([
+      _snackBarUitAntwoord(ctx, knop.key),
+      Actions.navigateBack(),
+    ]),
+    onFailure: (ctx) => Actions.chain([
+      // De server legt uit waarom het niet kon - welke ruimte al bezet is en
+      // van wanneer tot wanneer. Dat is bruikbaarder dan "mislukt".
+      _snackBarFoutUitAntwoord(ctx, knop.key, 'Reserveren is niet gelukt.'),
+    ]),
+  );
+  Actions.onTapChain(knop, bewaar);
+
+  final uitleg = UI.text(
+      'De ruimte wordt meteen vastgelegd. Staat er al iets op dat tijdstip, dan '
+      'krijg je te zien wat.',
+      name: 'ResUitleg',
+      style: UITextStyle.labelSmall,
+      color: UIColor.secondaryText,
+      maxLines: 3);
+
+  houder.children.addAll([
+    kop1, ruimteLijst, kop2, datumVeld, tijdRij, titelVeld, priveRij, knop, uitleg,
+  ]);
+
+  // Bij het openen de ruimtes ophalen.
+  wc.node.triggerActions.removeWhere((t) =>
+      t.hasTrigger() && t.trigger.triggerType == FFActionTriggerType.ON_INIT_STATE);
+  Actions.addTriggerChain(
+    wc.node,
+    FFActionTriggerType.ON_INIT_STATE,
+    Actions.apiCallNode(
+      project,
+      endpointName: 'GetRooms',
+      groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {},
+      outputVariableName: 'roomLijstLaden',
+      nodeKey: wc.node.key,
+      onSuccess: (ctx) => Actions.chain([
+        Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable('roomLijst', ctx.responseVar),
+        ]),
+      ]),
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('De ruimtes konden niet worden opgehaald.'),
+      ]),
+    ),
+  );
+}
+
 void _addAgendaEndpoints(FFProject project) {
   const groupName = 'VoetbalPlannerAPI';
   bool has(String n) => findApiEndpoint(project, name: n, groupName: groupName) != null;
@@ -30773,6 +31375,8 @@ void _wireMeerPage(FFProject project) {
     tile('MeerTileProfiel', 'Profiel', 'person', 'ProfielPage'),
     tile('MeerTileToegang', 'Toegangscontrole', 'qr_code_scanner', 'ToegangPage',
         subtitle: 'Scan toegangscodes bij de ingang'),
+    tile('MeerTileRuimtes', 'Ruimtes', 'meeting_room', 'RuimtesPage',
+        subtitle: 'Bekijk en reserveer de ruimtes van de club'),
     tile('MeerTileBug', 'Probleem melden', 'bug_report', 'BugReportPage'),
   ].whereType<FFNode>().toList();
 
@@ -30789,6 +31393,22 @@ void _wireMeerPage(FFProject project) {
       scanTegel,
       variable: _equalsLiteral(
         varFromAppState(magScannenId.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        'true',
+      ),
+    );
+  }
+
+  // En dezelfde afscherming voor de ruimtes: zonder de rol Ruimteplanning hoort
+  // de tegel er niet te staan.
+  final magRuimtesId = _findAppStateFieldId(project, 'magRuimtesPlannen');
+  final ruimteTegel =
+      tiles.where((n) => n.name == 'MeerTileRuimtesCard').firstOrNull;
+  if (magRuimtesId != null && ruimteTegel != null) {
+    setConditionalVisibility(
+      ruimteTegel,
+      variable: _equalsLiteral(
+        varFromAppState(magRuimtesId.deepCopy())
           ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
         'true',
       ),

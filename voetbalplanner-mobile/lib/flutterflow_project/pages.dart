@@ -32,6 +32,8 @@ import 'pages/opstelling_page.dart' show opstellingPageHandle;
 import 'pages/profiel_page.dart' show profielPageHandle;
 import 'pages/rijschema_detail_page.dart' show rijschemaDetailPageHandle;
 import 'pages/rijschema_page.dart' show rijschemaPageHandle;
+import 'pages/ruimte_reserveren_page.dart' show ruimteReserverenPageHandle;
+import 'pages/ruimtes_page.dart' show ruimtesPageHandle;
 import 'pages/stand_page.dart' show standPageHandle;
 import 'pages/team_chat_page.dart' show teamChatPageHandle;
 import 'pages/team_members_page.dart' show teamMembersPageHandle;
@@ -76,6 +78,8 @@ abstract final class Pages {
   static final profielPage = profielPageHandle;
   static final rijschemaDetailPage = rijschemaDetailPageHandle;
   static final rijschemaPage = rijschemaPageHandle;
+  static final ruimteReserverenPage = ruimteReserverenPageHandle;
+  static final ruimtesPage = ruimtesPageHandle;
   static final standPage = standPageHandle;
   static final teamChatPage = teamChatPageHandle;
   static final teamMembersPage = teamMembersPageHandle;
@@ -119,6 +123,8 @@ abstract final class Pages {
     profielPage,
     rijschemaDetailPage,
     rijschemaPage,
+    ruimteReserverenPage,
+    ruimtesPage,
     standPage,
     teamChatPage,
     teamMembersPage,

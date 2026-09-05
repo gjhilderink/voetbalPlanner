@@ -1552,6 +1552,7 @@ abstract final class CustomCode {
     "SaveLineupBoard",
     "SendMagicLink",
     "SendMessage",
+    "ShiftRoomDatum",
     "StartTour",
     "StartTourAlsGevraagd",
     "SubmitBugReport",

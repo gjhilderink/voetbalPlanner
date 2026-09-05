@@ -635,6 +635,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: true,
   );
+  static const roomBezetting = ffai.ProjectAppStateFieldHandle(
+    name: "roomBezetting",
+    key: "up2nhsy1",
+    typeName: "List<DataStruct<RoomReservation>>",
+    persisted: false,
+  );
   static const roomDatum = ffai.ProjectAppStateFieldHandle(
     name: "roomDatum",
     key: "vkl8coos",
@@ -650,6 +656,18 @@ abstract final class AppState {
   static const roomGekozenNaam = ffai.ProjectAppStateFieldHandle(
     name: "roomGekozenNaam",
     key: "9i0lc0pg",
+    typeName: "String",
+    persisted: false,
+  );
+  static const roomLijst = ffai.ProjectAppStateFieldHandle(
+    name: "roomLijst",
+    key: "gq93m8aw",
+    typeName: "List<DataStruct<Room>>",
+    persisted: false,
+  );
+  static const roomPrive = ffai.ProjectAppStateFieldHandle(
+    name: "roomPrive",
+    key: "876uopop",
     typeName: "String",
     persisted: false,
   );
@@ -885,9 +903,12 @@ abstract final class AppState {
     primaryColor,
     profilePhotoUrl,
     relatiecode,
+    roomBezetting,
     roomDatum,
     roomGekozenId,
     roomGekozenNaam,
+    roomLijst,
+    roomPrive,
     scoreTeamMembers,
     secondaryColor,
     sharedBarDuties,
