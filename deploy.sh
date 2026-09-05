@@ -25,6 +25,19 @@ composer install --no-dev --optimize-autoloader
 echo "2. Running migrations..."
 php artisan migrate --force
 
+# De symlink public/storage. Zonder hem geeft elke asset('storage/...') een 404,
+# en dat raakt de agenda-afbeeldingen, het nieuws, de onboarding-achtergronden,
+# de profielfoto's die leden zelf uploaden en de schermafbeeldingen bij een
+# bugmelding. Op deze server ontbrak hij, en dat was aan niets te zien: er
+# verscheen simpelweg geen afbeelding.
+#
+# Hier en niet met de hand, want een handmatige link overleeft een verse
+# uitrol niet. Mislukken is geen reden om de deploy af te breken: op sommige
+# gedeelde hosting mag een symlink niet, en dan is een deploy zonder plaatjes
+# nog altijd beter dan geen deploy.
+echo "2a. Symlink public/storage..."
+php artisan storage:link --force || echo "   LET OP: symlink maken lukte niet; afbeeldingen via storage/ blijven leeg."
+
 echo "2b. Seeding documentation..."
 php artisan db:seed --class=DocumentationSeeder --force
 
