@@ -108,6 +108,17 @@ class AgendaItem extends Model
         return $this->hasMany(AccessCode::class);
     }
 
+    /**
+     * De ruimtes die voor deze activiteit zijn vastgelegd.
+     *
+     * Een activiteit kan er meer dan een hebben: een toernooi gebruikt de
+     * kantine en de bestuurskamer tegelijk.
+     */
+    public function roomReservations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(RoomReservation::class);
+    }
+
     /** Wie er binnen is: zowel op een uitgedeelde code als op lidnummer. */
     public function accessEntries(): \Illuminate\Database\Eloquent\Relations\HasMany
     {

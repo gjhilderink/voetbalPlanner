@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AgendaItemResource\Pages;
 use App\Filament\Resources\AgendaItemResource\RelationManagers\RegistrationsRelationManager;
+use App\Filament\Resources\AgendaItemResource\RelationManagers\RoomReservationsRelationManager;
 use App\Filament\Resources\AgendaItemResource\RelationManagers\TicketTypesRelationManager;
 use App\Filament\Support\TeamFilter;
 use App\Models\AgendaCategory;
@@ -455,6 +456,7 @@ class AgendaItemResource extends Resource
         return [
             RegistrationsRelationManager::class,
             TicketTypesRelationManager::class,
+            RoomReservationsRelationManager::class,
         ];
     }
 
