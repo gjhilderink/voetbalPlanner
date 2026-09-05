@@ -11,6 +11,7 @@ use App\Models\Absence;
 use App\Models\LineupPlayer;
 use App\Models\FootballMatch;
 use App\Models\Member;
+use App\Support\Tijd;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -611,16 +612,32 @@ class MatchController extends Controller
             ], 403);
         }
 
+        // Los valideren op vorm en dan normaliseren: het toetsenbord in de app
+        // is numeriek en heeft geen dubbele punt, dus 1430 hoort net zo goed te
+        // werken als 14:30. Tijd::normaliseer maakt er allebei 14:30 van.
         $validated = $request->validate([
-            // 'HH:MM'; de datum komt van de wedstrijd zelf.
-            // Voorloopnul niet verplicht: wie 9:05 typt bedoelt 09:05, en dat
-            // afkeuren is een streep door een tijd die klopt.
-            'tijd'         => ['nullable', 'string', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'],
-            'verzameltijd' => ['nullable', 'string', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'],
-        ], [
-            'tijd.regex'         => 'Vul een aanvangstijd in als 14:30.',
-            'verzameltijd.regex' => 'Vul een verzameltijd in als 13:45.',
+            'tijd'         => ['nullable', 'string', 'max:8'],
+            'verzameltijd' => ['nullable', 'string', 'max:8'],
         ]);
+
+        foreach (['tijd' => 'aanvangstijd', 'verzameltijd' => 'verzameltijd'] as $veld => $woord) {
+            $ruw = trim((string) ($validated[$veld] ?? ''));
+
+            if ($ruw === '') {
+                continue;
+            }
+
+            $net = Tijd::normaliseer($ruw);
+
+            if ($net === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vul een ' . $woord . ' in als 1430 of 14:30.',
+                ], 422);
+            }
+
+            $validated[$veld] = $net;
+        }
 
         // De verzameltijd eerst, zodat een fout daarin de aanvangstijd niet half
         // aangepast achterlaat.

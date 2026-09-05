@@ -24573,14 +24573,14 @@ void _wireRuimteReserverenPage(FFProject project) {
   final vanVeld = UI.textField(
     name: 'ResVanVeld',
     labelText: 'Van',
-    hintText: '19:00',
+    hintText: '1900 of 19:00',
     keyboardType: UIKeyboardType.number,
     borderRadius: 12,
   );
   final totVeld = UI.textField(
     name: 'ResTotVeld',
     labelText: 'Tot',
-    hintText: '21:00',
+    hintText: '2100 of 21:00',
     keyboardType: UIKeyboardType.number,
     borderRadius: 12,
   );
@@ -25509,7 +25509,7 @@ void _buildMatchActionsDialogBody(FFProject project) {
     final tijdField = UI.textField(
       name: 'MaTijdField',
       labelText: 'Aanvangstijd',
-      hintText: 'Bijvoorbeeld 14:30',
+      hintText: '1430 of 14:30',
       keyboardType: UIKeyboardType.number,
     );
     tijdField.props.textField.initialText =
@@ -25553,7 +25553,7 @@ void _buildMatchActionsDialogBody(FFProject project) {
     final verzamelField = UI.textField(
       name: 'MaVerzamelField',
       labelText: 'Verzameltijd',
-      hintText: 'Bijvoorbeeld 13:45',
+      hintText: '1345 of 13:45',
       keyboardType: UIKeyboardType.number,
       borderRadius: 12,
     );
@@ -25624,6 +25624,7 @@ void _buildMatchActionsDialogBody(FFProject project) {
       spacing: 8,
       children: [
         UI.text('Alleen de tijden; de datum blijft staan. Iedereen bij deze wedstrijd ziet ze meteen. '
+            'Een dubbele punt mag je weglaten: 1430 werkt net zo goed. '
             'Laat een veld leeg om die tijd terug te zetten op wat Sportlink doorgeeft.',
             name: 'MaTijdLabel',
             style: UITextStyle.labelMedium,

@@ -10,6 +10,7 @@ use App\Http\Resources\RoomReservationResource;
 use App\Models\Room;
 use App\Models\RoomReservation;
 use App\Services\RoomReservationService;
+use App\Support\Tijd;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -120,15 +121,28 @@ class RoomController extends Controller
 
         $validated = $request->validate([
             'datum' => ['required', 'date_format:d-m-Y'],
-            'van'   => ['required', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'],
-            'tot'   => ['required', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'],
+            'van'   => ['required', 'string', 'max:8'],
+            'tot'   => ['required', 'string', 'max:8'],
             'titel' => ['nullable', 'string', 'max:120'],
             'prive' => ['nullable', 'string'],
         ], [
             'datum.date_format' => 'Kies een datum.',
-            'van.regex'         => 'Vul een begintijd in als 19:00.',
-            'tot.regex'         => 'Vul een eindtijd in als 21:00.',
         ]);
+
+        // Het toetsenbord in de app is numeriek en heeft geen dubbele punt, dus
+        // 1900 hoort net zo goed te werken als 19:00.
+        foreach (['van' => 'begintijd', 'tot' => 'eindtijd'] as $veld => $woord) {
+            $net = Tijd::normaliseer((string) $validated[$veld]);
+
+            if ($net === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vul een ' . $woord . ' in als 1900 of 19:00.',
+                ], 422);
+            }
+
+            $validated[$veld] = $net;
+        }
 
         $datum = Carbon::createFromFormat('d-m-Y', $validated['datum'])->startOfDay();
         $begin = $datum->copy()->setTimeFromTimeString($validated['van']);
