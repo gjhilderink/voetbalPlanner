@@ -35254,10 +35254,13 @@ void _wireLiveMatchPage(FFProject project) {
   // deelsheet een leeg bericht openen.
   // Marge boven én onder: zonder de bovenmarge plakte de deelknop tegen "Start
   // het verslag" aan, en dan lezen twee losse knoppen als één blok.
+  // Zestien opzij, net als LiveStartPanel. Zonder dat liep de deelknop van rand
+  // tot rand terwijl de startknop erboven ingesprongen stond, en dan lijken het
+  // twee knoppen uit verschillende schermen.
   final deelWrap = UI.container(
     name: 'LiveShareWrap',
     width: double.infinity,
-    padding: UIEdgeInsets.only(top: 14, bottom: 12),
+    innerPadding: UIEdgeInsets.only(left: 16, right: 16, top: 12, bottom: 12),
     child: deelKnop,
   );
   setConditionalVisibility(
