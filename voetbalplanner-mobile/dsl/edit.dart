@@ -890,6 +890,10 @@ void buildEditFlow(App app) {
   // Native endpoints voor score-beheer (doelpunten ophalen/toevoegen/verwijderen).
   app.raw((project) => _addScoreEndpoints(project));
   app.raw((project) => _addGuestInviteEndpoints(project));
+  // Ruimtes: structs + endpoints (lijst, bezetting per dag, reserveren,
+  // intrekken). De schermen komen hierna; ApiCall zoekt een endpoint op naam en
+  // faalt als het nog niet bestaat.
+  app.raw((project) => _addRoomEndpoints(project));
   // Verenigingsagenda: structs + endpoints (lijst, categorieën, detail, aan-/afmelden).
   app.raw((project) => _addAgendaEndpoints(project));
   // Agendaschermen — ná _addAgendaEndpoints, want ApiCall resolveert de
@@ -8234,6 +8238,9 @@ Future<String> verifyMagicLink(String? token) async {
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
       FFAppState().magScannen      = (user['can_scan_access'] == true) ? 'true' : 'false';
       FFAppState().toegangModule   = (club['access_enabled'] as String?) ?? 'false';
+      // can_plan_rooms komt als tekst binnen, anders dan can_scan_access
+      // hierboven; vandaar de vergelijking met 'true' en niet met true.
+      FFAppState().magRuimtesPlannen = (user['can_plan_rooms'] as String?) == 'true' ? 'true' : 'false';
     });
     // Register this user so the direct-chat member strip shows only app users.
     // Fire-and-forget: previously this was awaited, but Firestore can hang
@@ -8461,6 +8468,9 @@ Future<bool> loginWithCredentials(BuildContext context, String? email, String? p
       FFAppState().profilePhotoUrl = (user['profile_photo_url'] as String?) ?? '';
       FFAppState().magScannen      = (user['can_scan_access'] == true) ? 'true' : 'false';
       FFAppState().toegangModule   = (club['access_enabled'] as String?) ?? 'false';
+      // can_plan_rooms komt als tekst binnen, anders dan can_scan_access
+      // hierboven; vandaar de vergelijking met 'true' en niet met true.
+      FFAppState().magRuimtesPlannen = (user['can_plan_rooms'] as String?) == 'true' ? 'true' : 'false';
     });
 
     // Register this user so the direct-chat member strip shows only app users.
@@ -8596,6 +8606,15 @@ void _fixLoginButtonBindings(FFProject project) {
   // Staat de toegangsmodule aan bij deze club? Bepaalt of het lid zijn eigen
   // QR-code in het menu ziet - los van magScannen, want dat gaat over de rol.
   _ensureAppStateField(project, 'toegangModule',   FFBaseDataType.String, persisted: true);
+  // Mag deze gebruiker ruimtes reserveren? Rol en module in één vlag, net als
+  // magScannen. Staat er 'false', dan hoort de module nergens in beeld te komen.
+  _ensureAppStateField(project, 'magRuimtesPlannen', FFBaseDataType.String, persisted: true);
+  // De dag die het ruimte-overzicht toont, als dd-mm-jjjj. Niet persistent: bij
+  // het openen wil je vandaag zien en niet de dag waar je vorige week naar keek.
+  _ensureAppStateField(project, 'roomDatum',        FFBaseDataType.String);
+  // Welke ruimte je hebt aangetikt om te reserveren.
+  _ensureAppStateField(project, 'roomGekozenId',    FFBaseDataType.String);
+  _ensureAppStateField(project, 'roomGekozenNaam',  FFBaseDataType.String);
   _ensureAppStateField(project, 'profilePhotoUrl',  FFBaseDataType.String, persisted: true);
 
   // onboardingSeen wordt al persistent gedeclareerd via app.state (persisted: true).
@@ -23969,6 +23988,132 @@ void _buildAgendaPages(App app) {
 // datum, tijd en booleans al als kant-en-klare tekst aan, zodat de app niets
 // hoeft te formatteren. Dat is hier extra belangrijk omdat de opgeslagen tijden
 // Nederlandse wandkloktijd zijn en een ISO-conversie er twee uur naast zou zitten.
+/// Structs en endpoints voor het reserveren van ruimtes.
+///
+/// Alle velden als tekst, zoals overal in deze app: een struct declareert zijn
+/// velden als String, en een echte boolean of een getal komt daar als null
+/// binnen.
+void _addRoomEndpoints(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  bool has(String n) => findApiEndpoint(project, name: n, groupName: groupName) != null;
+  FFDataTypeV2 str() => FFDataTypeV2(scalarType: FFBaseDataType.String);
+
+  if (findDataStruct(project, name: 'Room') == null) {
+    addDataStruct(
+      project,
+      name: 'Room',
+      description: 'Een ruimte van de club die te reserveren is.',
+      fields: [
+        structField('id',            stringType, description: 'Ruimte ID'),
+        structField('name',          stringType, description: 'Naam van de ruimte'),
+        structField('description',   stringType, description: 'Toelichting'),
+        structField('capacity',      stringType, description: 'Aantal personen, leeg als onbekend'),
+        structField('capacityLabel', stringType, description: "Bv. '40 personen'"),
+        structField('color',         stringType, description: 'Kleur (hex)'),
+        structField('melding',       stringType, description: 'Melding bij een leeg antwoord'),
+      ],
+    );
+  }
+
+  if (findDataStruct(project, name: 'RoomReservation') == null) {
+    addDataStruct(
+      project,
+      name: 'RoomReservation',
+      description: 'Een vastgelegd tijdvak in een ruimte.',
+      fields: [
+        structField('id',        stringType, description: 'Reservering ID'),
+        structField('roomId',    stringType, description: 'Ruimte ID'),
+        structField('roomName',  stringType, description: 'Naam van de ruimte'),
+        // Bij een privé-reservering staat hier 'Gereserveerd' en is requester
+        // leeg; de server stuurt de echte titel dan niet mee.
+        structField('title',     stringType, description: 'Waarvoor de ruimte is'),
+        structField('requester', stringType, description: 'Wie het heeft vastgelegd'),
+        structField('notes',     stringType, description: 'Opmerkingen'),
+        structField('date',      stringType, description: 'Datum dd-mm-jjjj'),
+        structField('startTime', stringType, description: 'Begintijd uu:mm'),
+        structField('endTime',   stringType, description: 'Eindtijd uu:mm'),
+        structField('dateLabel', stringType, description: "Bv. 'zaterdag 12 september'"),
+        structField('timeLabel', stringType, description: "Bv. '19:00 - 21:00'"),
+        structField('isPrivate', stringType, description: "'true' of 'false'"),
+        structField('isExtern',  stringType, description: "Komt uit Outlook: 'true' of 'false'"),
+        structField('isMine',    stringType, description: "Van jezelf: 'true' of 'false'"),
+        structField('canCancel', stringType, description: "Mag je intrekken: 'true' of 'false'"),
+        structField('agendaItemId', stringType, description: 'Bijbehorende activiteit'),
+        structField('status',    stringType, description: 'bevestigd of geannuleerd'),
+        structField('melding',   stringType, description: 'Melding bij een leeg antwoord'),
+      ],
+    );
+  }
+
+  const roomsUrl      = '/rooms';
+  const bezettingUrl  = '/rooms/bezetting?datum=[datum]&room_id=[roomId]';
+  const mijneUrl      = '/rooms/reserveringen';
+  const reserveerUrl  = '/rooms/[roomId]/reserveren?datum=[datum]&van=[van]&tot=[tot]&titel=[titel]&prive=[prive]';
+  const annuleerUrl   = '/rooms/reserveringen/[reserveringId]/annuleren';
+
+  if (has('GetRooms')) {
+    updateApiEndpoint(project, name: 'GetRooms', groupName: groupName,
+        url: roomsUrl, responseDataStructName: 'Room', responseDataStructIsList: true);
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetRooms',
+        url: roomsUrl, method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE, variables: {},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'Room', responseDataStructIsList: true);
+  }
+
+  if (has('GetRoomBezetting')) {
+    updateApiEndpoint(project, name: 'GetRoomBezetting', groupName: groupName,
+        url: bezettingUrl, responseDataStructName: 'RoomReservation', responseDataStructIsList: true);
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetRoomBezetting',
+        url: bezettingUrl, method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'datum': str(), 'roomId': str()},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'RoomReservation', responseDataStructIsList: true);
+  }
+
+  if (has('GetMijnRuimtes')) {
+    updateApiEndpoint(project, name: 'GetMijnRuimtes', groupName: groupName,
+        url: mijneUrl, responseDataStructName: 'RoomReservation', responseDataStructIsList: true);
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetMijnRuimtes',
+        url: mijneUrl, method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE, variables: {},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'RoomReservation', responseDataStructIsList: true);
+  }
+
+  // Query-parameters en geen body: FlutterFlow vult [var] alleen in de URL in.
+  if (has('ReserveerRuimte')) {
+    updateApiEndpoint(project, name: 'ReserveerRuimte', groupName: groupName,
+        url: reserveerUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'ReserveerRuimte',
+        url: reserveerUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {
+          'roomId': str(), 'datum': str(), 'van': str(),
+          'tot': str(), 'titel': str(), 'prive': str(),
+        },
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
+  if (has('AnnuleerRuimte')) {
+    updateApiEndpoint(project, name: 'AnnuleerRuimte', groupName: groupName,
+        url: annuleerUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'AnnuleerRuimte',
+        url: annuleerUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'reserveringId': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+}
+
 void _addAgendaEndpoints(FFProject project) {
   const groupName = 'VoetbalPlannerAPI';
   bool has(String n) => findApiEndpoint(project, name: n, groupName: groupName) != null;

@@ -483,6 +483,43 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle room = ffai.StructHandle(
+    "Room",
+    <String, ffai.DslType>{
+      "capacity": ffai.string,
+      "capacityLabel": ffai.string,
+      "color": ffai.string,
+      "description": ffai.string,
+      "id": ffai.string,
+      "melding": ffai.string,
+      "name": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
+  static final ffai.StructHandle roomReservation = ffai.StructHandle(
+    "RoomReservation",
+    <String, ffai.DslType>{
+      "agendaItemId": ffai.string,
+      "canCancel": ffai.string,
+      "date": ffai.string,
+      "dateLabel": ffai.string,
+      "endTime": ffai.string,
+      "id": ffai.string,
+      "isExtern": ffai.string,
+      "isMine": ffai.string,
+      "isPrivate": ffai.string,
+      "melding": ffai.string,
+      "notes": ffai.string,
+      "requester": ffai.string,
+      "roomId": ffai.string,
+      "roomName": ffai.string,
+      "startTime": ffai.string,
+      "status": ffai.string,
+      "timeLabel": ffai.string,
+      "title": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle staffGroupItem = ffai.StructHandle(
     "StaffGroupItem",
     <String, ffai.DslType>{
@@ -692,6 +729,8 @@ abstract final class Structs {
     matchStatRow,
     newsItem,
     onboardingSlide,
+    room,
+    roomReservation,
     staffGroupItem,
     standingRow,
     swapMember,

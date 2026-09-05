@@ -449,6 +449,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const magRuimtesPlannen = ffai.ProjectAppStateFieldHandle(
+    name: "magRuimtesPlannen",
+    key: "5akxvc78",
+    typeName: "String",
+    persisted: true,
+  );
   static const magScannen = ffai.ProjectAppStateFieldHandle(
     name: "magScannen",
     key: "eq75v5c9",
@@ -628,6 +634,24 @@ abstract final class AppState {
     key: "f6wct8f2",
     typeName: "String",
     persisted: true,
+  );
+  static const roomDatum = ffai.ProjectAppStateFieldHandle(
+    name: "roomDatum",
+    key: "vkl8coos",
+    typeName: "String",
+    persisted: false,
+  );
+  static const roomGekozenId = ffai.ProjectAppStateFieldHandle(
+    name: "roomGekozenId",
+    key: "r4tytcco",
+    typeName: "String",
+    persisted: false,
+  );
+  static const roomGekozenNaam = ffai.ProjectAppStateFieldHandle(
+    name: "roomGekozenNaam",
+    key: "9i0lc0pg",
+    typeName: "String",
+    persisted: false,
   );
   static const scoreTeamMembers = ffai.ProjectAppStateFieldHandle(
     name: "scoreTeamMembers",
@@ -830,6 +854,7 @@ abstract final class AppState {
     loginEmail,
     loginError,
     loginPassword,
+    magRuimtesPlannen,
     magScannen,
     matchActionMode,
     matchGoals,
@@ -860,6 +885,9 @@ abstract final class AppState {
     primaryColor,
     profilePhotoUrl,
     relatiecode,
+    roomDatum,
+    roomGekozenId,
+    roomGekozenNaam,
     scoreTeamMembers,
     secondaryColor,
     sharedBarDuties,
