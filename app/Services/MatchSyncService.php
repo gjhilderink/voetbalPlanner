@@ -130,6 +130,13 @@ class MatchSyncService
             $attrs['sportlink_datetime'] = $dto->matchDatetime;
         }
 
+        // Hetzelfde voor de verzameltijd, en apart: iemand kan de verzameltijd
+        // verzetten zonder aan de aanvangstijd te komen.
+        if ($bestaand && $bestaand->sportlink_arrival_time !== null) {
+            unset($attrs['arrival_time']);
+            $attrs['sportlink_arrival_time'] = $dto->arrivalTime;
+        }
+
         // Sportlink-logo-URL's verlopen (expires+sig). Download het logo en sla
         // het permanent op; bewaar de lokale URL. Bij een mislukte download laten
         // we een eerder opgeslagen logo staan (niet overschrijven met null).

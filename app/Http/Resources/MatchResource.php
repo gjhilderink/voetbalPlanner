@@ -61,6 +61,13 @@ class MatchResource extends JsonResource
             // arrival_time is een tijdkolom zonder cast, dus ruw '14:30:00'.
             // Afkappen op H:i, anders staan de seconden in de app.
             'arrivalTime'    => substr((string) ($this->arrival_time ?? ''), 0, 5),
+            // Alleen gevuld als iemand de verzameltijd met de hand heeft gezet
+            // én de bond inmiddels iets anders zegt.
+            'sportlinkArrivalLabel' => ($this->sportlink_arrival_time
+                && substr((string) $this->sportlink_arrival_time, 0, 5) !== substr((string) ($this->arrival_time ?? ''), 0, 5))
+                ? substr((string) $this->sportlink_arrival_time, 0, 5)
+                : '',
+            'arrivalIsCustom' => $this->sportlink_arrival_time !== null ? 'true' : 'false',
             'isHome'         => (bool) $this->is_home,
             'status'         => self::$statusLabels[strtolower($rawStatus)] ?? $rawStatus,
             'scoreHome'      => $this->score_home ?? 0,

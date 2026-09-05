@@ -19,7 +19,7 @@ class FootballMatch extends Model
 
     protected $fillable = [
         'external_id', 'team_id', 'opponent', 'opponent_logo', 'match_datetime',
-        'sportlink_datetime',
+        'sportlink_datetime', 'sportlink_arrival_time',
         'location', 'is_home', 'status', 'score_home', 'score_away',
         'arrival_time', 'dressing_room', 'coach_id', 'fruit_hero_id', 'vlagger_id', 'notes', 'last_synced_at',
         'live_started_at', 'live_halftime_at', 'live_ended_at', 'live_token',

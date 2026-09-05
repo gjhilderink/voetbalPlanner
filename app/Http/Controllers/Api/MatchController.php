@@ -591,12 +591,16 @@ class MatchController extends Controller
     /**
      * POST /v1/matches/{match}/aanvangstijd
      *
-     * De coach zet de aanvangstijd van deze wedstrijd. Alleen de tijd; de datum
-     * blijft wat hij is. Een wedstrijd verplaatsen naar een andere dag is iets
-     * anders dan een half uur eerder beginnen, en dat laatste is waar het in de
-     * praktijk om gaat.
+     * De coach zet de aanvangstijd en de verzameltijd van deze wedstrijd.
+     * Alleen de tijden; de datum blijft wat hij is. Een wedstrijd verplaatsen
+     * naar een andere dag is iets anders dan een half uur eerder beginnen, en
+     * dat laatste is waar het in de praktijk om gaat.
      *
-     * Een lege tijd zet hem terug op wat Sportlink doorgeeft.
+     * Allebei apart, want ze verschuiven niet altijd samen: soms blijft de
+     * aftrap staan en wil de coach alleen een kwartier eerder verzamelen.
+     *
+     * Een leeg veld zet die tijd terug op wat Sportlink doorgeeft. Wordt geen
+     * van beide velden meegestuurd, dan verandert er niets.
      */
     public function setAanvangstijd(Request $request, FootballMatch $match): JsonResponse
     {
@@ -611,10 +615,31 @@ class MatchController extends Controller
             // 'HH:MM'; de datum komt van de wedstrijd zelf.
             // Voorloopnul niet verplicht: wie 9:05 typt bedoelt 09:05, en dat
             // afkeuren is een streep door een tijd die klopt.
-            'tijd' => ['nullable', 'string', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'],
+            'tijd'         => ['nullable', 'string', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'],
+            'verzameltijd' => ['nullable', 'string', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'],
         ], [
-            'tijd.regex' => 'Vul een tijd in als 14:30.',
+            'tijd.regex'         => 'Vul een aanvangstijd in als 14:30.',
+            'verzameltijd.regex' => 'Vul een verzameltijd in als 13:45.',
         ]);
+
+        // De verzameltijd eerst, zodat een fout daarin de aanvangstijd niet half
+        // aangepast achterlaat.
+        $verzamelMelding = $request->has('verzameltijd')
+            ? $this->zetVerzameltijd($match, trim((string) ($validated['verzameltijd'] ?? '')))
+            : null;
+
+        // Alleen de aanvangstijd aanraken als hij is meegestuurd. Anders zou een
+        // scherm dat enkel de verzameltijd wijzigt de aanvangstijd terugzetten.
+        if (! $request->has('tijd')) {
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'timeLabel'   => $match->match_datetime?->format('H:i') ?? '',
+                    'arrivalTime' => substr((string) ($match->arrival_time ?? ''), 0, 5),
+                ],
+                'message' => $verzamelMelding ?? 'Er is niets gewijzigd.',
+            ]);
+        }
 
         $tijd = trim((string) ($validated['tijd'] ?? ''));
 
@@ -636,8 +661,9 @@ class MatchController extends Controller
             return response()->json([
                 'success' => true,
                 'data'    => ['timeLabel' => $match->match_datetime?->format('H:i') ?? ''],
-                'message' => 'De tijd van Sportlink staat er weer in: '
-                    . ($match->match_datetime?->format('H:i') ?? ''),
+                'message' => trim('De tijd van Sportlink staat er weer in: '
+                    . ($match->match_datetime?->format('H:i') ?? '')
+                    . ' ' . ($verzamelMelding ?? '')),
             ]);
         }
 
@@ -667,7 +693,46 @@ class MatchController extends Controller
         return response()->json([
             'success' => true,
             'data'    => ['timeLabel' => $match->match_datetime?->format('H:i') ?? ''],
-            'message' => 'Aanvangstijd staat op ' . $tijd . '.',
+            'message' => trim('Aanvangstijd staat op ' . $tijd . '. ' . ($verzamelMelding ?? '')),
         ]);
+    }
+
+    /**
+     * De verzameltijd zetten of terugzetten.
+     *
+     * Geeft de zin terug die achter de melding komt, of null als er niets te
+     * melden valt.
+     */
+    private function zetVerzameltijd(FootballMatch $match, string $tijd): ?string
+    {
+        if ($tijd === '') {
+            // Niets met de hand gezet: dan is er ook niets terug te zetten.
+            if ($match->sportlink_arrival_time === null) {
+                return null;
+            }
+
+            $match->update([
+                'arrival_time'           => $match->sportlink_arrival_time,
+                'sportlink_arrival_time' => null,
+            ]);
+
+            return 'Verzameltijd staat weer op die van Sportlink: '
+                . substr((string) $match->arrival_time, 0, 5) . '.';
+        }
+
+        $wijzigingen = ['arrival_time' => $tijd];
+
+        // De eerste keer bewaren we wat de bond zei; dat is meteen het teken dat
+        // de synchronisatie deze wedstrijd voortaan met rust moet laten. Alleen
+        // bij een wedstrijd uit Sportlink, en alleen als daar een tijd stond.
+        if ($match->external_id
+            && $match->sportlink_arrival_time === null
+            && filled($match->arrival_time)) {
+            $wijzigingen['sportlink_arrival_time'] = $match->arrival_time;
+        }
+
+        $match->update($wijzigingen);
+
+        return 'Verzameltijd staat op ' . $tijd . '.';
     }
 }

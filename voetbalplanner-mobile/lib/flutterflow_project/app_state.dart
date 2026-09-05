@@ -245,6 +245,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const dialogSportlinkVerzamel = ffai.ProjectAppStateFieldHandle(
+    name: "dialogSportlinkVerzamel",
+    key: "99lq03hn",
+    typeName: "String",
+    persisted: false,
+  );
   static const dialogTeamId = ffai.ProjectAppStateFieldHandle(
     name: "dialogTeamId",
     key: "a34mu5mt",
@@ -260,6 +266,12 @@ abstract final class AppState {
   static const dialogTijd = ffai.ProjectAppStateFieldHandle(
     name: "dialogTijd",
     key: "kjwa6cc2",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogVerzameltijd = ffai.ProjectAppStateFieldHandle(
+    name: "dialogVerzameltijd",
+    key: "qfi7i1fs",
     typeName: "String",
     persisted: false,
   );
@@ -838,9 +850,11 @@ abstract final class AppState {
     dialogRijderName,
     dialogScorerName,
     dialogSportlinkTijd,
+    dialogSportlinkVerzamel,
     dialogTeamId,
     dialogTeams,
     dialogTijd,
+    dialogVerzameltijd,
     dialogView,
     directConvId,
     editingChatDocPath,

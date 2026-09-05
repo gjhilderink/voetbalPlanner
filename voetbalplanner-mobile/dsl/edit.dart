@@ -581,6 +581,10 @@ void buildEditFlow(App app) {
   // opbouwen, en dat gebeurt maar een keer.
   try { app.state('dialogTijd',                string); } catch (_) {}
   try { app.state('dialogSportlinkTijd',       string); } catch (_) {}
+  // De verzameltijd verschuift niet altijd mee met de aftrap; vandaar een eigen
+  // veld en niet een afgeleide van de aanvangstijd.
+  try { app.state('dialogVerzameltijd',        string); } catch (_) {}
+  try { app.state('dialogSportlinkVerzamel',   string); } catch (_) {}
   // Geselecteerde (nog niet bevestigde) vlagger/fruitheld/gastspeler in de
   // coach-dialoog: eerst kiezen, dan met een knop bevestigen.
   try { app.state('dialogFlaggerId',           string); } catch (_) {}
@@ -12365,6 +12369,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
     // De aanvangstijd los van matchDatetime: die laatste is een hele datum met
     // tijd, en het bewerkveld gaat alleen over de klok.
     'matchTimeLabel', 'matchSportlinkTime',
+    'matchArrivalSportlink',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
     'matchGoalsSummary', 'matchTeamId', 'selectedScorerName', 'matchOpponentLogo',
     'matchLiveGestart', 'matchAfgelast', 'matchAfgelastReden',
@@ -12403,6 +12408,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchNotes':         r'$.notes',
           'matchTimeLabel':     r'$.timeLabel',
           'matchSportlinkTime': r'$.sportlinkTimeLabel',
+          'matchArrivalSportlink': r'$.sportlinkArrivalLabel',
           'matchStatus':        r'$.mijn_status',
           'matchMagAfmelden':   r'$.mag_afmelden',
           'matchMagOpstelling': r'$.mag_opstelling',
@@ -24983,17 +24989,21 @@ void _addGuestInviteEndpoints(FFProject project) {
   }
 
   // De aanvangstijd door de coach. Leeg = terug naar wat Sportlink doorgeeft.
-  const tijdUrl = '/matches/[matchId]/aanvangstijd?tijd=[tijd]';
+  const tijdUrl = '/matches/[matchId]/aanvangstijd?tijd=[tijd]&verzameltijd=[verzameltijd]';
 
   if (has('SetMatchTime')) {
+    // Ook de variabelen bijwerken. Zonder dat blijft een endpoint dat er een
+    // parameter bij krijgt op zijn oude lijst staan, en dan weigert de
+    // compiler de aanroep met "variable not found".
     updateApiEndpoint(project, name: 'SetMatchTime', groupName: groupName,
         url: tijdUrl, method: FFApiEndpoint_CallType.POST,
-        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '',
+        variables: {'matchId': str(), 'tijd': str(), 'verzameltijd': str()});
   } else {
     addEndpointToGroup(project, groupName: groupName, name: 'SetMatchTime',
         url: tijdUrl, method: FFApiEndpoint_CallType.POST,
         bodyType: FFApiEndpoint_BodyType.NONE,
-        variables: {'matchId': str(), 'tijd': str()},
+        variables: {'matchId': str(), 'tijd': str(), 'verzameltijd': str()},
         headers: ['Authorization: Bearer [bearerToken]']);
   }
 
@@ -25507,12 +25517,20 @@ void _buildMatchActionsDialogBody(FFProject project) {
 
     // Eigen uitvoernaam per knop: FlutterFlow weigert twee acties die hetzelfde
     // antwoord onder dezelfde naam wegschrijven.
-    FFActionNode bewaarTijd(FFVariable tijd, String knopKey, String uitvoer) =>
+    FFActionNode bewaarTijd(FFVariable tijd, String knopKey, String uitvoer,
+            [FFVariable? verzameltijd]) =>
         Actions.apiCallNode(
           project,
           endpointName: 'SetMatchTime',
           groupName: 'VoetbalPlannerAPI',
-          dynamicVariables: {'matchId': appVar(matchIdId), 'tijd': tijd},
+          dynamicVariables: {
+            'matchId': appVar(matchIdId),
+            'tijd': tijd,
+            // Bij het herstellen gaat er geen verzameltijd mee; dan blijft die
+            // staan zoals hij stond.
+            'verzameltijd': verzameltijd
+                ?? varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+          },
           outputVariableName: uitvoer,
           nodeKey: knopKey,
           onSuccess: (ctx) => Actions.chain([
@@ -25528,11 +25546,27 @@ void _buildMatchActionsDialogBody(FFProject project) {
           ]),
         );
 
-    final saveTijdBtn = UI.button('Tijd opslaan',
+    // De verzameltijd staat eronder en niet in een eigen scherm: je zet ze in
+    // de praktijk in één keer, en twee schermen voor twee klokjes is er een
+    // te veel.
+    final verzamelIdApp = _findAppStateFieldId(project, 'dialogVerzameltijd');
+    final verzamelField = UI.textField(
+      name: 'MaVerzamelField',
+      labelText: 'Verzameltijd',
+      hintText: 'Bijvoorbeeld 13:45',
+      keyboardType: UIKeyboardType.number,
+      borderRadius: 12,
+    );
+    if (verzamelIdApp != null) {
+      verzamelField.props.textField.initialText =
+          FFText(textValue: FFStringValue(variable: appVar(verzamelIdApp)));
+    }
+
+    final saveTijdBtn = UI.button('Tijden opslaan',
         name: 'MaSaveTijdBtn', width: double.infinity);
     Actions.onTapChain(saveTijdBtn,
         bewaarTijd(varFromTextFieldValue(tijdField.key), saveTijdBtn.key,
-            'maSaveTijd'));
+            'maSaveTijd', varFromTextFieldValue(verzamelField.key)));
 
     // De regel met de tijd van de bond, plus de weg terug. Allebei alleen als
     // die tijd er is en afwijkt; anders valt er niets te herstellen.
@@ -25589,11 +25623,13 @@ void _buildMatchActionsDialogBody(FFProject project) {
       crossAxisAlignment: UICrossAxisAlignment.stretch,
       spacing: 8,
       children: [
-        UI.text('Alleen de tijd; de datum blijft staan. Iedereen bij deze wedstrijd ziet de nieuwe tijd.',
+        UI.text('Alleen de tijden; de datum blijft staan. Iedereen bij deze wedstrijd ziet ze meteen. '
+            'Laat een veld leeg om die tijd terug te zetten op wat Sportlink doorgeeft.',
             name: 'MaTijdLabel',
             style: UITextStyle.labelMedium,
             color: UIColor.secondaryText),
         tijdField,
+        verzamelField,
         saveTijdBtn,
         tijdBlok,
         backBtn(),
@@ -26085,6 +26121,8 @@ void _addWedstrijdActionsFab(FFProject project) {
       for (final paar in const [
         ('matchTimeLabel', 'dialogTijd'),
         ('matchSportlinkTime', 'dialogSportlinkTijd'),
+        ('matchArrivalTime', 'dialogVerzameltijd'),
+        ('matchArrivalSportlink', 'dialogSportlinkVerzamel'),
       ])
         if (wc.classModel.stateFields.any(
             (x) => x.parameter.identifier.name == paar.$1))
