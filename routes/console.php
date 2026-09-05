@@ -39,6 +39,18 @@ Schedule::call(fn () => \App\Models\LiveViewer::where(
     'last_seen_at', '<', now()->subDay(),
 )->delete())->dailyAt('03:30')->name('live-viewers-opruimen');
 
+// Ruimtes gelijk houden met Microsoft 365. Elke tien minuten: een boeking die
+// rechtstreeks in Outlook is gemaakt moet hier op tijd bezet staan, en vaker
+// dan dit levert alleen maar aanroepen op zonder dat er iets verandert.
+//
+// withoutOverlapping om dezelfde reden als bij de Sportlink-synchronisatie:
+// een trage ronde langs alle ruimtes mag niet dubbel gaan lopen over dezelfde
+// tabellen.
+Schedule::command('rooms:sync')
+    ->everyTenMinutes()
+    ->name('rooms-sync')
+    ->withoutOverlapping();
+
 // Onbetaalde bestellingen in de ticketshop geven hun kaarten terug. Elke vijf
 // minuten: de reservering duurt een half uur, dus dat is ruim op tijd zonder
 // dat het iets kost.
