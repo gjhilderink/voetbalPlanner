@@ -35002,11 +35002,16 @@ void _wireLiveMatchPage(FFProject project) {
   // Wel een eigen kleur. Delen en starten zijn twee verschillende dingen, en de
   // groene knop is de knop die de wedstrijd begint - daar wil je niet per
   // ongeluk op drukken als je alleen een link wilde sturen.
+  //
+  // Dezelfde rode tint als "Live volgen" en "Uitloggen", en niet het oranje uit
+  // het thema: dat oranje is in dit scherm al bezet door de strafschop- en
+  // kaartknoppen in de coachbalk, en twee betekenissen op één kleur maakt allebei
+  // onduidelijk.
   final deelKnop = UI.container(
     name: 'LiveShareButton',
     innerPadding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 14),
     borderRadius: 14,
-    color: UIColor.warning,
+    color: UIColor.hex(0xFFEF4444),
     child: UI.row(
       name: 'LiveShareRow',
       mainAxisMin: true,
