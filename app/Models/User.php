@@ -96,6 +96,19 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         return $this->hasRole('toegang');
     }
 
+    /**
+     * Mag deze gebruiker ruimtes beheren en reserveren?
+     *
+     * Rol én module: staat Ruimtes uit bij de club, dan is er niets te plannen
+     * en hoort de module nergens op te duiken. Dezelfde afweging als bij
+     * can_scan_access.
+     */
+    public function magRuimtesPlannen(): bool
+    {
+        return $this->hasAnyRole(['super_admin', 'club_admin', 'room-planning'])
+            && (bool) $this->club?->rooms_enabled;
+    }
+
     public function canImpersonate(): bool
     {
         return $this->hasRole('super_admin');

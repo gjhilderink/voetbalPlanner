@@ -80,6 +80,7 @@ class ManageSettings extends Page
             'debug_enabled'       => filter_var(Setting::get('debug_enabled', false, $clubId), FILTER_VALIDATE_BOOLEAN),
             'access_enabled'      => (bool) ($club?->access_enabled ?? false),
             'ticketshop_enabled'  => (bool) ($club?->ticketshop_enabled ?? false),
+            'rooms_enabled'       => (bool) ($club?->rooms_enabled ?? false),
             'paynl_service_id'    => Setting::get('paynl_service_id', '', $clubId),
             'paynl_token_code'    => Setting::get('paynl_token_code', '', $clubId),
             // Bewust leeg: het token wordt niet teruggestuurd naar de browser.
@@ -274,6 +275,13 @@ class ManageSettings extends Page
                             ->visible(fn (Get $get): bool => (bool) $get('access_enabled'))
                             ->helperText('Kaarten verkopen voor een activiteit, met betaling via Pay.nl. '
                                 . 'De koper krijgt zijn QR-codes per mail en die werken meteen bij de ingang.'),
+
+                        Toggle::make('rooms_enabled')
+                            ->label('Ruimtes')
+                            ->live()
+                            ->helperText('Kantine, bestuurskamer en kleedkamers reserveren, met een weekoverzicht '
+                                . 'van wat er vrij is. Wie mag reserveren bepaal je met de rol Ruimteplanning bij '
+                                . 'Gebruikers.'),
                     ])
                     ->columns(1)
                     ->collapsible()
@@ -605,6 +613,7 @@ class ManageSettings extends Page
                 'splash_bg_color'    => $data['splash_bg_color'] ?? null,
                 'access_enabled'     => (bool) ($data['access_enabled'] ?? false),
                 'ticketshop_enabled' => (bool) ($data['access_enabled'] ?? false) && (bool) ($data['ticketshop_enabled'] ?? false),
+                'rooms_enabled'      => (bool) ($data['rooms_enabled'] ?? false),
                 'email_header_text'  => $data['email_header_text'] ?? null,
                 'email_intro_text'   => $data['email_intro_text'] ?? null,
                 'email_footer_text'  => $data['email_footer_text'] ?? null,

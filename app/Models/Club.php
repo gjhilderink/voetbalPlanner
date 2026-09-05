@@ -24,6 +24,7 @@ class Club extends Model
         'app_icon_path', 'splash_path', 'splash_bg_color',
         'access_enabled',
         'ticketshop_enabled',
+        'rooms_enabled',
     ];
 
     protected function casts(): array
@@ -32,6 +33,7 @@ class Club extends Model
             'is_active'      => 'boolean',
             'access_enabled'     => 'boolean',
             'ticketshop_enabled' => 'boolean',
+            'rooms_enabled'      => 'boolean',
         ];
     }
 
