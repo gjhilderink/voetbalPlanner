@@ -1710,6 +1710,9 @@ void buildEditFlow(App app) {
     _ensureLineupBoardWidget(project);
     _wireOpstellingPage(project);
     _ensurePlannedSubsWidget(project);
+    // Vóór het wiren van de livepagina: die zoekt het endpoint op om de
+    // kruisknop per regel te bouwen, en vindt niets als het er nog niet is.
+    _addDeleteLiveEventEndpoint(project);
     _wireLiveMatchPage(project);
     _addLiveMatchButton(project);
     // Ná _addLiveMatchButton: de opstellingsknop hangt zich onder dat blok, dus
@@ -35340,7 +35343,45 @@ void _wireLiveMatchPage(FFProject project) {
     dynamicSource: DynamicSource(variable: eventsVar, itemName: 'ev'),
   );
 
-  list.children.add(_timelineRow(list.key, 'LiveEvent'));
+  // Een kruisje achter elke regel, voor wie het verslag beheert.
+  //
+  // Zonder dit was een fout halverwege alleen te herstellen door alles erna
+  // terug te draaien: "Ongedaan" pakt de laatste gebeurtenis en verder niets.
+  // De aftrap weigert de server, want daar hangt de speelklok aan.
+  FFNode? wisKnop;
+  if (findApiEndpoint(project,
+          name: 'DeleteLiveEvent', groupName: 'VoetbalPlannerAPI') !=
+      null) {
+    wisKnop = UI.container(
+      name: 'LiveEventDelete',
+      innerPadding: UIEdgeInsets.all(6),
+      borderRadius: 8,
+      child: UI.icon('close', size: 18, color: UIColor.secondaryText),
+    );
+    Actions.onTapChain(
+      wisKnop,
+      Actions.apiCallNode(
+        project,
+        endpointName: 'DeleteLiveEvent',
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'token': varFromAppState(authTokenId.deepCopy()),
+          'matchId': varFromAppState(liveMatchIdId.deepCopy()),
+          'eventId': generatorVarField(list.key, 'id'),
+        },
+        outputVariableName: 'liveEventDelete',
+        nodeKey: wisKnop.key,
+        onSuccess: (ctx) => _watchLiveNode(project,
+            FFValue(variable: varFromAppState(liveMatchIdId.deepCopy()))),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('Kon deze regel niet weghalen.'),
+        ]),
+      ),
+    );
+    setConditionalVisibility(wisKnop, variable: canManage.deepCopy());
+  }
+
+  list.children.add(_timelineRow(list.key, 'LiveEvent', achteraan: wisKnop));
 
   final empty = UI.text('Nog niets gebeurd.',
       name: 'LiveEventsEmpty',
@@ -36884,7 +36925,12 @@ FFNode _timelineBadge(String listKey, String prefix) {
 }
 
 /// Complete regel: vlak + witte kaart met minuut en omschrijving.
-FFNode _timelineRow(String listKey, String prefix) {
+/// Eén regel uit het verslag.
+///
+/// [achteraan] hangt er een knop achter - op de livepagina de kruisknop
+/// waarmee de coach die ene regel weghaalt. Het tabblad Verslag geeft hem niet
+/// mee en houdt dus de kale regel.
+FFNode _timelineRow(String listKey, String prefix, {FFNode? achteraan}) {
   FFNode gebonden(String naam, String veld, UITextStyle stijl,
       {UIColor? kleur, int? maxLines, UIFontWeight? gewicht}) {
     final t = UI.text('',
@@ -36927,6 +36973,7 @@ FFNode _timelineRow(String listKey, String prefix) {
       children: [
         _timelineBadge(listKey, prefix),
         UI.expanded(kaart),
+        if (achteraan != null) achteraan,
       ],
     ),
   );
@@ -36950,6 +36997,34 @@ void _addDeleteReportEndpoint(FFProject project) {
     variables: {
       'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
       'matchId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+    },
+    headers: ['Authorization: Bearer [token]'],
+  );
+}
+
+/// Endpoint waarmee de coach één regel uit het verslag haalt.
+///
+/// Ongedaan maken pakt alleen de laatste gebeurtenis. Een verkeerde naam of een
+/// doelpunt dat er niet was halverwege de wedstrijd was daarmee alleen te
+/// herstellen door alles erna eerst weg te gooien.
+void _addDeleteLiveEventEndpoint(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  const name = 'DeleteLiveEvent';
+  if (findApiGroup(project, name: groupName) == null) return;
+  if (findApiEndpoint(project, name: name, groupName: groupName) != null) return;
+
+  addEndpointToGroup(
+    project,
+    groupName: groupName,
+    name: name,
+    // POST, geen DELETE: de shared host blokkeert die methode.
+    url: '/matches/[matchId]/live/event/[eventId]/verwijderen',
+    method: FFApiEndpoint_CallType.POST,
+    bodyType: FFApiEndpoint_BodyType.NONE,
+    variables: {
+      'token': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'matchId': FFDataTypeV2(scalarType: FFBaseDataType.String),
+      'eventId': FFDataTypeV2(scalarType: FFBaseDataType.String),
     },
     headers: ['Authorization: Bearer [token]'],
   );
