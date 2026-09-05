@@ -576,6 +576,11 @@ void buildEditFlow(App app) {
   // Huidige notitie, bij het openen van de dialoog gevuld vanuit de pagina-state
   // zodat het tekstveld voorgevuld is en je kunt bijwerken i.p.v. overtypen.
   try { app.state('dialogNote',                string); } catch (_) {}
+  // De aanvangstijd zoals hij nu is, en die van de bond als die afwijkt.
+  // Gezet vlak voordat de sheet opengaat; het veld erin leest ze bij het
+  // opbouwen, en dat gebeurt maar een keer.
+  try { app.state('dialogTijd',                string); } catch (_) {}
+  try { app.state('dialogSportlinkTijd',       string); } catch (_) {}
   // Geselecteerde (nog niet bevestigde) vlagger/fruitheld/gastspeler in de
   // coach-dialoog: eerst kiezen, dan met een knop bevestigen.
   try { app.state('dialogFlaggerId',           string); } catch (_) {}
@@ -12328,6 +12333,9 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
     'matchOpponent', 'matchDatetime', 'matchLocation',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames',
     'matchDriverNames', 'matchNotes',
+    // De aanvangstijd los van matchDatetime: die laatste is een hele datum met
+    // tijd, en het bewerkveld gaat alleen over de klok.
+    'matchTimeLabel', 'matchSportlinkTime',
     'apiStatus', 'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling',
     'matchGoalsSummary', 'matchTeamId', 'selectedScorerName', 'matchOpponentLogo',
     'matchLiveGestart', 'matchAfgelast', 'matchAfgelastReden',
@@ -12364,6 +12372,8 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchGuestNames':    r'$.guestNames',
           'matchDriverNames':   r'$.driverNames',
           'matchNotes':         r'$.notes',
+          'matchTimeLabel':     r'$.timeLabel',
+          'matchSportlinkTime': r'$.sportlinkTimeLabel',
           'matchStatus':        r'$.mijn_status',
           'matchMagAfmelden':   r'$.mag_afmelden',
           'matchMagOpstelling': r'$.mag_opstelling',
@@ -24225,6 +24235,21 @@ void _addGuestInviteEndpoints(FFProject project) {
         headers: ['Authorization: Bearer [bearerToken]']);
   }
 
+  // De aanvangstijd door de coach. Leeg = terug naar wat Sportlink doorgeeft.
+  const tijdUrl = '/matches/[matchId]/aanvangstijd?tijd=[tijd]';
+
+  if (has('SetMatchTime')) {
+    updateApiEndpoint(project, name: 'SetMatchTime', groupName: groupName,
+        url: tijdUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'SetMatchTime',
+        url: tijdUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str(), 'tijd': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
   if (!has('GetMyGuestInvitations')) {
     addEndpointToGroup(project, groupName: groupName, name: 'GetMyGuestInvitations',
         url: '/guest-invitations', method: FFApiEndpoint_CallType.GET,
@@ -24596,6 +24621,7 @@ void _buildMatchActionsDialogBody(FFProject project) {
         if (hasFruit) menuBtn('Fruitheld kiezen', 'fruit'),
         menuBtn('Gastspeler uitnodigen', 'invite'),
         menuBtn('Notitie toevoegen', 'note'),
+        menuBtn('Aanvangstijd aanpassen', 'tijd'),
       ]);
   setConditionalVisibility(menuView, variable: viewIs('menu'));
   root.children.add(menuView);
@@ -24706,6 +24732,128 @@ void _buildMatchActionsDialogBody(FFProject project) {
         ]);
     setConditionalVisibility(noteView, variable: viewIs('note'));
     root.children.add(noteView);
+  }
+
+  // ── Aanvangstijd ──
+  //
+  // Alleen de klok, niet de datum: een wedstrijd naar een andere dag verzetten
+  // is iets anders dan een half uur eerder beginnen, en dat laatste is waar het
+  // in de praktijk om gaat.
+  //
+  // Bij een wedstrijd uit Sportlink laat de server de aanpassing voortaan met
+  // rust bij het synchroniseren. Wijkt de bond af, dan staat zijn tijd eronder
+  // met een knop om terug te zetten - anders zou een echte verzetting achter de
+  // eigen afspraak verdwijnen.
+  final tijdIdApp = _findAppStateFieldId(project, 'dialogTijd');
+  final sportlinkIdApp = _findAppStateFieldId(project, 'dialogSportlinkTijd');
+
+  if (findApiEndpoint(project, name: 'SetMatchTime', groupName: 'VoetbalPlannerAPI') != null
+      && tijdIdApp != null && matchIdId != null) {
+    final tijdField = UI.textField(
+      name: 'MaTijdField',
+      labelText: 'Aanvangstijd',
+      hintText: 'Bijvoorbeeld 14:30',
+      keyboardType: UIKeyboardType.number,
+    );
+    tijdField.props.textField.initialText =
+        FFText(textValue: FFStringValue(variable: appVar(tijdIdApp)));
+
+    // Eigen uitvoernaam per knop: FlutterFlow weigert twee acties die hetzelfde
+    // antwoord onder dezelfde naam wegschrijven.
+    FFActionNode bewaarTijd(FFVariable tijd, String knopKey, String uitvoer) =>
+        Actions.apiCallNode(
+          project,
+          endpointName: 'SetMatchTime',
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: {'matchId': appVar(matchIdId), 'tijd': tijd},
+          outputVariableName: uitvoer,
+          nodeKey: knopKey,
+          onSuccess: (ctx) => Actions.chain([
+            _snackBarUitAntwoord(ctx, knopKey),
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.set('dialogView', 'menu'),
+            ]),
+            Actions.navigateBack(),
+          ]),
+          onFailure: (ctx) => Actions.chain([
+            _snackBarFoutUitAntwoord(
+                ctx, knopKey, 'Kon de aanvangstijd niet opslaan.'),
+          ]),
+        );
+
+    final saveTijdBtn = UI.button('Tijd opslaan',
+        name: 'MaSaveTijdBtn', width: double.infinity);
+    Actions.onTapChain(saveTijdBtn,
+        bewaarTijd(varFromTextFieldValue(tijdField.key), saveTijdBtn.key,
+            'maSaveTijd'));
+
+    // De regel met de tijd van de bond, plus de weg terug. Allebei alleen als
+    // die tijd er is en afwijkt; anders valt er niets te herstellen.
+    final sportlinkRegel = UI.text('',
+        name: 'MaTijdSportlink',
+        style: UITextStyle.labelMedium,
+        color: UIColor.secondaryText,
+        maxLines: 2);
+    sportlinkRegel.props.text.textValue = FFStringValue(
+      variable: interpolateVar([
+        'Sportlink geeft ',
+        sportlinkIdApp != null
+            ? appVar(sportlinkIdApp)
+            : varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+        ' door voor deze wedstrijd.',
+      ]).variable,
+    );
+
+    final herstelBtn = UI.button('Zet terug naar de tijd van Sportlink',
+        name: 'MaHerstelTijdBtn',
+        width: double.infinity,
+        variant: UIButtonVariant.outlined);
+    Actions.onTapChain(
+      herstelBtn,
+      bewaarTijd(
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING),
+        herstelBtn.key,
+        'maHerstelTijd',
+      ),
+    );
+
+    final tijdBlok = UI.column(
+      name: 'MaTijdSportlinkBlok',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [sportlinkRegel, herstelBtn],
+    );
+
+    if (sportlinkIdApp != null) {
+      // Ook 'null' uitsluiten. FlutterFlow leest een ontbrekend veld uit het
+      // antwoord als de letterlijke tekst "null"; zonder deze regel stond er
+      // "Sportlink geeft null door" zolang de server het veld nog niet meestuurt.
+      setConditionalVisibility(
+        tijdBlok,
+        variable: andConditionsVar([
+          _equalsLiteral(appVar(sportlinkIdApp), '', negate: true),
+          _equalsLiteral(appVar(sportlinkIdApp), 'null', negate: true),
+        ]).variable,
+      );
+    }
+
+    final tijdView = UI.column(
+      name: 'MaTijdView',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        UI.text('Alleen de tijd; de datum blijft staan. Iedereen bij deze wedstrijd ziet de nieuwe tijd.',
+            name: 'MaTijdLabel',
+            style: UITextStyle.labelMedium,
+            color: UIColor.secondaryText),
+        tijdField,
+        saveTijdBtn,
+        tijdBlok,
+        backBtn(),
+      ],
+    );
+    setConditionalVisibility(tijdView, variable: viewIs('tijd'));
+    root.children.add(tijdView);
   }
 
   // ── Rijders (aan/uit per persoon) ──
@@ -25187,6 +25335,21 @@ void _addWedstrijdActionsFab(FFProject project) {
           varFromPageState(driversStateField.parameter.identifier.deepCopy())
             ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
         ),
+      for (final paar in const [
+        ('matchTimeLabel', 'dialogTijd'),
+        ('matchSportlinkTime', 'dialogSportlinkTijd'),
+      ])
+        if (wc.classModel.stateFields.any(
+            (x) => x.parameter.identifier.name == paar.$1))
+          StateFieldUpdate.setFromVariable(
+            paar.$2,
+            varFromPageState(wc.classModel.stateFields
+                .firstWhere((x) => x.parameter.identifier.name == paar.$1)
+                .parameter
+                .identifier
+                .deepCopy())
+              ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+          ),
     ]));
   final openNode = FFActionNode(key: generateRandomAlphaNumericString(),
     action: Actions.bottomSheet(project, componentName: 'MatchActionsSheet'));

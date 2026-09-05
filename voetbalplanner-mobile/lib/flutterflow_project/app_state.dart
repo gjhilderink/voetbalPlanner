@@ -239,6 +239,12 @@ abstract final class AppState {
     typeName: "String",
     persisted: false,
   );
+  static const dialogSportlinkTijd = ffai.ProjectAppStateFieldHandle(
+    name: "dialogSportlinkTijd",
+    key: "i37c4cyo",
+    typeName: "String",
+    persisted: false,
+  );
   static const dialogTeamId = ffai.ProjectAppStateFieldHandle(
     name: "dialogTeamId",
     key: "a34mu5mt",
@@ -249,6 +255,12 @@ abstract final class AppState {
     name: "dialogTeams",
     key: "dn8ek5q6",
     typeName: "List<DataStruct<TeamOption>>",
+    persisted: false,
+  );
+  static const dialogTijd = ffai.ProjectAppStateFieldHandle(
+    name: "dialogTijd",
+    key: "kjwa6cc2",
+    typeName: "String",
     persisted: false,
   );
   static const dialogView = ffai.ProjectAppStateFieldHandle(
@@ -783,8 +795,10 @@ abstract final class AppState {
     dialogRijderId,
     dialogRijderName,
     dialogScorerName,
+    dialogSportlinkTijd,
     dialogTeamId,
     dialogTeams,
+    dialogTijd,
     dialogView,
     directConvId,
     editingChatDocPath,

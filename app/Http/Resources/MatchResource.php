@@ -47,6 +47,17 @@ class MatchResource extends JsonResource
                 ? self::dateLabel($this->match_datetime)
                 : '',
             'timeLabel'      => $this->match_datetime?->format('H:i') ?? '',
+            // Alleen gevuld als iemand de tijd met de hand heeft gezet én de
+            // bond inmiddels iets anders zegt. Dan hoort dat in beeld: een
+            // verzette wedstrijd die achter een eigen afspraak verdwijnt is
+            // erger dan een regel extra op het scherm.
+            'sportlinkTimeLabel' => ($this->sportlink_datetime
+                && $this->sportlink_datetime->format('H:i') !== $this->match_datetime?->format('H:i'))
+                ? $this->sportlink_datetime->format('H:i')
+                : '',
+            // Is de tijd handmatig gezet? De app toont dan de knop om hem terug
+            // te zetten naar wat de bond doorgeeft.
+            'timeIsCustom'   => $this->sportlink_datetime !== null ? 'true' : 'false',
             // arrival_time is een tijdkolom zonder cast, dus ruw '14:30:00'.
             // Afkappen op H:i, anders staan de seconden in de app.
             'arrivalTime'    => substr((string) ($this->arrival_time ?? ''), 0, 5),

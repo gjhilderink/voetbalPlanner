@@ -587,4 +587,87 @@ class MatchController extends Controller
             'message' => $notes !== '' ? 'Notitie opgeslagen.' : 'Notitie verwijderd.',
         ]);
     }
+
+    /**
+     * POST /v1/matches/{match}/aanvangstijd
+     *
+     * De coach zet de aanvangstijd van deze wedstrijd. Alleen de tijd; de datum
+     * blijft wat hij is. Een wedstrijd verplaatsen naar een andere dag is iets
+     * anders dan een half uur eerder beginnen, en dat laatste is waar het in de
+     * praktijk om gaat.
+     *
+     * Een lege tijd zet hem terug op wat Sportlink doorgeeft.
+     */
+    public function setAanvangstijd(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je hebt geen rechten om de aanvangstijd van deze wedstrijd aan te passen.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            // 'HH:MM'; de datum komt van de wedstrijd zelf.
+            // Voorloopnul niet verplicht: wie 9:05 typt bedoelt 09:05, en dat
+            // afkeuren is een streep door een tijd die klopt.
+            'tijd' => ['nullable', 'string', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'],
+        ], [
+            'tijd.regex' => 'Vul een tijd in als 14:30.',
+        ]);
+
+        $tijd = trim((string) ($validated['tijd'] ?? ''));
+
+        // Terugzetten naar de bond. Kan alleen als er iets is om naar terug te
+        // gaan; bij een zelf toegevoegde wedstrijd is er geen officiele tijd.
+        if ($tijd === '') {
+            if ($match->sportlink_datetime === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Deze wedstrijd heeft geen tijd uit Sportlink om naar terug te zetten.',
+                ], 422);
+            }
+
+            $match->update([
+                'match_datetime'     => $match->sportlink_datetime,
+                'sportlink_datetime' => null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data'    => ['timeLabel' => $match->match_datetime?->format('H:i') ?? ''],
+                'message' => 'De tijd van Sportlink staat er weer in: '
+                    . ($match->match_datetime?->format('H:i') ?? ''),
+            ]);
+        }
+
+        if (! $match->match_datetime) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Deze wedstrijd heeft nog geen datum; de tijd is dan niet te zetten.',
+            ], 422);
+        }
+
+        [$uur, $minuut] = array_map('intval', explode(':', $tijd));
+
+        $wijzigingen = ['match_datetime' => $match->match_datetime->copy()->setTime($uur, $minuut)];
+
+        // De eerste keer bewaren we wat de bond zei. Dat is meteen het teken
+        // dat er met de hand aan gezeten is, waardoor de synchronisatie deze
+        // wedstrijd voortaan met rust laat.
+        //
+        // Alleen bij een wedstrijd uit Sportlink: een zelf toegevoegde
+        // oefenwedstrijd heeft geen bron die ermee kan botsen.
+        if ($match->external_id && $match->sportlink_datetime === null) {
+            $wijzigingen['sportlink_datetime'] = $match->match_datetime;
+        }
+
+        $match->update($wijzigingen);
+
+        return response()->json([
+            'success' => true,
+            'data'    => ['timeLabel' => $match->match_datetime?->format('H:i') ?? ''],
+            'message' => 'Aanvangstijd staat op ' . $tijd . '.',
+        ]);
+    }
 }

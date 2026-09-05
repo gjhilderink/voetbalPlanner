@@ -168,6 +168,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/matches/{match}/afmeldingen', [MatchController::class, 'afmeldingen']);
         // Notitie bij een wedstrijd (coach/leider). POST i.p.v. PATCH, zie afmelden.
         Route::post('/matches/{match}/notitie', [MatchController::class, 'setNote']);
+        // De aanvangstijd door de coach. Leeg = terug naar wat Sportlink zegt.
+        Route::post('/matches/{match}/aanvangstijd', [MatchController::class, 'setAanvangstijd']);
         // Hele selectie met af-/aanmeldstatus; de coach zet ze hiermee om.
         Route::get('/matches/{match}/deelnemers', [MatchController::class, 'deelnemers']);
         Route::post('/matches/{match}/afmelden', [MatchController::class, 'afmelden']);

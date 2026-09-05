@@ -116,6 +116,20 @@ class MatchSyncService
             'last_synced_at' => now(),
         ];
 
+        // Heeft een coach de aanvangstijd zelf gezet, dan blijft die staan.
+        //
+        // Zonder dit was zo'n aanpassing binnen het uur weg: de synchronisatie
+        // schrijft match_datetime elke ronde opnieuw met wat de bond zegt. De
+        // tijd van de bond gaat niet verloren - die komt in sportlink_datetime
+        // en blijft bijgewerkt, zodat de app kan tonen dat het afwijkt en de
+        // coach het met één handeling terug kan zetten.
+        $bestaand = FootballMatch::where('external_id', $dto->externalId)->first();
+
+        if ($bestaand && $bestaand->sportlink_datetime !== null) {
+            unset($attrs['match_datetime']);
+            $attrs['sportlink_datetime'] = $dto->matchDatetime;
+        }
+
         // Sportlink-logo-URL's verlopen (expires+sig). Download het logo en sla
         // het permanent op; bewaar de lokale URL. Bij een mislukte download laten
         // we een eerder opgeslagen logo staan (niet overschrijven met null).
