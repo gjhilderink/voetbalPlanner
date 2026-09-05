@@ -81,6 +81,10 @@ class ManageSettings extends Page
             'access_enabled'      => (bool) ($club?->access_enabled ?? false),
             'ticketshop_enabled'  => (bool) ($club?->ticketshop_enabled ?? false),
             'rooms_enabled'       => (bool) ($club?->rooms_enabled ?? false),
+            'ms_tenant_id'        => Setting::get('ms_tenant_id', '', $clubId),
+            'ms_client_id'        => Setting::get('ms_client_id', '', $clubId),
+            // Bewust leeg: het geheim wordt niet teruggestuurd naar de browser.
+            'ms_client_secret'    => '',
             'paynl_service_id'    => Setting::get('paynl_service_id', '', $clubId),
             'paynl_token_code'    => Setting::get('paynl_token_code', '', $clubId),
             // Bewust leeg: het token wordt niet teruggestuurd naar de browser.
@@ -284,6 +288,49 @@ class ManageSettings extends Page
                                 . 'Gebruikers.'),
                     ])
                     ->columns(1)
+                    ->collapsible()
+                    ->collapsed(),
+
+                Section::make('Ruimtes in Microsoft 365')
+                    ->description('Zet reserveringen ook in de agenda van de ruimte, en zie wat er buiten VoetbalPlanner om is geboekt.')
+                    ->visible(fn (Get $get): bool => (bool) $get('rooms_enabled'))
+                    ->schema([
+                        Placeholder::make('ms_uitleg')
+                            ->label('Wat je in Microsoft moet klaarzetten')
+                            ->content(new HtmlString(
+                                '<div style="font-size:.85rem;line-height:1.55">'
+                                . '<p>Maak in Entra ID een <strong>app-registratie</strong> met een geheim, en geef die de '
+                                . '<strong>applicatierechten</strong> <code>Place.Read.All</code> en '
+                                . '<code>Calendars.ReadWrite</code>, met beheerderstoestemming. '
+                                . 'Elke ruimte is een postbus van het type <em>ruimte</em>; het adres daarvan vul je in bij de ruimte zelf.</p>'
+                                . '<p style="margin-top:.6rem"><strong>Beperk die app-registratie tot de ruimtes.</strong> '
+                                . '<code>Calendars.ReadWrite</code> geeft als applicatierecht toegang tot élke postbus in de tenant, '
+                                . 'niet alleen tot de ruimtes. Stel in Exchange Online een <em>ApplicationAccessPolicy</em> in die '
+                                . 'de registratie beperkt tot een groep met alleen de ruimte-postbussen. Zonder die stap geef je '
+                                . 'VoetbalPlanner toegang tot de agenda van iedereen in de organisatie.</p>'
+                                . '</div>'
+                            ))
+                            ->columnSpanFull(),
+
+                        TextInput::make('ms_tenant_id')
+                            ->label('Tenant-ID')
+                            ->placeholder('00000000-0000-0000-0000-000000000000')
+                            ->maxLength(64),
+
+                        TextInput::make('ms_client_id')
+                            ->label('Client-ID (toepassings-ID)')
+                            ->placeholder('00000000-0000-0000-0000-000000000000')
+                            ->maxLength(64),
+
+                        TextInput::make('ms_client_secret')
+                            ->label('Clientgeheim')
+                            ->password()
+                            ->revealable()
+                            ->maxLength(191)
+                            ->helperText('Laat leeg om het huidige geheim te laten staan. Het wordt versleuteld bewaard en nooit teruggetoond.')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2)
                     ->collapsible()
                     ->collapsed(),
 
@@ -584,6 +631,18 @@ class ManageSettings extends Page
         Setting::set('whatsapp_api_key',    $data['whatsapp_api_key'] ?? '', 'whatsapp', true, $clubId);
 
         Setting::set('debug_enabled', $data['debug_enabled'] ? '1' : '0', 'app', false, $clubId);
+
+        Setting::set('ms_tenant_id', $data['ms_tenant_id'] ?? '', 'microsoft', false, $clubId);
+        Setting::set('ms_client_id', $data['ms_client_id'] ?? '', 'microsoft', false, $clubId);
+        // Leeg laten betekent ongewijzigd, net als bij het Pay.nl-token.
+        if (filled($data['ms_client_secret'] ?? null)) {
+            Setting::set('ms_client_secret', $data['ms_client_secret'], 'microsoft', true, $clubId);
+        }
+        // Het token in de cache hoort bij de oude gegevens. Zonder dit werkt een
+        // gecorrigeerd geheim pas over een uur.
+        \Illuminate\Support\Facades\Cache::forget(
+            \App\Services\MicrosoftGraphService::tokenCacheKey($clubId),
+        );
 
         Setting::set('paynl_service_id', $data['paynl_service_id'] ?? '', 'ticketshop', false, $clubId);
         Setting::set('paynl_token_code', $data['paynl_token_code'] ?? '', 'ticketshop', false, $clubId);

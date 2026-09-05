@@ -69,7 +69,9 @@ class RoomReservationService
             return ['ok' => false, 'error' => $this->bezetMelding($room, $begin, $eind)];
         }
 
-        return ['ok' => true, 'reservering' => $reservering];
+        $this->naarMicrosoft($reservering, $room);
+
+        return ['ok' => true, 'reservering' => $reservering->refresh()];
     }
 
     /**
@@ -103,6 +105,8 @@ class RoomReservationService
             return ['ok' => false, 'error' => 'Op dat tijdstip is de ruimte al bezet.'];
         }
 
+        $this->naarMicrosoft($reservering->refresh(), $reservering->room);
+
         return ['ok' => true, 'reservering' => $reservering->refresh()];
     }
 
@@ -124,6 +128,78 @@ class RoomReservationService
             'cancelled_at' => now(),
             'ms_synced_at' => null,
         ]);
+
+        $this->uitMicrosoft($reservering);
+    }
+
+    /**
+     * De reservering in de agenda van de ruimte zetten of bijwerken.
+     *
+     * Buiten de transactie, met opzet. Een HTTP-aanroep binnen DB::transaction
+     * houdt het slot op de ruimte vast zolang die aanroep duurt, en gijzelt
+     * daarmee elke andere boeking van diezelfde ruimte.
+     *
+     * Mislukken is niet fataal. De reservering staat er en de ruimte is bij ons
+     * bezet; alleen Outlook loopt achter. De reden gaat in ms_last_error, de
+     * portal toont daar een melding bij, en het commando rooms:sync probeert het
+     * opnieuw. Dezelfde afweging als bij de ticketmail: wat vastligt mag niet
+     * stranden op een dienst van een ander.
+     */
+    private function naarMicrosoft(RoomReservation $reservering, ?Room $room): void
+    {
+        if (! $room?->isGekoppeld() || $reservering->isExtern()) {
+            return;
+        }
+
+        $graph = app(MicrosoftGraphService::class)->forClub($reservering->club_id);
+
+        if (! $graph->isConfigured()) {
+            return;
+        }
+
+        $uitkomst = $reservering->ms_event_id
+            ? $graph->wijzigAfspraak($reservering, $room->ms_room_email)
+            : $graph->maakAfspraak($reservering, $room->ms_room_email);
+
+        if (! $uitkomst['ok']) {
+            $reservering->forceFill([
+                'ms_last_error' => mb_substr((string) ($uitkomst['error'] ?? ''), 0, 191),
+                'ms_synced_at'  => null,
+            ])->save();
+
+            return;
+        }
+
+        $reservering->forceFill(array_filter([
+            'ms_event_id'   => $uitkomst['eventId'] ?? $reservering->ms_event_id,
+            'ms_icaluid'    => $uitkomst['icalUid'] ?? $reservering->ms_icaluid,
+        ]) + [
+            'ms_synced_at'  => now(),
+            'ms_last_error' => null,
+        ])->save();
+    }
+
+    /** De afspraak weer uit de agenda halen. Zelfde afweging als hierboven. */
+    private function uitMicrosoft(RoomReservation $reservering): void
+    {
+        $room = $reservering->room;
+
+        if (! $reservering->ms_event_id || ! $room?->isGekoppeld()) {
+            return;
+        }
+
+        $graph = app(MicrosoftGraphService::class)->forClub($reservering->club_id);
+
+        if (! $graph->isConfigured()) {
+            return;
+        }
+
+        $uitkomst = $graph->verwijderAfspraak($reservering->ms_event_id, $room->ms_room_email);
+
+        $reservering->forceFill($uitkomst['ok']
+            ? ['ms_event_id' => null, 'ms_icaluid' => null, 'ms_synced_at' => now(), 'ms_last_error' => null]
+            : ['ms_last_error' => mb_substr((string) ($uitkomst['error'] ?? ''), 0, 191)])
+            ->save();
     }
 
     /**

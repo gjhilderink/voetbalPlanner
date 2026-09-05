@@ -123,6 +123,19 @@ class RoomPlanner extends Page
             ->values();
     }
 
+    /**
+     * Wacht deze reservering nog op Microsoft?
+     *
+     * Alleen bij een gekoppelde ruimte: staat er geen postbus bij, dan is er
+     * niets om op te wachten en zou de melding onzin zijn.
+     */
+    public function wachtOpMicrosoft(RoomReservation $reservering): bool
+    {
+        return ! $reservering->isExtern()
+            && $reservering->room?->isGekoppeld() === true
+            && ! $reservering->isGesynchroniseerd();
+    }
+
     /** Hoe deze reservering op de kaart heet, voor wie er nu kijkt. */
     public function labelVoor(RoomReservation $reservering): string
     {

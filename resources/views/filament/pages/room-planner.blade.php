@@ -135,6 +135,12 @@
                                     @endunless
                                 </div>
                                 <div class="n">{{ $this->labelVoor($blok) }}</div>
+                                {{-- Staat hij nog niet in Outlook? Dat hoort zichtbaar te
+                                     zijn: de ruimte is hier bezet, maar wie alleen in
+                                     Outlook kijkt ziet hem nog niet staan. --}}
+                                @if ($this->wachtOpMicrosoft($blok))
+                                    <div class="n" style="opacity:.85;font-style:italic;">nog niet in Outlook</div>
+                                @endif
                             </div>
                         @endforeach
                     </div>
