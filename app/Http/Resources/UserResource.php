@@ -96,6 +96,7 @@ class UserResource extends JsonResource
                 // Staat de toegangsmodule aan? Bepaalt of elk lid zijn
                 // persoonlijke QR in het menu ziet.
                 'access_enabled'  => $this->club->access_enabled ? 'true' : 'false',
+                'rooms_enabled'   => $this->club->rooms_enabled ? 'true' : 'false',
             ] : self::legeClub(),
             'roles'         => $this->getRoleNames()->values(),
             // Mag deze gebruiker bij de ingang scannen? Als vlag en niet als rol:
@@ -106,6 +107,11 @@ class UserResource extends JsonResource
             // de scanknop nergens te verschijnen.
             'can_scan_access' => $this->hasAnyRole(['super_admin', 'club_admin', 'toegang'])
                 && (bool) $this->club?->access_enabled,
+            // Mag deze gebruiker ruimtes reserveren? Zelfde opzet als
+            // hierboven: rol en module samen. Staat er 'false', dan hoort de
+            // hele module nergens in beeld te komen.
+            'can_plan_rooms' => $this->hasAnyRole(['super_admin', 'club_admin', 'room-planning'])
+                && (bool) $this->club?->rooms_enabled ? 'true' : 'false',
             'managed_teams' => $this->managedTeams->map(fn($t) => [
                 'id'   => $t->id,
                 'name' => $t->name,
@@ -163,6 +169,7 @@ class UserResource extends JsonResource
             'accent_color' => '#10b981',
             'app_icon_url' => '', 'splash_url' => '', 'splash_bg_color' => '',
             'access_enabled' => 'false',
+            'rooms_enabled' => 'false',
         ];
     }
 }

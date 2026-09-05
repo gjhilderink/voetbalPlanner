@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\BugReportController;
 use App\Http\Controllers\Api\GuardianController;
 use App\Http\Controllers\Api\GuestInvitationController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\BarDutyController;
 use App\Http\Controllers\Api\BrandingController;
 use App\Http\Controllers\Api\DocumentationController;
@@ -267,6 +268,18 @@ Route::prefix('v1')->group(function () {
         Route::post('swap-requests', [SwapRequestController::class, 'store']);
         Route::patch('swap-requests/{swapRequest}/accept', [SwapRequestController::class, 'accept']);
         Route::patch('swap-requests/{swapRequest}/decline', [SwapRequestController::class, 'decline']);
+
+        // Ruimtes reserveren. Achter de rol Ruimteplanning en de
+        // moduleschakelaar van de club; die grendel zit in RoomController zelf,
+        // want de routes hier dragen geen rol-middleware.
+        //
+        // De vaste paden staan vóór de route met {room}, anders vangt die
+        // wildcard 'reserveringen' op als ruimte-id.
+        Route::get('/rooms', [RoomController::class, 'index']);
+        Route::get('/rooms/bezetting', [RoomController::class, 'bezetting']);
+        Route::get('/rooms/reserveringen', [RoomController::class, 'mijne']);
+        Route::post('/rooms/reserveringen/{reservation}/annuleren', [RoomController::class, 'annuleer']);
+        Route::post('/rooms/{room}/reserveren', [RoomController::class, 'reserveer']);
 
         // Profiel
         // Kledingmaten. Ophalen geeft de regels van iedereen voor wie je mag
