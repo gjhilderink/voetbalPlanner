@@ -160,7 +160,9 @@ class ManageSettings extends Page
                             ->password()
                             ->revealable()
                             ->maxLength(255),
-                    ]),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('E-mail / SMTP')
                     ->description('SMTP-instellingen voor systeemmails (wachtwoord vergeten, notificaties).')
@@ -198,7 +200,10 @@ class ManageSettings extends Page
                             ->label('Afzender naam')
                             ->placeholder('VoetbalPlanner')
                             ->maxLength(255),
-                    ])->columns(2),
+                    ])
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('Club informatie')
                     ->description('Basisinformatie over de club.')
@@ -247,7 +252,9 @@ class ManageSettings extends Page
                             ->url()
                             ->maxLength(255),
                     ])
-                    ->columns(2),
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('Modules')
                     ->description('Onderdelen die niet elke club gebruikt. Uit betekent: nergens zichtbaar, ook niet in de app.')
@@ -269,7 +276,8 @@ class ManageSettings extends Page
                                 . 'De koper krijgt zijn QR-codes per mail en die werken meteen bij de ingang.'),
                     ])
                     ->columns(1)
-                    ->collapsible(),
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('Ticketshop')
                     ->description('De betaalkoppeling en het adres van je winkel.')
@@ -313,7 +321,8 @@ class ManageSettings extends Page
                             ->helperText('Aan: er wordt niets echt afgeschreven. Zet dit uit zodra je klaar bent om te verkopen.'),
                     ])
                     ->columns(2)
-                    ->collapsible(),
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('App-uiterlijk')
                     ->description('Het icoon en het startscherm van de app, in de stijl van de club.')
@@ -346,7 +355,8 @@ class ManageSettings extends Page
                             ->helperText('Leeg laten = de primaire kleur hierboven.'),
                     ])
                     ->columns(2)
-                    ->collapsible(),
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('Huisstijl')
                     ->description('Kies de kleuren en e-mailopmaak die bij de club passen.')
@@ -384,7 +394,9 @@ class ManageSettings extends Page
                             ->maxLength(255)
                             ->helperText('Tekst onderaan de e-mail (leeg = standaard).'),
                     ])
-                    ->columns(2),
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('Wachtwoord reset e-mail')
                     ->description('Pas de tekst aan van de e-mail die verstuurd wordt wanneer een gebruiker een nieuw wachtwoord aanvraagt.')
@@ -414,7 +426,9 @@ class ManageSettings extends Page
                             ->maxLength(255)
                             ->helperText('Tekst onderaan de mail (leeg = standaard).'),
                     ])
-                    ->columns(2),
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('Verbindingsinstellingen')
                     ->description('Configureer de verbinding met de Sportlink MCP API.')
@@ -451,7 +465,9 @@ class ManageSettings extends Page
                             ->default(30)
                             ->helperText('Maximale wachttijd per API-aanvraag.'),
                     ])
-                    ->columns(2),
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('WhatsApp')
                     ->description('Verstuur WhatsApp berichten via de Nubix WhatsApp bridge.')
@@ -476,9 +492,12 @@ class ManageSettings extends Page
                             ->helperText('De Bearer token voor de Nubix WhatsApp bridge.')
                             ->columnSpanFull(),
                     ])
-                    ->columns(2),
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('Synchronisatiestatus')
+                    ->description('Wanneer er voor het laatst met Sportlink is gesynchroniseerd, en wat dat opleverde.')
                     ->schema([
                         Placeholder::make('last_sync')
                             ->label('Laatste synchronisatie')
@@ -500,15 +519,20 @@ class ManageSettings extends Page
                                 return 'Geconfigureerd';
                             }),
                     ])
-                    ->columns(2),
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
 
                 Section::make('Ontwikkelaarsopties')
+                    ->description('Extra knoppen in de balk bovenaan om koppelingen door te meten. Alleen nodig bij het zoeken naar een storing.')
                     ->schema([
                         Toggle::make('debug_enabled')
                             ->label('Debug modus inschakelen')
                             ->helperText('Toont de Debug API en Debug WhatsApp knoppen in de header.')
                             ->columnSpanFull(),
-                    ]),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
             ]);
     }
 
