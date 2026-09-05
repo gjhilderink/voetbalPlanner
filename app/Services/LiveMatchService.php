@@ -162,6 +162,42 @@ class LiveMatchService
     }
 
     /**
+     * Verwijdert één gebeurtenis uit het verslag, waar hij ook staat.
+     *
+     * undoLast() is voor tijdens de wedstrijd: je tikt iets verkeerd aan en
+     * haalt het meteen weg. Achteraf werkt dat niet meer - een verkeerde
+     * doelpuntenmaker in de eerste helft zou betekenen dat je alles wat erna
+     * kwam ook moet terugdraaien.
+     *
+     * Dezelfde opruiming als undoLast: het gekoppelde doelpunt gaat mee, en bij
+     * rust of het eindsignaal loopt de klok terug. Anders blijft de wedstrijd
+     * op "afgelopen" staan terwijl het eindsignaal weg is.
+     */
+    public function verwijderEvent(FootballMatch $match, MatchEvent $event): bool
+    {
+        if ($event->match_id !== $match->id || $event->type === MatchEvent::TYPE_KICKOFF) {
+            return false;
+        }
+
+        return (bool) DB::transaction(function () use ($match, $event) {
+            if ($event->goal_id) {
+                Goal::whereKey($event->goal_id)->delete();
+            }
+
+            if ($event->type === MatchEvent::TYPE_HALFTIME) {
+                $match->forceFill(['live_halftime_at' => null])->save();
+            }
+            if ($event->type === MatchEvent::TYPE_FULLTIME) {
+                $match->forceFill(['live_ended_at' => null])->save();
+            }
+
+            $event->delete();
+
+            return true;
+        });
+    }
+
+    /**
      * Wist het hele verslag: alle gebeurtenissen, de doelpunten die daaruit zijn
      * ontstaan, en de live-klok inclusief de deel-link.
      *

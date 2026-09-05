@@ -243,6 +243,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/matches/{match}/live/start', [LiveMatchController::class, 'start']);
         Route::post('/matches/{match}/live/event', [LiveMatchController::class, 'event']);
         Route::post('/matches/{match}/live/undo', [LiveMatchController::class, 'undo']);
+        // Eén gebeurtenis corrigeren, ook na afloop. Undo pakt alleen de laatste.
+        Route::post('/matches/{match}/live/event/{event}/verwijderen', [LiveMatchController::class, 'verwijderEvent']);
         Route::post('/matches/{match}/live/stop', [LiveMatchController::class, 'stop']);
         Route::post('/matches/{match}/live/delete', [LiveMatchController::class, 'destroy']);
 

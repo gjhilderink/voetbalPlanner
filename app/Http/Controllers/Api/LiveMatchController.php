@@ -47,10 +47,14 @@ class LiveMatchController extends Controller
         if ($denied = $this->denyIfNotCoach($request, $match)) {
             return $denied;
         }
-        if (! $match->isLive()) {
+        // Ook na het eindsignaal, zolang er een verslag ís. Een vergeten
+        // doelpunt of een verkeerde naam kom je meestal pas in de kantine
+        // tegen, en dan is de wedstrijd al afgelopen. Zonder verslag valt er
+        // niets aan te vullen.
+        if (! $match->live_started_at) {
             return response()->json([
                 'success' => false,
-                'message' => 'Er loopt geen live verslag bij deze wedstrijd.',
+                'message' => 'Er is voor deze wedstrijd geen verslag om aan te vullen.',
             ], 422);
         }
 
@@ -92,6 +96,33 @@ class LiveMatchController extends Controller
         return response()->json([
             'success' => true,
             'message' => $event ? 'Laatste gebeurtenis teruggedraaid.' : 'Er is niets om terug te draaien.',
+            'data'    => $this->live->state($match->fresh(), true, withViewers: true),
+        ]);
+    }
+
+    /**
+     * POST /v1/matches/{match}/live/event/{event}/verwijderen
+     *
+     * Eén gebeurtenis uit het verslag halen, ook als de wedstrijd allang
+     * afgelopen is. Undo pakt alleen de laatste; een fout halverwege was
+     * daarmee niet te herstellen zonder alles erna weg te gooien.
+     */
+    public function verwijderEvent(Request $request, FootballMatch $match, MatchEvent $event): JsonResponse
+    {
+        if ($denied = $this->denyIfNotCoach($request, $match)) {
+            return $denied;
+        }
+
+        if (! $this->live->verwijderEvent($match, $event)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Deze gebeurtenis hoort niet bij deze wedstrijd, of is de aftrap.',
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Uit het verslag gehaald.',
             'data'    => $this->live->state($match->fresh(), true, withViewers: true),
         ]);
     }

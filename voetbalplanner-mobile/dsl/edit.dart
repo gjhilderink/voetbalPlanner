@@ -35199,17 +35199,32 @@ void _wireLiveMatchPage(FFProject project) {
       ],
     ),
   );
+  // Ook ná het eindsignaal, zolang er een verslag is.
+  //
+  // Een vergeten doelpunt of een verkeerde naam kom je meestal pas in de
+  // kantine tegen, en dan staat de wedstrijd op afgelopen. Met de balk alleen
+  // tijdens de wedstrijd was er dan niets meer aan te doen zonder het hele
+  // verslag weg te gooien. De server laat aanvullen en terugdraaien nu ook na
+  // afloop toe; dit is de knop die daarbij hoort.
   setConditionalVisibility(
     coachBar,
-    variable: andConditionsVar([canManage, isLive]).variable,
+    variable: andConditionsVar([
+      canManage,
+      orConditionsVar([
+        isLive.deepCopy(),
+        _equalsLiteral(stateField('hasEnded'), 'true'),
+      ]).variable,
+    ]).variable,
   );
   // Voor de coachbalk: delen doe je vooraf, bedienen tijdens. Alleen voor wie
   // het verslag beheert, en alleen als er een link is - zonder link zou de
   // deelsheet een leeg bericht openen.
+  // Marge boven én onder: zonder de bovenmarge plakte de deelknop tegen "Start
+  // het verslag" aan, en dan lezen twee losse knoppen als één blok.
   final deelWrap = UI.container(
     name: 'LiveShareWrap',
     width: double.infinity,
-    padding: UIEdgeInsets.only(bottom: 10),
+    padding: UIEdgeInsets.only(top: 14, bottom: 12),
     child: deelKnop,
   );
   setConditionalVisibility(
