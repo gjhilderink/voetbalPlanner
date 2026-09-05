@@ -56,6 +56,19 @@ return [
             'report' => false,
         ],
 
+        // Logo's van tegenstanders, gedownload uit Sportlink omdat hun URL's
+        // verlopen. Rechtstreeks in public/ en niet via de 'public'-disk, om
+        // precies dezelfde reden als hieronder: die vereist een symlink die op
+        // deze hosting niet te maken is, en dan laadt geen enkel logo.
+        'match_logos' => [
+            'driver' => 'local',
+            'root'   => public_path('match_logos'),
+            'url'    => rtrim(env('APP_URL', 'http://localhost'), '/') . '/match_logos',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         // Pasfoto's uit Sportlink. Rechtstreeks in public/ en niet via de
         // 'public'-disk, omdat public/storage een symlink vereist die op deze
         // gedeelde hosting niet gegarandeerd te maken is. Zelfde keuze als bij

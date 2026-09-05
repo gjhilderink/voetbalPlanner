@@ -203,10 +203,15 @@ class MatchSyncService
     }
 
     /**
-     * Downloadt een (verlopende) Sportlink-logo-URL en slaat 'm permanent op de
-     * public disk op. Dedup op de stabiele DOCUMENT-id in het pad, zodat elk
-     * uniek logo maar één keer wordt gedownload. Retourneert de lokale asset-URL
-     * of null bij mislukking.
+     * Downloadt een (verlopende) Sportlink-logo-URL en bewaart hem permanent.
+     * Dedup op de stabiele DOCUMENT-id in het pad, zodat elk uniek logo maar één
+     * keer wordt gedownload. Retourneert de lokale URL of null bij mislukking.
+     *
+     * Op de 'match_logos'-disk, die rechtstreeks in public/ schrijft. Eerder
+     * ging dit via de 'public'-disk met een asset('storage/...')-URL, en die
+     * vereist de symlink public/storage - precies de symlink die op deze hosting
+     * niet te maken is en waarom de clublogo's, pasfoto's en wedstrijdfoto's hun
+     * eigen disk al hadden. Gevolg was dat geen enkel tegenstanderlogo laadde.
      */
     private function cacheLogo(string $url): ?string
     {
@@ -221,13 +226,14 @@ class MatchSyncService
             return $this->logoCache[$docId];
         }
 
-        $disk = Storage::disk('public');
+        $disk = Storage::disk('match_logos');
 
         // Al eerder opgeslagen? Hergebruik (ongeacht extensie).
         foreach (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] as $ext) {
-            $existing = "match_logos/{$docId}.{$ext}";
+            // Zonder de map ervoor: de disk wijst al naar public/match_logos.
+            $existing = "{$docId}.{$ext}";
             if ($disk->exists($existing)) {
-                return $this->logoCache[$docId] = asset('storage/' . $existing);
+                return $this->logoCache[$docId] = $disk->url($existing);
             }
         }
 
@@ -237,9 +243,9 @@ class MatchSyncService
                 return null;
             }
             $ext  = $this->extensionFromContentType($resp->header('Content-Type'));
-            $stored = "match_logos/{$docId}.{$ext}";
+            $stored = "{$docId}.{$ext}";
             $disk->put($stored, $resp->body());
-            return $this->logoCache[$docId] = asset('storage/' . $stored);
+            return $this->logoCache[$docId] = $disk->url($stored);
         } catch (\Throwable $e) {
             Log::warning('[MatchSync] logo download mislukt', [
                 'url'   => $url,
