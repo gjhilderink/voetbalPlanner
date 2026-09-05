@@ -34,8 +34,16 @@ class LiveMatchService
     private const VIEWER_WINDOW_SECONDS = 30;
 
     /**
-     * Start het verslag. Levert altijd een verse token op, zodat een eerder
-     * gedeelde link nooit een volgende wedstrijd opent.
+     * Start het verslag.
+     *
+     * De token blijft staan als hij er al is. Dat is nodig omdat de coach de
+     * meekijklink nu vóór de aftrap kan delen: zou de start een verse token
+     * maken, dan waren alle links die hij net rondstuurde op het moment van
+     * aftrappen dood.
+     *
+     * Wegwerpen doen we bij het verwijderen van het verslag, en dat is ook de
+     * plek waar het hoort: daar zegt iemand bewust dat wat er stond weg mag.
+     * De eerstvolgende link is dan weer nieuw.
      */
     public function start(FootballMatch $match, User $user): void
     {
@@ -44,7 +52,7 @@ class LiveMatchService
                 'live_started_at'  => now(),
                 'live_halftime_at' => null,
                 'live_ended_at'    => null,
-                'live_token'       => Str::random(64),
+                'live_token'       => $match->live_token ?: Str::random(64),
             ])->save();
 
             // Een herstart begint met een schone lei; anders blijft het verslag
@@ -316,6 +324,18 @@ class LiveMatchService
             'lineup.players.member',
         ]);
 
+        // Een meekijklink zodra de coach de pagina opent, en niet pas bij de
+        // aftrap. Zo kan hij hem 's ochtends al rondsturen; wie erop klikt ziet
+        // de opstelling en de aftraptijd, en zodra het verslag loopt vult de
+        // pagina zich vanzelf.
+        //
+        // Alleen voor wie het verslag beheert: een meekijker hoort geen link te
+        // laten ontstaan die er nog niet was. En alleen als er nog geen token
+        // is, dus dit gebeurt hooguit één keer per wedstrijd.
+        if ($canManage && ! $match->live_token) {
+            $match->forceFill(['live_token' => Str::random(64)])->save();
+        }
+
         $score  = $match->liveScore();
         $ended  = $match->live_ended_at !== null;
         $period = $this->period($match);
@@ -445,7 +465,15 @@ class LiveMatchService
     public function publicLinkIsOpen(FootballMatch $match): bool
     {
         if (! $match->live_started_at) {
-            return false;
+            // Nog niet begonnen, maar de link mag al open: de coach deelt hem
+            // voor de aftrap en wie erop klikt ziet de aftraptijd en - als die
+            // is vrijgegeven - de opstelling. Zonder dit kwam iedereen die zo'n
+            // link 's ochtends kreeg op een 404 uit.
+            //
+            // Niet eeuwig: een wedstrijd die nooit een verslag heeft gekregen
+            // hoort na afloop van de dag geen open pagina meer te hebben.
+            return $match->match_datetime === null
+                || $match->match_datetime->greaterThan(Carbon::now()->subHours(self::GRACE_HOURS));
         }
         if (! $match->live_ended_at) {
             return true;

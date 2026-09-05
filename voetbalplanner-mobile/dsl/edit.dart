@@ -33996,8 +33996,13 @@ void _wireLiveMatchPage(FFProject project) {
   Actions.onTapChain(undoBtn, undoNode);
 
   // Deelknop: de geheime link naar de publieke pagina, zodat familie zonder app
-  // kan meekijken. Alleen voor de coach en alleen zolang het verslag loopt —
-  // daarbuiten is de link toch niet te gebruiken.
+  // kan meekijken.
+  //
+  // Staat los van de coachbalk en dus al vóór de aftrap in beeld. Daar hoort
+  // hij ook: je stuurt de link rond terwijl je in de auto zit, niet op het
+  // moment dat je met de klok en het verslag bezig bent. De server maakt de
+  // link zodra de coach deze pagina opent, en de publieke pagina toont dan
+  // "nog niet begonnen" met de aftraptijd erbij.
   final deelKnop = UI.container(
     name: 'LiveShareButton',
     innerPadding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -34225,7 +34230,6 @@ void _wireLiveMatchPage(FFProject project) {
           spacing: 8,
           children: [halftimeBtn, secondHalfBtn, stopBtn, undoBtn],
         ),
-        deelKnop,
       ],
     ),
   );
@@ -34233,8 +34237,26 @@ void _wireLiveMatchPage(FFProject project) {
     coachBar,
     variable: andConditionsVar([canManage, isLive]).variable,
   );
+  // Voor de coachbalk: delen doe je vooraf, bedienen tijdens. Alleen voor wie
+  // het verslag beheert, en alleen als er een link is - zonder link zou de
+  // deelsheet een leeg bericht openen.
+  final deelWrap = UI.container(
+    name: 'LiveShareWrap',
+    width: double.infinity,
+    padding: UIEdgeInsets.only(bottom: 10),
+    child: deelKnop,
+  );
+  setConditionalVisibility(
+    deelWrap,
+    variable: andConditionsVar([
+      canManage.deepCopy(),
+      _equalsLiteral(stateField('shareUrl'), '', negate: true),
+    ]).variable,
+  );
+
   sections.add(startPanel);
   sections.add(wachtTekst);
+  sections.add(deelWrap);
   sections.add(coachBar);
 
   // Opstelling: basis en bank, met voor de coach de knoppen om in te delen.

@@ -247,8 +247,17 @@
     </svg>
 
     <div class="hero">
-        <span class="badge {{ $state['hasEnded'] === 'true' ? 'ended' : 'live' }}" id="badge">
-            <span class="dot"></span><span id="periode">{{ $state['hasEnded'] === 'true' ? 'AFGELOPEN' : 'LIVE' }}</span>
+        {{-- Drie toestanden en niet twee. Sinds de coach de link voor de aftrap
+             deelt, komt een bezoeker hier ook aan als er nog niets loopt; dan
+             "LIVE" tonen is een belofte die het scherm niet waarmaakt. --}}
+        @php
+            $nogNiet = ($state['period'] ?? '') === 'not_started';
+            $afgelopen = $state['hasEnded'] === 'true';
+            $badgeKlasse = $nogNiet ? 'ended' : ($afgelopen ? 'ended' : 'live');
+            $badgeTekst = $nogNiet ? 'NOG NIET BEGONNEN' : ($afgelopen ? 'AFGELOPEN' : 'LIVE');
+        @endphp
+        <span class="badge {{ $badgeKlasse }}" id="badge">
+            <span class="dot"></span><span id="periode">{{ $badgeTekst }}</span>
         </span>
 
         <div class="board">
@@ -457,10 +466,12 @@
         document.getElementById('klok').textContent = s.minute + "'";
 
         var afgelopen = s.hasEnded === 'true';
+        var nogNiet = s.period === 'not_started';
         var badge = document.getElementById('badge');
-        badge.classList.toggle('live', !afgelopen);
-        badge.classList.toggle('ended', afgelopen);
-        document.getElementById('periode').textContent = afgelopen ? 'AFGELOPEN' : 'LIVE';
+        badge.classList.toggle('live', !afgelopen && !nogNiet);
+        badge.classList.toggle('ended', afgelopen || nogNiet);
+        document.getElementById('periode').textContent =
+            nogNiet ? 'NOG NIET BEGONNEN' : (afgelopen ? 'AFGELOPEN' : 'LIVE');
 
         document.getElementById('tijdlijn').innerHTML = tekenTijdlijn(s.events);
         document.getElementById('statistieken').innerHTML = tekenStats(s);
