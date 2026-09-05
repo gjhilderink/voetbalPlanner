@@ -1147,6 +1147,26 @@ class ReleaseNotesSeeder extends Seeder
             ],
             [
                 'type'        => 'feature',
+                'title'       => 'Ruimtes van de club reserveren',
+                'description' => 'De kantine, de bestuurskamer en de kleedkamers zijn nu in te plannen. In de portal '
+                    . 'staat een weekoverzicht met alle ruimtes naast elkaar: klik op een leeg vak en je legt hem vast. '
+                    . 'Bij een activiteit in de agenda kun je in één tik een ruimte erbij reserveren, met de tijden al '
+                    . 'ingevuld. Dubbele boekingen zijn niet mogelijk — botst het, dan zie je meteen wie er zit en tot '
+                    . 'hoe laat. Wie mag reserveren bepaal je met de nieuwe rol Ruimteplanning; die mensen zien de '
+                    . 'ruimtes ook in de app en kunnen daar onderweg iets vastleggen. Een reservering kan op privé: de '
+                    . 'ruimte staat dan als bezet, zonder dat te zien is waarvoor.',
+            ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Ruimtes in de agenda van Microsoft 365',
+                'description' => 'Heeft de club Microsoft 365, dan komen reserveringen ook in de agenda van de ruimte '
+                    . 'te staan — en andersom: wat iemand rechtstreeks in Outlook boekt, zet de ruimte hier bezet. Zo '
+                    . 'kan er niet meer op twee plekken tegelijk over hetzelfde uur worden beschikt. De koppeling stel '
+                    . 'je eenmalig in bij Instellingen; ligt Microsoft er even uit, dan gaat het reserveren gewoon door '
+                    . 'en wordt het later alsnog bijgewerkt.',
+            ],
+            [
+                'type'        => 'feature',
                 'title'       => 'Ticketshop: kaarten online verkopen',
                 'description' => 'Clubs kunnen nu kaarten verkopen voor een activiteit. Per activiteit stel je '
                     . 'kaartsoorten in met een eigen prijs en voorraad — volwassene, kind, vrijwilliger — en de '
