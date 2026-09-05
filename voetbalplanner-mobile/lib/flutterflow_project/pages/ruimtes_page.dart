@@ -81,119 +81,127 @@ abstract final class RuimtesPageWidgets {
                 name: "RuimtesContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Row_xtcsljqr",
-                    type: "Row",
+                    key: "Column_iknziv0o",
+                    type: "Column",
                     path: "RuimtesPage.body[0].children[0].children[0]",
-                    name: "RuimtesDagBalk",
+                    name: "RuimtesCol",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_oyxuc04r",
-                        type: "Container",
+                        key: "Row_jlip090a",
+                        type: "Row",
                         path: "RuimtesPage.body[0].children[0].children[0].children[0]",
-                        name: "RuimtesVorigeDag",
-                        triggers: const <String>[
-                          "ON_TAP",
-                        ],
+                        name: "RuimtesDagBalk",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Icon_2mro9dd5",
-                            type: "Icon",
+                            key: "Container_ahm5qj6x",
+                            type: "Container",
                             path: "RuimtesPage.body[0].children[0].children[0].children[0].children[0]",
-                            name: "Icon",
-                          ),
-                        ],
-                      ),
-                      ffai.ProjectWidgetHandle(
-                        key: "Text_2h1xua49",
-                        type: "Text",
-                        path: "RuimtesPage.body[0].children[0].children[0].children[1]",
-                        name: "RuimtesDatum",
-                      ),
-                      ffai.ProjectWidgetHandle(
-                        key: "Container_qrzsgdc0",
-                        type: "Container",
-                        path: "RuimtesPage.body[0].children[0].children[0].children[2]",
-                        name: "RuimtesVolgendeDag",
-                        triggers: const <String>[
-                          "ON_TAP",
-                        ],
-                        children: <ffai.ProjectWidgetHandle>[
-                          ffai.ProjectWidgetHandle(
-                            key: "Icon_l7q270c0",
-                            type: "Icon",
-                            path: "RuimtesPage.body[0].children[0].children[0].children[2].children[0]",
-                            name: "Icon",
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "Button_itewz299",
-                    type: "Button",
-                    path: "RuimtesPage.body[0].children[0].children[1]",
-                    name: "RuimtesReserveerKnop",
-                    text: "Ruimte reserveren",
-                    triggers: const <String>[
-                      "ON_TAP",
-                    ],
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "ListView_iezc8myi",
-                    type: "ListView",
-                    path: "RuimtesPage.body[0].children[0].children[2]",
-                    name: "RuimtesBezettingList",
-                    children: <ffai.ProjectWidgetHandle>[
-                      ffai.ProjectWidgetHandle(
-                        key: "Container_in4c5y5l",
-                        type: "Container",
-                        path: "RuimtesPage.body[0].children[0].children[2].children[0]",
-                        name: "RuimtesBlok",
-                        children: <ffai.ProjectWidgetHandle>[
-                          ffai.ProjectWidgetHandle(
-                            key: "Column_ks5ffxb6",
-                            type: "Column",
-                            path: "RuimtesPage.body[0].children[0].children[2].children[0].children[0]",
-                            name: "RuimtesBlokCol",
+                            name: "RuimtesVorigeDag",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_696hpmib",
-                                type: "Row",
-                                path: "RuimtesPage.body[0].children[0].children[2].children[0].children[0].children[0]",
-                                name: "RuimtesBlokKop",
-                                children: <ffai.ProjectWidgetHandle>[
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Text_tlocyx92",
-                                    type: "Text",
-                                    path: "RuimtesPage.body[0].children[0].children[2].children[0].children[0].children[0].children[0]",
-                                    name: "RuimtesBlokRuimte",
-                                  ),
-                                  ffai.ProjectWidgetHandle(
-                                    key: "Text_3lp2ve08",
-                                    type: "Text",
-                                    path: "RuimtesPage.body[0].children[0].children[2].children[0].children[0].children[0].children[1]",
-                                    name: "RuimtesBlokTijd",
-                                  ),
-                                ],
+                                key: "Icon_ulh15x6u",
+                                type: "Icon",
+                                path: "RuimtesPage.body[0].children[0].children[0].children[0].children[0].children[0]",
+                                name: "Icon",
                               ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Text_xw283z6u",
+                            type: "Text",
+                            path: "RuimtesPage.body[0].children[0].children[0].children[0].children[1]",
+                            name: "RuimtesDatum",
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_jyral89h",
+                            type: "Container",
+                            path: "RuimtesPage.body[0].children[0].children[0].children[0].children[2]",
+                            name: "RuimtesVolgendeDag",
+                            triggers: const <String>[
+                              "ON_TAP",
+                            ],
+                            children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_mhqa1c9w",
-                                type: "Text",
-                                path: "RuimtesPage.body[0].children[0].children[2].children[0].children[0].children[1]",
-                                name: "RuimtesBlokTitel",
+                                key: "Icon_4po95cz6",
+                                type: "Icon",
+                                path: "RuimtesPage.body[0].children[0].children[0].children[0].children[2].children[0]",
+                                name: "Icon",
                               ),
                             ],
                           ),
                         ],
                       ),
+                      ffai.ProjectWidgetHandle(
+                        key: "Button_rmhshd9s",
+                        type: "Button",
+                        path: "RuimtesPage.body[0].children[0].children[0].children[1]",
+                        name: "RuimtesReserveerKnop",
+                        text: "Ruimte reserveren",
+                        triggers: const <String>[
+                          "ON_TAP",
+                        ],
+                      ),
+                      ffai.ProjectWidgetHandle(
+                        key: "ListView_hzqgrjjb",
+                        type: "ListView",
+                        path: "RuimtesPage.body[0].children[0].children[0].children[2]",
+                        name: "RuimtesBezettingList",
+                        children: <ffai.ProjectWidgetHandle>[
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_p9puvk3c",
+                            type: "Container",
+                            path: "RuimtesPage.body[0].children[0].children[0].children[2].children[0]",
+                            name: "RuimtesBlok",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Column_otacydjm",
+                                type: "Column",
+                                path: "RuimtesPage.body[0].children[0].children[0].children[2].children[0].children[0]",
+                                name: "RuimtesBlokCol",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Row_f8pog9zp",
+                                    type: "Row",
+                                    path: "RuimtesPage.body[0].children[0].children[0].children[2].children[0].children[0].children[0]",
+                                    name: "RuimtesBlokKop",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_yx7a6yeh",
+                                        type: "Text",
+                                        path: "RuimtesPage.body[0].children[0].children[0].children[2].children[0].children[0].children[0].children[0]",
+                                        name: "RuimtesBlokRuimte",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Text_y0nl8yr8",
+                                        type: "Text",
+                                        path: "RuimtesPage.body[0].children[0].children[0].children[2].children[0].children[0].children[0].children[1]",
+                                        name: "RuimtesBlokTijd",
+                                      ),
+                                    ],
+                                  ),
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Text_tgpjdokt",
+                                    type: "Text",
+                                    path: "RuimtesPage.body[0].children[0].children[0].children[2].children[0].children[0].children[1]",
+                                    name: "RuimtesBlokTitel",
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      ffai.ProjectWidgetHandle(
+                        key: "Text_p5zrcd5b",
+                        type: "Text",
+                        path: "RuimtesPage.body[0].children[0].children[0].children[3]",
+                        name: "RuimtesLeeg",
+                        text: "Er ligt op deze dag niets vast.",
+                      ),
                     ],
-                  ),
-                  ffai.ProjectWidgetHandle(
-                    key: "Text_tlm9lxvr",
-                    type: "Text",
-                    path: "RuimtesPage.body[0].children[0].children[3]",
-                    name: "RuimtesLeeg",
-                    text: "Er ligt op deze dag niets vast.",
                   ),
                 ],
               ),

@@ -24443,7 +24443,24 @@ void _wireRuimtesPage(FFProject project) {
     );
   }
 
-  houder.children.addAll([dagBalk, reserveerKnop, lijst, leeg]);
+  // In één kolom en niet los in de houder. Die houder is een Container, en die
+  // heeft één kind: alles na het eerste verdween bij het genereren, waardoor er
+  // alleen een datumbalk op een verder lege pagina stond.
+  houder.children.add(UI.column(
+    name: 'RuimtesCol',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 12,
+    padding: UIEdgeInsets.all(16),
+    children: [dagBalk, reserveerKnop, lijst, leeg],
+  ));
+
+  // De lijst kan langer zijn dan het scherm; zonder dit loopt hij eruit.
+  final bodyKolom = getPropertyChild(wc.node, 'body');
+  if (bodyKolom != null && bodyKolom.type == FFWidgetType.Column) {
+    final c = bodyKolom.props.column.deepCopy();
+    c.scrollable = true;
+    bodyKolom.props.column = c;
+  }
 
   // Bij het openen: de datum op vandaag en meteen de bezetting erbij.
   wc.node.triggerActions.removeWhere((t) =>
@@ -24693,9 +24710,17 @@ void _wireRuimteReserverenPage(FFProject project) {
       color: UIColor.secondaryText,
       maxLines: 3);
 
-  houder.children.addAll([
-    kop1, ruimteLijst, kop2, datumVeld, tijdRij, titelVeld, priveRij, knop, uitleg,
-  ]);
+  // Zelfde reden als op het overzicht: één kind in de Container, en de rest in
+  // een kolom daarbinnen.
+  houder.children.add(UI.column(
+    name: 'ResCol',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 12,
+    padding: UIEdgeInsets.all(16),
+    children: [
+      kop1, ruimteLijst, kop2, datumVeld, tijdRij, titelVeld, priveRij, knop, uitleg,
+    ],
+  ));
 
   // Bij het openen de ruimtes ophalen.
   wc.node.triggerActions.removeWhere((t) =>
