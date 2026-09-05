@@ -34970,11 +34970,18 @@ void _wireLiveMatchPage(FFProject project) {
   // moment dat je met de klok en het verslag bezig bent. De server maakt de
   // link zodra de coach deze pagina opent, en de publieke pagina toont dan
   // "nog niet begonnen" met de aftraptijd erbij.
+  // Dezelfde vorm als "Start het verslag": zelfde binnenmarge, zelfde
+  // icoongrootte en zelfde tekststijl. Ze staan onder elkaar, en twee knoppen
+  // die net iets van elkaar verschillen lezen als een fout.
+  //
+  // Wel een eigen kleur. Delen en starten zijn twee verschillende dingen, en de
+  // groene knop is de knop die de wedstrijd begint - daar wil je niet per
+  // ongeluk op drukken als je alleen een link wilde sturen.
   final deelKnop = UI.container(
     name: 'LiveShareButton',
-    innerPadding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 16, vertical: 14),
     borderRadius: 14,
-    color: UIColor.primary,
+    color: UIColor.warning,
     child: UI.row(
       name: 'LiveShareRow',
       mainAxisMin: true,
@@ -34982,10 +34989,10 @@ void _wireLiveMatchPage(FFProject project) {
       spacing: 8,
       crossAxisAlignment: UICrossAxisAlignment.center,
       children: [
-        UI.icon('share', size: 18, color: UIColor.white),
+        UI.icon('share', size: 20, color: UIColor.white),
         UI.text('Deel meekijklink',
             name: 'LiveShareLabel',
-            style: UITextStyle.labelMedium,
+            style: UITextStyle.labelLarge,
             color: UIColor.white,
             maxLines: 1),
       ],
