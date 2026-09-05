@@ -40880,27 +40880,47 @@ void _wireOpstellingPage(FFProject project) {
   );
   final teamIdApp = appVar('lineupTeamId');
   if (teamIdApp != null && teamNaamParam != null) {
-    Actions.onTapChain(
-      naarStandaard,
-      FFActionNode(
+    // Eerst het sjabloon ophalen, dan pas openen. Zelfde reden als bij de knop
+    // op de wedstrijdpagina: het notitieveld vult zich één keer, bij het
+    // opbouwen van de pagina. Zonder deze volgorde staat de notitie van de
+    // wedstrijd waar je vandaan komt in het sjabloon - en die sla je dan zo
+    // overheen.
+    final sjabloonLaden = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
         key: generateRandomAlphaNumericString(),
-        action: Actions.navigate(
-          project,
-          pageName: 'OpstellingPage',
-          params: {
-            // Zonder wedstrijd en mét elftal: dan toont dezelfde pagina het
-            // sjabloon. De server gaf het elftal mee bij het laden van het bord.
-            'matchId': StaticParamValue(''),
-            'teamId': VariableParamValue(teamIdApp.deepCopy()),
-            // De naam gaat mee zodat de kop op het sjabloon hetzelfde elftal
-            // noemt als de wedstrijd waar je vandaan komt.
-            'teamName': VariableParamValue(
-                varFromPageParam(teamNaamParam!.deepCopy())
-                  ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)),
-          },
+        customAction: FFCustomActionCall(
+          customActionIdentifier: laadActie.identifier.deepCopy(),
+          argumentValues: _actieArgs(laadActie, {
+            'matchId': FFValue(
+                variable: varFromConstant(
+                    FFConstantsVariable_ConstantValue.EMPTY_STRING)),
+            'teamId': FFValue(variable: teamIdApp.deepCopy()),
+          }),
         ),
       ),
     );
+
+    sjabloonLaden.followUpAction = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(
+        project,
+        pageName: 'OpstellingPage',
+        params: {
+          // Zonder wedstrijd en mét elftal: dan toont dezelfde pagina het
+          // sjabloon. De server gaf het elftal mee bij het laden van het bord.
+          'matchId': StaticParamValue(''),
+          'teamId': VariableParamValue(teamIdApp.deepCopy()),
+          // De naam gaat mee zodat de kop op het sjabloon hetzelfde elftal
+          // noemt als de wedstrijd waar je vandaan komt.
+          'teamName': VariableParamValue(
+              varFromPageParam(teamNaamParam!.deepCopy())
+                ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)),
+        },
+      ),
+    );
+
+    Actions.onTapChain(naarStandaard, sjabloonLaden);
   }
 
   final standaardLaden = UI.button(
@@ -41007,6 +41027,20 @@ void _addOpstellingButton(FFProject project) {
   if (wc == null) return;
   if (findPage(project, name: 'OpstellingPage') == null) return;
 
+  // Het bord alvast ophalen voordat de pagina opengaat.
+  //
+  // Een tekstveld vult zich in FlutterFlow één keer, op het moment dat de
+  // pagina wordt opgebouwd. De opstellingspagina haalde het bord pas daarna op,
+  // dus stond de notitie er nooit in: het veld was al gemaakt toen het antwoord
+  // binnenkwam. De coach zag een leeg vak, typte opnieuw, en dacht dat opslaan
+  // niet werkte - terwijl de notitie er wel degelijk stond.
+  //
+  // Dezelfde volgorde als bij de notitie op de wedstrijd zelf: eerst de waarde
+  // in de app-state, dan pas het venster eromheen. De pagina haalt het bord
+  // daarna nog een keer op; dat is het verversen na het opslaan en hoort te
+  // blijven.
+  final laadActie = findCustomAction(project, name: 'LoadLineupBoard');
+
   // Ook de marge-wrapper; zie MatchAttendanceCard.
   for (final n in findDescendants(
           wc.node, (x) => (x.name ?? '').startsWith('MatchOpstellingButton'))
@@ -41052,9 +41086,7 @@ void _addOpstellingButton(FFProject project) {
     ),
   );
 
-  Actions.onTap(
-    knop,
-    Actions.navigate(
+  final openen = Actions.navigate(
       project,
       pageName: 'OpstellingPage',
       params: {
@@ -41070,8 +41102,36 @@ void _addOpstellingButton(FFProject project) {
         // sjabloon van het elftal.
         'teamId': StaticParamValue(''),
       },
-    ),
-  );
+    );
+
+  if (laadActie == null) {
+    Actions.onTap(knop, openen);
+  } else {
+    final laden = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: FFAction(
+        key: generateRandomAlphaNumericString(),
+        customAction: FFCustomActionCall(
+          customActionIdentifier: laadActie.identifier.deepCopy(),
+          argumentValues: _actieArgs(laadActie, {
+            'matchId': FFValue(
+                variable: varFromPageParam(matchIdParam.deepCopy())
+                  ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key)),
+            'teamId': FFValue(
+                variable: varFromConstant(
+                    FFConstantsVariable_ConstantValue.EMPTY_STRING)),
+          }),
+        ),
+      ),
+    );
+
+    laden.followUpAction = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: openen,
+    );
+
+    Actions.onTapChain(knop, laden);
+  }
 
   final idx = kolom.children.indexWhere((c) => identical(c, anker));
   kolom.children.insert(idx + 1, knop);
