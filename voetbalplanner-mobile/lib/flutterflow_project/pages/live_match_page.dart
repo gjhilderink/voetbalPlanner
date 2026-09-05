@@ -124,49 +124,49 @@ abstract final class LiveMatchPageWidgets {
                 name: "LiveBodyContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_1zcv18l7",
+                    key: "Column_i44kw9as",
                     type: "Column",
                     path: "LiveMatchPage.body[0].children[0].children[0]",
                     name: "LiveSectionsCol",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_tmxdn9wa",
+                        key: "Container_ai1i6yah",
                         type: "Container",
                         path: "LiveMatchPage.body[0].children[0].children[0].children[0]",
                         name: "LiveBoard",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_k06a9ftq",
+                            key: "Column_80w2d2qn",
                             type: "Column",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0]",
                             name: "LiveBoardCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_7yxjov6q",
+                                key: "Container_l0w6x3cj",
                                 type: "Container",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "LiveClockWrap",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_wfbghrk4",
+                                    key: "Row_tkocmtl9",
                                     type: "Row",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[0].children[0]",
                                     name: "LiveClockRow",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_zz54kvn4",
+                                        key: "Container_jfk7zfer",
                                         type: "Container",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0]",
                                         name: "LiveDot",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_vkby0cuy",
+                                        key: "Text_dw27akcn",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[0].children[0].children[1]",
                                         name: "LivePeriod",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_p3165dws",
+                                        key: "Text_uu39097t",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[0].children[0].children[2]",
                                         name: "LiveMinute",
@@ -176,25 +176,25 @@ abstract final class LiveMatchPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_lh3dyvkj",
+                                key: "Row_t3no0fce",
                                 type: "Row",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "LiveBoardRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_a2wo7w96",
+                                    key: "Column_oezs4j8t",
                                     type: "Column",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[1].children[0]",
                                     name: "LiveOwnCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "58c4yika",
+                                        key: "0x5mf85z",
                                         type: "CircleImage",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[1].children[0].children[0]",
                                         name: "LiveOwnLogo",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_286hflqp",
+                                        key: "Text_fnb4ixm7",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[1].children[0].children[1]",
                                         name: "LiveOwnName",
@@ -202,25 +202,25 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_lb6wd8vj",
+                                    key: "Text_s82m1iq8",
                                     type: "Text",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[1].children[1]",
                                     name: "LiveScore",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_djp21jz6",
+                                    key: "Column_2y823ztd",
                                     type: "Column",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[1].children[2]",
                                     name: "LiveOppCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "i94lrh35",
+                                        key: "1vbd28zd",
                                         type: "CircleImage",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[1].children[2].children[0]",
                                         name: "LiveOppLogo",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_3b7xja7o",
+                                        key: "Text_vyko00m8",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[0].children[0].children[1].children[2].children[1]",
                                         name: "LiveOppName",
@@ -234,26 +234,26 @@ abstract final class LiveMatchPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_74k1zv1t",
+                        key: "Container_n6vicgmw",
                         type: "Container",
                         path: "LiveMatchPage.body[0].children[0].children[0].children[1]",
                         name: "LiveStartPanel",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_v5wdrrmq",
+                            key: "Column_mb7lrhqv",
                             type: "Column",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[1].children[0]",
                             name: "LiveStartCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_m0unvu7b",
+                                key: "Text_rrwphuru",
                                 type: "Text",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[1].children[0].children[0]",
                                 name: "LiveNotStartedText",
                                 text: "Deze wedstrijd is nog niet begonnen.",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Container_spgqvxo9",
+                                key: "Container_dxrt2quk",
                                 type: "Container",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[1].children[0].children[1]",
                                 name: "LiveStartHereButton",
@@ -262,19 +262,19 @@ abstract final class LiveMatchPageWidgets {
                                 ],
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_bwh696uc",
+                                    key: "Row_2em3ef85",
                                     type: "Row",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[1].children[0].children[1].children[0]",
                                     name: "LiveStartHereRow",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_yom18fw5",
+                                        key: "Icon_7uw0f24e",
                                         type: "Icon",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[1].children[0].children[1].children[0].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_pnbggn0w",
+                                        key: "Text_nmhpf7da",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[1].children[0].children[1].children[0].children[1]",
                                         name: "LiveStartHereLabel",
@@ -289,20 +289,20 @@ abstract final class LiveMatchPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_g8ahrg7y",
+                        key: "Text_s6u4lh5p",
                         type: "Text",
                         path: "LiveMatchPage.body[0].children[0].children[0].children[2]",
                         name: "LiveWaitingText",
                         text: "Er loopt nog geen live verslag van deze wedstrijd.",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_sekuykmd",
+                        key: "Container_x6h37w61",
                         type: "Container",
                         path: "LiveMatchPage.body[0].children[0].children[0].children[3]",
                         name: "LiveShareWrap",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_1cjju434",
+                            key: "Container_6awl4dys",
                             type: "Container",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[3].children[0]",
                             name: "LiveShareButton",
@@ -311,19 +311,19 @@ abstract final class LiveMatchPageWidgets {
                             ],
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_ea86tssu",
+                                key: "Row_4s1hw0v8",
                                 type: "Row",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[3].children[0].children[0]",
                                 name: "LiveShareRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_njzc8xtv",
+                                    key: "Icon_kbz9cqc6",
                                     type: "Icon",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[3].children[0].children[0].children[0]",
                                     name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_kzy1dmxb",
+                                    key: "Text_m4ao3dt8",
                                     type: "Text",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[3].children[0].children[0].children[1]",
                                     name: "LiveShareLabel",
@@ -336,32 +336,32 @@ abstract final class LiveMatchPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_isvg5xsq",
+                        key: "Container_pg5e18zu",
                         type: "Container",
                         path: "LiveMatchPage.body[0].children[0].children[0].children[4]",
                         name: "LiveCoachBar",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_x237jfhg",
+                            key: "Column_6s489k8i",
                             type: "Column",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0]",
                             name: "LiveCoachCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_iempvpaw",
+                                key: "Row_bgoi9wdd",
                                 type: "Row",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[0]",
                                 name: "LiveCoachHead",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_n69ls0yn",
+                                    key: "Text_9kf2bvla",
                                     type: "Text",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[0].children[0]",
                                     name: "LiveCoachTitle",
                                     text: "Vastleggen",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_v1qjtvi8",
+                                    key: "Text_2f9easy8",
                                     type: "Text",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[0].children[1]",
                                     name: "LiveViewerCount",
@@ -369,13 +369,13 @@ abstract final class LiveMatchPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_ni75bp4o",
+                                key: "Row_ct8vas5u",
                                 type: "Row",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[1]",
                                 name: "LiveCoachRowA",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_6syhty2w",
+                                    key: "Container_zqqxsbr4",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[1].children[0]",
                                     name: "LiveBtnDoelpunt",
@@ -384,19 +384,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_pysszsre",
+                                        key: "Row_z5gd3fox",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[1].children[0].children[0]",
                                         name: "LiveBtnDoelpuntRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_6pvq8vvf",
+                                            key: "Icon_yhpworcu",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[1].children[0].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_5i204era",
+                                            key: "Text_vl7xs6q0",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[1].children[0].children[0].children[1]",
                                             name: "LiveBtnDoelpuntLabel",
@@ -407,7 +407,7 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_jqul8x54",
+                                    key: "Container_46iwaqvn",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[1].children[1]",
                                     name: "LiveBtnTegendoelpunt",
@@ -416,19 +416,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_fm3nloo6",
+                                        key: "Row_cu7yrwpq",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[1].children[1].children[0]",
                                         name: "LiveBtnTegendoelpuntRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_661psidr",
+                                            key: "Icon_yw65fg5n",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[1].children[1].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_0o0lkjsr",
+                                            key: "Text_gs3fvi0h",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[1].children[1].children[0].children[1]",
                                             name: "LiveBtnTegendoelpuntLabel",
@@ -441,13 +441,13 @@ abstract final class LiveMatchPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_bjwcmhm1",
+                                key: "Row_v8p8brm5",
                                 type: "Row",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[2]",
                                 name: "LiveCoachRowPenalty",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_u6ul8rlo",
+                                    key: "Container_7arvvjti",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[2].children[0]",
                                     name: "LiveBtnStrafschop",
@@ -456,19 +456,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_a9ccf1t9",
+                                        key: "Row_t5sfgpau",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[2].children[0].children[0]",
                                         name: "LiveBtnStrafschopRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_2qlmuz5f",
+                                            key: "Icon_vlj349ve",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[2].children[0].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_vxlq078v",
+                                            key: "Text_m7ihv8a0",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[2].children[0].children[0].children[1]",
                                             name: "LiveBtnStrafschopLabel",
@@ -479,7 +479,7 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_ezwit8k1",
+                                    key: "Container_wovqzu86",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[2].children[1]",
                                     name: "LiveBtnStrafschoptegen",
@@ -488,19 +488,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_niofrb1d",
+                                        key: "Row_941x3lzx",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[2].children[1].children[0]",
                                         name: "LiveBtnStrafschoptegenRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_trel65kv",
+                                            key: "Icon_t5kpggc0",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[2].children[1].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_7tutl1bu",
+                                            key: "Text_dl1yc6k8",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[2].children[1].children[0].children[1]",
                                             name: "LiveBtnStrafschoptegenLabel",
@@ -513,13 +513,13 @@ abstract final class LiveMatchPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_govw3fnw",
+                                key: "Row_xr9m00bq",
                                 type: "Row",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[3]",
                                 name: "LiveCoachRowShots",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_fyszwm9k",
+                                    key: "Container_lz1dt2lr",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[3].children[0]",
                                     name: "LiveBtnSchot",
@@ -528,19 +528,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_t59iuxfc",
+                                        key: "Row_oyg7050l",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[3].children[0].children[0]",
                                         name: "LiveBtnSchotRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_o5l14jro",
+                                            key: "Icon_3b0vqyng",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[3].children[0].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_0a05rp0g",
+                                            key: "Text_ml3gml0t",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[3].children[0].children[0].children[1]",
                                             name: "LiveBtnSchotLabel",
@@ -551,7 +551,7 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_lhkpij7q",
+                                    key: "Container_jhjyxmj6",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[3].children[1]",
                                     name: "LiveBtnSchottegen",
@@ -560,19 +560,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_0pzp9njy",
+                                        key: "Row_ht0ncfgo",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[3].children[1].children[0]",
                                         name: "LiveBtnSchottegenRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_avgrol9i",
+                                            key: "Icon_z2r4pckz",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[3].children[1].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_43zu5fih",
+                                            key: "Text_1lnko36k",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[3].children[1].children[0].children[1]",
                                             name: "LiveBtnSchottegenLabel",
@@ -585,13 +585,13 @@ abstract final class LiveMatchPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_ede6k0tm",
+                                key: "Row_z1od845w",
                                 type: "Row",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[4]",
                                 name: "LiveCoachRowB",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_n5fgmkvs",
+                                    key: "Container_695ezyob",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[4].children[0]",
                                     name: "LiveBtnWissel",
@@ -600,19 +600,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_iwcqay83",
+                                        key: "Row_r41zgjg2",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[4].children[0].children[0]",
                                         name: "LiveBtnWisselRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_ot13jg2p",
+                                            key: "Icon_l4262til",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[4].children[0].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_u99l61j4",
+                                            key: "Text_zimqrsbu",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[4].children[0].children[0].children[1]",
                                             name: "LiveBtnWisselLabel",
@@ -623,7 +623,7 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_nvik0zr6",
+                                    key: "Container_hpjia8d4",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[4].children[1]",
                                     name: "LiveBtnKaart",
@@ -632,19 +632,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_5bw2xr84",
+                                        key: "Row_cwenebdu",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[4].children[1].children[0]",
                                         name: "LiveBtnKaartRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_gr59tprq",
+                                            key: "Icon_bvj9y1jf",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[4].children[1].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_2emsgiom",
+                                            key: "Text_3t4q8vax",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[4].children[1].children[0].children[1]",
                                             name: "LiveBtnKaartLabel",
@@ -657,13 +657,13 @@ abstract final class LiveMatchPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_p4vdssro",
+                                key: "Row_29p8lf11",
                                 type: "Row",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5]",
                                 name: "LiveCoachRowC",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_wy2wsb7d",
+                                    key: "Container_g3b34wtq",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[0]",
                                     name: "LiveBtnRust",
@@ -672,19 +672,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_jy52dmmz",
+                                        key: "Row_wx47fiv5",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[0].children[0]",
                                         name: "LiveBtnRustRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_futnoj6k",
+                                            key: "Icon_bhqd5cy1",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[0].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_014fnl2o",
+                                            key: "Text_qy2mkgv8",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[0].children[0].children[1]",
                                             name: "LiveBtnRustLabel",
@@ -695,7 +695,7 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_34ztzu0v",
+                                    key: "Container_1ijfx8v9",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[1]",
                                     name: "LiveBtn2ehelft",
@@ -704,30 +704,29 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_imdkizy2",
+                                        key: "Row_h9m59qqc",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[1].children[0]",
                                         name: "LiveBtn2ehelftRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_qbrogmoz",
+                                            key: "Icon_xc9ax0wf",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[1].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_dcl90qy7",
+                                            key: "Text_kkr6lydv",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[1].children[0].children[1]",
                                             name: "LiveBtn2ehelftLabel",
-                                            text: "2e helft",
                                           ),
                                         ],
                                       ),
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_wnut844g",
+                                    key: "Container_7v0zqtf4",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[2]",
                                     name: "LiveBtnEinde",
@@ -736,19 +735,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_76tv6rpx",
+                                        key: "Row_yelw8ja0",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[2].children[0]",
                                         name: "LiveBtnEindeRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_3u3ytwt3",
+                                            key: "Icon_j5e8qbfu",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[2].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_cv9zvs3y",
+                                            key: "Text_w8l4x97j",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[2].children[0].children[1]",
                                             name: "LiveBtnEindeLabel",
@@ -759,7 +758,7 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_5tep5knm",
+                                    key: "Container_kbqb90cy",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[3]",
                                     name: "LiveBtnOngedaan",
@@ -768,19 +767,19 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_rzewwvjk",
+                                        key: "Row_p1dizwye",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[3].children[0]",
                                         name: "LiveBtnOngedaanRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Icon_oiech7dz",
+                                            key: "Icon_lj9x7xed",
                                             type: "Icon",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[3].children[0].children[0]",
                                             name: "Icon",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_xsmsg4q7",
+                                            key: "Text_9h86xjc3",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[4].children[0].children[5].children[3].children[0].children[1]",
                                             name: "LiveBtnOngedaanLabel",
@@ -797,44 +796,44 @@ abstract final class LiveMatchPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Column_m0mh7puq",
+                        key: "Column_bxv4nzdl",
                         type: "Column",
                         path: "LiveMatchPage.body[0].children[0].children[0].children[5]",
                         name: "LivePickerPanels",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_ri3znol3",
+                            key: "Container_p4il883o",
                             type: "Container",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0]",
                             name: "LiveScorerPanel Margin",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_3lu7pvgj",
+                                key: "Container_vkaw4ymh",
                                 type: "Container",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0]",
                                 name: "LiveScorerPanel",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_wezgc4uu",
+                                    key: "Column_srsi5yig",
                                     type: "Column",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0].children[0]",
                                     name: "LiveScorerCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_yur8fmsy",
+                                        key: "Row_jtjdxqy2",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0].children[0].children[0]",
                                         name: "LiveScorerHead",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_4uw1r83a",
+                                            key: "Text_5umn3fn1",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0].children[0].children[0].children[0]",
                                             name: "LiveScorerTitle",
                                             text: "Wie scoorde?",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_tzi6g3pa",
+                                            key: "Container_gb3st1zl",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0].children[0].children[0].children[1]",
                                             name: "LiveScorerCancel",
@@ -843,7 +842,7 @@ abstract final class LiveMatchPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_at2f1imw",
+                                                key: "Text_ad26yojx",
                                                 type: "Text",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0].children[0].children[0].children[1].children[0]",
                                                 name: "LiveScorerCancelLabel",
@@ -854,13 +853,13 @@ abstract final class LiveMatchPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "ListView_xdhfj2z2",
+                                        key: "ListView_fojkv0qo",
                                         type: "ListView",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0].children[0].children[1]",
                                         name: "LiveScorerList",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_v7xbzdcf",
+                                            key: "Container_61hznx3w",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0].children[0].children[1].children[0]",
                                             name: "LiveScorerItem",
@@ -869,19 +868,19 @@ abstract final class LiveMatchPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Row_1b7ec2p5",
+                                                key: "Row_cdox4z4v",
                                                 type: "Row",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0].children[0].children[1].children[0].children[0]",
                                                 name: "LiveScorerRow",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_yff1vs20",
+                                                    key: "Icon_gedf4rx0",
                                                     type: "Icon",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0].children[0].children[1].children[0].children[0].children[0]",
                                                     name: "Icon",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_vw0lbhkw",
+                                                    key: "Text_1jtunc0f",
                                                     type: "Text",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[0].children[0].children[0].children[1].children[0].children[0].children[1]",
                                                     name: "LiveScorerNaam",
@@ -899,38 +898,38 @@ abstract final class LiveMatchPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_31k1426m",
+                            key: "Container_rgwk6to8",
                             type: "Container",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1]",
                             name: "LiveAssistPanel Margin",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_8plidlm8",
+                                key: "Container_12th19vz",
                                 type: "Container",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0]",
                                 name: "LiveAssistPanel",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_gg8fvy45",
+                                    key: "Column_o4ane693",
                                     type: "Column",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0]",
                                     name: "LiveAssistCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_im7qvxuy",
+                                        key: "Row_mvc84adw",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[0]",
                                         name: "LiveAssistHead",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_uhsa4pn3",
+                                            key: "Text_f5vkz59g",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[0].children[0]",
                                             name: "LiveAssistTitle",
                                             text: "Wie gaf de assist?",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_s1n0s1e7",
+                                            key: "Container_jxlnypiq",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[0].children[1]",
                                             name: "LiveAssistCancel",
@@ -939,7 +938,7 @@ abstract final class LiveMatchPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_h4ir217l",
+                                                key: "Text_ktz2lv4d",
                                                 type: "Text",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[0].children[1].children[0]",
                                                 name: "LiveAssistCancelLabel",
@@ -950,13 +949,13 @@ abstract final class LiveMatchPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "ListView_gov9ghwu",
+                                        key: "ListView_t6f4zkzz",
                                         type: "ListView",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[1]",
                                         name: "LiveAssistList",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_185bij1j",
+                                            key: "Container_bh30y2i3",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[1].children[0]",
                                             name: "LiveAssistItem",
@@ -965,19 +964,19 @@ abstract final class LiveMatchPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Row_ucwo704u",
+                                                key: "Row_hnfnce82",
                                                 type: "Row",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[1].children[0].children[0]",
                                                 name: "LiveAssistRow",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_vl2uj8cl",
+                                                    key: "Icon_lvlezizx",
                                                     type: "Icon",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[1].children[0].children[0].children[0]",
                                                     name: "Icon",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_ot81jp3l",
+                                                    key: "Text_419r8yz0",
                                                     type: "Text",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[1].children[0].children[0].children[1]",
                                                     name: "LiveAssistNaam",
@@ -989,7 +988,7 @@ abstract final class LiveMatchPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_ov7zes9q",
+                                        key: "Container_vbrou53w",
                                         type: "Container",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[2]",
                                         name: "LiveNoAssistWrap",
@@ -998,7 +997,7 @@ abstract final class LiveMatchPageWidgets {
                                         ],
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_hrp64014",
+                                            key: "Text_o2n50awq",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[1].children[0].children[0].children[2].children[0]",
                                             name: "LiveNoAssist",
@@ -1013,38 +1012,38 @@ abstract final class LiveMatchPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_nlb7qefc",
+                            key: "Container_nco2s1qb",
                             type: "Container",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2]",
                             name: "LivePenTakerPanel Margin",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_0u57ek6h",
+                                key: "Container_vg6ot3xq",
                                 type: "Container",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0]",
                                 name: "LivePenTakerPanel",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_7f6knqgl",
+                                    key: "Column_ubzg1l85",
                                     type: "Column",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0].children[0]",
                                     name: "LivePenTakerCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_zmm1shge",
+                                        key: "Row_bylavm9l",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0].children[0].children[0]",
                                         name: "LivePenTakerHead",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_3b0k2ssk",
+                                            key: "Text_0gyf43ox",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0].children[0].children[0].children[0]",
                                             name: "LivePenTakerTitle",
                                             text: "Wie nam de strafschop?",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_vnylo9kk",
+                                            key: "Container_yw1ucwww",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0].children[0].children[0].children[1]",
                                             name: "LivePenTakerCancel",
@@ -1053,7 +1052,7 @@ abstract final class LiveMatchPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_wfx3zmxm",
+                                                key: "Text_okhto7db",
                                                 type: "Text",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0].children[0].children[0].children[1].children[0]",
                                                 name: "LivePenTakerCancelLabel",
@@ -1064,13 +1063,13 @@ abstract final class LiveMatchPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "ListView_dlwzrjuu",
+                                        key: "ListView_xm4wvfql",
                                         type: "ListView",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0].children[0].children[1]",
                                         name: "LivePenTakerList",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_uzf44oww",
+                                            key: "Container_18p3gvlu",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0].children[0].children[1].children[0]",
                                             name: "LivePenTakerItem",
@@ -1079,19 +1078,19 @@ abstract final class LiveMatchPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Row_xtm0gvjb",
+                                                key: "Row_mubia2y4",
                                                 type: "Row",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0].children[0].children[1].children[0].children[0]",
                                                 name: "LivePenTakerRow",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_4gflqypg",
+                                                    key: "Icon_pnnh4ni4",
                                                     type: "Icon",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0].children[0].children[1].children[0].children[0].children[0]",
                                                     name: "Icon",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_8f01wfkp",
+                                                    key: "Text_hfxo7fx8",
                                                     type: "Text",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[2].children[0].children[0].children[1].children[0].children[0].children[1]",
                                                     name: "LivePenTakerNaam",
@@ -1109,38 +1108,38 @@ abstract final class LiveMatchPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_ct07zrre",
+                            key: "Container_zhk42zhl",
                             type: "Container",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3]",
                             name: "LivePenResultPanel Margin",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_tsy9ib5j",
+                                key: "Container_7euhcfaq",
                                 type: "Container",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0]",
                                 name: "LivePenResultPanel",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_etrk70zc",
+                                    key: "Column_6r8v1jum",
                                     type: "Column",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0].children[0]",
                                     name: "LivePenResultCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_d17p7s2p",
+                                        key: "Row_jfovdhii",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0].children[0].children[0]",
                                         name: "LivePenResultHead",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_biwydnqe",
+                                            key: "Text_k2jdfgag",
                                             type: "Text",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0].children[0].children[0].children[0]",
                                             name: "LivePenResultTitle",
                                             text: "Ging hij erin?",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_lfdi89bd",
+                                            key: "Container_uzmycfdv",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0].children[0].children[0].children[1]",
                                             name: "LivePenResultCancel",
@@ -1149,7 +1148,7 @@ abstract final class LiveMatchPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_796ldwgg",
+                                                key: "Text_aactt2iq",
                                                 type: "Text",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0].children[0].children[0].children[1].children[0]",
                                                 name: "LivePenResultCancelLabel",
@@ -1160,13 +1159,13 @@ abstract final class LiveMatchPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_y9lb1sw7",
+                                        key: "Row_ehiccvxx",
                                         type: "Row",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0].children[0].children[1]",
                                         name: "LivePenResultRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_twpu4hsb",
+                                            key: "Container_lck1an6e",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0].children[0].children[1].children[0]",
                                             name: "LivePenBenutBtn",
@@ -1175,7 +1174,7 @@ abstract final class LiveMatchPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_i0ax30k6",
+                                                key: "Text_0urr3x1e",
                                                 type: "Text",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0].children[0].children[1].children[0].children[0]",
                                                 name: "LivePenBenutLabel",
@@ -1184,7 +1183,7 @@ abstract final class LiveMatchPageWidgets {
                                             ],
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_1or9138y",
+                                            key: "Container_hpuy3zcv",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0].children[0].children[1].children[1]",
                                             name: "LivePenGemistBtn",
@@ -1193,7 +1192,7 @@ abstract final class LiveMatchPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_l58n6yci",
+                                                key: "Text_qexhlrcq",
                                                 type: "Text",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[3].children[0].children[0].children[1].children[1].children[0]",
                                                 name: "LivePenGemistLabel",
@@ -1210,49 +1209,150 @@ abstract final class LiveMatchPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_1zzliz9n",
+                            key: "Container_i4vkw1pv",
                             type: "Container",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4]",
+                            name: "LiveOppPenResultPanel Margin",
+                            children: <ffai.ProjectWidgetHandle>[
+                              ffai.ProjectWidgetHandle(
+                                key: "Container_khclpg34",
+                                type: "Container",
+                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0]",
+                                name: "LiveOppPenResultPanel",
+                                children: <ffai.ProjectWidgetHandle>[
+                                  ffai.ProjectWidgetHandle(
+                                    key: "Column_icfoqvw0",
+                                    type: "Column",
+                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0]",
+                                    name: "LiveOppPenResultCol",
+                                    children: <ffai.ProjectWidgetHandle>[
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Row_adye5ow8",
+                                        type: "Row",
+                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[0]",
+                                        name: "LiveOppPenResultHead",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Text_1pm947q3",
+                                            type: "Text",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[0].children[0]",
+                                            name: "LiveOppPenResultTitle",
+                                            text: "Strafschop tegen: ging hij erin?",
+                                          ),
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Container_ym6lkiwt",
+                                            type: "Container",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[0].children[1]",
+                                            name: "LiveOppPenResultCancel",
+                                            triggers: const <String>[
+                                              "ON_TAP",
+                                            ],
+                                            children: <ffai.ProjectWidgetHandle>[
+                                              ffai.ProjectWidgetHandle(
+                                                key: "Text_kjfj5kqa",
+                                                type: "Text",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[0].children[1].children[0]",
+                                                name: "LiveOppPenResultCancelLabel",
+                                                text: "Annuleren",
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Row_zck67ikj",
+                                        type: "Row",
+                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[1]",
+                                        name: "LiveOppPenResultRow",
+                                        children: <ffai.ProjectWidgetHandle>[
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Container_2oulh7pf",
+                                            type: "Container",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[1].children[0]",
+                                            name: "LiveOppPenBenutBtn",
+                                            triggers: const <String>[
+                                              "ON_TAP",
+                                            ],
+                                            children: <ffai.ProjectWidgetHandle>[
+                                              ffai.ProjectWidgetHandle(
+                                                key: "Text_uewt3bul",
+                                                type: "Text",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[1].children[0].children[0]",
+                                                name: "LiveOppPenBenutLabel",
+                                                text: "Benut",
+                                              ),
+                                            ],
+                                          ),
+                                          ffai.ProjectWidgetHandle(
+                                            key: "Container_qfgy0jro",
+                                            type: "Container",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[1].children[1]",
+                                            name: "LiveOppPenGemistBtn",
+                                            triggers: const <String>[
+                                              "ON_TAP",
+                                            ],
+                                            children: <ffai.ProjectWidgetHandle>[
+                                              ffai.ProjectWidgetHandle(
+                                                key: "Text_vbualhtw",
+                                                type: "Text",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[1].children[1].children[0]",
+                                                name: "LiveOppPenGemistLabel",
+                                                text: "Gemist",
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          ffai.ProjectWidgetHandle(
+                            key: "Container_g5b5qux2",
+                            type: "Container",
+                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5]",
                             name: "LiveSubOutPanel Margin",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_4pfsw075",
+                                key: "Container_efwolenk",
                                 type: "Container",
-                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0]",
+                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0]",
                                 name: "LiveSubOutPanel",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_9zqbmptk",
+                                    key: "Column_olgtlavl",
                                     type: "Column",
-                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0]",
+                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0]",
                                     name: "LiveSubOutCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_wdz70csx",
+                                        key: "Row_fktclpfy",
                                         type: "Row",
-                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[0]",
+                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[0]",
                                         name: "LiveSubOutHead",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_hv65b3al",
+                                            key: "Text_zcjhv341",
                                             type: "Text",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[0].children[0]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[0].children[0]",
                                             name: "LiveSubOutTitle",
                                             text: "Wie gaat eruit?",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_enc0dli7",
+                                            key: "Container_20eqq6v4",
                                             type: "Container",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[0].children[1]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[0].children[1]",
                                             name: "LiveSubOutCancel",
                                             triggers: const <String>[
                                               "ON_TAP",
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_jqgv86to",
+                                                key: "Text_9l3aw6cr",
                                                 type: "Text",
-                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[0].children[1].children[0]",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[0].children[1].children[0]",
                                                 name: "LiveSubOutCancelLabel",
                                                 text: "Annuleren",
                                               ),
@@ -1261,36 +1361,36 @@ abstract final class LiveMatchPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "ListView_g2a1dv3i",
+                                        key: "ListView_ugyw0gmc",
                                         type: "ListView",
-                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[1]",
+                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[1]",
                                         name: "LiveSubOutList",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_wr9f2ouo",
+                                            key: "Container_hisvd2oa",
                                             type: "Container",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[1].children[0]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[1].children[0]",
                                             name: "LiveSubOutItem",
                                             triggers: const <String>[
                                               "ON_TAP",
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Row_su53d0y3",
+                                                key: "Row_lrx6ofho",
                                                 type: "Row",
-                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[1].children[0].children[0]",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[1].children[0].children[0]",
                                                 name: "LiveSubOutRow",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_5sy5setc",
+                                                    key: "Icon_vi1b5in2",
                                                     type: "Icon",
-                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[1].children[0].children[0].children[0]",
+                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[1].children[0].children[0].children[0]",
                                                     name: "Icon",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_j1sgl85c",
+                                                    key: "Text_fwpxol4f",
                                                     type: "Text",
-                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[4].children[0].children[0].children[1].children[0].children[0].children[1]",
+                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[1].children[0].children[0].children[1]",
                                                     name: "LiveSubOutNaam",
                                                   ),
                                                 ],
@@ -1306,49 +1406,49 @@ abstract final class LiveMatchPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_bfzkcbj3",
+                            key: "Container_qfllyiu3",
                             type: "Container",
-                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5]",
+                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6]",
                             name: "LiveSubInPanel Margin",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_phkrlh7c",
+                                key: "Container_arr673d0",
                                 type: "Container",
-                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0]",
+                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0]",
                                 name: "LiveSubInPanel",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_s9glx708",
+                                    key: "Column_33pv338p",
                                     type: "Column",
-                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0]",
+                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0]",
                                     name: "LiveSubInCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_0zlwao6e",
+                                        key: "Row_24adqztf",
                                         type: "Row",
-                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[0]",
+                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[0]",
                                         name: "LiveSubInHead",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_z28404kq",
+                                            key: "Text_nfpia75g",
                                             type: "Text",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[0].children[0]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[0].children[0]",
                                             name: "LiveSubInTitle",
                                             text: "Wie komt erin?",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_vwxdhgj1",
+                                            key: "Container_l6e1prej",
                                             type: "Container",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[0].children[1]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[0].children[1]",
                                             name: "LiveSubInCancel",
                                             triggers: const <String>[
                                               "ON_TAP",
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_h7w6jj3w",
+                                                key: "Text_sdshnsma",
                                                 type: "Text",
-                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[0].children[1].children[0]",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[0].children[1].children[0]",
                                                 name: "LiveSubInCancelLabel",
                                                 text: "Annuleren",
                                               ),
@@ -1357,36 +1457,36 @@ abstract final class LiveMatchPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "ListView_k1q6g7ne",
+                                        key: "ListView_ggkc2s7h",
                                         type: "ListView",
-                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[1]",
+                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[1]",
                                         name: "LiveSubInList",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_9b2jnmy5",
+                                            key: "Container_eef2iplh",
                                             type: "Container",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[1].children[0]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[1].children[0]",
                                             name: "LiveSubInItem",
                                             triggers: const <String>[
                                               "ON_TAP",
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Row_nn2ystg5",
+                                                key: "Row_6a8pjhr1",
                                                 type: "Row",
-                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[1].children[0].children[0]",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[1].children[0].children[0]",
                                                 name: "LiveSubInRow",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_mgooj92o",
+                                                    key: "Icon_uisaonsa",
                                                     type: "Icon",
-                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[1].children[0].children[0].children[0]",
+                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[1].children[0].children[0].children[0]",
                                                     name: "Icon",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_cna9mhns",
+                                                    key: "Text_tku3fh4g",
                                                     type: "Text",
-                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[5].children[0].children[0].children[1].children[0].children[0].children[1]",
+                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[1].children[0].children[0].children[1]",
                                                     name: "LiveSubInNaam",
                                                   ),
                                                 ],
@@ -1402,49 +1502,49 @@ abstract final class LiveMatchPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_dq2wmx34",
+                            key: "Container_pwmpq12x",
                             type: "Container",
-                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6]",
+                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7]",
                             name: "LiveCardKindPanel Margin",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_05l33kj1",
+                                key: "Container_2c9b7n13",
                                 type: "Container",
-                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0]",
+                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0]",
                                 name: "LiveCardKindPanel",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_ej02luie",
+                                    key: "Column_i2jk8q3z",
                                     type: "Column",
-                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0]",
+                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0]",
                                     name: "LiveCardKindCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_b5ouu5zi",
+                                        key: "Row_f9pek1xx",
                                         type: "Row",
-                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[0]",
+                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[0]",
                                         name: "LiveCardKindHead",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_iymc48gb",
+                                            key: "Text_e9i3j15k",
                                             type: "Text",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[0].children[0]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[0].children[0]",
                                             name: "LiveCardKindTitle",
                                             text: "Gele of rode kaart?",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_zl1tugjw",
+                                            key: "Container_x4mbv2q1",
                                             type: "Container",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[0].children[1]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[0].children[1]",
                                             name: "LiveCardKindCancel",
                                             triggers: const <String>[
                                               "ON_TAP",
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_we356py7",
+                                                key: "Text_o9ikwpyp",
                                                 type: "Text",
-                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[0].children[1].children[0]",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[0].children[1].children[0]",
                                                 name: "LiveCardKindCancelLabel",
                                                 text: "Annuleren",
                                               ),
@@ -1453,42 +1553,42 @@ abstract final class LiveMatchPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_5mnjayek",
+                                        key: "Row_gbgdsg73",
                                         type: "Row",
-                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[1]",
+                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[1]",
                                         name: "LiveCardKindRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_x0lv7fu6",
+                                            key: "Container_3804557m",
                                             type: "Container",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[1].children[0]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[1].children[0]",
                                             name: "LiveCardGeelBtn",
                                             triggers: const <String>[
                                               "ON_TAP",
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_le9l9brw",
+                                                key: "Text_j8ku97sx",
                                                 type: "Text",
-                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[1].children[0].children[0]",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[1].children[0].children[0]",
                                                 name: "LiveCardGeelLabel",
                                                 text: "Geel",
                                               ),
                                             ],
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_3npldbc8",
+                                            key: "Container_eyqtgce2",
                                             type: "Container",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[1].children[1]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[1].children[1]",
                                             name: "LiveCardRoodBtn",
                                             triggers: const <String>[
                                               "ON_TAP",
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_pu803lht",
+                                                key: "Text_iksf3195",
                                                 type: "Text",
-                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[6].children[0].children[0].children[1].children[1].children[0]",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[1].children[1].children[0]",
                                                 name: "LiveCardRoodLabel",
                                                 text: "Rood",
                                               ),
@@ -1503,49 +1603,49 @@ abstract final class LiveMatchPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_7kzyhzvm",
+                            key: "Container_yyljp8d0",
                             type: "Container",
-                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7]",
+                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8]",
                             name: "LiveCardPlayerPanel Margin",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_7vazp27k",
+                                key: "Container_zprvfprk",
                                 type: "Container",
-                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0]",
+                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0]",
                                 name: "LiveCardPlayerPanel",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_g8rslu2n",
+                                    key: "Column_0ipp1383",
                                     type: "Column",
-                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0]",
+                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0].children[0]",
                                     name: "LiveCardPlayerCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_gva2tcbe",
+                                        key: "Row_3pi3bvmu",
                                         type: "Row",
-                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[0]",
+                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0].children[0].children[0]",
                                         name: "LiveCardPlayerHead",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_b9jewahb",
+                                            key: "Text_1b52la9h",
                                             type: "Text",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[0].children[0]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0].children[0].children[0].children[0]",
                                             name: "LiveCardPlayerTitle",
                                             text: "Wie kreeg de kaart?",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_3ooe8iwv",
+                                            key: "Container_b2vc6bv3",
                                             type: "Container",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[0].children[1]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0].children[0].children[0].children[1]",
                                             name: "LiveCardPlayerCancel",
                                             triggers: const <String>[
                                               "ON_TAP",
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_7ahjz1z2",
+                                                key: "Text_tt1r8nmp",
                                                 type: "Text",
-                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[0].children[1].children[0]",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0].children[0].children[0].children[1].children[0]",
                                                 name: "LiveCardPlayerCancelLabel",
                                                 text: "Annuleren",
                                               ),
@@ -1554,36 +1654,36 @@ abstract final class LiveMatchPageWidgets {
                                         ],
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "ListView_z8fwwgnh",
+                                        key: "ListView_0i4sy1sj",
                                         type: "ListView",
-                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[1]",
+                                        path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0].children[0].children[1]",
                                         name: "LiveCardPlayerList",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_sk2gfdx6",
+                                            key: "Container_apcvqlwc",
                                             type: "Container",
-                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[1].children[0]",
+                                            path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0].children[0].children[1].children[0]",
                                             name: "LiveCardPlayerItem",
                                             triggers: const <String>[
                                               "ON_TAP",
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Row_05s3xb1l",
+                                                key: "Row_xnmuvrx8",
                                                 type: "Row",
-                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[1].children[0].children[0]",
+                                                path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0].children[0].children[1].children[0].children[0]",
                                                 name: "LiveCardPlayerRow",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_zfpjofht",
+                                                    key: "Icon_cdzwzhrk",
                                                     type: "Icon",
-                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[1].children[0].children[0].children[0]",
+                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0].children[0].children[1].children[0].children[0].children[0]",
                                                     name: "Icon",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_q4zpvsin",
+                                                    key: "Text_d640db3s",
                                                     type: "Text",
-                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[7].children[0].children[0].children[1].children[0].children[0].children[1]",
+                                                    path: "LiveMatchPage.body[0].children[0].children[0].children[5].children[8].children[0].children[0].children[1].children[0].children[0].children[1]",
                                                     name: "LiveCardPlayerNaam",
                                                   ),
                                                 ],
@@ -1601,37 +1701,37 @@ abstract final class LiveMatchPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_2u2qqgxv",
+                        key: "Container_ck7efhkw",
                         type: "Container",
                         path: "LiveMatchPage.body[0].children[0].children[0].children[6]",
                         name: "LiveTimelineCard Margin",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_xt9nx1xg",
+                            key: "Container_hgdso5z7",
                             type: "Container",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0]",
                             name: "LiveTimelineCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_7kvzz1w7",
+                                key: "Column_jhwgxkmv",
                                 type: "Column",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0]",
                                 name: "LiveTimelineCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_ym18vxkd",
+                                    key: "Row_3aszgyzy",
                                     type: "Row",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[0]",
                                     name: "LiveTimelineHead",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_0wg1upzq",
+                                        key: "Icon_87cg6zse",
                                         type: "Icon",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[0].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_o9la4gr5",
+                                        key: "Text_egk6a45q",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[0].children[1]",
                                         name: "LiveTimelineTitle",
@@ -1640,67 +1740,67 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "ListView_d3n7b6nc",
+                                    key: "ListView_76fhpwyh",
                                     type: "ListView",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1]",
                                     name: "LiveEventsList",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_wtwciey8",
+                                        key: "Container_utr1l6fj",
                                         type: "Container",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0]",
                                         name: "LiveEventItem",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Row_vvtzmymt",
+                                            key: "Row_pp0bathy",
                                             type: "Row",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0]",
                                             name: "LiveEventRow",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Row_eatisjc0",
+                                                key: "Row_8vrb048y",
                                                 type: "Row",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0]",
                                                 name: "LiveEventBadge",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Container_wpt7vavm",
+                                                    key: "Container_vdsaz7sh",
                                                     type: "Container",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[0]",
                                                     name: "LiveEventBadgeHot",
                                                     children: <ffai.ProjectWidgetHandle>[
                                                       ffai.ProjectWidgetHandle(
-                                                        key: "Row_yema96d8",
+                                                        key: "Row_pcchrpz3",
                                                         type: "Row",
                                                         path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0]",
                                                         name: "LiveEventHotIcons",
                                                         children: <ffai.ProjectWidgetHandle>[
                                                           ffai.ProjectWidgetHandle(
-                                                            key: "Icon_4278qo7c",
+                                                            key: "Icon_6mcoxoji",
                                                             type: "Icon",
                                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0].children[0]",
                                                             name: "Icon",
                                                           ),
                                                           ffai.ProjectWidgetHandle(
-                                                            key: "Icon_jtzqd4nt",
+                                                            key: "Icon_m2ahcdig",
                                                             type: "Icon",
                                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0].children[1]",
                                                             name: "Icon",
                                                           ),
                                                           ffai.ProjectWidgetHandle(
-                                                            key: "Icon_ggede89x",
+                                                            key: "Icon_9jw40c5z",
                                                             type: "Icon",
                                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0].children[2]",
                                                             name: "Icon",
                                                           ),
                                                           ffai.ProjectWidgetHandle(
-                                                            key: "Icon_oz9hajg0",
+                                                            key: "Icon_qfxbopfh",
                                                             type: "Icon",
                                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0].children[3]",
                                                             name: "Icon",
                                                           ),
                                                           ffai.ProjectWidgetHandle(
-                                                            key: "Icon_580jv9ss",
+                                                            key: "Icon_8tkvkxom",
                                                             type: "Icon",
                                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[0].children[0].children[4]",
                                                             name: "Icon",
@@ -1710,43 +1810,43 @@ abstract final class LiveMatchPageWidgets {
                                                     ],
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Container_jxwdcr2y",
+                                                    key: "Container_jcqdyssr",
                                                     type: "Container",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[1]",
                                                     name: "LiveEventBadgeCalm",
                                                     children: <ffai.ProjectWidgetHandle>[
                                                       ffai.ProjectWidgetHandle(
-                                                        key: "Row_viofe25r",
+                                                        key: "Row_08fmrcgw",
                                                         type: "Row",
                                                         path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0]",
                                                         name: "LiveEventCalmIcons",
                                                         children: <ffai.ProjectWidgetHandle>[
                                                           ffai.ProjectWidgetHandle(
-                                                            key: "Icon_8z8vx5bb",
+                                                            key: "Icon_ue8gz9rm",
                                                             type: "Icon",
                                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0].children[0]",
                                                             name: "Icon",
                                                           ),
                                                           ffai.ProjectWidgetHandle(
-                                                            key: "Icon_d8glrwgk",
+                                                            key: "Icon_2ctwhqwh",
                                                             type: "Icon",
                                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0].children[1]",
                                                             name: "Icon",
                                                           ),
                                                           ffai.ProjectWidgetHandle(
-                                                            key: "Icon_g3fzjv9u",
+                                                            key: "Icon_aw8by31u",
                                                             type: "Icon",
                                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0].children[2]",
                                                             name: "Icon",
                                                           ),
                                                           ffai.ProjectWidgetHandle(
-                                                            key: "Icon_0uhiiyo2",
+                                                            key: "Icon_xpw4iqw1",
                                                             type: "Icon",
                                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0].children[3]",
                                                             name: "Icon",
                                                           ),
                                                           ffai.ProjectWidgetHandle(
-                                                            key: "Icon_0o134bii",
+                                                            key: "Icon_9c7o3ivy",
                                                             type: "Icon",
                                                             path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[0].children[1].children[0].children[4]",
                                                             name: "Icon",
@@ -1758,25 +1858,25 @@ abstract final class LiveMatchPageWidgets {
                                                 ],
                                               ),
                                               ffai.ProjectWidgetHandle(
-                                                key: "Container_jmwk9mx4",
+                                                key: "Container_8z1is9as",
                                                 type: "Container",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[1]",
                                                 name: "LiveEventCard",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Column_tui2ruz4",
+                                                    key: "Column_j5zfexaa",
                                                     type: "Column",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[1].children[0]",
                                                     name: "LiveEventCardCol",
                                                     children: <ffai.ProjectWidgetHandle>[
                                                       ffai.ProjectWidgetHandle(
-                                                        key: "Text_pmi8nuub",
+                                                        key: "Text_sh33rpf8",
                                                         type: "Text",
                                                         path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[1].children[0].children[0]",
                                                         name: "LiveEventMinute",
                                                       ),
                                                       ffai.ProjectWidgetHandle(
-                                                        key: "Text_h5gwicwe",
+                                                        key: "Text_mqbt7w36",
                                                         type: "Text",
                                                         path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[1].children[0].children[0].children[1].children[0].children[1]",
                                                         name: "LiveEventLabel",
@@ -1792,7 +1892,7 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_c2msb59g",
+                                    key: "Text_xh94f1uv",
                                     type: "Text",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[6].children[0].children[0].children[2]",
                                     name: "LiveEventsEmpty",
@@ -1805,37 +1905,37 @@ abstract final class LiveMatchPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_ez5yzdwc",
+                        key: "Container_zbk5wkhf",
                         type: "Container",
                         path: "LiveMatchPage.body[0].children[0].children[0].children[7]",
                         name: "LiveLineupCard Margin",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_m30jburo",
+                            key: "Container_zhz30xe9",
                             type: "Container",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0]",
                             name: "LiveLineupCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_6mciubqn",
+                                key: "Column_2wagppss",
                                 type: "Column",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0]",
                                 name: "LiveLineupCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_z4xbrxxd",
+                                    key: "Row_d5bav2qy",
                                     type: "Row",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[0]",
                                     name: "LiveLineupHead",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_w23yhprw",
+                                        key: "Icon_uc9ki75c",
                                         type: "Icon",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[0].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_7jvkxoou",
+                                        key: "Text_z32ckru4",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[0].children[1]",
                                         name: "LiveLineupTitle",
@@ -1844,50 +1944,50 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_zzq0plhc",
+                                    key: "Column_5k65qzda",
                                     type: "Column",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[1]",
                                     name: "LiveBasis",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_jx0rxqgw",
+                                        key: "Text_ldtj3ap3",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[1].children[0]",
                                         name: "LiveBasisTitel",
                                         text: "Basis",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "ListView_bsz9qu7k",
+                                        key: "ListView_0ej1a76k",
                                         type: "ListView",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[1].children[1]",
                                         name: "LiveBasisList",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_fsrdbyic",
+                                            key: "Container_7wklfxib",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[1].children[1].children[0]",
                                             name: "LiveBasisItem",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Row_bh0d9wry",
+                                                key: "Row_b84zm2bc",
                                                 type: "Row",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[1].children[1].children[0].children[0]",
                                                 name: "LiveBasisRow",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_z7ymyzsf",
+                                                    key: "Icon_sr1vscho",
                                                     type: "Icon",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[1].children[1].children[0].children[0].children[0]",
                                                     name: "Icon",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_3415wjvn",
+                                                    key: "Text_osfbv7gs",
                                                     type: "Text",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[1].children[1].children[0].children[0].children[1]",
                                                     name: "LiveBasisNaam",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_yy7pw47q",
+                                                    key: "Icon_t2dz6l8q",
                                                     type: "Icon",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[1].children[1].children[0].children[0].children[2]",
                                                     name: "Icon",
@@ -1904,50 +2004,50 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_zvj1c7vb",
+                                    key: "Column_lquak99e",
                                     type: "Column",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[2]",
                                     name: "LiveBank",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_yaudm43l",
+                                        key: "Text_xr4o9lri",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[2].children[0]",
                                         name: "LiveBankTitel",
                                         text: "Wissels",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "ListView_vm3dlkc5",
+                                        key: "ListView_ujs83529",
                                         type: "ListView",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[2].children[1]",
                                         name: "LiveBankList",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_b8cu2cv2",
+                                            key: "Container_8qbafjqq",
                                             type: "Container",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[2].children[1].children[0]",
                                             name: "LiveBankItem",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Row_iacf8d6z",
+                                                key: "Row_sphesuht",
                                                 type: "Row",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[2].children[1].children[0].children[0]",
                                                 name: "LiveBankRow",
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_h7hl0imn",
+                                                    key: "Icon_6op457fd",
                                                     type: "Icon",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[2].children[1].children[0].children[0].children[0]",
                                                     name: "Icon",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_ey1zff65",
+                                                    key: "Text_kogb8vzc",
                                                     type: "Text",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[2].children[1].children[0].children[0].children[1]",
                                                     name: "LiveBankNaam",
                                                   ),
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Icon_fa3epp40",
+                                                    key: "Icon_oucg3ice",
                                                     type: "Icon",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[2].children[1].children[0].children[0].children[2]",
                                                     name: "Icon",
@@ -1964,7 +2064,7 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_phzcc3oa",
+                                    key: "Container_8jzp080a",
                                     type: "Container",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[3]",
                                     name: "LiveLineupEditBtn",
@@ -1973,7 +2073,7 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_4gnouisw",
+                                        key: "Text_rylpxlvh",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[7].children[0].children[0].children[3].children[0]",
                                         name: "LiveLineupEditLabel",
@@ -1988,38 +2088,38 @@ abstract final class LiveMatchPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_h09jzxni",
+                        key: "Container_m89srali",
                         type: "Container",
                         path: "LiveMatchPage.body[0].children[0].children[0].children[8]",
                         name: "LiveLineupPanel Margin",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_5toqgfjz",
+                            key: "Container_wj5ggajb",
                             type: "Container",
                             path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0]",
                             name: "LiveLineupPanel",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_9w2sk3w5",
+                                key: "Column_2ex1z172",
                                 type: "Column",
                                 path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0]",
                                 name: "LiveLineupPanelCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_lzghagz6",
+                                    key: "Row_05scytjr",
                                     type: "Row",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[0]",
                                     name: "LiveLineupPanelHead",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_qg2p6aq7",
+                                        key: "Text_9m273esb",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[0].children[0]",
                                         name: "LiveLineupPanelTitle",
                                         text: "Wie staat in de basis?",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_bfh41eq8",
+                                        key: "Text_8zoh5rs0",
                                         type: "Text",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[0].children[1]",
                                         name: "LiveLineupDone",
@@ -2031,31 +2131,31 @@ abstract final class LiveMatchPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "ListView_cle090wx",
+                                    key: "ListView_b7iho94y",
                                     type: "ListView",
                                     path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[1]",
                                     name: "LiveLineupPickList",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Container_bqibqmc8",
+                                        key: "Container_gazhl6r5",
                                         type: "Container",
                                         path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[1].children[0]",
                                         name: "LiveLineupPickItem",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Row_no2lxxfs",
+                                            key: "Row_pqwlqtox",
                                             type: "Row",
                                             path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[1].children[0].children[0]",
                                             name: "LiveLineupPickRow",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_xaccayg7",
+                                                key: "Text_x0f0g2h7",
                                                 type: "Text",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[1].children[0].children[0].children[0]",
                                                 name: "LiveLineupPickNaam",
                                               ),
                                               ffai.ProjectWidgetHandle(
-                                                key: "Container_5tmx6pug",
+                                                key: "Container_lc3bhnf7",
                                                 type: "Container",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[1].children[0].children[0].children[1]",
                                                 name: "LiveSpotBasis",
@@ -2064,7 +2164,7 @@ abstract final class LiveMatchPageWidgets {
                                                 ],
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_95owu2fr",
+                                                    key: "Text_kzemrzqg",
                                                     type: "Text",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[1].children[0].children[0].children[1].children[0]",
                                                     name: "LiveSpotBasisLabel",
@@ -2073,7 +2173,7 @@ abstract final class LiveMatchPageWidgets {
                                                 ],
                                               ),
                                               ffai.ProjectWidgetHandle(
-                                                key: "Container_524avp95",
+                                                key: "Container_on4nm2ou",
                                                 type: "Container",
                                                 path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[1].children[0].children[0].children[2]",
                                                 name: "LiveSpotBank",
@@ -2082,7 +2182,7 @@ abstract final class LiveMatchPageWidgets {
                                                 ],
                                                 children: <ffai.ProjectWidgetHandle>[
                                                   ffai.ProjectWidgetHandle(
-                                                    key: "Text_tpydbryz",
+                                                    key: "Text_ps6h3d9e",
                                                     type: "Text",
                                                     path: "LiveMatchPage.body[0].children[0].children[0].children[8].children[0].children[0].children[1].children[0].children[0].children[2].children[0]",
                                                     name: "LiveSpotBankLabel",

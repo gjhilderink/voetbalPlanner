@@ -271,16 +271,17 @@ class LiveMatchService
         $eind = $match->live_ended_at ?? now();
 
         // In de rust: klok bevriezen op het rustmoment.
-        if ($match->live_halftime_at && ! $this->secondHalfStarted($match)) {
+        // Staat de klok stil omdat het rust is? Dan telt tot het begin van die
+        // pauze. live_halftime_at draagt de laatste pauze, en dat is bij vier
+        // kwarten precies degene die nu loopt.
+        if ($this->periodeStand($match)['inPauze'] && $match->live_halftime_at) {
             $eind = $match->live_halftime_at;
         }
 
         $minuten = $match->live_started_at->diffInMinutes($eind);
 
-        // Is de tweede helft begonnen, dan de duur van de pauze eraf halen.
-        if ($match->live_halftime_at && ($start2 = $this->secondHalfStartedAt($match))) {
-            $minuten -= $match->live_halftime_at->diffInMinutes($start2);
-        }
+        // Alle pauzes eraf, niet alleen de eerste.
+        $minuten -= $this->pauzeMinuten($match);
 
         return max(0, (int) $minuten);
     }
@@ -374,7 +375,8 @@ class LiveMatchService
 
         $score  = $match->liveScore();
         $ended  = $match->live_ended_at !== null;
-        $period = $this->period($match);
+        $periodeStand = $this->periodeStand($match);
+        $period       = $periodeStand['staat'];
 
         $events = $match->events
             ->sortByDesc('created_at')
@@ -410,7 +412,19 @@ class LiveMatchService
             'scoreOwn'      => (string) $score['own'],
             'scoreOpponent' => (string) $score['opponent'],
             'period'        => $period,
-            'periodLabel'   => $this->periodLabel($period),
+            'periodLabel'   => $this->periodeNaam($periodeStand),
+            // Waar we zijn en hoeveel er zijn. De app leidt hier de knoppen uit
+            // af in plaats van uit 'period', want die kent maar twee helften.
+            'periodNumber'  => (string) $periodeStand['nummer'],
+            'periodCount'   => (string) $periodeStand['aantal'],
+            // Mag er nu gepauzeerd worden? Alleen tijdens het spelen, en niet in
+            // de laatste periode - daar hoort Einde.
+            'canPause'      => (! $periodeStand['inPauze']
+                && $periodeStand['staat'] !== 'not_started'
+                && $periodeStand['staat'] !== 'ended'
+                && $periodeStand['nummer'] < $periodeStand['aantal']) ? 'true' : 'false',
+            'canResume'     => $periodeStand['inPauze'] ? 'true' : 'false',
+            'resumeLabel'   => $this->hervatNaam($periodeStand),
             'minute'        => (string) $this->currentMinute($match),
             'isLive'        => $match->isLive() ? 'true' : 'false',
             'hasEnded'      => $ended ? 'true' : 'false',
@@ -518,46 +532,121 @@ class LiveMatchService
         return $match->live_ended_at->greaterThan(Carbon::now()->subHours(self::GRACE_HOURS));
     }
 
+    /**
+     * Waar de wedstrijd is, afgeleid uit de tijdlijn.
+     *
+     * Niet uit live_halftime_at alleen: dat veld kent één rust, en bij vier
+     * kwarten zijn er drie. Het aantal pauzes en hervattingen in de tijdlijn
+     * vertelt het wel - elke hervatting is een periode verder.
+     *
+     * Bij twee helften komt hier exact hetzelfde uit als voorheen.
+     *
+     * @return array{staat: string, nummer: int, aantal: int, inPauze: bool}
+     */
+    private function periodeStand(FootballMatch $match): array
+    {
+        $aantal = $this->aantalPerioden($match);
+
+        if (! $match->live_started_at) {
+            return ['staat' => 'not_started', 'nummer' => 0, 'aantal' => $aantal, 'inPauze' => false];
+        }
+
+        if ($match->live_ended_at) {
+            return ['staat' => 'ended', 'nummer' => $aantal, 'aantal' => $aantal, 'inPauze' => false];
+        }
+
+        $pauzes      = $this->tellEvents($match, MatchEvent::TYPE_HALFTIME);
+        $hervattingen = $this->tellEvents($match, MatchEvent::TYPE_SECOND_HALF);
+
+        $inPauze = $pauzes > $hervattingen;
+        $nummer  = min($aantal, $hervattingen + 1);
+
+        // De oude waarden blijven eruit komen, zodat een app die nog op
+        // 'first_half' en 'halftime' let gewoon blijft werken.
+        $staat = match (true) {
+            $inPauze      => 'halftime',
+            $nummer === 1 => 'first_half',
+            default       => 'second_half',
+        };
+
+        return ['staat' => $staat, 'nummer' => $nummer, 'aantal' => $aantal, 'inPauze' => $inPauze];
+    }
+
     private function period(FootballMatch $match): string
     {
-        if (! $match->live_started_at) {
-            return 'not_started';
-        }
-        if ($match->live_ended_at) {
-            return 'ended';
-        }
-        if ($match->live_halftime_at && ! $this->secondHalfStarted($match)) {
-            return 'halftime';
-        }
-        if ($this->secondHalfStarted($match)) {
-            return 'second_half';
-        }
-
-        return 'first_half';
+        return $this->periodeStand($match)['staat'];
     }
 
-    private function periodLabel(string $period): string
+    /**
+     * Twee helften of vier kwarten, uit de opstelling.
+     *
+     * Staat er niets, dan twee: dat is wat de meeste wedstrijden zijn en wat het
+     * verslag altijd al aannam.
+     */
+    private function aantalPerioden(FootballMatch $match): int
     {
-        return match ($period) {
-            'first_half'  => '1e helft',
-            'halftime'    => 'Rust',
-            'second_half' => '2e helft',
-            'ended'       => 'Afgelopen',
-            default       => 'Nog niet begonnen',
-        };
+        $n = (int) ($match->lineup?->periods ?? 2);
+
+        return $n === 4 ? 4 : 2;
     }
 
-    private function secondHalfStarted(FootballMatch $match): bool
+    /** Hoe deze periode heet: '2e kwart', 'Rust', '1e helft'. */
+    private function periodeNaam(array $stand): string
     {
-        return $this->secondHalfStartedAt($match) !== null;
+        if ($stand['staat'] === 'not_started') {
+            return 'Nog niet begonnen';
+        }
+        if ($stand['staat'] === 'ended') {
+            return 'Afgelopen';
+        }
+        if ($stand['inPauze']) {
+            return 'Rust';
+        }
+
+        return $stand['nummer'] . 'e ' . ($stand['aantal'] === 4 ? 'kwart' : 'helft');
     }
 
-    private function secondHalfStartedAt(FootballMatch $match): ?Carbon
+    /** Het opschrift van de hervattingsknop: 'Start 3e kwart'. */
+    private function hervatNaam(array $stand): string
     {
-        $event = $match->relationLoaded('events')
-            ? $match->events->firstWhere('type', MatchEvent::TYPE_SECOND_HALF)
-            : $match->events()->where('type', MatchEvent::TYPE_SECOND_HALF)->first();
+        $volgende = min($stand['aantal'], $stand['nummer'] + 1);
 
-        return $event?->created_at;
+        return 'Start ' . $volgende . 'e ' . ($stand['aantal'] === 4 ? 'kwart' : 'helft');
+    }
+
+    private function tellEvents(FootballMatch $match, string $type): int
+    {
+        return $match->relationLoaded('events')
+            ? $match->events->where('type', $type)->count()
+            : $match->events()->where('type', $type)->count();
+    }
+
+    /**
+     * Alle pauzes bij elkaar, in minuten.
+     *
+     * Elke pauze telt: bij vier kwarten zijn er drie, en die horen geen van
+     * allen mee in de speeltijd. Een pauze die nog loopt telt niet mee - dan
+     * staat de klok sowieso stil.
+     */
+    private function pauzeMinuten(FootballMatch $match): int
+    {
+        $events = $match->relationLoaded('events') ? $match->events : $match->events()->get();
+
+        $pauzes = $events->where('type', MatchEvent::TYPE_HALFTIME)
+            ->sortBy('created_at')->values();
+        $hervat = $events->where('type', MatchEvent::TYPE_SECOND_HALF)
+            ->sortBy('created_at')->values();
+
+        $totaal = 0;
+
+        foreach ($pauzes as $i => $pauze) {
+            $terug = $hervat[$i] ?? null;
+
+            if ($terug && $pauze->created_at && $terug->created_at) {
+                $totaal += (int) $pauze->created_at->diffInMinutes($terug->created_at);
+            }
+        }
+
+        return $totaal;
     }
 }

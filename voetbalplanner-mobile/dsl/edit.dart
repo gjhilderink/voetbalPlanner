@@ -34027,6 +34027,11 @@ void _ensureLiveStructs(FFProject project) {
       'matchId', 'teamId', 'teamName', 'opponent', 'opponentLogo', 'isHome',
       'scoreOwn', 'scoreOpponent', 'period', 'periodLabel', 'minute',
       'isLive', 'hasEnded', 'canManage', 'shareUrl',
+      // Welke periode van hoeveel, en of er nu gepauzeerd of hervat mag worden.
+      // De knoppen hingen aan 'period', en dat veld kent maar twee helften:
+      // bij vier kwarten viel er na de eerste rust niets meer te pauzeren.
+      // De server rekent het uit, inclusief het opschrift van de hervatknop.
+      'periodNumber', 'periodCount', 'canPause', 'canResume', 'resumeLabel',
       // Hoeveel mensen er nu meekijken. Het label is op de server al tot een
       // zin gemaakt, want deze struct is puur string en kan geen enkelvoud van
       // meervoud onderscheiden. De server stuurt het alleen aan een coach.
@@ -34765,7 +34770,11 @@ void _wireLiveMatchPage(FFProject project) {
     );
   }
 
-  FFNode coachButton(String label, String iconName, UIColor color) {
+  /// [boundField] laat het opschrift meelopen met een veld uit de toestand.
+  /// De meegegeven [label] blijft de naam van het widget bepalen en is wat er
+  /// staat zolang er nog niets is opgehaald.
+  FFNode coachButton(String label, String iconName, UIColor color,
+      {String? boundField}) {
     final btn = UI.container(
       name: 'LiveBtn${label.replaceAll(' ', '')}',
       innerPadding: UIEdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -34778,10 +34787,17 @@ void _wireLiveMatchPage(FFProject project) {
         crossAxisAlignment: UICrossAxisAlignment.center,
         children: [
           UI.icon(iconName, size: 18, color: color),
-          UI.text(label,
-              name: 'LiveBtn${label.replaceAll(' ', '')}Label',
-              style: UITextStyle.labelMedium,
-              maxLines: 1),
+          () {
+            final t = UI.text(label,
+                name: 'LiveBtn${label.replaceAll(' ', '')}Label',
+                style: UITextStyle.labelMedium,
+                maxLines: 1);
+            if (boundField != null) {
+              t.props.text.textValue =
+                  FFStringValue(variable: stateField(boundField));
+            }
+            return t;
+          }(),
         ],
       ),
     );
@@ -34799,25 +34815,15 @@ void _wireLiveMatchPage(FFProject project) {
     ),
   );
 
-  // Strafschop tegen: net als een tegendoelpunt in één tik, want de maker van
-  // de tegenstander leggen we niet vast.
+  // Strafschop tegen: ook hier de vraag of hij erin ging.
+  //
+  // Eén tik legde meteen een tegendoelpunt vast, en een gemiste strafschop van
+  // de tegenstander was dus niet vast te leggen - terwijl dat bij de eigen club
+  // wel kon. Wie hem nam blijft ongevraagd; spelers van de tegenstander staan
+  // niet in de app.
   final oppPenaltyBtn =
       coachButton('Strafschop tegen', 'sports_soccer', UIColor.secondaryText);
-  Actions.onTapChain(
-    oppPenaltyBtn,
-    eventNode(
-      nodeKey: oppPenaltyBtn.key,
-      output: 'liveOppPenalty',
-      statics: {
-        'type': 'goal',
-        'side': 'opponent',
-        'memberId': '',
-        'relatedMemberId': '',
-        'cardType': '',
-        'detail': 'penalty',
-      },
-    ),
-  );
+  Actions.onTap(oppPenaltyBtn, setPanel('oppPenaltyResult'));
 
   // Schot op doel, één tik. Bewust zonder spelerskeuze: een schot valt vaak in
   // een scrimmage en er zijn er veel meer dan doelpunten - de coach die eerst
@@ -34869,8 +34875,10 @@ void _wireLiveMatchPage(FFProject project) {
   }
 
   /// Periodeknop (rust, tweede helft) — legt alleen een gebeurtenis vast.
-  FFNode periodButton(String label, String iconName, String type, String output) {
-    final btn = coachButton(label, iconName, UIColor.secondaryText);
+  FFNode periodButton(String label, String iconName, String type, String output,
+      {String? boundField}) {
+    final btn = coachButton(label, iconName, UIColor.secondaryText,
+        boundField: boundField);
     Actions.onTapChain(
       btn,
       eventNode(
@@ -34882,13 +34890,21 @@ void _wireLiveMatchPage(FFProject project) {
     return btn;
   }
 
+  // Pauzeren en hervatten hangen aan canPause en canResume, niet meer aan
+  // 'period'. Bij vier kwarten zijn er drie rustmomenten, en 'period' kent er
+  // één: na de eerste rust stond de wedstrijd op 'second_half' en verdween de
+  // pauzeknop, terwijl er nog twee kwarten te gaan waren.
+  //
+  // De server bepaalt ook wát er hervat wordt - '2e kwart' of '2e helft' -
+  // want alleen daar staat of deze wedstrijd in helften of kwarten speelt.
   final halftimeBtn = periodButton('Rust', 'pause', 'halftime', 'liveHalftime');
   setConditionalVisibility(
-      halftimeBtn, variable: _equalsLiteral(stateField('period'), 'first_half'));
-  final secondHalfBtn =
-      periodButton('2e helft', 'play_arrow', 'second_half', 'liveSecondHalf');
+      halftimeBtn, variable: _equalsLiteral(stateField('canPause'), 'true'));
+  final secondHalfBtn = periodButton(
+      '2e helft', 'play_arrow', 'second_half', 'liveSecondHalf',
+      boundField: 'resumeLabel');
   setConditionalVisibility(
-      secondHalfBtn, variable: _equalsLiteral(stateField('period'), 'halftime'));
+      secondHalfBtn, variable: _equalsLiteral(stateField('canResume'), 'true'));
 
   // Einde en ongedaan maken gaan naar eigen endpoints.
   final stopBtn = coachButton('Einde', 'flag', UIColor.error);
@@ -35595,15 +35611,20 @@ FFNode _livePickerPanels(
   );
 
   /// Benut of gemist. Twee knoppen en geen lijst, dus buiten panel() om.
+  ///
+  /// [prefix] houdt de widgetnamen uit elkaar: eigen strafschop en strafschop
+  /// tegen gebruiken allebei "Benut" en "Gemist", en twee widgets met dezelfde
+  /// naam accepteert FlutterFlow niet.
   FFNode penaltyKnop(
-      String label, UIColor kleur, FFActionNode Function(FFNode btn) keten) {
+      String label, UIColor kleur, FFActionNode Function(FFNode btn) keten,
+      {String prefix = 'LivePen'}) {
     final btn = UI.container(
-      name: 'LivePen${label}Btn',
+      name: '$prefix${label}Btn',
       innerPadding: UIEdgeInsets.symmetric(vertical: 12),
       borderRadius: 12,
       color: kleur,
       child: UI.text(label,
-          name: 'LivePen${label}Label',
+          name: '$prefix${label}Label',
           style: UITextStyle.labelMedium,
           color: UIColor.white,
           textAlign: UITextAlign.center),
@@ -35678,6 +35699,74 @@ FFNode _livePickerPanels(
   );
   setConditionalVisibility(penaltyResultPanel,
       variable: _equalsLiteral(pageState('panel'), 'penaltyResult'));
+
+  // Dezelfde vraag voor de strafschop tegen, maar zonder de stap ervoor: de
+  // nemer van de tegenstander leggen we niet vast, dus dit is meteen het enige
+  // paneel dat opengaat.
+  final oppPenaltyResultPanel = _dashCard(
+    name: 'LiveOppPenResultPanel',
+    margin: UIEdgeInsets.only(left: 16, right: 16, top: 12),
+    child: UI.column(
+      name: 'LiveOppPenResultCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 10,
+      children: [
+        UI.row(
+          name: 'LiveOppPenResultHead',
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.expanded(UI.text('Strafschop tegen: ging hij erin?',
+                name: 'LiveOppPenResultTitle',
+                style: UITextStyle.titleSmall,
+                maxLines: 2)),
+            annuleerKnop('LiveOppPenResult'),
+          ],
+        ),
+        UI.row(
+          name: 'LiveOppPenResultRow',
+          spacing: 10,
+          children: [
+            UI.expanded(penaltyKnop(
+              'Benut',
+              UIColor.hex(0xFF16A34A),
+              (btn) => eventNode(
+                nodeKey: btn.key,
+                output: 'liveOppPenaltyScored',
+                statics: {
+                  'type': 'goal',
+                  'side': 'opponent',
+                  'memberId': '',
+                  'relatedMemberId': '',
+                  'cardType': '',
+                  'detail': 'penalty',
+                },
+              ),
+              prefix: 'LiveOppPen',
+            )),
+            UI.expanded(penaltyKnop(
+              'Gemist',
+              UIColor.hex(0xFFEF4444),
+              (btn) => eventNode(
+                nodeKey: btn.key,
+                output: 'liveOppPenaltyMissed',
+                statics: {
+                  'type': 'penalty_miss',
+                  'side': 'opponent',
+                  'memberId': '',
+                  'relatedMemberId': '',
+                  'cardType': '',
+                  'detail': '',
+                },
+              ),
+              prefix: 'LiveOppPen',
+            )),
+          ],
+        ),
+      ],
+    ),
+  );
+  setConditionalVisibility(oppPenaltyResultPanel,
+      variable: _equalsLiteral(pageState('panel'), 'oppPenaltyResult'));
 
   // 4. Wissel — eerst wie eruit gaat, dan wie erin komt.
   final subOutPanel = panel(
@@ -35797,6 +35886,7 @@ FFNode _livePickerPanels(
       assistPanel,
       penaltyTakerPanel,
       penaltyResultPanel,
+      oppPenaltyResultPanel,
       subOutPanel,
       subInPanel,
       cardKindPanel,

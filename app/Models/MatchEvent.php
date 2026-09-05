@@ -117,7 +117,11 @@ class MatchEvent extends Model
             self::TYPE_FULLTIME    => 'Eindsignaal',
 
             self::TYPE_GOAL => $this->side === self::SIDE_OPPONENT
+                // Ook bij de tegenstander erbij, net als bij een eigen
+                // treffer: een 1-0 uit een strafschop leest anders dan een
+                // 1-0 uit het veld.
                 ? 'Doelpunt ' . $tegen
+                    . ($this->detail === 'penalty' ? ' · strafschop' : '')
                 : trim(implode(' ', array_filter([
                     $naam !== '' ? $naam : 'Doelpunt',
                     $tweede !== '' ? "(assist {$tweede})" : '',
