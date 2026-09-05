@@ -36944,6 +36944,7 @@ void _addMatchReportTab(FFProject project) {
         children: [
           list,
           leeg,
+          ..._matchReportEditButton(project, wc),
           ..._matchReportDeleteSection(project, wc, eventsVar),
         ],
       ),
@@ -36952,6 +36953,93 @@ void _addMatchReportTab(FFProject project) {
 
   tabBar.children.add(tab);
   tabBar.children.add(content);
+}
+
+/// "Verslag bewerken" voor de coach: de weg terug naar de livepagina.
+///
+/// Corrigeren gebeurt daar, met de knoppen die er al zijn - toevoegen en
+/// terugdraaien. Die balk blijft sinds kort ook na het eindsignaal staan, maar
+/// je moest er dan wel zelf naartoe zien te komen. Vanaf het verslag is dat de
+/// eerste plek waar je kijkt als je een fout ziet staan.
+///
+/// Alleen voor wie de opstelling van dit elftal mag beheren; dezelfde
+/// paginastatus die het verwijderen hieronder al gebruikt.
+List<FFNode> _matchReportEditButton(FFProject project, FFWidgetClass wc) {
+  if (findPage(project, name: 'LiveMatchPage') == null) return const [];
+
+  final magField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere(
+          (f) => f?.parameter.identifier.name == 'matchMagOpstelling',
+          orElse: () => null);
+  if (magField == null) return const [];
+
+  final teamField = wc.classModel.stateFields
+      .cast<FFWidgetClassStateField?>()
+      .firstWhere((f) => f?.parameter.identifier.name == 'matchTeamId',
+          orElse: () => null);
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return const [];
+
+  final scaffoldKey = wc.node.key;
+
+  final knop = UI.button(
+    'Verslag bewerken',
+    name: 'MatchReportEditBtn',
+    width: double.infinity,
+    variant: UIButtonVariant.outlined,
+    iconName: 'edit',
+    iconSize: 18,
+    borderRadius: 12,
+    padding: UIEdgeInsets.all(14),
+  );
+
+  Actions.onTap(
+    knop,
+    Actions.navigate(
+      project,
+      pageName: 'LiveMatchPage',
+      params: {
+        'matchId': VariableParamValue(varFromPageParam(matchIdParam.deepCopy())
+          ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)),
+        if (teamField != null)
+          'teamId': VariableParamValue(
+              varFromPageState(teamField.parameter.identifier.deepCopy())
+                ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey)),
+      },
+    ),
+  );
+
+  final uitleg = UI.text(
+      'Doelpunten en kaarten pas je aan op de verslagpagina zelf, ook als de '
+      'wedstrijd al is afgelopen.',
+      name: 'MatchReportEditUitleg',
+      style: UITextStyle.labelSmall,
+      color: UIColor.secondaryText,
+      maxLines: 3);
+
+  final blok = UI.column(
+    name: 'MatchReportEditBlok',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 6,
+    padding: UIEdgeInsets.only(left: 16, right: 16, top: 16),
+    children: [knop, uitleg],
+  );
+
+  setConditionalVisibility(
+    blok,
+    variable: _equalsLiteral(
+      varFromPageState(magField.parameter.identifier.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey),
+      'true',
+    ),
+  );
+
+  return [blok];
 }
 
 /// "Verslag verwijderen" voor de coach, met de bevestiging als blok ín het
