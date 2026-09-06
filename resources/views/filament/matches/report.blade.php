@@ -15,6 +15,10 @@
         'card'         => $ev->card_type === 'red' ? '🟥' : '🟨',
         'substitution' => '⇄',
         'halftime', 'fulltime' => '⏱',
+        // Zonder een eigen teken stonden deze twee met hetzelfde pijltje in de
+        // lijst als de aftrap.
+        'shot'         => '◎',
+        'penalty_miss' => '⊘',
         default        => '▶',
     };
 

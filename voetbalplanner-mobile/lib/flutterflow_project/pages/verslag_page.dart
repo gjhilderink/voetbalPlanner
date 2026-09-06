@@ -105,43 +105,43 @@ abstract final class VerslagPageWidgets {
             name: "VerslagRootColumn",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Container_qoc3woii",
+                key: "Container_nsakw2jk",
                 type: "Container",
                 path: "VerslagPage.body[0].children[0]",
                 name: "VerslagKopKaart Margin",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_gmfft53i",
+                    key: "Container_fjy7cbpj",
                     type: "Container",
                     path: "VerslagPage.body[0].children[0].children[0]",
                     name: "VerslagKopKaart",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Row_e0ealswx",
+                        key: "Row_a7luw42s",
                         type: "Row",
                         path: "VerslagPage.body[0].children[0].children[0].children[0]",
                         name: "VerslagKopRij",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_4yta8taq",
+                            key: "Column_fw2g7nx9",
                             type: "Column",
                             path: "VerslagPage.body[0].children[0].children[0].children[0].children[0]",
                             name: "VerslagKopCol",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_0lvhemai",
+                                key: "Text_3xktjyde",
                                 type: "Text",
                                 path: "VerslagPage.body[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "VerslagKopTegenstander",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_seva8t20",
+                                key: "Text_fxxfg6zm",
                                 type: "Text",
                                 path: "VerslagPage.body[0].children[0].children[0].children[0].children[0].children[1]",
                                 name: "VerslagKopTeam",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_e6887i51",
+                                key: "Text_owdpog4y",
                                 type: "Text",
                                 path: "VerslagPage.body[0].children[0].children[0].children[0].children[0].children[2]",
                                 name: "VerslagKopDatum",
@@ -149,7 +149,7 @@ abstract final class VerslagPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_v8s24ya9",
+                            key: "Text_xp4rbnpq",
                             type: "Text",
                             path: "VerslagPage.body[0].children[0].children[0].children[0].children[1]",
                             name: "VerslagKopScore",
@@ -161,76 +161,88 @@ abstract final class VerslagPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Text_xz6mqgk0",
+                key: "Text_ghoxn4zb",
                 type: "Text",
                 path: "VerslagPage.body[0].children[1]",
                 name: "VerslagLeeg",
                 text: "Van deze wedstrijd is geen verslag bijgehouden.",
               ),
               ffai.ProjectWidgetHandle(
-                key: "ListView_npgkn4wm",
+                key: "ListView_m0tjcxdq",
                 type: "ListView",
                 path: "VerslagPage.body[0].children[2]",
                 name: "VerslagTijdlijn",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_9lgdzmnw",
+                    key: "Container_sjx2xybx",
                     type: "Container",
                     path: "VerslagPage.body[0].children[2].children[0]",
                     name: "VerslagTijdlijnItem",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Row_vrwktjjc",
+                        key: "Row_wm4ekzik",
                         type: "Row",
                         path: "VerslagPage.body[0].children[2].children[0].children[0]",
                         name: "VerslagTijdlijnRow",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_yxbimz23",
+                            key: "Row_250lsu26",
                             type: "Row",
                             path: "VerslagPage.body[0].children[2].children[0].children[0].children[0]",
                             name: "VerslagTijdlijnBadge",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_xurax8tj",
+                                key: "Container_8tsfxkc8",
                                 type: "Container",
                                 path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[0]",
                                 name: "VerslagTijdlijnBadgeHot",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_en4fpyh4",
+                                    key: "Row_nlqeumjg",
                                     type: "Row",
                                     path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[0].children[0]",
                                     name: "VerslagTijdlijnHotIcons",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_p99tqmnd",
+                                        key: "Icon_k4apocxc",
                                         type: "Icon",
                                         path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[0].children[0].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_pg6fjo3j",
+                                        key: "Icon_j5f9wrrs",
                                         type: "Icon",
                                         path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[0].children[0].children[1]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_t7q5tfaz",
+                                        key: "Icon_baim0cxj",
                                         type: "Icon",
                                         path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[0].children[0].children[2]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_n8f5vyko",
+                                        key: "Icon_s53p5tfq",
                                         type: "Icon",
                                         path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[0].children[0].children[3]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_l7js6n6b",
+                                        key: "Icon_dq8139xh",
                                         type: "Icon",
                                         path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[0].children[0].children[4]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_nsgsxe92",
+                                        type: "Icon",
+                                        path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[0].children[0].children[5]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_yob0ah4d",
+                                        type: "Icon",
+                                        path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[0].children[0].children[6]",
                                         name: "Icon",
                                       ),
                                     ],
@@ -238,45 +250,57 @@ abstract final class VerslagPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Container_7w4ve0dn",
+                                key: "Container_mq3gm7th",
                                 type: "Container",
                                 path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[1]",
                                 name: "VerslagTijdlijnBadgeCalm",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_503108nq",
+                                    key: "Row_13eaffum",
                                     type: "Row",
                                     path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[1].children[0]",
                                     name: "VerslagTijdlijnCalmIcons",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_m9t3lc2v",
+                                        key: "Icon_po3bib5l",
                                         type: "Icon",
                                         path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[1].children[0].children[0]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_njx4nsxi",
+                                        key: "Icon_mlfalijd",
                                         type: "Icon",
                                         path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[1].children[0].children[1]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_avdvbbn7",
+                                        key: "Icon_6pgkmj8y",
                                         type: "Icon",
                                         path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[1].children[0].children[2]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_yfuzw5gs",
+                                        key: "Icon_jr5tl1el",
                                         type: "Icon",
                                         path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[1].children[0].children[3]",
                                         name: "Icon",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_s41ojdwx",
+                                        key: "Icon_u19zu5i7",
                                         type: "Icon",
                                         path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[1].children[0].children[4]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_vfaytrs2",
+                                        type: "Icon",
+                                        path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[1].children[0].children[5]",
+                                        name: "Icon",
+                                      ),
+                                      ffai.ProjectWidgetHandle(
+                                        key: "Icon_p4g500y1",
+                                        type: "Icon",
+                                        path: "VerslagPage.body[0].children[2].children[0].children[0].children[0].children[1].children[0].children[6]",
                                         name: "Icon",
                                       ),
                                     ],
@@ -286,25 +310,25 @@ abstract final class VerslagPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Container_6poqgai6",
+                            key: "Container_c91xheq5",
                             type: "Container",
                             path: "VerslagPage.body[0].children[2].children[0].children[0].children[1]",
                             name: "VerslagTijdlijnCard",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Column_7b0hc0l2",
+                                key: "Column_5y5kmk9m",
                                 type: "Column",
                                 path: "VerslagPage.body[0].children[2].children[0].children[0].children[1].children[0]",
                                 name: "VerslagTijdlijnCardCol",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_zbxr5apy",
+                                    key: "Text_g82s43at",
                                     type: "Text",
                                     path: "VerslagPage.body[0].children[2].children[0].children[0].children[1].children[0].children[0]",
                                     name: "VerslagTijdlijnMinute",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_9ycdaspg",
+                                    key: "Text_ux9wrq3o",
                                     type: "Text",
                                     path: "VerslagPage.body[0].children[2].children[0].children[0].children[1].children[0].children[1]",
                                     name: "VerslagTijdlijnLabel",

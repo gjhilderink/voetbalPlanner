@@ -36871,12 +36871,22 @@ FFNode _timelineIcons(String listKey, String prefix, UIColor kleur) {
           _equalsLiteral(type(), 'fulltime'),
         ]).variable,
       ),
+      // Schot op doel en gemiste strafschop hoorden bij de restcategorie en
+      // kregen daarmee hetzelfde klokje als de aftrap. Ze staan wel in het
+      // verslag, maar zijn zo niet terug te vinden in een lange tijdlijn.
+      // Hetzelfde richtkruis als op de schotknop in de coachbalk.
+      icoon('${prefix}IconShot', 'my_location', _equalsLiteral(type(), 'shot')),
+      icoon('${prefix}IconPenMiss', 'block',
+          _equalsLiteral(type(), 'penalty_miss')),
       // Aftrap en tweede helft: alles wat hierboven niet langskwam.
       icoon(
         '${prefix}IconStart',
         'timer',
         andConditionsVar([
-          for (final t in const ['goal', 'card', 'substitution', 'halftime', 'fulltime'])
+          for (final t in const [
+            'goal', 'card', 'substitution', 'halftime', 'fulltime',
+            'shot', 'penalty_miss',
+          ])
             _equalsLiteral(type(), t, negate: true),
         ]).variable,
       ),

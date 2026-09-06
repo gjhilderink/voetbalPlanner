@@ -29,6 +29,10 @@
         'card'         => 'i-kaart',
         'substitution' => 'i-wissel',
         'halftime', 'fulltime' => 'i-fluit',
+        // Een schot en een gemiste strafschop hadden hetzelfde klokje als de
+        // aftrap, en waren daarmee in een lange tijdlijn niet terug te vinden.
+        'shot'         => 'i-doel',
+        'penalty_miss' => 'i-mis',
         default        => 'i-klok',
     };
     $isHoogtepunt = fn (string $type) => in_array($type, ['goal', 'card', 'fulltime'], true);
@@ -223,6 +227,12 @@
             <g id="i-klok" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                 <circle cx="12" cy="13" r="7"/><path d="M12 10v3.5M9.5 3h5"/>
             </g>
+            <g id="i-doel" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/>
+            </g>
+            <g id="i-mis" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <circle cx="12" cy="12" r="7.5"/><path d="M7.2 7.2l9.6 9.6"/>
+            </g>
             <g id="i-lijst" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                 <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>
             </g>
@@ -403,6 +413,8 @@
         if (type === 'card') return 'i-kaart';
         if (type === 'substitution') return 'i-wissel';
         if (type === 'halftime' || type === 'fulltime') return 'i-fluit';
+        if (type === 'shot') return 'i-doel';
+        if (type === 'penalty_miss') return 'i-mis';
         return 'i-klok';
     }
     function isHoogtepunt(type) {
