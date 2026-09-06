@@ -56,6 +56,14 @@ class MatchResource extends Resource
                 Forms\Components\TextInput::make('location')
                     ->label('Locatie')
                     ->maxLength(255),
+                // Komt uit Sportlink en wordt bij elke ronde bijgewerkt. Toch
+                // in te vullen: bij een oefenwedstrijd is er geen bond die het
+                // doorgeeft.
+                Forms\Components\TextInput::make('field_number')
+                    ->label('Veld')
+                    ->maxLength(60)
+                    ->placeholder('Bijvoorbeeld: 3 of Kunstgras 2')
+                    ->helperText('Komt uit Sportlink; bij een oefenwedstrijd zelf in te vullen.'),
                 Forms\Components\Toggle::make('is_home')
                     ->label('Thuiswedstrijd')
                     ->default(true),
@@ -224,6 +232,13 @@ class MatchResource extends Resource
                     ->dateTime('d-m-Y H:i')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('location')->label('Locatie'),
+                // Standaard verborgen: op een lijst met alle wedstrijden van de
+                // club is het veldnummer zelden waar je op zoekt, en de kolom
+                // is bij de meeste rijen leeg.
+                Tables\Columns\TextColumn::make('field_number')
+                    ->label('Veld')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_home')->label('Thuis')->boolean(),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')

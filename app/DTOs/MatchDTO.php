@@ -15,6 +15,9 @@ readonly class MatchDTO
         public string $opponent,
         public string $matchDatetime,
         public ?string $location = null,
+        // Het veld op de accommodatie. Op een complex met zes velden zegt de
+        // accommodatie alleen wáár je moet zijn.
+        public ?string $fieldNumber = null,
         public bool $isHome = true,
         public string $status = 'scheduled',
         public ?int $scoreHome = null,
@@ -47,6 +50,30 @@ readonly class MatchDTO
                 return trim($v);
             }
         }
+        return null;
+    }
+
+    /**
+     * Zoekt het veldnummer in de Sportlink-data.
+     *
+     * Meerdere kandidaten, net als bij het logo hierboven: de exacte veldnaam
+     * verschilt per soort aanroep en is niet gedocumenteerd. Komt er niets uit,
+     * dan staat dat in de diagnoseregel van de synchronisatie, zodat we niet
+     * hoeven te raden welke sleutel het dan wél is.
+     */
+    public static function pickFieldNumber(array $data): ?string
+    {
+        foreach ([
+            'veld', 'veldnaam', 'veldnummer', 'wedstrijdveld', 'sportveld',
+            'terrein', 'terreinnummer', 'accommodatieveld',
+        ] as $k) {
+            $v = $data[$k] ?? null;
+
+            if ((is_string($v) || is_int($v)) && trim((string) $v) !== '') {
+                return trim((string) $v);
+            }
+        }
+
         return null;
     }
 
@@ -105,6 +132,7 @@ readonly class MatchDTO
             opponent: $opponent,
             matchDatetime: $matchDatetime,
             location: $data['accommodatie'] ?? null,
+            fieldNumber: self::pickFieldNumber($data),
             isHome: $isHome,
             status: $status,
             scoreHome: $scoreHome,

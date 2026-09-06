@@ -62,6 +62,11 @@ class MatchSyncService
                         Log::info('[MatchSync] beschikbare match-velden', [
                             'keys'          => is_array($matchData) ? array_keys($matchData) : gettype($matchData),
                             'opponent_logo' => $dto->opponentLogo,
+                            // Zelfde diagnose voor het veldnummer: blijft dit
+                            // leeg terwijl er in Sportlink wel een veld staat,
+                            // dan heet de sleutel anders dan de kandidaten in
+                            // MatchDTO::pickFieldNumber().
+                            'field_number'  => $dto->fieldNumber,
                         ]);
                         $loggedKeys = true;
                     }
@@ -140,6 +145,13 @@ class MatchSyncService
         // Sportlink-logo-URL's verlopen (expires+sig). Download het logo en sla
         // het permanent op; bewaar de lokale URL. Bij een mislukte download laten
         // we een eerder opgeslagen logo staan (niet overschrijven met null).
+        // Het veldnummer alleen als Sportlink het meestuurt. Een ronde waarin
+        // het veld ontbreekt hoort een ingevulde waarde niet leeg te maken -
+        // hetzelfde uitgangspunt als bij het logo hieronder.
+        if ($dto->fieldNumber !== null) {
+            $attrs['field_number'] = $dto->fieldNumber;
+        }
+
         $localLogo = $dto->opponentLogo ? $this->cacheLogo($dto->opponentLogo) : null;
         if ($localLogo !== null) {
             $attrs['opponent_logo'] = $localLogo;
