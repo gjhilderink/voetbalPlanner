@@ -70,7 +70,7 @@ class MatchResource extends JsonResource
                 && substr((string) $this->sportlink_arrival_time, 0, 5) !== substr((string) ($this->arrival_time ?? ''), 0, 5))
                 ? substr((string) $this->sportlink_arrival_time, 0, 5)
                 : '',
-            'arrivalIsCustom' => $this->sportlink_arrival_time !== null ? 'true' : 'false',
+            'arrivalIsCustom' => $this->arrival_time_custom ? 'true' : 'false',
             'isHome'         => (bool) $this->is_home,
             'status'         => self::$statusLabels[strtolower($rawStatus)] ?? $rawStatus,
             'scoreHome'      => $this->score_home ?? 0,

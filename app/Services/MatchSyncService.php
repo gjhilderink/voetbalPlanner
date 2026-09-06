@@ -137,7 +137,13 @@ class MatchSyncService
 
         // Hetzelfde voor de verzameltijd, en apart: iemand kan de verzameltijd
         // verzetten zonder aan de aanvangstijd te komen.
-        if ($bestaand && $bestaand->sportlink_arrival_time !== null) {
+        //
+        // Op een eigen vlag en niet op sportlink_arrival_time. Die kolom bewaart
+        // wat de bond zei, en blijft leeg als de bond niets zei - ook nadat een
+        // coach een tijd had ingevuld. Die tijd werd daarna elke ronde weer op
+        // null gezet, en dat is juist het geval dat het vaakst voorkomt: je vult
+        // een verzameltijd in omdat de bond er geen heeft.
+        if ($bestaand && $bestaand->arrival_time_custom) {
             unset($attrs['arrival_time']);
             $attrs['sportlink_arrival_time'] = $dto->arrivalTime;
         }

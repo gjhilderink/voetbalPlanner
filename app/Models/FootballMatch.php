@@ -19,7 +19,7 @@ class FootballMatch extends Model
 
     protected $fillable = [
         'external_id', 'team_id', 'opponent', 'opponent_logo', 'match_datetime',
-        'sportlink_datetime', 'sportlink_arrival_time',
+        'sportlink_datetime', 'sportlink_arrival_time', 'arrival_time_custom',
         'location', 'field_number', 'is_home', 'status', 'score_home', 'score_away',
         'arrival_time', 'dressing_room', 'coach_id', 'fruit_hero_id', 'vlagger_id', 'notes', 'last_synced_at',
         'live_started_at', 'live_halftime_at', 'live_ended_at', 'live_token',
@@ -32,6 +32,7 @@ class FootballMatch extends Model
             'match_datetime' => 'datetime',
             'sportlink_datetime' => 'datetime',
             'is_home' => 'boolean',
+            'arrival_time_custom' => 'boolean',
             'score_home' => 'integer',
             'score_away' => 'integer',
             'last_synced_at' => 'datetime',

@@ -724,24 +724,38 @@ class MatchController extends Controller
     {
         if ($tijd === '') {
             // Niets met de hand gezet: dan is er ook niets terug te zetten.
-            if ($match->sportlink_arrival_time === null) {
+            if (! $match->arrival_time_custom) {
                 return null;
             }
 
+            $bond = $match->sportlink_arrival_time;
+
             $match->update([
-                'arrival_time'           => $match->sportlink_arrival_time,
+                'arrival_time'           => $bond,
                 'sportlink_arrival_time' => null,
+                'arrival_time_custom'    => false,
             ]);
 
-            return 'Verzameltijd staat weer op die van Sportlink: '
-                . substr((string) $match->arrival_time, 0, 5) . '.';
+            // Gaf de bond geen verzameltijd door, dan is er ook niets om naar
+            // terug te gaan en staat er voortaan gewoon niets.
+            return $bond === null
+                ? 'Verzameltijd is leeggehaald; de bond geeft er geen door.'
+                : 'Verzameltijd staat weer op die van Sportlink: '
+                    . substr((string) $bond, 0, 5) . '.';
         }
 
-        $wijzigingen = ['arrival_time' => $tijd];
+        $wijzigingen = [
+            'arrival_time' => $tijd,
+            // Het teken dat de synchronisatie deze verzameltijd met rust moet
+            // laten. Los van de kolom hieronder: die bewaart wat de bond zei, en
+            // vaak zegt de bond niets - wat meestal juist de reden is dat iemand
+            // hier een tijd invult.
+            'arrival_time_custom' => true,
+        ];
 
-        // De eerste keer bewaren we wat de bond zei; dat is meteen het teken dat
-        // de synchronisatie deze wedstrijd voortaan met rust moet laten. Alleen
-        // bij een wedstrijd uit Sportlink, en alleen als daar een tijd stond.
+        // De eerste keer bewaren we wat de bond zei, zodat terugzetten één
+        // handeling blijft. Alleen bij een wedstrijd uit Sportlink, en alleen
+        // als daar een tijd stond.
         if ($match->external_id
             && $match->sportlink_arrival_time === null
             && filled($match->arrival_time)) {
