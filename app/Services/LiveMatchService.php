@@ -152,7 +152,7 @@ class LiveMatchService
                 $match->forceFill(['live_halftime_at' => null])->save();
             }
             if ($event->type === MatchEvent::TYPE_FULLTIME) {
-                $match->forceFill(['live_ended_at' => null])->save();
+                $this->draaiEindsignaalTerug($match);
             }
 
             $event->delete();
@@ -188,7 +188,7 @@ class LiveMatchService
                 $match->forceFill(['live_halftime_at' => null])->save();
             }
             if ($event->type === MatchEvent::TYPE_FULLTIME) {
-                $match->forceFill(['live_ended_at' => null])->save();
+                $this->draaiEindsignaalTerug($match);
             }
 
             $event->delete();
@@ -201,11 +201,10 @@ class LiveMatchService
      * Wist het hele verslag: alle gebeurtenissen, de doelpunten die daaruit zijn
      * ontstaan, en de live-klok inclusief de deel-link.
      *
-     * De eindstand en de status van de wedstrijd blijven staan. Die horen bij de
-     * uitslag en niet bij het verslag, en kunnen ook uit de Sportlink-sync komen
-     * — die stilzwijgend leeggooien zou een goede uitslag kunnen kosten.
-     * Handmatig ingevoerde doelpunten hangen niet aan een gebeurtenis en blijven
-     * dus ook staan, net zoals bij het ongedaan maken van één gebeurtenis.
+     * Wat het eindsignaal op de wedstrijd zette gaat mee terug: de uitslag, en
+     * bij een wedstrijd die nog gespeeld moet worden ook de status. Handmatig
+     * ingevoerde doelpunten hangen niet aan een gebeurtenis en blijven staan,
+     * net zoals bij het ongedaan maken van één gebeurtenis.
      */
     public function deleteReport(FootballMatch $match): void
     {
@@ -221,21 +220,45 @@ class LiveMatchService
             $match->forceFill([
                 'live_started_at'  => null,
                 'live_halftime_at' => null,
-                'live_ended_at'    => null,
                 'live_token'       => null,
-                // Ook de uitslag. Die wordt bij het eindsignaal uit het verslag
-                // weggeschreven (zie finalise), dus na het weggooien van het
-                // verslag staat er een score waar niets meer achter zit: de
-                // statistiek is leeg, de doelpunten zijn weg, en op de kaart
-                // staat nog 3-1.
-                //
-                // Bij een wedstrijd uit Sportlink komt de officiële uitslag bij
-                // de eerstvolgende synchronisatie vanzelf terug; bij een
-                // oefenwedstrijd hoort hij weg te zijn.
-                'score_home' => null,
-                'score_away' => null,
             ])->save();
+
+            // De uitslag en de status komen van het eindsignaal (zie finalise),
+            // dus die horen hier net zo goed terug.
+            $this->draaiEindsignaalTerug($match);
         });
+    }
+
+    /**
+     * Maakt ongedaan wat finalise() op de wedstrijd zette.
+     *
+     * Het eindsignaal schrijft drie dingen: de klok, de uitslag en de status
+     * 'played'. Verdween het eindsignaal weer - teruggedraaid, uit het verslag
+     * gehaald of het hele verslag weggegooid - dan bleven die twee laatste
+     * staan. Een wedstrijd waarop een verslag was uitgeprobeerd stond daarna op
+     * "gespeeld", met een uitslag, terwijl hij nog gespeeld moest worden.
+     *
+     * De status alleen terug bij een wedstrijd die nog moet komen. Bij een
+     * wedstrijd van gisteren is "gespeeld" gewoon waar, ook zonder verslag, en
+     * die mag een weggegooid verslag niet terugzetten naar "ingepland".
+     *
+     * De uitslag gaat wél altijd weg: die is uit de gebeurtenissen opgeteld en
+     * er staat na afloop niets meer achter. Bij een competitiewedstrijd zet de
+     * eerstvolgende Sportlink-ronde de officiële uitslag terug.
+     */
+    private function draaiEindsignaalTerug(FootballMatch $match): void
+    {
+        $velden = [
+            'live_ended_at' => null,
+            'score_home'    => null,
+            'score_away'    => null,
+        ];
+
+        if ($match->match_datetime && $match->match_datetime->isFuture()) {
+            $velden['status'] = 'scheduled';
+        }
+
+        $match->forceFill($velden)->save();
     }
 
     /**
