@@ -191,6 +191,7 @@ abstract final class Structs {
       "coachName": ffai.string,
       "dateLabel": ffai.string,
       "driverNames": ffai.string,
+      "fieldNumber": ffai.string,
       "fruitHeroId": ffai.string,
       "fruitHeroName": ffai.string,
       "id": ffai.string,

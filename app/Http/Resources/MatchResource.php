@@ -40,6 +40,9 @@ class MatchResource extends JsonResource
             'opponent'       => $this->opponent ?? '',
             'opponentLogo'   => $this->opponent_logo ?? '',
             'location'       => $this->location ?? '',
+            // Het veld op de accommodatie, uit Sportlink. Leeg betekent "niet
+            // tonen": de app laat de regel dan weg, zoals bij de rijders.
+            'fieldNumber'    => $this->field_number ?? '',
             'matchDatetime'  => $this->match_datetime?->format('d-m-Y H:i') ?? '',
             // Kant-en-klare labels voor het dashboard ("zaterdag 24 mei" /
             // "10:00"); de app kan een datumstring niet zelf opsplitsen.

@@ -1235,7 +1235,8 @@ void buildEditFlow(App app) {
   // nooit op null crashen — ook niet vóór/zonder een geslaagde API-load.
   app.editPageState(ff.Pages.wedstrijdDetailPage, (state) {
     for (final f in const [
-      'matchOpponent', 'matchDatetime', 'matchLocation', 'matchArrivalTime',
+      'matchOpponent', 'matchDatetime', 'matchLocation', 'matchField',
+      'matchArrivalTime',
       'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames',
       'matchDriverNames', 'matchNotes', 'apiStatus',
       'matchStatus', 'matchMagAfmelden', 'matchMagOpstelling', 'matchGoalsSummary',
@@ -9114,6 +9115,9 @@ void _addSwapStructFields(FFProject project) {
       // niets aan de hand was.
       ('isAfgelast',    FFBaseDataType.Boolean),
       ('afgelastReden', FFBaseDataType.String),
+      // Het veld op de accommodatie, uit Sportlink. Op een complex met zes
+      // velden zegt de locatie alleen wáár je moet zijn.
+      ('fieldNumber',   FFBaseDataType.String),
     ]),
     ('TeamOption',   [
       ('role', FFBaseDataType.String),
@@ -12366,7 +12370,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
   // setFromVariable for a single DataStruct state field does not generate
   // working code in FlutterFlow; storing individual strings is reliable.
   for (final name in const [
-    'matchOpponent', 'matchDatetime', 'matchLocation',
+    'matchOpponent', 'matchDatetime', 'matchLocation', 'matchField',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames',
     'matchDriverNames', 'matchNotes',
     // De aanvangstijd los van matchDatetime: die laatste is een hele datum met
@@ -12402,6 +12406,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchOpponent':      r'$.opponent',
           'matchDatetime':      r'$.matchDatetime',
           'matchLocation':      r'$.location',
+          'matchField':         r'$.fieldNumber',
           'matchArrivalTime':   r'$.arrivalTime',
           'matchCoachName':     r'$.coachName',
           'matchFruitHeroName': r'$.fruitHeroName',
@@ -12888,10 +12893,48 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchVlaggerName'),
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchGuestNames'),
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchDriverNames'),
+      ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchField'),
     ]) {
       final sp = findParentByKey(wc.node, stray.key);
       sp?.parent.children.removeWhere((c) => identical(c, stray));
     }
+    // Het veld direct ná de locatie: die twee horen bij elkaar - waar moet je
+    // zijn, en welk veld daar. Alleen tonen als het gevuld is; bij een
+    // oefenwedstrijd geeft de bond niets door en dan zegt "Veld: -" niets.
+    //
+    // Dezelfde klimtruc als hieronder bij Vlagger: het aantal niveaus tussen de
+    // waardetekst en de lijst waarin de rijen staan verschilt per push, omdat
+    // de kaartopmaak er een Row en een Expanded tussen zet.
+    final locationValue =
+        findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_location').firstOrNull;
+    if (locationValue != null && stateVar('matchField') != null) {
+      FFNode? locationRow;
+      FFNode? locationList;
+      var loop = locationValue;
+      for (var i = 0; i < 8; i++) {
+        final p = findParentByKey(wc.node, loop.key);
+        if (p == null) break;
+        final metWaarden = p.parent.children
+            .where((c) => findDescendants(c, (n) => (n.name ?? '').startsWith('MatchInfoValue_')).isNotEmpty)
+            .length;
+        if (metWaarden >= 2) {
+          locationRow = loop;
+          locationList = p.parent;
+          break;
+        }
+        loop = p.parent;
+      }
+      if (locationRow != null && locationList != null) {
+        final veldRow = infoRow('Veld', 'matchField');
+        setConditionalVisibility(veldRow, variable: conditionVar(
+          stateVar('matchField')!, FFCondition_Relation.NOT_EQUAL_TO,
+          varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+        final idx = locationList.children.indexWhere((c) => identical(c, locationRow));
+        locationList.children
+            .insert(idx >= 0 ? idx + 1 : locationList.children.length, veldRow);
+      }
+    }
+
     // Nieuwe rijen met dezelfde opmaak als de andere info-rijen, direct ná Coach:
     // eerst Vlagger, dan Gastspelers (die laatste alleen zichtbaar als er
     // daadwerkelijk gastspelers zijn uitgenodigd).
@@ -12957,6 +13000,7 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     infoRow('Tegenstander', 'matchOpponent'),
     infoRow('Datum & Tijd', 'matchDatetime'),
     infoRow('Locatie', 'matchLocation'),
+    infoRow('Veld', 'matchField'),
     infoRow('Verzamelen', 'matchArrivalTime'),
     infoRow('Coach', 'matchCoachName'),
     infoRow('Fruitheid', 'matchFruitHeroName'),
@@ -27077,6 +27121,7 @@ void _restyleMatchInfoRows(FFProject project) {
     'opponent':       'checkroom',
     'matchDatetime':  'event',
     'location':       'place',
+    'matchField':     'stadium',
     'arrivalTime':    'flag',
     'coachName':      'group',
     'matchVlaggerName': 'sports_score',
