@@ -27427,6 +27427,37 @@ void _restyleMatchInfoRows(FFProject project) {
     return logo;
   }
 
+  /// Waarde vet met ruimte voor meerdere regels, label klein en grijs.
+  ///
+  /// Zes regels en niet twee. Bij een elftal met vier coaches of vijf rijders
+  /// hield de rij op middenin een naam, met een komma als laatste teken - het
+  /// zag eruit alsof er iets stukging. Een kleiner lettertype zou het alleen
+  /// uitstellen en de rij slechter leesbaar maken; de kaart mag gewoon
+  /// meegroeien met wat erin staat.
+  ///
+  /// Staat apart omdat het ook op al opgemaakte rijen moet landen: die worden
+  /// verderop overgeslagen, en dan zou een latere wijziging hier nooit ergens
+  /// aankomen.
+  /// Geeft de labeltekst terug: bij een nieuwe rij wordt die verderop in een
+  /// eigen kolom gezet.
+  FFNode? styleTeksten(FFNode valueNode, FFNode column) {
+    final labelNode = column.children
+        .where((c) => c.type == FFWidgetType.Text && !identical(c, valueNode))
+        .firstOrNull;
+
+    valueNode.props.text
+      ..themeStyle = FFText_ThemeStyle.TITLE_SMALL
+      ..maxLinesValue = FFIntegerValue(inputValue: 6);
+
+    if (labelNode != null) {
+      labelNode.props.text.themeStyle = FFText_ThemeStyle.LABEL_MEDIUM;
+      labelNode.props.text.colorValue = FFColorValue(
+          inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT));
+    }
+
+    return labelNode;
+  }
+
   for (final entry in icons.entries) {
     final valueNode =
         findDescendants(wc.node, (n) => n.name == 'MatchInfoValue_${entry.key}').firstOrNull;
@@ -27445,6 +27476,7 @@ void _restyleMatchInfoRows(FFProject project) {
     final existingCircle =
         findDescendants(wc.node, (n) => n.name == 'MatchInfoIcon_${entry.key}').firstOrNull;
     if (existingCircle != null) {
+      styleTeksten(valueNode, column);
       final existingRow =
           findDescendants(wc.node, (n) => n.name == 'MatchInfoCardRow_${entry.key}').firstOrNull;
       if (existingRow != null) {
@@ -27501,21 +27533,8 @@ void _restyleMatchInfoRows(FFProject project) {
       continue;
     }
 
-    // Labeltekst is het eerste Text-kind naast de waarde.
-    final labelNode = column.children
-        .where((c) => c.type == FFWidgetType.Text && !identical(c, valueNode))
-        .firstOrNull;
-
-    // Waarde krijgt meer gewicht, label wordt klein en grijs — zoals in de
-    // screenshot: label boven, waarde daaronder in het vet.
-    valueNode.props.text
-      ..themeStyle = FFText_ThemeStyle.TITLE_SMALL
-      ..maxLinesValue = FFIntegerValue(inputValue: 2);
-    if (labelNode != null) {
-      labelNode.props.text.themeStyle = FFText_ThemeStyle.LABEL_MEDIUM;
-      labelNode.props.text.colorValue = FFColorValue(
-          inputValue: FFColor(themeColor: FFColor_ThemeColor.SECONDARY_TEXT));
-    }
+    // Label boven, waarde daaronder in het vet — zoals in de screenshot.
+    final labelNode = styleTeksten(valueNode, column);
 
     // Bij de tegenstander het clublogo in plaats van een icoon. Valt terug op
     // het icoon zolang er geen logo bekend is, zodat het rondje nooit leeg is.
