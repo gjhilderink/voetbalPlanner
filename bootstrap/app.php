@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Vooraan, want dit bepaalt onder welk adres de rest van het verzoek
+        // draait: zonder /public in het pad, ook als de bezoeker zo binnenkomt.
+        $middleware->prepend(\App\Http\Middleware\ZonderPublicMap::class);
+
         // CORS middleware moet ZOWEL globaal als op de api-stack staan, anders
         // krijgen 404's, validation errors en exceptions geen CORS headers en
         // ziet de browser 'Failed to fetch' i.p.v. de echte foutmelding.
