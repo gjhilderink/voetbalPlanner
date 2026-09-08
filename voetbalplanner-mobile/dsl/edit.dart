@@ -40008,7 +40008,8 @@ class ToegangScanner extends StatefulWidget {
   State<ToegangScanner> createState() => _ToegangScannerState();
 }
 
-class _ToegangScannerState extends State<ToegangScanner> {
+class _ToegangScannerState extends State<ToegangScanner>
+    with WidgetsBindingObserver {
   static const String _basis = 'https://voetbalplanner.nubix.nl/api/v1';
 
   /// Hoelang groen of rood in beeld blijft.
@@ -40042,18 +40043,53 @@ class _ToegangScannerState extends State<ToegangScanner> {
   Timer? _wisser;
   StreamSubscription<BarcodeCapture>? _luisteraar;
 
+  /// Gaat de camera niet aan, dan staat hier waarom.
+  ///
+  /// Zonder dit bleef er een wit vlak staan waar het beeld hoort: de widget
+  /// tekent niets zolang er geen beeld is, en dan lijkt de app kapot terwijl
+  /// er alleen een knop nodig is.
+  String _cameraFout = '';
+
+  /// Voorkomt twee keer tegelijk starten; mobile_scanner gooit daarop.
+  bool _startBezig = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _haalActiviteiten();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _wisser?.cancel();
     _luisteraar?.cancel();
-    _camera?.dispose();
+
+    // Eerst loskoppelen, dan pas opruimen. dispose() van de camera is zelf
+    // asynchroon en mag hier niet afgewacht worden; door het veld meteen leeg
+    // te maken kan een late terugroep er niet meer bij.
+    final camera = _camera;
+    _camera = null;
+    unawaited(camera?.dispose() ?? Future<void>.value());
+
     super.dispose();
+  }
+
+  /// De camera volgt de app.
+  ///
+  /// Android geeft de lens vrij zodra de app naar de achtergrond gaat of het
+  /// scherm uit valt. Zonder dit kwam je terug op een wit vlak: de widget stond
+  /// er nog, maar er kwam geen beeld meer uit.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState toestand) {
+    if (_camera == null) return;
+
+    if (toestand == AppLifecycleState.resumed) {
+      unawaited(_startCamera());
+    } else {
+      unawaited(_camera?.stop() ?? Future<void>.value());
+    }
   }
 
   Map<String, String> get _kop => {
@@ -40104,35 +40140,115 @@ class _ToegangScannerState extends State<ToegangScanner> {
     }
   }
 
-  void _kies(Map<String, dynamic> activiteit) {
+  Future<void> _kies(Map<String, dynamic> activiteit) async {
+    // Een eventuele vorige camera eerst helemaal loslaten. Android geeft de
+    // lens pas vrij als de oude weg is; komt er een tweede naast, dan blijft
+    // het beeld wit. Dat gebeurde bij scannen, terug naar het dashboard, en
+    // weer terug naar de scanner.
+    await _stopCamera();
+
+    if (!mounted) return;
+
+    final camera = MobileScannerController(
+      detectionSpeed: DetectionSpeed.normal,
+      facing: CameraFacing.back,
+    );
+
     setState(() {
       _gekozenId = (activiteit['id'] ?? '').toString();
       _gekozenTitel = (activiteit['title'] ?? '').toString();
-      _camera = MobileScannerController(
-        detectionSpeed: DetectionSpeed.normal,
-        facing: CameraFacing.back,
-      );
+      _camera = camera;
+      _cameraFout = '';
     });
 
     // Via de stream en niet via onDetect: die callback is in versie 6
     // verouderd en in 7 verdwenen, terwijl barcodes in alle drie bestaat.
     // Sinds versie 6 moet de camera ook zelf gestart worden.
-    _luisteraar = _camera!.barcodes.listen(_opVondst);
-    unawaited(_camera!.start());
+    _luisteraar = camera.barcodes.listen(_opVondst);
+
+    await _startCamera();
   }
 
-  void _terugNaarKeuze() {
-    _wisser?.cancel();
+  /// De camera aanzetten, met een tweede kans.
+  ///
+  /// De eerste poging kan stuklopen omdat een vorige camera de lens nog
+  /// vasthoudt - bij het heen en weer lopen tussen dashboard en scanner is dat
+  /// een kwestie van een paar honderd milliseconden. Vandaar opnieuw proberen
+  /// in plaats van meteen opgeven.
+  Future<void> _startCamera() async {
+    final camera = _camera;
+    if (camera == null || _startBezig) return;
+
+    _startBezig = true;
+
+    try {
+      for (var poging = 0; poging < 3; poging++) {
+        try {
+          await camera.start();
+
+          if (mounted && _cameraFout.isNotEmpty) {
+            setState(() => _cameraFout = '');
+          }
+
+          return;
+        } catch (fout) {
+          if (poging == 2) {
+            if (mounted) {
+              setState(() => _cameraFout =
+                  'De camera ging niet aan. Sluit andere apps die de camera '
+                  'gebruiken en probeer het opnieuw.');
+            }
+            return;
+          }
+
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+
+          if (!mounted || _camera != camera) return;
+        }
+      }
+    } finally {
+      _startBezig = false;
+    }
+  }
+
+  /// De camera netjes loslaten: eerst stoppen, dan opruimen.
+  Future<void> _stopCamera() async {
     _luisteraar?.cancel();
     _luisteraar = null;
-    _camera?.dispose();
+
+    final camera = _camera;
+    _camera = null;
+
+    if (camera == null) return;
+
+    try {
+      await camera.stop();
+    } catch (_) {
+      // Al gestopt; niets aan de hand.
+    }
+
+    try {
+      await camera.dispose();
+    } catch (_) {
+      // Idem.
+    }
+  }
+
+  Future<void> _terugNaarKeuze() async {
+    _wisser?.cancel();
+
+    await _stopCamera();
+
+    if (!mounted) return;
+
     setState(() {
-      _camera = null;
       _gekozenId = null;
       _status = null;
+      _cameraFout = '';
       _laatsteCode = '';
     });
-    _haalActiviteiten();
+
+    await _haalActiviteiten();
   }
 
   Future<void> _opVondst(BarcodeCapture vangst) async {
@@ -40233,14 +40349,52 @@ class _ToegangScannerState extends State<ToegangScanner> {
       return _keuzelijst(thema);
     }
 
+    if (_cameraFout.isNotEmpty || _camera == null) {
+      return _bericht(
+        thema,
+        Icons.videocam_off,
+        _cameraFout.isNotEmpty ? _cameraFout : 'De camera staat uit.',
+        'Opnieuw proberen',
+        _herstartCamera,
+      );
+    }
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        MobileScanner(controller: _camera!),
+        MobileScanner(
+          controller: _camera!,
+          // Een fout van de camera hoort een melding met een knop te zijn en
+          // geen wit vlak. Zonder dit stond er niets en leek de app kapot.
+          errorBuilder: (context, fout, kind) => _bericht(
+            thema,
+            Icons.videocam_off,
+            'De camera ging niet aan. Sluit andere apps die de camera '
+            'gebruiken en probeer het opnieuw.',
+            'Opnieuw proberen',
+            _herstartCamera,
+          ),
+        ),
         _balk(thema),
         if (_status != null) _uitslagScherm(thema),
       ],
     );
+  }
+
+  /// De camera opnieuw opbouwen, na een fout of na terugkomen in de app.
+  Future<void> _herstartCamera() async {
+    final activiteit = <String, dynamic>{
+      'id': _gekozenId ?? '',
+      'title': _gekozenTitel,
+    };
+
+    if ((activiteit['id'] as String).isEmpty) {
+      await _terugNaarKeuze();
+
+      return;
+    }
+
+    await _kies(activiteit);
   }
 
   /// Wat controleer je? Eerst kiezen, dan pas de camera. Dat scheelt een
