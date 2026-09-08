@@ -135,5 +135,13 @@ Route::get('/{clubslug}/ticketshop/klaar/{token}', [\App\Http\Controllers\Ticket
     ->where('token', '[a-zA-Z0-9]{64}')
     ->name('shop.klaar');
 
+// De kaarten van die bestelling als pdf. Een limiet per IP omdat elk verzoek
+// een pdf laat bouwen, en dat is duurder dan een pagina teruggeven.
+Route::get('/{clubslug}/ticketshop/klaar/{token}/kaarten.pdf', [\App\Http\Controllers\TicketShopController::class, 'kaarten'])
+    ->where('clubslug', '[a-z0-9][a-z0-9-]*')
+    ->where('token', '[a-zA-Z0-9]{64}')
+    ->middleware('throttle:20,1')
+    ->name('shop.kaarten');
+
 // Impersonation routes (guarded by the package middleware)
 Route::impersonate();

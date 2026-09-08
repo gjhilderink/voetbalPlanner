@@ -15,28 +15,37 @@
             </p>
             <p style="margin-top:12px">
                 We hebben ze ook naar <strong>{{ $order->buyer_email }}</strong> gestuurd.
-                Niets ontvangen? Kijk in je ongewenste post, of bewaar deze pagina —
-                de codes hieronder blijven werken.
+                Niets ontvangen? Kijk in je ongewenste post, of haal ze hieronder op —
+                deze pagina blijft werken.
             </p>
-        </div>
 
-        @foreach ($order->accessCodes as $code)
-            <div class="kaart" style="text-align:center">
-                <img src="{{ \App\Support\Qr::pngDataUri($code->code, 260) }}"
-                     alt="QR-code {{ $code->code }}"
-                     style="width:220px;height:220px;background:#fff;border-radius:8px">
-                <p style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:19px;font-weight:700;letter-spacing:2px;margin-top:10px">
-                    {{ $code->code }}
+            {{-- Een knop en niet de codes zelf. Uitgeschreven codes op het scherm
+                 zijn bij de ingang lastig werken: iemand moet dan per persoon
+                 scrollen naar de juiste QR. In de pdf staat elke kaart op een
+                 eigen A4, met de naam erbij.
+
+                 Alleen als de kaarten er ook echt zijn: een knop die op een 404
+                 uitkomt is erger dan geen knop. --}}
+            @if ($order->accessCodes->isNotEmpty())
+                <p style="margin-top:16px">
+                    <a class="knop" target="_blank" rel="noopener"
+                       href="{{ route('shop.kaarten', ['clubslug' => $club->slug, 'token' => $order->public_token]) }}">
+                        Kaarten downloaden (pdf)
+                    </a>
                 </p>
-                @if ($code->label)
-                    <p class="meta">{{ $code->label }}</p>
-                @endif
-            </div>
-        @endforeach
 
-        <p class="hulp" style="text-align:center">
-            Laat bij de ingang één code per persoon scannen. Elke code werkt één keer.
-        </p>
+                <p class="hulp">
+                    {{ $order->accessCodes->count() }}
+                    {{ $order->accessCodes->count() === 1 ? 'kaart' : 'kaarten' }},
+                    elk op een eigen A4 met de QR erop. Laat er bij de ingang één per
+                    persoon scannen; elke kaart werkt één keer.
+                </p>
+            @else
+                <p class="hulp" style="margin-top:16px">
+                    Je kaarten worden klaargezet. Ververs deze pagina zo nog eens.
+                </p>
+            @endif
+        </div>
 
     @elseif ($order->status === \App\Models\Order::STATUS_PENDING)
         <div class="kaart">

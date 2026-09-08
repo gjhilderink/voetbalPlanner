@@ -10,10 +10,12 @@ use App\Models\Club;
 use App\Models\Order;
 use App\Services\OrderService;
 use App\Services\PayNlService;
+use App\Support\TicketPdf;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * De publieke ticketshop op voetbalplanner.nl/{clubslug}/ticketshop.
@@ -185,6 +187,38 @@ class TicketShopController extends Controller
             'order' => $order,
             'embed' => $request->boolean('embed'),
         ]);
+    }
+
+    /**
+     * De kaarten van een bestelling als pdf: één A4 per kaart.
+     *
+     * Zelfde token als de bevestigingspagina en dus dezelfde afspraak: wie de
+     * link heeft, heeft de kaarten. Dat is geen versoepeling - op die pagina
+     * stonden de codes eerder gewoon uitgeschreven.
+     *
+     * Alleen bij een betaalde bestelling. Een pdf van een bestelling die nog
+     * openstaat zou een kaart lijken die bij de ingang niet werkt.
+     */
+    public function kaarten(string $clubslug, string $token): StreamedResponse
+    {
+        $club = $this->club($clubslug);
+
+        $order = Order::query()
+            ->where('club_id', $club->id)
+            ->where('public_token', $token)
+            ->with(['agendaItem', 'club'])
+            ->first();
+
+        abort_if($order === null || ! $order->isBetaald(), 404);
+
+        $codes = $order->accessCodes()->orderBy('code')->get();
+
+        abort_if($codes->isEmpty(), 404);
+
+        return TicketPdf::download(
+            TicketPdf::kaarten($codes),
+            'kaarten-' . $order->order_number . '.pdf',
+        );
     }
 
     /**
