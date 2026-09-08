@@ -77,15 +77,47 @@
         .rij .naam { flex: 1; }
         .rij .naam small { display: block; color: var(--grijs); font-size: 13px; }
         .rij .prijs { font-weight: 600; white-space: nowrap; }
-        .rij select, .rij .op {
+        .rij .op {
             min-width: 72px;
             padding: 8px;
+            font-size: 13px;
+            color: var(--grijs);
+            text-align: center;
+        }
+
+        /* De teller bij een kaartsoort: min, het aantal, plus. Knoppen van 38
+           pixels, want dit wordt op een telefoon met een duim bediend. */
+        .teller { display: flex; align-items: center; gap: 6px; }
+        .teller button {
+            width: 38px;
+            height: 38px;
+            border: 1px solid var(--rand);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--tekst);
+            font-size: 20px;
+            line-height: 1;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .teller button:hover:not(:disabled) { border-color: var(--clubkleur); color: var(--clubkleur); }
+        .teller button:disabled { color: #C7CDD4; cursor: not-allowed; }
+        .teller input {
+            width: 46px;
+            padding: 9px 4px;
             border: 1px solid var(--rand);
             border-radius: 8px;
             font-size: 15px;
+            font-family: inherit;
+            text-align: center;
             background: #fff;
+            /* De eigen pijltjes van de browser eruit: er staat al een plus en
+               een min naast, en twee soorten knoppen naast elkaar verwart. */
+            -moz-appearance: textfield;
+            appearance: textfield;
         }
-        .rij .op { color: var(--grijs); font-size: 13px; border: 0; background: none; }
+        .teller input::-webkit-outer-spin-button,
+        .teller input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
         label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
         input[type="text"], input[type="email"] {
