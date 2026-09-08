@@ -143,5 +143,14 @@ Route::get('/{clubslug}/ticketshop/klaar/{token}/kaarten.pdf', [\App\Http\Contro
     ->middleware('throttle:20,1')
     ->name('shop.kaarten');
 
+// Eén kaart als pas voor Apple Wallet. De .pkpass in het adres is geen
+// opsmuk: Safari opent een pas alleen als het bestand er ook zo uitziet.
+Route::get('/{clubslug}/ticketshop/klaar/{token}/wallet/{code}.pkpass', [\App\Http\Controllers\TicketShopController::class, 'walletApple'])
+    ->where('clubslug', '[a-z0-9][a-z0-9-]*')
+    ->where('token', '[a-zA-Z0-9]{64}')
+    ->where('code', '[A-Z0-9]{4,32}')
+    ->middleware('throttle:20,1')
+    ->name('shop.wallet.apple');
+
 // Impersonation routes (guarded by the package middleware)
 Route::impersonate();

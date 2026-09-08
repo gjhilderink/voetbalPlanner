@@ -145,6 +145,32 @@
 
         .leeg { text-align: center; color: var(--grijs); padding: 40px 16px; }
 
+        /* De wallet-knoppen bij een kaart. Donker en niet in de clubkleur: dit
+           is de knop van Apple of Google, niet van de club, en op een gele of
+           lichte clubkleur zou de tekst wegvallen. */
+        .wallet { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+        .walletknop {
+            display: inline-block;
+            padding: 9px 13px;
+            border-radius: 8px;
+            background: #14283D;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .walletknop:hover { filter: brightness(1.15); }
+
+        /* Het uitlegblok onder de activiteiten: rustiger dan de kaarten
+           erboven, want het staat er om gelezen te worden en niet om op te
+           klikken. */
+        .uitleg { background: none; border-style: dashed; }
+        .uitleg h2 { font-size: 15px; margin-bottom: 8px; }
+        .uitleg ol { margin: 0 0 0 18px; color: var(--grijs); font-size: 14px; }
+        .uitleg ol li { margin-bottom: 5px; padding-left: 2px; }
+        .uitleg .hulp { margin-top: 10px; }
+
         .voet { color: var(--grijs); font-size: 12px; text-align: center; margin-top: 26px; }
         .voet a { color: var(--grijs); }
     </style>

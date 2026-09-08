@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\VerifiesRecaptcha;
+use App\Models\AccessCode;
 use App\Models\AgendaItem;
 use App\Models\Club;
 use App\Models\Order;
 use App\Services\OrderService;
 use App\Services\PayNlService;
+use App\Support\Kaart;
 use App\Support\TicketPdf;
+use App\Support\Wallet\ApplePass;
+use App\Support\Wallet\GooglePass;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -183,9 +188,93 @@ class TicketShopController extends Controller
         }
 
         return view('shop.klaar', [
-            'club'  => $club,
-            'order' => $order,
-            'embed' => $request->boolean('embed'),
+            'club'          => $club,
+            'order'         => $order,
+            'embed'         => $request->boolean('embed'),
+            'walletKaarten' => $order->isBetaald() ? $this->walletKaarten($club, $order) : [],
+        ]);
+    }
+
+    /**
+     * De wallet-knoppen per kaart.
+     *
+     * Leeg zolang er geen certificaat van Apple en geen sleutel van Google
+     * ingesteld is; dan blijft de pagina zoals hij was. Per kaart en niet per
+     * bestelling, want in een wallet hoort één kaart één pas te zijn - anders
+     * kan iemand die met z'n vieren komt niet één kaart doorsturen.
+     *
+     * @return array<int, array<string, string|null>>
+     */
+    private function walletKaarten(Club $club, Order $order): array
+    {
+        $apple  = ApplePass::beschikbaar();
+        $google = GooglePass::beschikbaar();
+
+        if (! $apple && ! $google) {
+            return [];
+        }
+
+        return $order->accessCodes
+            ->sortBy('code')
+            ->values()
+            ->map(function (AccessCode $code) use ($club, $order, $apple, $google): array {
+                // De club en de activiteit staan al op de bestelling; zonder dit
+                // haalt elke kaart ze opnieuw op.
+                $code->setRelation('club', $club)
+                    ->setRelation('agendaItem', $order->agendaItem)
+                    ->setRelation('order', $order);
+
+                [$houder, $soort] = Kaart::houderEnSoort($code->label, $order->buyer_name);
+
+                return [
+                    'titel'  => Kaart::volgnummer($code) ?? 'Je kaart',
+                    'onder'  => $houder ? trim($houder . ($soort ? ' · ' . $soort : '')) : $code->code,
+                    'apple'  => $apple ? route('shop.wallet.apple', [
+                        'clubslug' => $club->slug,
+                        'token'    => $order->public_token,
+                        'code'     => $code->code,
+                    ]) : null,
+                    'google' => $google ? GooglePass::bewaarUrl($code) : null,
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * Eén kaart als pas voor Apple Wallet.
+     *
+     * Zelfde afspraak als de pdf: het token van de bestelling geeft toegang, en
+     * alleen als er betaald is.
+     */
+    public function walletApple(string $clubslug, string $token, string $code): Response
+    {
+        $club = $this->club($clubslug);
+
+        $order = Order::query()
+            ->where('club_id', $club->id)
+            ->where('public_token', $token)
+            ->with(['agendaItem', 'club'])
+            ->first();
+
+        abort_if($order === null || ! $order->isBetaald(), 404);
+
+        $kaart = $order->accessCodes()->where('code', $code)->first();
+
+        abort_if($kaart === null, 404);
+
+        $kaart->setRelation('club', $club)
+            ->setRelation('agendaItem', $order->agendaItem)
+            ->setRelation('order', $order);
+
+        $pas = ApplePass::bouw($kaart);
+
+        // Lukt het maken niet, dan is er iets mis met het certificaat. Dat staat
+        // in het logboek; de koper krijgt geen halve download maar een 404.
+        abort_if($pas === null, 404);
+
+        return response($pas, 200, [
+            'Content-Type'        => 'application/vnd.apple.pkpass',
+            'Content-Disposition' => 'attachment; filename="kaart-' . $kaart->code . '.pkpass"',
         ]);
     }
 
