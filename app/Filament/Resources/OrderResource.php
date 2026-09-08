@@ -9,13 +9,17 @@ use App\Models\AccessCode;
 use App\Models\Order;
 use App\Services\OrderService;
 use App\Support\Geld;
+use App\Support\TicketPdf;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * De bestellingen uit de ticketshop.
@@ -165,6 +169,16 @@ class OrderResource extends Resource
                         'order' => $record->load(['lines', 'accessCodes']),
                     ])),
 
+                Actions\Action::make('pdf')
+                    ->label('Kaarten als pdf')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->visible(fn (Order $record): bool => $record->isBetaald())
+                    ->action(fn (Order $record): ?StreamedResponse => self::kaartenDownload(
+                        AccessCode::where('order_id', $record->id)->orderBy('code')->get(),
+                        'kaarten-' . $record->order_number . '.pdf',
+                    )),
+
                 Actions\Action::make('mail')
                     ->label('Mail opnieuw sturen')
                     ->icon('heroicon-o-envelope')
@@ -204,7 +218,75 @@ class OrderResource extends Resource
                             ->success()
                             ->send();
                     }),
+            ])
+            ->bulkActions([
+                // Buiten een BulkActionGroup: dit is de enige groepsactie hier,
+                // en afdrukken hoort niet achter een menu te zitten.
+                Actions\BulkAction::make('kaarten_pdf')
+                    ->label('Kaarten als pdf')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->deselectRecordsAfterCompletion()
+                    ->action(function (Collection $records): ?StreamedResponse {
+                        $betaald = $records->filter(fn (Order $order): bool => $order->isBetaald());
+
+                        if ($betaald->isEmpty()) {
+                            Notification::make()
+                                ->title('Niets af te drukken')
+                                ->body('Alleen betaalde bestellingen hebben kaarten.')
+                                ->warning()
+                                ->send();
+
+                            return null;
+                        }
+
+                        return self::kaartenDownload(
+                            AccessCode::whereIn('order_id', $betaald->pluck('id'))
+                                ->orderBy('order_id')
+                                ->orderBy('code')
+                                ->get(),
+                            'kaarten-' . now()->format('Y-m-d') . '.pdf',
+                        );
+                    }),
             ]);
+    }
+
+    /**
+     * De kaarten als pdf terugsturen: één A4 per kaart.
+     *
+     * Hier en niet in TicketPdf, omdat de grens tussen "veel" en "te veel" een
+     * melding voor de beheerder oplevert en geen uitzondering. Zonder deze
+     * controle levert een activiteit met honderden kaarten een php-worker op die
+     * zonder geheugen valt, en dan komt er helemaal niets terug.
+     *
+     * @param  EloquentCollection<int, AccessCode>  $codes
+     */
+    public static function kaartenDownload(EloquentCollection $codes, string $bestandsnaam): ?StreamedResponse
+    {
+        if ($codes->isEmpty()) {
+            Notification::make()
+                ->title('Niets af te drukken')
+                ->body('Er zijn geen kaarten gevonden.')
+                ->warning()
+                ->send();
+
+            return null;
+        }
+
+        if ($codes->count() > TicketPdf::MAX_KAARTEN) {
+            Notification::make()
+                ->title('Te veel kaarten voor één bestand')
+                ->body('Er passen ' . TicketPdf::MAX_KAARTEN . ' kaarten in één pdf; dit zijn er '
+                    . $codes->count() . '. Druk ze in delen af, bijvoorbeeld door minder '
+                    . 'bestellingen tegelijk aan te vinken.')
+                ->warning()
+                ->persistent()
+                ->send();
+
+            return null;
+        }
+
+        return TicketPdf::download(TicketPdf::kaarten($codes), $bestandsnaam);
     }
 
     public static function getPages(): array

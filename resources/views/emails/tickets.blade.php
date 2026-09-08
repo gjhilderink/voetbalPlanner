@@ -70,9 +70,10 @@
         @endforeach
 
         <p>
-            De QR-codes zitten als afbeelding bij deze mail. Laat er bij de
-            ingang één per persoon scannen; elke code werkt één keer. Lukt het
-            scannen niet, dan kan de code hierboven ook worden overgetypt.
+            Elke kaart zit als pdf bij deze mail: één A4 per persoon, klaar om
+            uit te printen of op je telefoon te laten zien. Laat er bij de ingang
+            één per persoon scannen; elke kaart werkt één keer. Lukt het scannen
+            niet, dan kan de code hierboven ook worden overgetypt.
         </p>
 
         <p style="text-align:center">

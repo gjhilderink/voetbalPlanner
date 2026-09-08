@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Models\AccessCode;
 use App\Models\Order;
-use App\Support\Qr;
+use App\Support\TicketPdf;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -19,7 +20,7 @@ use Illuminate\Queue\SerializesModels;
  * Niet ShouldQueue: op deze hosting draait geen queue-worker, dus een mail in
  * de wachtrij komt nooit aan. Alle mail hier gaat om dezelfde reden synchroon.
  *
- * De QR's gaan als bijlage mee en niet als data-URI in de tekst. Gmail en
+ * De kaarten gaan als pdf mee en niet als data-URI in de tekst. Gmail en
  * Outlook strippen data:-afbeeldingen, en dan staat er een leeg vak waar het
  * kaartje hoort. De codes staan er in cijfers naast, en er is een link naar de
  * bestelpagina - drie wegen naar dezelfde code, want dit is wat iemand bij de
@@ -59,20 +60,31 @@ class TicketMail extends Mailable
     }
 
     /**
-     * Eén PNG per kaart.
+     * Eén pdf per kaart: een A4 in de kleuren van de club.
      *
-     * De bestandsnaam bevat de code, zodat iemand die vier kaarten doorstuurt
-     * ziet welke hij aan wie geeft.
+     * Losse bestanden en niet één pdf met alle kaarten erin: zo stuur je er één
+     * door naar wie meegaat zonder de kaarten van de rest mee te geven. De
+     * bestandsnaam bevat de code, zodat iemand die vier kaarten doorstuurt ziet
+     * welke hij aan wie geeft.
      *
      * @return array<int, Attachment>
      */
     public function attachments(): array
     {
-        return $this->order->accessCodes
-            ->map(fn ($code) => Attachment::fromData(
-                fn () => Qr::pngBytes($code->code, 600),
-                'kaart-' . $code->code . '.png',
-            )->withMime('image/png'))
+        $order = $this->order;
+
+        // De club en de activiteit alvast op de codes zetten. Elke bijlage
+        // bouwt zijn eigen pdf, en zonder dit haalt elke kaart ze opnieuw op.
+        $order->accessCodes->each(fn (AccessCode $code) => $code
+            ->setRelation('club', $order->club)
+            ->setRelation('agendaItem', $order->agendaItem)
+            ->setRelation('order', $order));
+
+        return $order->accessCodes
+            ->map(fn (AccessCode $code) => Attachment::fromData(
+                fn () => TicketPdf::kaart($code),
+                'kaart-' . $code->code . '.pdf',
+            )->withMime('application/pdf'))
             ->all();
     }
 }
