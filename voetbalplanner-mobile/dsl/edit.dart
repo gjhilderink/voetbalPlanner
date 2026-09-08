@@ -40011,6 +40011,15 @@ class ToegangScanner extends StatefulWidget {
 class _ToegangScannerState extends State<ToegangScanner> {
   static const String _basis = 'https://voetbalplanner.nubix.nl/api/v1';
 
+  /// Hoelang groen of rood in beeld blijft.
+  ///
+  /// Wie aan de deur staat kijkt niet mee met de scan zelf: hij houdt de
+  /// telefoon vast, richt hem op de volgende, en kijkt daarna pas op. Bij
+  /// anderhalve seconde was het vak dan al weg en wist niemand of het goed
+  /// ging. Het vak verdwijnt vanzelf, als er een nieuwe scan overheen komt,
+  /// of zodra je erop tikt.
+  static const Duration _uitslagDuur = Duration(seconds: 4);
+
   List<Map<String, dynamic>> _activiteiten = <Map<String, dynamic>>[];
   String _fout = '';
   bool _laden = true;
@@ -40134,12 +40143,12 @@ class _ToegangScannerState extends State<ToegangScanner> {
         : '';
     if (code.isEmpty) return;
 
-    // Dezelfde code binnen drie seconden: nog steeds dezelfde persoon die zijn
-    // telefoon voor de lens houdt.
+    // Dezelfde code zolang zijn uitslag nog in beeld staat: dat is nog steeds
+    // dezelfde persoon die zijn telefoon voor de lens houdt.
     final nu = DateTime.now();
     if (code == _laatsteCode &&
         _laatsteTijd != null &&
-        nu.difference(_laatsteTijd!).inSeconds < 3) {
+        nu.difference(_laatsteTijd!) < _uitslagDuur) {
       return;
     }
 
@@ -40179,12 +40188,23 @@ class _ToegangScannerState extends State<ToegangScanner> {
       _naam = naam;
     });
 
+    // De volgende scan mag meteen, ook al staat het vak er nog. Zou het
+    // wachten op de wisser, dan zet een langer zichtbare uitslag de rij bij de
+    // ingang stil; nu schuift de volgende er gewoon overheen.
+    _bezig = false;
+
     _wisser?.cancel();
-    _wisser = Timer(const Duration(milliseconds: 1800), () {
+    _wisser = Timer(_uitslagDuur, () {
       if (!mounted) return;
       setState(() => _status = null);
-      _bezig = false;
     });
+  }
+
+  /// Het vak wegtikken als je al gezien hebt wat er staat.
+  void _wisUitslag() {
+    _wisser?.cancel();
+    if (!mounted) return;
+    setState(() => _status = null);
   }
 
   @override
@@ -40344,40 +40364,45 @@ class _ToegangScannerState extends State<ToegangScanner> {
     final icoon = goed ? Icons.check_circle : Icons.cancel;
 
     return Positioned.fill(
-      child: Container(
-        color: kleur,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icoon, size: 120, color: Colors.white),
-                const SizedBox(height: 20),
-                Text(
-                  goed ? 'Welkom' : 'Niet geldig',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (_naam.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+      // Tikken laat het vak meteen verdwijnen, voor wie al gezien heeft wat
+      // er staat en door wil met de volgende in de rij.
+      child: GestureDetector(
+        onTap: _wisUitslag,
+        child: Container(
+          color: kleur,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icoon, size: 120, color: Colors.white),
+                  const SizedBox(height: 20),
                   Text(
-                    _naam,
+                    goed ? 'Welkom' : 'Niet geldig',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 20),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (_naam.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _naam,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 20),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(
+                    _melding,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ],
-                const SizedBox(height: 12),
-                Text(
-                  _melding,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ],
+              ),
             ),
           ),
         ),
