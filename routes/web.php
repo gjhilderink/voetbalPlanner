@@ -23,6 +23,16 @@ Route::get('/', function () {
         : redirect('/admin/login');
 });
 
+// De koppeling met Microsoft 365, buiten het Filament-paneel om: Microsoft
+// stuurt de beheerder terug naar één vast adres, en dat kan geen adres met een
+// clubnaam erin zijn. Welke club het is zit versleuteld in de state.
+Route::middleware('auth')->group(function () {
+    Route::get('/microsoft/verbinden', [\App\Http\Controllers\MicrosoftConsentController::class, 'start'])
+        ->name('microsoft.verbinden');
+    Route::get('/microsoft/verbonden', [\App\Http\Controllers\MicrosoftConsentController::class, 'terug'])
+        ->name('microsoft.verbonden');
+});
+
 Route::get('/privacy', function () {
     $page = \App\Models\LegalPage::where('slug', 'privacy')->first();
 

@@ -44,6 +44,9 @@ class MicrosoftGraphService
     private string $clientId = '';
     private string $clientSecret = '';
 
+    /** Draait deze club op de gedeelde app-registratie van VoetbalPlanner? */
+    private bool $gedeeldeApp = false;
+
     public function __construct()
     {
         $this->bootSettings();
@@ -61,16 +64,45 @@ class MicrosoftGraphService
     {
         $id = $this->clubId;
 
-        // Trimmen: deze drie worden geplakt uit het Azure-portaal, en een
-        // meegekomen spatie levert een 401 op waar niets aan te zien is.
-        $this->tenantId     = trim((string) (Setting::get('ms_tenant_id', '', $id) ?? ''));
-        $this->clientId     = trim((string) (Setting::get('ms_client_id', '', $id) ?? ''));
-        $this->clientSecret = trim((string) (Setting::get('ms_client_secret', '', $id) ?? ''));
+        // Trimmen: deze worden geplakt uit het Azure-portaal, en een meegekomen
+        // spatie levert een 401 op waar niets aan te zien is.
+        $this->tenantId = trim((string) (Setting::get('ms_tenant_id', '', $id) ?? ''));
+
+        $eigenId     = trim((string) (Setting::get('ms_client_id', '', $id) ?? ''));
+        $eigenGeheim = trim((string) (Setting::get('ms_client_secret', '', $id) ?? ''));
+
+        // Een eigen registratie van de club gaat voor. Clubs die dit ooit zelf
+        // hebben ingevuld blijven werken zoals ze werkten; de rest loopt via de
+        // gedeelde registratie van VoetbalPlanner, waar een beheerder van de
+        // club zich met inloggen aan verbonden heeft.
+        if ($eigenId !== '' && $eigenGeheim !== '') {
+            $this->clientId     = $eigenId;
+            $this->clientSecret = $eigenGeheim;
+            $this->gedeeldeApp  = false;
+
+            return;
+        }
+
+        $this->clientId     = trim((string) config('services.microsoft_graph.client_id', ''));
+        $this->clientSecret = trim((string) config('services.microsoft_graph.client_secret', ''));
+        $this->gedeeldeApp  = true;
     }
 
     public function isConfigured(): bool
     {
         return $this->tenantId !== '' && $this->clientId !== '' && $this->clientSecret !== '';
+    }
+
+    /** Loopt deze club via de gedeelde registratie, of via een eigen? */
+    public function viaGedeeldeApp(): bool
+    {
+        return $this->gedeeldeApp;
+    }
+
+    /** De organisatie waar deze club aan vastzit, leeg als er nog niets is gekoppeld. */
+    public function tenantId(): string
+    {
+        return $this->tenantId;
     }
 
     /** De cachesleutel van het token; ook gebruikt om hem te vergeten na een wijziging. */

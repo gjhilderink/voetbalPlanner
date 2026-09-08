@@ -41,6 +41,26 @@ return [
         'timeout' => env('MCP_TIMEOUT', 30),
     ],
 
+    // De ruimte-agenda's van Microsoft 365.
+    //
+    // Eén app-registratie van VoetbalPlanner, meerdere clubs. Een beheerder van
+    // de club logt in bij Microsoft en geeft toestemming; daarna weten we zijn
+    // tenant en hoeft hij zelf geen registratie te maken en geen ID's over te
+    // typen. Een club die al een eigen registratie had houdt die - zie
+    // MicrosoftGraphService.
+    //
+    // De app-registratie moet meerdere organisaties toestaan ("Accounts in any
+    // organizational directory"), de applicatierechten Place.Read.All en
+    // Calendars.ReadWrite hebben, en het adres hieronder als redirect-URI.
+    'microsoft_graph' => [
+        'client_id'     => env('MS_GRAPH_CLIENT_ID', ''),
+        'client_secret' => env('MS_GRAPH_CLIENT_SECRET', ''),
+        // Letterlijk zoals het in de registratie staat. De portal is op meer
+        // dan één adres bereikbaar en Microsoft vergelijkt teken voor teken;
+        // een zelf opgebouwd adres loopt daar vroeg of laat op stuk.
+        'redirect' => env('MS_GRAPH_REDIRECT_URI', ''),
+    ],
+
     // Firebase Cloud Messaging (push). 'credentials' = pad naar de service-account
     // JSON (Firebase Console → Projectinstellingen → Serviceaccounts → Nieuwe
     // privésleutel). Absoluut pad, of relatief t.o.v. de projectroot. Leeg = push uit.

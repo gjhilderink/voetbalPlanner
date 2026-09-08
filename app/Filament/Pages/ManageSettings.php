@@ -117,6 +117,43 @@ class ManageSettings extends Page
         ]);
     }
 
+    /** De organisatie waar deze club aan vastzit, of leeg als er niets gekoppeld is. */
+    protected static function microsoftTenant(): string
+    {
+        return trim((string) (Setting::get('ms_tenant_id', '', filament()->getTenant()?->id) ?? ''));
+    }
+
+    /** Wat er bij Status van de Microsoft-koppeling staat. */
+    protected static function microsoftStatus(): string
+    {
+        $clubId = filament()->getTenant()?->id;
+        $tenant = static::microsoftTenant();
+
+        if ($tenant === '') {
+            return \App\Services\MicrosoftConsent::beschikbaar()
+                ? 'Nog niet gekoppeld.'
+                : 'Nog niet gekoppeld. Er is ook geen app-registratie van VoetbalPlanner ingesteld '
+                    . '(<code>MS_GRAPH_CLIENT_ID</code> en <code>MS_GRAPH_CLIENT_SECRET</code>), dus de knop '
+                    . 'blijft weg; koppelen kan dan alleen met een eigen registratie hieronder.';
+        }
+
+        $sinds = (string) (Setting::get('ms_connected_at', '', $clubId) ?? '');
+        $door  = (string) (Setting::get('ms_connected_by', '', $clubId) ?? '');
+        $eigen = trim((string) (Setting::get('ms_client_id', '', $clubId) ?? '')) !== '';
+
+        $regel = 'Gekoppeld met organisatie <code>' . e($tenant) . '</code>';
+
+        if (filled($sinds)) {
+            $regel .= ', sinds ' . e(\Illuminate\Support\Carbon::parse($sinds)->format('d-m-Y H:i'));
+        }
+
+        if (filled($door)) {
+            $regel .= ' door ' . e($door);
+        }
+
+        return $regel . '.' . ($eigen ? ' Via de eigen app-registratie van de club.' : '');
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema
@@ -296,39 +333,110 @@ class ManageSettings extends Page
                     ->visible(fn (Get $get): bool => (bool) $get('rooms_enabled'))
                     ->schema([
                         Placeholder::make('ms_uitleg')
-                            ->label('Wat je in Microsoft moet klaarzetten')
+                            ->label('Zo werkt het')
                             ->content(new HtmlString(
                                 '<div style="font-size:.85rem;line-height:1.55">'
-                                . '<p>Maak in Entra ID een <strong>app-registratie</strong> met een geheim, en geef die de '
-                                . '<strong>applicatierechten</strong> <code>Place.Read.All</code> en '
-                                . '<code>Calendars.ReadWrite</code>, met beheerderstoestemming. '
-                                . 'Elke ruimte is een postbus van het type <em>ruimte</em>; het adres daarvan vul je in bij de ruimte zelf.</p>'
-                                . '<p style="margin-top:.6rem"><strong>Beperk die app-registratie tot de ruimtes.</strong> '
-                                . '<code>Calendars.ReadWrite</code> geeft als applicatierecht toegang tot élke postbus in de tenant, '
+                                . '<p>Klik op koppelen, log in met een account dat <strong>beheerder is van jullie '
+                                . 'Microsoft 365</strong>, en geef toestemming. Meer is het niet: je hoeft zelf geen '
+                                . 'app-registratie te maken en geen nummers over te typen. '
+                                . 'Elke ruimte is een postbus van het type <em>ruimte</em>; dat adres vul je in bij de ruimte zelf.</p>'
+                                . '<p style="margin-top:.6rem"><strong>Beperk daarna de toegang tot de ruimtes.</strong> '
+                                . 'Het recht <code>Calendars.ReadWrite</code> geeft toegang tot élke postbus in de organisatie, '
                                 . 'niet alleen tot de ruimtes. Stel in Exchange Online een <em>ApplicationAccessPolicy</em> in die '
-                                . 'de registratie beperkt tot een groep met alleen de ruimte-postbussen. Zonder die stap geef je '
-                                . 'VoetbalPlanner toegang tot de agenda van iedereen in de organisatie.</p>'
+                                . 'VoetbalPlanner beperkt tot een groep met alleen de ruimte-postbussen. Zonder die stap geef je '
+                                . 'toegang tot de agenda van iedereen in de organisatie.</p>'
                                 . '</div>'
                             ))
                             ->columnSpanFull(),
 
-                        TextInput::make('ms_tenant_id')
-                            ->label('Tenant-ID')
-                            ->placeholder('00000000-0000-0000-0000-000000000000')
-                            ->maxLength(64),
-
-                        TextInput::make('ms_client_id')
-                            ->label('Client-ID (toepassings-ID)')
-                            ->placeholder('00000000-0000-0000-0000-000000000000')
-                            ->maxLength(64),
-
-                        TextInput::make('ms_client_secret')
-                            ->label('Clientgeheim')
-                            ->password()
-                            ->revealable()
-                            ->maxLength(191)
-                            ->helperText('Laat leeg om het huidige geheim te laten staan. Het wordt versleuteld bewaard en nooit teruggetoond.')
+                        Placeholder::make('ms_status')
+                            ->label('Status')
+                            ->content(fn (): HtmlString => new HtmlString(static::microsoftStatus()))
                             ->columnSpanFull(),
+
+                        Actions::make([
+                            Action::make('ms_koppelen')
+                                ->label(fn (): string => static::microsoftTenant() === ''
+                                    ? 'Koppelen met Microsoft 365'
+                                    : 'Opnieuw koppelen')
+                                ->icon('heroicon-o-link')
+                                ->url(fn (): string => route('microsoft.verbinden', array_filter([
+                                    'club' => filament()->getTenant()?->id,
+                                ])))
+                                ->visible(fn (): bool => \App\Services\MicrosoftConsent::beschikbaar()),
+
+                            Action::make('ms_ontkoppelen')
+                                ->label('Ontkoppelen')
+                                ->icon('heroicon-o-x-mark')
+                                ->color('danger')
+                                ->requiresConfirmation()
+                                ->modalHeading('Koppeling losmaken')
+                                ->modalDescription('VoetbalPlanner praat daarna niet meer met Microsoft 365. '
+                                    . 'De toestemming zelf trek je in bij Microsoft, onder Enterprise applications.')
+                                ->visible(fn (): bool => static::microsoftTenant() !== '')
+                                ->action(function (ManageSettings $livewire): void {
+                                    $clubId = filament()->getTenant()?->id;
+
+                                    foreach (['ms_tenant_id', 'ms_connected_at', 'ms_connected_by'] as $sleutel) {
+                                        Setting::set($sleutel, '', 'microsoft', false, $clubId);
+                                    }
+
+                                    // Ook uit het formulier halen. Blijft het
+                                    // oude nummer in het scherm staan, dan zet
+                                    // de eerstvolgende keer opslaan de
+                                    // koppeling zo weer terug.
+                                    $livewire->data['ms_tenant_id'] = '';
+
+                                    \Illuminate\Support\Facades\Cache::forget(
+                                        \App\Services\MicrosoftGraphService::tokenCacheKey($clubId),
+                                    );
+
+                                    Notification::make()
+                                        ->title('Koppeling losgemaakt')
+                                        ->success()
+                                        ->send();
+                                }),
+                        ])->columnSpanFull(),
+
+                        // Voor clubs die dit al met een eigen app-registratie
+                        // hadden staan, en voor het geval de gedeelde
+                        // registratie een keer niet kan.
+                        Section::make('Eigen app-registratie')
+                            ->description('Alleen nodig als je niet via de knop hierboven wilt koppelen.')
+                            ->schema([
+                                Placeholder::make('ms_eigen_uitleg')
+                                    ->label('')
+                                    ->content(new HtmlString(
+                                        '<div style="font-size:.85rem;line-height:1.55">Maak in Entra ID een '
+                                        . 'app-registratie met een geheim en de applicatierechten '
+                                        . '<code>Place.Read.All</code> en <code>Calendars.ReadWrite</code>, met '
+                                        . 'beheerderstoestemming. Vul je hier een client-ID én een geheim in, dan '
+                                        . 'gebruikt VoetbalPlanner die in plaats van de gedeelde registratie.</div>'
+                                    ))
+                                    ->columnSpanFull(),
+
+                                TextInput::make('ms_tenant_id')
+                                    ->label('Tenant-ID')
+                                    ->placeholder('00000000-0000-0000-0000-000000000000')
+                                    ->maxLength(64)
+                                    ->helperText('Wordt bij het koppelen vanzelf ingevuld.'),
+
+                                TextInput::make('ms_client_id')
+                                    ->label('Client-ID (toepassings-ID)')
+                                    ->placeholder('00000000-0000-0000-0000-000000000000')
+                                    ->maxLength(64),
+
+                                TextInput::make('ms_client_secret')
+                                    ->label('Clientgeheim')
+                                    ->password()
+                                    ->revealable()
+                                    ->maxLength(191)
+                                    ->helperText('Laat leeg om het huidige geheim te laten staan. Het wordt versleuteld bewaard en nooit teruggetoond.')
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(2)
+                            ->collapsible()
+                            ->collapsed(),
                     ])
                     ->columns(2)
                     ->collapsible()
