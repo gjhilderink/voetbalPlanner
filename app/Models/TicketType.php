@@ -61,16 +61,30 @@ class TicketType extends Model
     }
 
     /**
+     * De uitkomst van verkocht() binnen dit verzoek.
+     *
+     * De winkel vraagt per kaartsoort achter elkaar naar de voorraad, het
+     * maximum en of hij uitverkocht is, en dat waren evenzoveel keer dezelfde
+     * optelling. Op een overzicht met vier activiteiten van elk drie soorten
+     * scheelt dat tientallen zoekopdrachten.
+     */
+    private ?int $verkochtNu = null;
+
+    /**
      * Hoeveel kaarten er al vergeven zijn.
      *
      * Betaalde bestellingen tellen mee, en open bestellingen die nog niet
      * verlopen zijn ook: iemand die op dit moment aan het afrekenen is heeft
      * zijn kaarten al vast. Verlopen, geannuleerde en mislukte bestellingen
      * geven hun plek terug.
+     *
+     * Het antwoord blijft op dit exemplaar staan. Dat mag, omdat elke plek die
+     * op de voorraad beslist met een vers opgehaalde rij werkt: het afrekenen
+     * haalt de kaartsoorten binnen de transactie opnieuw op, met een slot erop.
      */
     public function verkocht(): int
     {
-        return (int) $this->lines()
+        return $this->verkochtNu ??= (int) $this->lines()
             ->whereHas('order', fn (Builder $q) => $q->where(fn (Builder $sub) => $sub
                 ->where('status', Order::STATUS_PAID)
                 ->orWhere(fn (Builder $open) => $open

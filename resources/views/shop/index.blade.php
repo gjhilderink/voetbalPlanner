@@ -11,8 +11,8 @@
     @else
         @foreach ($activiteiten as $activiteit)
             @php
-                $goedkoopste = $activiteit->ticketTypes->min('price_cents');
                 $uitverkocht = $activiteit->ticketTypes->every(fn ($s) => $s->isUitverkocht());
+                $gratis      = $activiteit->ticketTypes->every(fn ($s) => $s->price_cents === 0);
             @endphp
 
             <div class="kaart">
@@ -31,17 +31,43 @@
                     <p class="meta" style="margin-top:8px">{{ $activiteit->summary }}</p>
                 @endif
 
-                <p style="margin:14px 0 16px">
-                    @if ($uitverkocht)
-                        <strong>Uitverkocht</strong>
-                    @elseif ($goedkoopste === 0)
-                        <strong>Gratis</strong> — wel even een kaart reserveren
-                    @else
-                        Vanaf <strong>{{ \App\Support\Geld::euro((int) $goedkoopste) }}</strong>
-                    @endif
-                </p>
+                {{-- De kaartsoorten meteen hier en niet pas op de volgende
+                     pagina: "vanaf € 5" laat een bezoeker raden of er ook een
+                     kindkaart is, en of die ene soort die hij zoekt nog te koop
+                     is. Dezelfde rijen als op de bestelpagina, alleen zonder
+                     de keuzevakjes. --}}
+                <div class="soorten">
+                    @foreach ($activiteit->ticketTypes as $soort)
+                        <div class="rij">
+                            <div class="naam">
+                                {{ $soort->name }}
+                                @if ($soort->description)
+                                    <small>{{ $soort->description }}</small>
+                                @endif
+                                @if ($soort->stock !== null && ! $soort->isUitverkocht() && $soort->beschikbaar() <= 10)
+                                    <small>Nog {{ $soort->beschikbaar() }} beschikbaar</small>
+                                @endif
+                            </div>
 
-                @if (! $uitverkocht)
+                            <div class="prijs">
+                                {{ $soort->price_cents === 0 ? 'Gratis' : \App\Support\Geld::euro($soort->price_cents) }}
+                            </div>
+
+                            @if ($soort->isUitverkocht())
+                                <span class="op">Uitverkocht</span>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+
+                @if ($uitverkocht)
+                    <p style="margin-bottom:2px"><strong>Uitverkocht</strong></p>
+                @else
+                    @if ($gratis)
+                        <p class="hulp" style="margin:0 0 12px">
+                            Gratis — wel even een kaart reserveren.
+                        </p>
+                    @endif
                     <a class="knop" href="{{ route('shop.event', [
                         'clubslug' => $club->slug,
                         'event'    => $activiteit->id,

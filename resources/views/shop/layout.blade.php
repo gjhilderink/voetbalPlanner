@@ -67,6 +67,11 @@
         .terug { display: inline-block; color: var(--grijs); font-size: 14px; text-decoration: none; margin-bottom: 14px; }
         .terug:hover { color: var(--tekst); }
 
+        /* De kaartsoorten onder een activiteit in de winkel: dezelfde rijen als
+           op de bestelpagina, met een streep erboven zodat ze niet aan de
+           omschrijving vastplakken. */
+        .soorten { margin: 12px 0 16px; border-top: 1px solid var(--rand); }
+
         .rij { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--rand); }
         .rij:last-of-type { border-bottom: 0; }
         .rij .naam { flex: 1; }
