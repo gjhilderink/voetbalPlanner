@@ -75,5 +75,29 @@
                 @endif
             </div>
         @endforeach
+
+        {{-- Wat er na het afrekenen gebeurt, vóór iemand op de knop drukt. De
+             vraag die anders per mail of aan de bar komt is steeds dezelfde:
+             krijg ik een kaartje thuisgestuurd? --}}
+        <div class="kaart uitleg">
+            <h2>Zo werkt het</h2>
+            <ol>
+                <li>Kies een activiteit en zet erbij hoeveel kaarten je wilt.</li>
+                <li>Vul je naam en e-mailadres in en reken af via Pay.nl.</li>
+                <li>
+                    Je kaarten komen meteen per e-mail. Elke kaart is een eigen
+                    pdf van één A4 met een QR-code erop.
+                </li>
+                <li>
+                    Print ze uit of laat ze op je telefoon zien. Bij de ingang
+                    wordt de QR gescand; elke kaart werkt één keer.
+                </li>
+            </ol>
+            <p class="hulp">
+                Geen mail gekregen? Kijk in je ongewenste post. Op de pagina die
+                je na het betalen krijgt, kun je je kaarten altijd opnieuw
+                downloaden.
+            </p>
+        </div>
     @endif
 @endsection
