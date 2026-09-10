@@ -84,6 +84,14 @@ class MatchResource extends JsonResource
                     : ($this->coach?->name ?? ''),
                 $this->coach?->name ?? ''
             ),
+            // Wie de kleedkamer schoonmaakt. Komma-lijst zoals bij de rijders:
+            // de app zet er één regel mee op de infotab, en de keuzelijst in de
+            // coach-dialoog markeert er de namen mee die er al op staan.
+            'cleanerNames'   => $this->whenLoaded(
+                'cleaners',
+                fn() => $this->cleaners->pluck('name')->join(', '),
+                '',
+            ),
             'fruitHeroName'  => $this->fruitHero?->name ?? '',
             'fruitHeroId'    => $this->fruit_hero_id ?? '',
             'vlaggerName'    => $this->vlagger?->name ?? '',

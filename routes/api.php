@@ -185,6 +185,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/matches/{match}/fruithero', [MatchController::class, 'setFruitHero']);
         // Rijder aan/uit zetten. Per persoon en via POST: zie toggleRijder().
         Route::post('/matches/{match}/rijder', [MatchController::class, 'toggleRijder']);
+        // Coach en kleedkamer-schoonmaker aan/uit zetten (coach). Per persoon,
+        // zelfde reden als bij de rijders: het zijn many-to-many-velden.
+        Route::post('/matches/{match}/coach', [MatchController::class, 'toggleCoach']);
+        Route::post('/matches/{match}/schoonmaker', [MatchController::class, 'toggleSchoonmaker']);
 
         // Gastspeler uitnodigen voor een wedstrijd (coach) + de gast z'n uitnodigingen.
         Route::post('/matches/{match}/guest-invite', [GuestInvitationController::class, 'invite']);

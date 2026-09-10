@@ -596,6 +596,15 @@ void buildEditFlow(App app) {
   try { app.state('dialogDriverNames',         string); } catch (_) {}
   try { app.state('dialogRijderId',            string); } catch (_) {}
   try { app.state('dialogRijderName',          string); } catch (_) {}
+  // Zelfde opzet voor de coaches en voor wie de kleedkamer schoonmaakt: de
+  // namen die er nu op staan (om ze in de keuzelijst te markeren) en de
+  // aangetikte persoon die nog bevestigd moet worden.
+  try { app.state('dialogCoachNames',          string); } catch (_) {}
+  try { app.state('dialogCoachId',             string); } catch (_) {}
+  try { app.state('dialogCoachName',           string); } catch (_) {}
+  try { app.state('dialogCleanerNames',        string); } catch (_) {}
+  try { app.state('dialogCleanerId',           string); } catch (_) {}
+  try { app.state('dialogCleanerName',         string); } catch (_) {}
   try { app.state('dialogGuestId',             string); } catch (_) {}
   try { app.state('dialogGuestName',           string); } catch (_) {}
 
@@ -886,6 +895,8 @@ void buildEditFlow(App app) {
   app.raw((project) => _ensureMatchGoalsAppStateField(project));
   // AppState 'scoreTeamMembers' = List<SwapMember> (tikbare maker-keuze bij score).
   app.raw((project) => _ensureScoreTeamMembersField(project));
+  // AppState 'matchStaffMembers' = List<SwapMember> (coach-keuze bij de wedstrijd).
+  app.raw((project) => _ensureStaffMembersField(project));
   app.raw((project) => _ensureDialogListFields(project));
   // Custom actions: trainingen ophalen + af-/aanmelden (training & wedstrijd).
   app.raw((project) => _addTrainingsCustomActions(project));
@@ -12372,7 +12383,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
   for (final name in const [
     'matchOpponent', 'matchDatetime', 'matchLocation', 'matchField',
     'matchArrivalTime', 'matchCoachName', 'matchFruitHeroName', 'matchVlaggerName', 'matchGuestNames',
-    'matchDriverNames', 'matchNotes',
+    'matchDriverNames', 'matchCleanerNames', 'matchNotes',
     // De aanvangstijd los van matchDatetime: die laatste is een hele datum met
     // tijd, en het bewerkveld gaat alleen over de klok.
     'matchTimeLabel', 'matchSportlinkTime',
@@ -12413,6 +12424,7 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchVlaggerName':   r'$.vlaggerName',
           'matchGuestNames':    r'$.guestNames',
           'matchDriverNames':   r'$.driverNames',
+          'matchCleanerNames':  r'$.cleanerNames',
           'matchNotes':         r'$.notes',
           'matchTimeLabel':     r'$.timeLabel',
           'matchSportlinkTime': r'$.sportlinkTimeLabel',
@@ -12893,6 +12905,7 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchVlaggerName'),
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchGuestNames'),
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchDriverNames'),
+      ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchCleanerNames'),
       ...findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchField'),
     ]) {
       final sp = findParentByKey(wc.node, stray.key);
@@ -12982,6 +12995,17 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
             stateVar('matchDriverNames')!, FFCondition_Relation.NOT_EQUAL_TO,
             varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
           list.children.insert(at, rijderRow);
+          at++;
+        }
+        // Wie de kleedkamer schoonmaakt. Zelfde afweging als bij de rijders:
+        // alleen tonen als er iemand voor is aangewezen, anders staat er een
+        // lege regel die suggereert dat er nog iets moet gebeuren.
+        if (stateVar('matchCleanerNames') != null) {
+          final schoonRow = infoRow('Kleedkamer schoonmaken', 'matchCleanerNames');
+          setConditionalVisibility(schoonRow, variable: conditionVar(
+            stateVar('matchCleanerNames')!, FFCondition_Relation.NOT_EQUAL_TO,
+            varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+          list.children.insert(at, schoonRow);
         }
       }
     }
@@ -13005,6 +13029,7 @@ void _bindWedstrijdDetailInfoTexts(FFProject project) {
     infoRow('Coach', 'matchCoachName'),
     infoRow('Fruitheid', 'matchFruitHeroName'),
     infoRow('Rijders', 'matchDriverNames'),
+    infoRow('Kleedkamer schoonmaken', 'matchCleanerNames'),
     infoRow('Notities', 'matchNotes'),
   ]);
 }
@@ -23188,6 +23213,25 @@ void _ensureScoreTeamMembersField(FFProject project) {
   project.appState.fields.add(FFAppStateField(parameter: param));
 }
 
+// AppState 'matchStaffMembers' = List<SwapMember>: de staf van het elftal van de
+// wedstrijd, voor de coach-keuze in de FAB-dialoog. Een eigen lijst naast
+// scoreTeamMembers, want die staat op players_only en laat de coaches juist weg.
+void _ensureStaffMembersField(FFProject project) {
+  if (project.appState.fields.any(
+    (f) => f.parameter.identifier.name == 'matchStaffMembers',
+  )) return;
+  final struct = project.backend.dataSchemaConfig.dataStructs
+      .cast<FFDataStruct?>()
+      .firstWhere((s) => s?.identifier.name == 'SwapMember', orElse: () => null);
+  if (struct == null) return;
+  final param = FFParameter(
+    identifier: FFIdentifier(name: 'matchStaffMembers', key: generateRandomAlphaNumericString()),
+    dataType: dataStructType(struct.identifier.deepCopy()),
+  );
+  param.isList = true;
+  project.appState.fields.add(FFAppStateField(parameter: param));
+}
+
 // Voegt de telling-velden (aangemeld/afgemeld, string) toe aan de bestaande
 // TrainingItem-struct. Raw, idempotent — er is geen addDataStructField-helper en
 // app.struct/ensure botst op een gewijzigde payload.
@@ -24994,6 +25038,50 @@ void _addGuestInviteEndpoints(FFProject project) {
         headers: ['Authorization: Bearer [bearerToken]']);
   }
 
+  // POST /matches/[matchId]/coach?memberId=.. — coach zet een coach aan of uit.
+  // POST /matches/[matchId]/schoonmaker?memberId=.. — idem voor wie de
+  // kleedkamer schoonmaakt. Allebei many-to-many aan de serverkant, dus per
+  // persoon omzetten net als bij de rijders.
+  const coachUrl = '/matches/[matchId]/coach?memberId=[memberId]';
+  if (has('SetMatchCoach')) {
+    updateApiEndpoint(project, name: 'SetMatchCoach', groupName: groupName,
+        url: coachUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'SetMatchCoach',
+        url: coachUrl, method: FFApiEndpoint_CallType.POST, bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str(), 'memberId': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
+  const schoonmaakUrl = '/matches/[matchId]/schoonmaker?memberId=[memberId]';
+  if (has('SetMatchSchoonmaker')) {
+    updateApiEndpoint(project, name: 'SetMatchSchoonmaker', groupName: groupName,
+        url: schoonmaakUrl, method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE, body: '');
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'SetMatchSchoonmaker',
+        url: schoonmaakUrl, method: FFApiEndpoint_CallType.POST, bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str(), 'memberId': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+
+  // GET /teams/[teamId]/members?include_self=1&staff_only=1 — de staf van het
+  // elftal, voor de coach-keuze. Een eigen endpoint naast GetScorerMembers:
+  // die staat op players_only=1 en laat juist de coaches weg.
+  const stafUrl = '/teams/[teamId]/members?include_self=1&staff_only=1';
+  if (has('GetStaffCandidates')) {
+    updateApiEndpoint(project, name: 'GetStaffCandidates', groupName: groupName,
+        url: stafUrl, method: FFApiEndpoint_CallType.GET, bodyType: FFApiEndpoint_BodyType.NONE,
+        responseDataStructName: 'SwapMember', responseDataStructIsList: true);
+  } else {
+    addEndpointToGroup(project, groupName: groupName, name: 'GetStaffCandidates',
+        url: stafUrl, method: FFApiEndpoint_CallType.GET, bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'teamId': str()},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'SwapMember', responseDataStructIsList: true);
+  }
+
   // POST /matches/[matchId]/fruithero?memberId=.. — coach kiest de fruitheld.
   // Eigen endpoint en niet het PATCH-endpoint op de wedstrijd: shared hosting
   // blokkeert PATCH regelmatig. Zelfde vorm als de vlagger hierboven.
@@ -25404,6 +25492,13 @@ void _buildMatchActionsDialogBody(FFProject project) {
   final rijderNameId = _findAppStateFieldId(project, 'dialogRijderName');
   final guestIdId   = _findAppStateFieldId(project, 'dialogGuestId');
   final guestNameId = _findAppStateFieldId(project, 'dialogGuestName');
+  final staffMembersId = _findAppStateFieldId(project, 'matchStaffMembers');
+  final coachNamesId   = _findAppStateFieldId(project, 'dialogCoachNames');
+  final coachIdId      = _findAppStateFieldId(project, 'dialogCoachId');
+  final coachNameId    = _findAppStateFieldId(project, 'dialogCoachName');
+  final cleanerNamesId = _findAppStateFieldId(project, 'dialogCleanerNames');
+  final cleanerIdId    = _findAppStateFieldId(project, 'dialogCleanerId');
+  final cleanerNameId  = _findAppStateFieldId(project, 'dialogCleanerName');
   if ([viewId, matchIdId, scorerId, teamIdId, membersScoreId, teamsId, membersId, authId,
        flagIdId, flagNameId, guestIdId, guestNameId]
       .any((x) => x == null)) return;
@@ -25415,6 +25510,13 @@ void _buildMatchActionsDialogBody(FFProject project) {
   // die velden komen uit een eerdere app.state-declaratie in dezelfde run.
   final hasFruit  = findApiEndpoint(project, name: 'SetMatchFruitHero', groupName: 'VoetbalPlannerAPI') != null &&
       fruitIdId != null && fruitNameId != null;
+  // Coaches aanpassen kan alleen als de staflijst er is; zonder die lijst zou
+  // de keuze leeg blijven. Schoonmaken leunt op dezelfde spelerslijst als de
+  // rijders, die is er altijd.
+  final hasCoach  = findApiEndpoint(project, name: 'SetMatchCoach', groupName: 'VoetbalPlannerAPI') != null &&
+      staffMembersId != null && coachIdId != null && coachNameId != null && coachNamesId != null;
+  final hasSchoon = findApiEndpoint(project, name: 'SetMatchSchoonmaker', groupName: 'VoetbalPlannerAPI') != null &&
+      cleanerIdId != null && cleanerNameId != null && cleanerNamesId != null;
   if (!hasAdd || !hasInvite || !hasMbrs) return;
 
   final k = wc.node.key;
@@ -25446,6 +25548,8 @@ void _buildMatchActionsDialogBody(FFProject project) {
         // De keuzelijst zelf (MaGoalView) blijft staan maar is niet meer
         // bereikbaar - terugzetten is één regel.
         menuBtn('Rijders toevoegen', 'drivers'),
+        if (hasCoach) menuBtn('Coaches aanpassen', 'coaches'),
+        if (hasSchoon) menuBtn('Kleedkamer schoonmaken', 'schoon'),
         menuBtn('Vlagger kiezen', 'flag'),
         if (hasFruit) menuBtn('Fruitheld kiezen', 'fruit'),
         menuBtn('Gastspeler uitnodigen', 'invite'),
@@ -25840,6 +25944,175 @@ void _buildMatchActionsDialogBody(FFProject project) {
     root.children.add(rijderView);
   }
 
+  // ── Coaches en kleedkamer-schoonmakers (aan/uit per persoon) ──
+  //
+  // Twee keer dezelfde lijst-met-toggle als bij de rijders hierboven, dus één
+  // bouwer met de verschillen als parameters. Allebei many-to-many aan de
+  // serverkant; de server stuurt de bijgewerkte namenlijst terug, zodat de
+  // markering in de lijst meteen klopt zonder de sheet te sluiten.
+  void toggleWeergave({
+    required String view,
+    required String prefix,
+    required String endpoint,
+    required FFIdentifier lijstId,
+    required String itemName,
+    required FFIdentifier namenId,
+    required String namenVeld,
+    required String namenPad,
+    required FFIdentifier keuzeIdId,
+    required String keuzeIdVeld,
+    required FFIdentifier keuzeNaamId,
+    required String keuzeNaamVeld,
+    required String markering,
+    required String uitleg,
+    required String knopLabel,
+    required String geluktTekst,
+  }) {
+    final lijst = UI.listView(name: 'Ma${prefix}List', shrinkWrap: true, spacing: 2,
+        dynamicSource: DynamicSource(variable: appVar(lijstId), itemName: itemName));
+
+    // Drie dingen in één regel, net als bij de rijders: een vinkje voor wie je
+    // nu hebt aangetikt, de naam, en de markering achter wie er al op staat.
+    // Zonder die laatste weet je niet wie je moet aantikken om hem eraf te halen.
+    final naam = UI.text('', name: 'Ma${prefix}Name', style: UITextStyle.bodyMedium);
+    naam.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+        expression: "(((s ?? '') != '' && (s ?? '') == (n ?? '')) ? '✓  ' : '')"
+            " + (n ?? '')"
+            " + (((n ?? '') != '' && (d ?? '').contains(n ?? '')) ? '  ·  $markering' : '')",
+        arguments: [
+          CodeExpressionArg(name: 's', dataType: str(), value: FFValue(variable: appVar(keuzeNaamId))),
+          CodeExpressionArg(name: 'n', dataType: str(),
+              value: FFValue(variable: generatorVarField(lijst.key, 'name'))),
+          CodeExpressionArg(name: 'd', dataType: str(), value: FFValue(variable: appVar(namenId))),
+        ],
+        returnType: FFParameter(dataType: str())));
+
+    final rij = UI.container(name: 'Ma${prefix}Row', width: double.infinity,
+        padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: naam);
+    rij.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: FFActionNode(key: generateRandomAlphaNumericString(),
+        action: Actions.updateAppState(project, updates: [
+          StateFieldUpdate.setFromVariable(keuzeIdVeld, generatorVarField(lijst.key, 'id')),
+          StateFieldUpdate.setFromVariable(keuzeNaamVeld, generatorVarField(lijst.key, 'name')),
+        ]))));
+    lijst.children.add(rij);
+    final scroll = UI.container(name: 'Ma${prefix}Scroll', height: 200, clipContent: true, child: lijst);
+
+    final gekozen = UI.text('', name: 'Ma${prefix}Selected',
+        style: UITextStyle.bodyMedium, color: UIColor.primary);
+    gekozen.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+        expression: "(n ?? '') == '' ? '' : 'Gekozen: ' + (n ?? '')",
+        arguments: [CodeExpressionArg(name: 'n', dataType: str(),
+            value: FFValue(variable: appVar(keuzeNaamId)))],
+        returnType: FFParameter(dataType: str())));
+
+    final zetBtn = UI.button(knopLabel, name: 'Ma${prefix}ToggleBtn', width: double.infinity);
+    zetBtn.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: Actions.apiCallNode(project, endpointName: endpoint,
+        groupName: 'VoetbalPlannerAPI',
+        dynamicVariables: {
+          'matchId': appVar(matchIdId!),
+          'memberId': appVar(keuzeIdId),
+        },
+        outputVariableName: 'ma${prefix}Toggle', nodeKey: zetBtn.key,
+        // De keuze wordt gewist maar de weergave blijft open: zo loop je de
+        // namen in één keer langs. De bijgewerkte lijst komt uit het antwoord,
+        // zodat de markering meteen klopt.
+        onSuccess: (ctx) => Actions.chain([
+          Actions.snackBar(geluktTekst),
+          Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable(
+                namenVeld, _jsonBodyVar(ctx, namenPad, zetBtn.key)),
+            StateFieldUpdate.set(keuzeIdVeld, ''),
+            StateFieldUpdate.set(keuzeNaamVeld, ''),
+          ]),
+        ]),
+        onFailure: (ctx) => Actions.chain([
+          Actions.snackBar('Bijwerken mislukt — controleer je rechten.'),
+        ]))));
+
+    final bevestig = UI.column(name: 'Ma${prefix}Confirm',
+        crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 4,
+        children: [gekozen, zetBtn]);
+    setConditionalVisibility(bevestig, variable: conditionVar(
+        appVar(keuzeIdId), FFCondition_Relation.NOT_EQUAL_TO,
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+
+    // Klaar sluit de sheet; dat laat de FAB de wedstrijd opnieuw ophalen, zodat
+    // de namen op de detailpagina bijwerken.
+    final klaar = UI.button('Klaar', name: 'Ma${prefix}KlaarBtn', width: double.infinity);
+    klaar.triggerActions.add(FFTriggerActions(
+      trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+      rootAction: FFActionNode(
+        key: generateRandomAlphaNumericString(),
+        action: Actions.updateAppState(project, updates: [
+          StateFieldUpdate.set('dialogView', 'menu'),
+          StateFieldUpdate.set(keuzeIdVeld, ''),
+          StateFieldUpdate.set(keuzeNaamVeld, ''),
+        ]),
+        followUpAction: FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.navigateBack(),
+        ),
+      )));
+
+    final weergave = UI.column(name: 'Ma${prefix}View',
+        crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 8,
+        children: [
+          UI.text(uitleg, name: 'Ma${prefix}Label', style: UITextStyle.labelMedium,
+              color: UIColor.secondaryText),
+          scroll, bevestig, klaar, backBtn(),
+        ]);
+    setConditionalVisibility(weergave, variable: viewIs(view));
+    root.children.add(weergave);
+  }
+
+  if (hasCoach) {
+    toggleWeergave(
+      view: 'coaches',
+      prefix: 'Coach',
+      endpoint: 'SetMatchCoach',
+      lijstId: staffMembersId!,
+      itemName: 'cm',
+      namenId: coachNamesId!,
+      namenVeld: 'dialogCoachNames',
+      namenPad: r'$.data.coachName',
+      keuzeIdId: coachIdId!,
+      keuzeIdVeld: 'dialogCoachId',
+      keuzeNaamId: coachNameId!,
+      keuzeNaamVeld: 'dialogCoachName',
+      markering: 'staat erbij',
+      uitleg: 'Kies iemand uit de staf van dit elftal en zet hem aan of uit als '
+          'coach bij deze wedstrijd. Wie er al bij staat is gemarkeerd.',
+      knopLabel: 'Coach aan/uit zetten',
+      geluktTekst: 'Coaches bijgewerkt.',
+    );
+  }
+
+  if (hasSchoon) {
+    toggleWeergave(
+      view: 'schoon',
+      prefix: 'Schoon',
+      endpoint: 'SetMatchSchoonmaker',
+      lijstId: membersScoreId!,
+      itemName: 'km',
+      namenId: cleanerNamesId!,
+      namenVeld: 'dialogCleanerNames',
+      namenPad: r'$.data.cleanerNames',
+      keuzeIdId: cleanerIdId!,
+      keuzeIdVeld: 'dialogCleanerId',
+      keuzeNaamId: cleanerNameId!,
+      keuzeNaamVeld: 'dialogCleanerName',
+      markering: 'maakt schoon',
+      uitleg: 'Kies wie de kleedkamer schoonmaakt. Aantikken en bevestigen zet '
+          'iemand erbij of haalt hem er weer af.',
+      knopLabel: 'Schoonmaker aan/uit zetten',
+      geluktTekst: 'Kleedkamer bijgewerkt.',
+    );
+  }
+
   // ── Vlagger-picker (iedereen uit het team van de wedstrijd) ──
   if (hasFlag) {
     final flagVar = appVar(membersScoreId!);
@@ -26196,6 +26469,11 @@ void _addWedstrijdActionsFab(FFProject project) {
         ('matchSportlinkTime', 'dialogSportlinkTijd'),
         ('matchArrivalTime', 'dialogVerzameltijd'),
         ('matchArrivalSportlink', 'dialogSportlinkVerzamel'),
+        // Wie er nu als coach en als schoonmaker op staat; de keuzelijsten in
+        // de sheet markeren daarmee wie er al bij hoort, zodat je hem er ook
+        // weer af kunt halen.
+        ('matchCoachName', 'dialogCoachNames'),
+        ('matchCleanerNames', 'dialogCleanerNames'),
       ])
         if (wc.classModel.stateFields.any(
             (x) => x.parameter.identifier.name == paar.$1))
@@ -26285,6 +26563,7 @@ void _addWedstrijdActionsFab(FFProject project) {
                     ('matchArrivalTime',   r'$.arrivalTime'),
                     ('matchGuestNames',    r'$.guestNames'),
                     ('matchDriverNames',   r'$.driverNames'),
+                    ('matchCleanerNames',  r'$.cleanerNames'),
                     ('matchGoalsSummary',  r'$.goals_summary'),
                   ])
                     StateFieldUpdate.setFromVariable(
@@ -26438,6 +26717,40 @@ void _addWedstrijdScoreSection(FFProject project) {
           onSuccess: (ctx) => Actions.chain([
             Actions.updateAppState(project, updates: [
               StateFieldUpdate.setFromVariable('scoreTeamMembers', ctx.responseVar),
+            ]),
+          ]),
+        ),
+      );
+    }
+  }
+
+  // Dezelfde truc voor de staf van het elftal -> AppState.matchStaffMembers.
+  // Die lijst voedt de coach-keuze in de FAB-dialoog; de spelerslijst hierboven
+  // kan dat niet, want die staat op players_only en laat de coaches juist weg.
+  final staffMembersId = _findAppStateFieldId(project, 'matchStaffMembers');
+  final staffEp = findApiEndpoint(project, name: 'GetStaffCandidates', groupName: 'VoetbalPlannerAPI');
+  if (authTokenId != null && matchTeamIdVar != null && staffMembersId != null && staffEp != null) {
+    bool hasStaffLoad(FFActionNode n) {
+      if (n.hasAction() && n.action.hasDatabase() && n.action.database.hasApiCall() &&
+          n.action.database.apiCall.hasEndpointIdentifier() &&
+          n.action.database.apiCall.endpointIdentifier.name == 'GetStaffCandidates') return true;
+      if (n.hasFollowUpAction() && hasStaffLoad(n.followUpAction)) return true;
+      return false;
+    }
+    final already = wc.node.triggerActions.any((t) => t.hasRootAction() && hasStaffLoad(t.rootAction));
+    if (!already) {
+      _appendToFirstPageLoadChain(
+        wc.node,
+        Actions.apiCallNode(
+          project,
+          endpointName: 'GetStaffCandidates',
+          groupName: 'VoetbalPlannerAPI',
+          dynamicVariables: {'teamId': stateVar('matchTeamId')!},
+          outputVariableName: 'staffMembersLoad',
+          nodeKey: wc.node.key,
+          onSuccess: (ctx) => Actions.chain([
+            Actions.updateAppState(project, updates: [
+              StateFieldUpdate.setFromVariable('matchStaffMembers', ctx.responseVar),
             ]),
           ]),
         ),

@@ -155,6 +155,42 @@ abstract final class AppState {
     typeName: "List<DataStruct<ActivityItem>>",
     persisted: false,
   );
+  static const dialogCleanerId = ffai.ProjectAppStateFieldHandle(
+    name: "dialogCleanerId",
+    key: "q6us50z8",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogCleanerName = ffai.ProjectAppStateFieldHandle(
+    name: "dialogCleanerName",
+    key: "9zs1uk9y",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogCleanerNames = ffai.ProjectAppStateFieldHandle(
+    name: "dialogCleanerNames",
+    key: "vucilf04",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogCoachId = ffai.ProjectAppStateFieldHandle(
+    name: "dialogCoachId",
+    key: "q7no6yqh",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogCoachName = ffai.ProjectAppStateFieldHandle(
+    name: "dialogCoachName",
+    key: "q4zkyzdf",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogCoachNames = ffai.ProjectAppStateFieldHandle(
+    name: "dialogCoachNames",
+    key: "yeccn7ve",
+    typeName: "String",
+    persisted: false,
+  );
   static const dialogDriverNames = ffai.ProjectAppStateFieldHandle(
     name: "dialogDriverNames",
     key: "74mzhbid",
@@ -521,6 +557,12 @@ abstract final class AppState {
     typeName: "List<DataStruct<MatchReportItem>>",
     persisted: false,
   );
+  static const matchStaffMembers = ffai.ProjectAppStateFieldHandle(
+    name: "matchStaffMembers",
+    key: "dmqgcbq7",
+    typeName: "List<DataStruct<SwapMember>>",
+    persisted: false,
+  );
   static const matchStats = ffai.ProjectAppStateFieldHandle(
     name: "matchStats",
     key: "z1nr5xgm",
@@ -835,6 +877,12 @@ abstract final class AppState {
     currentTeamId,
     currentTeamName,
     dashActivities,
+    dialogCleanerId,
+    dialogCleanerName,
+    dialogCleanerNames,
+    dialogCoachId,
+    dialogCoachName,
+    dialogCoachNames,
     dialogDriverNames,
     dialogFlaggerId,
     dialogFlaggerName,
@@ -896,6 +944,7 @@ abstract final class AppState {
     matchPhotos,
     matchReportEvents,
     matchReports,
+    matchStaffMembers,
     matchStats,
     myGuardianRequests,
     myRoles,

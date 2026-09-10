@@ -68,7 +68,7 @@ class MatchController extends Controller
 
     public function show(Request $request, FootballMatch $match): JsonResponse
     {
-        $match->load(['team', 'coach', 'coaches', 'fruitHero', 'vlagger', 'drivers', 'lineup.players.member', 'goals.scorer', 'goals.assist']);
+        $match->load(['team', 'coach', 'coaches', 'cleaners', 'fruitHero', 'vlagger', 'drivers', 'lineup.players.member', 'goals.scorer', 'goals.assist']);
 
         $data = (new MatchResource($match))->resolve();
 
@@ -488,6 +488,126 @@ class MatchController extends Controller
                 ? $member->name . ' rijdt mee.'
                 : $member->name . ' rijdt niet meer mee.',
         ]);
+    }
+
+    /**
+     * POST /v1/matches/{match}/coach?memberId=..
+     *
+     * Zet iemand aan of uit als coach van deze wedstrijd. Zelfde vorm als de
+     * rijders: een toggle per persoon, want de coaches zijn een many-to-many en
+     * de app krijgt geen lijst in een URL. Wie er nu staan komt terug in
+     * coachName, zodat de keuzelijst kan tonen wie al coach is.
+     */
+    public function toggleCoach(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je hebt geen rechten om de coaches te wijzigen.',
+            ], 403);
+        }
+
+        $member = $this->teamlidUitRequest($request, $match);
+        if (! $member instanceof Member) {
+            return $member;
+        }
+
+        $resultaat  = $match->coaches()->toggle([$member->id]);
+        $toegevoegd = ! empty($resultaat['attached']);
+
+        // coach_id is de enkelvoudige terugval voor de oudere schermen. Laten
+        // wijzen naar iemand die er net af is gehaald levert een wedstrijd op
+        // met een coach die nergens meer in de lijst staat.
+        $match->load('coaches');
+        if (! $toegevoegd && $match->coach_id === $member->id) {
+            $match->coach_id = $match->coaches->first()?->id;
+            $match->save();
+        } elseif ($toegevoegd && ! $match->coach_id) {
+            $match->coach_id = $member->id;
+            $match->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'memberId'  => $member->id,
+                'isCoach'   => $toegevoegd ? 'true' : 'false',
+                'coachName' => $match->coaches->pluck('name')->join(', '),
+            ],
+            'message' => $toegevoegd
+                ? $member->name . ' staat als coach bij deze wedstrijd.'
+                : $member->name . ' is geen coach meer bij deze wedstrijd.',
+        ]);
+    }
+
+    /**
+     * POST /v1/matches/{match}/schoonmaker?memberId=..
+     *
+     * Wie de kleedkamer schoonmaakt, aan of uit. Hetzelfde veld als in de
+     * portal (match_cleaners): daar vult de wedstrijdsecretaris het in, hier de
+     * coach vanaf zijn telefoon.
+     */
+    public function toggleSchoonmaker(Request $request, FootballMatch $match): JsonResponse
+    {
+        if (! $request->user()->canManageLineup($match->team_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Je hebt geen rechten om de schoonmaakbeurt te wijzigen.',
+            ], 403);
+        }
+
+        $member = $this->teamlidUitRequest($request, $match);
+        if (! $member instanceof Member) {
+            return $member;
+        }
+
+        $resultaat  = $match->cleaners()->toggle([$member->id]);
+        $toegevoegd = ! empty($resultaat['attached']);
+
+        $match->load('cleaners');
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'memberId'     => $member->id,
+                'isCleaner'    => $toegevoegd ? 'true' : 'false',
+                'cleanerNames' => $match->cleaners->pluck('name')->join(', '),
+            ],
+            'message' => $toegevoegd
+                ? $member->name . ' maakt de kleedkamer schoon.'
+                : $member->name . ' hoeft de kleedkamer niet meer schoon te maken.',
+        ]);
+    }
+
+    /**
+     * Het lid uit ?memberId=, mits het in het team van deze wedstrijd zit.
+     *
+     * Geeft het lid terug, of een kant-en-klare foutrespons. Gedeeld door de
+     * twee toggles hierboven; de oudere endpoints hebben dezelfde controle nog
+     * inline staan.
+     */
+    private function teamlidUitRequest(Request $request, FootballMatch $match): Member|JsonResponse
+    {
+        $memberId = trim((string) $request->input('memberId', ''));
+        if ($memberId === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Geen teamlid opgegeven.',
+            ], 422);
+        }
+
+        $member = Member::where('id', $memberId)
+            ->whereHas('teams', fn ($q) => $q->where('teams.id', $match->team_id))
+            ->first();
+
+        if (! $member) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Teamlid niet gevonden in dit team.',
+            ], 422);
+        }
+
+        return $member;
     }
 
     /**

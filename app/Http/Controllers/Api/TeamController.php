@@ -64,8 +64,19 @@ class TeamController extends Controller
         // omdat de lijst op naam is gesorteerd stonden ze er vaak bovenaan.
         $alleenSpelers = $request->boolean('players_only');
 
+        // Andersom: alleen de staf, voor het scherm waar de coach de coaches van
+        // een wedstrijd aanpast. Dezelfde bron als het keuzeveld in de portal
+        // (staffMemberIds), zodat beide kanten dezelfde mensen aanbieden.
+        //
+        // Kent de club geen staf bij dit elftal, dan filteren we niet: een lege
+        // keuzelijst laat de coach met lege handen staan, en dat is erger dan
+        // een lijst waar ook spelers in staan.
+        $alleenStaf = $request->boolean('staff_only');
+        $stafIds    = $alleenStaf ? $team->staffMemberIds() : [];
+
         // 1. Klassieke Sportlink-leden via member_team pivot.
         $members = ($alleenSpelers ? $team->playingMembers() : $team->members())
+            ->when($stafIds, fn($q) => $q->whereIn('members.id', $stafIds))
             ->when($myMemberId && ! $includeSelf, fn($q) => $q->where('members.id', '!=', $myMemberId))
             ->orderBy('members.name')
             ->get();
@@ -92,7 +103,11 @@ class TeamController extends Controller
         // Accounts zonder lidprofiel die via user_team aan het elftal hangen zijn
         // per definitie staf - coach, leider, bardienst. Bij een spelerslijst
         // vallen ze dus helemaal weg.
-        $extraUsers = $alleenSpelers ? collect() : $team->users()
+        // Bij de stafkeuze vallen ze ook weg, maar om een andere reden: zonder
+        // ledenrecord is er geen member_id om ze als coach aan de wedstrijd te
+        // hangen. Ze aanbieden zou een keuze opleveren die niet opgeslagen kan
+        // worden.
+        $extraUsers = ($alleenSpelers || $alleenStaf) ? collect() : $team->users()
             ->whereNotIn('users.id', $linkedMemberUserIds)
             ->when($myUserId && ! $includeSelf, fn($q) => $q->where('users.id', '!=', $myUserId))
             ->orderBy('users.name')
