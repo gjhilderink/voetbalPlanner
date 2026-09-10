@@ -23135,7 +23135,7 @@ void _ensureTrainingsAppStateField(FFProject project) {
 /// AppState 'trainingsPage' = List<TrainingItem> voor de trainingenpagina.
 ///
 /// Een eigen veld naast 'trainings'. Het dashboard toont een kort lijstje en
-/// de pagina twee weken; met één veld zou het dashboard meegroeien zodra je de
+/// de pagina drie weken; met één veld zou het dashboard meegroeien zodra je de
 /// pagina had geopend, en weer inkrimpen na een teamwissel.
 void _ensureTrainingsPageAppStateField(FFProject project) {
   if (project.appState.fields.any(
@@ -23275,12 +23275,12 @@ void _addGetTrainingsEndpoint(FFProject project) {
     );
   }
 
-  // En hetzelfde voor de trainingenpagina, maar dan twee weken vooruit en
+  // En hetzelfde voor de trainingenpagina, maar dan drie weken vooruit en
   // zonder limiet. Een apart endpoint en niet dezelfde met een variabele: het
   // dashboard en de pagina schrijven naar verschillende AppState-velden, dus ze
   // delen hier toch niets.
   const pageEndpoint = 'GetTrainingsPage';
-  const pageUrl = '/trainings?team_id=[teamId]&days=14';
+  const pageUrl = '/trainings?team_id=[teamId]&days=21';
 
   if (findApiEndpoint(project, name: pageEndpoint, groupName: groupName) == null) {
     if (findApiGroup(project, name: groupName) == null) return;
@@ -28127,7 +28127,7 @@ void _buildTrainingDetailPage(App app) {
 /// Beide trainingslijsten opnieuw ophalen en dan de pagina sluiten.
 ///
 /// Twee lijsten omdat het dashboard een kort rijtje toont en de trainingenpagina
-/// twee weken; ze hangen aan verschillende AppState-velden. Ververs je er maar
+/// drie weken; ze hangen aan verschillende AppState-velden. Ververs je er maar
 /// één, dan kijk je na het afmelden op het andere scherm nog naar de oude stand.
 FFActionNode _herlaadTrainingen(
   FFProject project, {
@@ -31187,7 +31187,7 @@ void _wireTrainingenPage(FFProject project) {
 
   final authTokenId = _findAppStateFieldId(project, 'authToken');
   final currentTeamIdId = _findAppStateFieldId(project, 'currentTeamId');
-  // Eigen veld en eigen endpoint: deze pagina toont twee weken, het dashboard
+  // Eigen veld en eigen endpoint: deze pagina toont drie weken, het dashboard
   // een kort lijstje. Deelden ze er één, dan groeide het dashboard mee zodra je
   // deze pagina had geopend.
   final trainingsId = _findAppStateFieldId(project, 'trainingsPage');
