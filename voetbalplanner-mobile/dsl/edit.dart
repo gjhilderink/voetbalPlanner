@@ -904,29 +904,17 @@ void buildEditFlow(App app) {
   // lijst komt uit dezelfde streams als de teller zelf, zodat geldt: wat er
   // meetelt, kun je openen.
   //
-  // Alles String: FlutterFlow bindt een platte struct zonder omwegen.
-  const unreadChatItemVelden = {
-    'conversationId': string,
-    'title': string,
-    'subtitle': string,
-    'unread': string,
-    'teamId': string,
-    'teamName': string,
-    'type': string,
-  };
-  final unreadChatItemHandle = StructHandle(
-    'UnreadChatItem',
-    unreadChatItemVelden,
-    description: generatedProjectStructDescription,
-  );
-  try {
-    app.struct('UnreadChatItem', unreadChatItemVelden);
-  } catch (_) {}
+  // Alles String: FlutterFlow bindt een platte struct zonder omwegen. Velden:
+  // conversationId, title, subtitle, unread, teamId, teamName, type.
+  //
+  // De struct en het app-state-veld 'unreadChats' staan inmiddels in het
+  // project en worden hier niet opnieuw gedeclareerd. Een tweede declaratie
+  // loopt stuk op ensureAppStateField/ensureDataStruct — die zijn
+  // create-if-missing, en een try/catch helpt niet omdat de fout pas tijdens
+  // het compileren valt. Zelfde reden als bij TeamOption hieronder.
+  //
   // Niet persisted: een bewaarde lijst zou bij het opstarten spookregels tonen
   // voordat Firestore verbinding heeft.
-  try {
-    app.state('unreadChats', listOf(unreadChatItemHandle));
-  } catch (_) {}
 
   // TeamOption (id + name + role/functie per team) bestaat al in het project en
   // wordt niet opnieuw ge-ensure'd — na het toevoegen van 'role' verschilt de
@@ -3910,29 +3898,18 @@ Future<void> bumpConversationUnread() async {
   };
   await docRef.set(payload, SetOptions(merge: true));
 
-  // Stap 2: atomically increment unreadByUser.<email> voor elke recipient via
-  // FieldPath. FieldValue.increment werkt NIET binnen een nested map bij
-  // set+merge — daarom is een aparte update() met FieldPath nodig.
-  final updates = <Object, Object?>{};
-  for (final p in participants) {
-    if (p == myEmail || p.isEmpty) continue;
-    updates[FieldPath(['unreadByUser', p])] = FieldValue.increment(1);
-  }
-  if (updates.isNotEmpty) {
-    try {
-      await docRef.update(updates);
-    } catch (_) {
-      // Doc bestaat maar unreadByUser ontbreekt → init met literale 1's.
-      final init = <String, dynamic>{};
-      for (final p in participants) {
-        if (p == myEmail || p.isEmpty) continue;
-        init[p] = 1;
-      }
-      try {
-        await docRef.set({'unreadByUser': init}, SetOptions(merge: true));
-      } catch (_) {}
-    }
-  }
+  // Stap 2 stond hier: de teller ophogen. Dat doet nu de Cloud Function die ook
+  // de melding verstuurt (hoogOngelezenOp in firebase-chat-functions/index.js).
+  //
+  // Waarom weg: een telefoon is de verkeerde plek voor een teller die voor
+  // iedereen geldt. Dit toestel bepaalde zelf wie de deelnemers waren, en als
+  // de schrijfactie halverwege strandde — app gesloten, verbinding weg — bleef
+  // het verschil staan. Zo ontstonden tellingen die naar gesprekken wezen waar
+  // niets nieuws stond. De server ziet het bericht sowieso; wat een melding
+  // krijgt, krijgt nu ook een teller.
+  //
+  // Deze actie blijft wél de deelnemers en de laatste tekst bijwerken: daar
+  // leest de Cloud Function op zijn beurt uit wie er een melding moet krijgen.
 }
 ''';
   if (findCustomAction(project, name: 'BumpConversationUnread') == null) {
@@ -3940,7 +3917,7 @@ Future<void> bumpConversationUnread() async {
       project,
       name: 'BumpConversationUnread',
       description:
-          'Verhoogt chatConversations.unreadCount + hasUnread voor de huidige conversatie (na elke verzonden chat in team/direct/group).',
+          'Werkt de conversatie bij na het verzenden: laatste bericht en deelnemers. De ongelezen-teller doet de Cloud Function.',
       arguments: [],
       code: _kBumpUnreadCode,
     );
@@ -4028,9 +4005,29 @@ class _UnreadChatWatcher {
       ..addAll(_rowsB)
       ..addAll(_rowsA);
 
+    // De teller op de Berichten-tab gaat over het elftal waar je nú in zit.
+    //
+    // Eerder telde hij álles bij elkaar op. Bij meerdere elftallen — een ouder
+    // met twee kinderen, een leider van twee teams — stond er dan een getal op
+    // de tab terwijl het bericht in een lijst stond die je pas ziet na
+    // omschakelen. De andere elftallen houden hun eigen teller in de teamkeuze,
+    // dus je ziet nog steeds dát er iets is en waar.
+    //
+    // Persoonlijke gesprekken tellen altijd mee: een direct bericht of een
+    // staffgroep hoort niet bij één elftal, en die achter een teamwissel
+    // verstoppen zou het probleem alleen verplaatsen.
+    final huidigTeam = FFAppState().currentTeamId;
+
     int total = 0;
     for (final r in samen.values) {
-      total += int.tryParse(r['unread'] ?? '0') ?? 0;
+      final aantal = int.tryParse(r['unread'] ?? '0') ?? 0;
+      if (aantal <= 0) continue;
+      final rTeam = r['teamId'] ?? '';
+      final rType = r['type'] ?? '';
+      final persoonlijk =
+          rTeam.isEmpty || rType == 'direct' || rType == 'staffgroup';
+      if (!persoonlijk && rTeam != huidigTeam) continue;
+      total += aantal;
     }
 
     // Tellingen terugschrijven op de teamlijst; die lijst voedt de teamkeuze op
