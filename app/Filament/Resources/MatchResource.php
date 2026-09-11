@@ -189,6 +189,22 @@ class MatchResource extends Resource
                     ->columnSpanFull(),
             ])->columns(2),
 
+            // De uitslag van de man-of-the-match-stemming. Alleen de uitslag:
+            // wie op wie stemde blijft ook hier verborgen, anders is de belofte
+            // van een anonieme stemming in de app niets waard. Geen stemmen,
+            // geen sectie.
+            Section::make('Man of the match')
+                ->description('Anoniem gekozen door het elftal, in de app.')
+                ->icon('heroicon-o-star')
+                ->collapsible()
+                ->visible(fn (?FootballMatch $record): bool => $record?->votes()->exists() ?? false)
+                ->schema([
+                    Forms\Components\Placeholder::make('motm')
+                        ->hiddenLabel()
+                        ->content(fn (FootballMatch $record): string => $record->motmWinnaarLabel())
+                        ->columnSpanFull(),
+                ]),
+
             // Het live verslag uit de app, alleen om te lezen: vastleggen en
             // verwijderen gebeurt daar. Staat er niets, dan ook geen lege sectie
             // — bij de meeste wedstrijden is er nooit een verslag bijgehouden.

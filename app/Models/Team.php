@@ -18,7 +18,7 @@ class Team extends Model
 
     protected $fillable = [
         'external_id', 'name', 'category', 'age_group', 'match_day', 'gender',
-        'season', 'photo', 'is_active', 'is_first_team', 'last_synced_at', 'club_id',
+        'season', 'photo', 'is_active', 'is_first_team', 'motm_enabled', 'last_synced_at', 'club_id',
         'default_lineup',
     ];
 
@@ -27,6 +27,7 @@ class Team extends Model
         return [
             'is_active' => 'boolean',
             'is_first_team' => 'boolean',
+            'motm_enabled' => 'boolean',
             'last_synced_at' => 'datetime',
             // De standaardopstelling van dit elftal; zie de migratie waarom hij
             // hier staat en niet in de lineups-tabel.

@@ -58,6 +58,12 @@ class TeamResource extends Resource
                     ->label('Eerste elftal')
                     ->helperText('Toont de wedstrijd van dit team bovenaan de bardienst-planner.')
                     ->default(false),
+                Forms\Components\Toggle::make('motm_enabled')
+                    ->label('Man of the match-stemming')
+                    ->helperText('Na een wedstrijd met een verslag kiest iedereen bij dit elftal '
+                        . 'anoniem de man of the match, één stem per persoon. Uit betekent: de knop '
+                        . 'staat nergens in de app.')
+                    ->default(false),
                 Forms\Components\TextInput::make('external_id')
                     ->label('Extern ID')
                     ->disabled(),
@@ -90,6 +96,10 @@ class TeamResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_active')->label('Actief')->boolean(),
                 Tables\Columns\IconColumn::make('is_first_team')->label('1e elftal')->boolean(),
+                Tables\Columns\IconColumn::make('motm_enabled')
+                    ->label('MotM')
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('members_count')
                     ->label('Leden')
                     ->counts('members')

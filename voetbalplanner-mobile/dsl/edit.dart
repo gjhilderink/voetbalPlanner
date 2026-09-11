@@ -108,6 +108,29 @@ void _buildMatchActionsSheet(App app) {
   );
 }
 
+// Bottom sheet waarin je op de man of the match stemt. Skelet; de inhoud (de
+// kandidatenlijst met de stand) bouwt _buildMotmSheetBody op, want daar zijn
+// app-state-gebonden lijsten en acties voor nodig.
+//
+// Een eigen component en geen extra weergave in MatchActionsSheet: die hangt aan
+// de coach-FAB en is alleen zichtbaar voor wie de opstelling mag beheren, terwijl
+// stemmen juist voor iedereen bij het elftal is.
+void _buildMotmSheet(App app) {
+  app.component(
+    'MotmVoteSheet',
+    description: 'Dialoog om anoniem op de man of the match van een wedstrijd te stemmen.',
+    body: Column(
+      name: 'MotmRoot',
+      crossAxis: CrossAxis.stretch,
+      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
+      spacing: 12,
+      children: [
+        Container(name: 'MotmPlaceholder'),
+      ],
+    ),
+  );
+}
+
 void _addDashboardQuickActionsFab(FFProject project) {
   final wc = findPage(project, name: 'DashboardPage');
   if (wc == null) return;
@@ -1407,6 +1430,16 @@ void buildEditFlow(App app) {
   _buildMatchActionsSheet(app);
   app.raw((project) => _ensureGuestFilterAction(project));
   app.raw((project) => _buildMatchActionsDialogBody(project));
+  // ── Man of the match ───────────────────────────────────────────────────────
+  // Struct en endpoints vóór het skelet: de inhoud van de sheet zoekt ze op naam
+  // op en slaat zichzelf over als ze er nog niet zijn.
+  app.raw((project) {
+    _ensureMotmStruct(project);
+    _ensureMotmAppState(project);
+    _addMotmEndpoints(project);
+  });
+  _buildMotmSheet(app);
+  app.raw((project) => _buildMotmSheetBody(project));
   // Markeringen op de coach-knop en het menu. Moet hierna: die knooppunten
   // bestaan pas als de twee passes hierboven klaar zijn.
   app.raw((project) => _zetTourDoelenOpWedstrijd(project));
@@ -1730,6 +1763,8 @@ void buildEditFlow(App app) {
     // Ná _addLiveMatchButton: de opstellingsknop hangt zich onder dat blok, dus
     // dat moet er eerst staan.
     _addOpstellingButton(project);
+    // En de stemknop weer onder de opstellingsknop.
+    _addMotmButton(project);
     // Ná _addWedstrijdScoreSection, die de lijst opbouwt.
     _bindGoalsTabToAppState(project);
     // Derde tabblad: het bewaarde verslag van een gespeelde wedstrijd.
@@ -12392,6 +12427,9 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
     'matchGoalsSummary', 'matchTeamId', 'selectedScorerName', 'matchOpponentLogo',
     'matchLiveGestart', 'matchAfgelast', 'matchAfgelastReden',
     'matchMagAfgelasten',
+    // Man of the match: staat de stemming aan, is er een verslag, heb ik al
+    // gestemd, en wie staat er voor.
+    'matchMotmAan', 'matchHeeftVerslag', 'matchMotmGestemd', 'matchMotmWinnaar',
   ]) {
     _ensurePageStateField(wc, name, FFBaseDataType.String);
   }
@@ -12439,6 +12477,10 @@ void _wireWedstrijdDetailPageLoad(FFProject project) {
           'matchAfgelast':      r'$.is_afgelast',
           'matchAfgelastReden': r'$.afgelast_reden',
           'matchMagAfgelasten': r'$.mag_afgelasten',
+          'matchMotmAan':       r'$.motm_aan',
+          'matchHeeftVerslag':  r'$.heeft_verslag',
+          'matchMotmGestemd':   r'$.motm_gestemd',
+          'matchMotmWinnaar':   r'$.motm_winnaar',
           // matchAfmeldingen is een structlijst en gaat hieronder apart.
         };
         final updates = <StateFieldUpdate>[
@@ -46832,4 +46874,505 @@ void _wireProfielClothingLoad(FFProject project) {
   _hangAchteraan(_ketenStaart(rijen), maten);
 
   _appendToFirstPageLoadChain(wc.node, rijen);
+}
+
+// ── Man of the match ────────────────────────────────────────────────────────
+//
+// Na een wedstrijd met een verslag kiest het elftal anoniem wie de beste was.
+// Per elftal aan te zetten in de portal; staat het uit, dan komt de knop er
+// nergens te staan.
+//
+// De aantallen komen pas mee nadat je zelf gestemd hebt. Dat beslist de server,
+// niet de app: wie eerst de stand ziet stemt op de koploper, en dan meet je niet
+// meer wie de beste was maar wie het eerst voorstond.
+
+void _ensureMotmStruct(FFProject project) {
+  _ensureFlatStringStruct(
+    project,
+    name: 'MotmRow',
+    description: 'Eén kandidaat voor de man of the match, met het aantal stemmen.',
+    fields: const ['memberId', 'name', 'photoUrl', 'votes', 'isMine', 'isWinner'],
+  );
+}
+
+/// AppState: de kandidatenlijst plus de werkvelden van de stem-dialoog.
+///
+/// Via app-state en niet via pagina-state: een component kan pagina-state niet
+/// lezen — zelfde reden als bij de coach-dialoog.
+void _ensureMotmAppState(FFProject project) {
+  if (!project.appState.fields
+      .any((f) => f.parameter.identifier.name == 'motmRows')) {
+    final struct = findDataStruct(project, name: 'MotmRow');
+    if (struct != null) {
+      final param = FFParameter(
+        identifier:
+            FFIdentifier(name: 'motmRows', key: generateRandomAlphaNumericString()),
+        dataType: dataStructType(struct.identifier.deepCopy()),
+      );
+      param.isList = true;
+      project.appState.fields.add(FFAppStateField(parameter: param));
+    }
+  }
+
+  for (final naam in const [
+    'dialogMotmMatchId',
+    'dialogMotmId',
+    'dialogMotmName',
+    'dialogMotmGestemd',
+  ]) {
+    if (project.appState.fields
+        .any((f) => f.parameter.identifier.name == naam)) continue;
+    project.appState.fields.add(FFAppStateField(
+      parameter: FFParameter(
+        identifier: FFIdentifier(name: naam, key: generateRandomAlphaNumericString()),
+        dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+      ),
+    ));
+  }
+}
+
+void _addMotmEndpoints(FFProject project) {
+  const groupName = 'VoetbalPlannerAPI';
+  if (findApiGroup(project, name: groupName) == null) return;
+
+  FFDataTypeV2 str() => FFDataTypeV2(scalarType: FFBaseDataType.String);
+  bool has(String n) =>
+      findApiEndpoint(project, name: n, groupName: groupName) != null;
+
+  // De kandidaten mét hun stemmen. Het antwoord ís de lijst; een structlijst
+  // laat zich niet uit een genest veld mappen.
+  const lijstUrl = '/matches/[matchId]/motm';
+  if (has('GetMotm')) {
+    updateApiEndpoint(project,
+        name: 'GetMotm',
+        groupName: groupName,
+        url: lijstUrl,
+        method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        responseDataStructName: 'MotmRow',
+        responseDataStructIsList: true);
+  } else {
+    addEndpointToGroup(project,
+        groupName: groupName,
+        name: 'GetMotm',
+        url: lijstUrl,
+        method: FFApiEndpoint_CallType.GET,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str()},
+        headers: ['Authorization: Bearer [bearerToken]'],
+        responseDataStructName: 'MotmRow',
+        responseDataStructIsList: true);
+  }
+
+  // Query-param en geen body: FF interpoleert [var] alleen in de URL, en
+  // Laravel's validate() leest query-params ook.
+  const stemUrl = '/matches/[matchId]/motm?memberId=[memberId]';
+  if (has('SetMotm')) {
+    updateApiEndpoint(project,
+        name: 'SetMotm',
+        groupName: groupName,
+        url: stemUrl,
+        method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        body: '');
+  } else {
+    addEndpointToGroup(project,
+        groupName: groupName,
+        name: 'SetMotm',
+        url: stemUrl,
+        method: FFApiEndpoint_CallType.POST,
+        bodyType: FFApiEndpoint_BodyType.NONE,
+        variables: {'matchId': str(), 'memberId': str()},
+        headers: ['Authorization: Bearer [bearerToken]']);
+  }
+}
+
+/// Inhoud van MotmVoteSheet: de kandidatenlijst, de bevestiging en de stand.
+///
+/// Elke push vers opgebouwd, net als de coach-dialoog. Alles leest uit
+/// app-state: een component komt niet bij de pagina-state van de wedstrijd.
+void _buildMotmSheetBody(FFProject project) {
+  final wc = project.getWidgetClassByName('MotmVoteSheet');
+  if (wc == null) return;
+  final root = findDescendants(wc.node, (n) => n.name == 'MotmRoot').firstOrNull;
+  if (root == null) return;
+
+  final rowsId    = _findAppStateFieldId(project, 'motmRows');
+  final matchIdId = _findAppStateFieldId(project, 'dialogMotmMatchId');
+  final keuzeIdId = _findAppStateFieldId(project, 'dialogMotmId');
+  final keuzeNmId = _findAppStateFieldId(project, 'dialogMotmName');
+  final gestemdId = _findAppStateFieldId(project, 'dialogMotmGestemd');
+  if ([rowsId, matchIdId, keuzeIdId, keuzeNmId, gestemdId].any((x) => x == null)) return;
+  for (final ep in const ['GetMotm', 'SetMotm']) {
+    if (findApiEndpoint(project, name: ep, groupName: 'VoetbalPlannerAPI') == null) return;
+  }
+
+  final k = wc.node.key;
+  FFVariable appVar(FFIdentifier id) =>
+      varFromAppState(id.deepCopy())..nodeKeyRef = FFNodeKeyReference(key: k);
+  FFDataTypeV2 str() => FFDataTypeV2(scalarType: FFBaseDataType.String);
+  FFDataTypeV2 boolT() => FFDataTypeV2(scalarType: FFBaseDataType.Boolean);
+
+  root.children.clear();
+  root.children.add(UI.text('Man of the match',
+      name: 'MotmTitle', style: UITextStyle.titleMedium));
+
+  // Eén regel uitleg die met de stand meebeweegt: kiezen, of terugkijken.
+  final uitleg = UI.text('', name: 'MotmUitleg',
+      style: UITextStyle.labelMedium, color: UIColor.secondaryText);
+  uitleg.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+      expression: "(g ?? '') == 'true'"
+          " ? 'Je stem is uitgebracht. Zo staat het ervoor.'"
+          " : 'Kies wie volgens jou de beste was. Je kunt maar een keer stemmen.'",
+      arguments: [
+        CodeExpressionArg(name: 'g', dataType: str(),
+            value: FFValue(variable: appVar(gestemdId!))),
+      ],
+      returnType: FFParameter(dataType: str())));
+  root.children.add(uitleg);
+
+  // De kandidaten. shrinkWrap plus een vaste hoogte eromheen: zonder die twee
+  // heeft de lijst in een scrollbare kolom geen hoogte en rendert hij niets.
+  final lijst = UI.listView(name: 'MotmList', shrinkWrap: true, spacing: 2,
+      dynamicSource: DynamicSource(variable: appVar(rowsId!), itemName: 'mr'));
+
+  // Vijf dingen in één regel: een vinkje bij wie je nu hebt aangetikt, een ster
+  // bij de koploper, de naam, het aantal stemmen (leeg zolang je zelf niet
+  // gestemd hebt) en de markering van je eigen stem.
+  final naam = UI.text('', name: 'MotmName', style: UITextStyle.bodyMedium);
+  naam.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+      expression: "(((s ?? '') != '' && (s ?? '') == (n ?? '')) ? '/  ' : '')"
+          " + (((w ?? '') == 'true') ? '* ' : '')"
+          " + (n ?? '')"
+          " + (((v ?? '') == '' || (v ?? '') == 'null') ? ''"
+          "    : '  -  ' + (v ?? '') + ((v ?? '') == '1' ? ' stem' : ' stemmen'))"
+          " + (((m ?? '') == 'true') ? '  -  jouw stem' : '')",
+      arguments: [
+        CodeExpressionArg(name: 's', dataType: str(),
+            value: FFValue(variable: appVar(keuzeNmId!))),
+        CodeExpressionArg(name: 'n', dataType: str(),
+            value: FFValue(variable: generatorVarField(lijst.key, 'name'))),
+        CodeExpressionArg(name: 'v', dataType: str(),
+            value: FFValue(variable: generatorVarField(lijst.key, 'votes'))),
+        CodeExpressionArg(name: 'm', dataType: str(),
+            value: FFValue(variable: generatorVarField(lijst.key, 'isMine'))),
+        CodeExpressionArg(name: 'w', dataType: str(),
+            value: FFValue(variable: generatorVarField(lijst.key, 'isWinner'))),
+      ],
+      returnType: FFParameter(dataType: str())));
+
+  final rij = UI.container(name: 'MotmRow', width: double.infinity,
+      padding: UIEdgeInsets.symmetric(vertical: 10, horizontal: 12), child: naam);
+  // Tik = kiezen, nog niet stemmen. Een stem is definitief, dus die breng je uit
+  // met een aparte knop - niet met een tik die je ook per ongeluk geeft.
+  rij.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: FFActionNode(key: generateRandomAlphaNumericString(),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable(
+            'dialogMotmId', generatorVarField(lijst.key, 'memberId')),
+        StateFieldUpdate.setFromVariable(
+            'dialogMotmName', generatorVarField(lijst.key, 'name')),
+      ]))));
+  lijst.children.add(rij);
+  root.children.add(UI.container(
+      name: 'MotmScroll', height: 260, clipContent: true, child: lijst));
+
+  // Niemand om op te stemmen: geen opstelling en een leeg elftal. Zonder deze
+  // regel staart de sheet je leeg aan.
+  final leeg = UI.text('Er is nog niemand om op te stemmen.',
+      name: 'MotmLeeg', style: UITextStyle.bodyMedium, color: UIColor.secondaryText);
+  setConditionalVisibility(leeg, variable: _listEmptyVar(appVar(rowsId)));
+  root.children.add(leeg);
+
+  // Bevestigen: alleen als je iets hebt aangetikt en nog niet hebt gestemd.
+  final gekozen = UI.text('', name: 'MotmGekozen',
+      style: UITextStyle.bodyMedium, color: UIColor.primary);
+  gekozen.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+      expression: "(n ?? '') == '' ? '' : 'Jouw keuze: ' + (n ?? '')",
+      arguments: [
+        CodeExpressionArg(name: 'n', dataType: str(),
+            value: FFValue(variable: appVar(keuzeNmId))),
+      ],
+      returnType: FFParameter(dataType: str())));
+
+  final stemBtn =
+      UI.button('Stem uitbrengen', name: 'MotmStemBtn', width: double.infinity);
+  stemBtn.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: Actions.apiCallNode(project,
+      endpointName: 'SetMotm', groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {
+        'matchId': appVar(matchIdId!),
+        'memberId': appVar(keuzeIdId!),
+      },
+      outputVariableName: 'motmStem', nodeKey: stemBtn.key,
+      // Na de stem de lijst opnieuw ophalen: pas dan stuurt de server de
+      // aantallen mee. De sheet blijft open, zodat je de stand meteen ziet.
+      //
+      // De herlaad-aanroep hangt ín de onSuccess-keten en niet als
+      // followUpAction op de stem-aanroep: dat laatste overschrijft de
+      // onSuccess die apiCallNode er zelf op zet.
+      onSuccess: (ctx) {
+        final na = FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.updateAppState(project, updates: [
+            StateFieldUpdate.set('dialogMotmGestemd', 'true'),
+            StateFieldUpdate.set('dialogMotmId', ''),
+            StateFieldUpdate.set('dialogMotmName', ''),
+          ]),
+        );
+        na.followUpAction = Actions.apiCallNode(project,
+            endpointName: 'GetMotm', groupName: 'VoetbalPlannerAPI',
+            dynamicVariables: {'matchId': appVar(matchIdId)},
+            outputVariableName: 'motmHerlaad', nodeKey: stemBtn.key,
+            onSuccess: (ctx2) => Actions.chain([
+                  Actions.updateAppState(project, updates: [
+                    StateFieldUpdate.setFromVariable('motmRows', ctx2.responseVar),
+                  ]),
+                ]));
+        return FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.snackBar('Je stem is geteld.'),
+          followUpAction: na,
+        );
+      },
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Stemmen lukte niet - misschien heb je al gestemd.'),
+      ]))));
+
+  final bevestig = UI.column(name: 'MotmConfirm',
+      crossAxisAlignment: UICrossAxisAlignment.stretch, spacing: 4,
+      children: [gekozen, stemBtn]);
+  setConditionalVisibility(bevestig, variable: codeExpressionVar(
+      expression: "(i ?? '') != '' && (g ?? '') != 'true'",
+      arguments: [
+        CodeExpressionArg(name: 'i', dataType: str(),
+            value: FFValue(variable: appVar(keuzeIdId))),
+        CodeExpressionArg(name: 'g', dataType: str(),
+            value: FFValue(variable: appVar(gestemdId))),
+      ],
+      returnType: FFParameter(dataType: boolT())));
+  root.children.add(bevestig);
+
+  final sluit = UI.button('Sluiten', name: 'MotmSluitBtn', width: double.infinity);
+  sluit.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigateBack(),
+    )));
+  root.children.add(sluit);
+}
+
+/// De stemknop op het info-tabblad van de wedstrijd.
+///
+/// Twee knoppen met elk een eigen voorwaarde, net als bij de liveknoppen: een
+/// icoon laat zich niet aan een variabele binden, dus "stemmen" en "de uitslag"
+/// zijn twee nodes en niet één knop met een wisselend opschrift.
+///
+/// Vers opgebouwd elke push; de marge-wrapper gaat mee, anders blijft er een
+/// lege container achter waar de vorige knop stond.
+void _addMotmButton(FFProject project) {
+  final wc = findPage(project, name: 'WedstrijdDetailPage');
+  if (wc == null) return;
+  if (project.getWidgetClassByName('MotmVoteSheet') == null) return;
+  if (findApiEndpoint(project, name: 'GetMotm', groupName: 'VoetbalPlannerAPI') == null) return;
+  if (_findAppStateFieldId(project, 'motmRows') == null) return;
+
+  for (final n
+      in findDescendants(wc.node, (x) => x.name.startsWith('MatchMotm')).toList()) {
+    removeByKey(wc.node, n.key);
+  }
+
+  // De kolom zoeken via het live-blok en niet via de opstellingsknop: die
+  // laatste heeft een marge, en UI.container(margin:) zet daar een eigen node
+  // omheen. De "kolom" die je dan vindt is die marge-container, en een FF
+  // Container rendert maar één kind — de knop verdween er geruisloos in.
+  final liveWrap =
+      findDescendants(wc.node, (n) => n.name == 'LiveMatchButtonWrap').firstOrNull;
+  if (liveWrap == null) return;
+  final kolom = findDescendants(wc.node, (_) => true)
+      .where((n) => n.children.any((c) => identical(c, liveWrap)))
+      .firstOrNull;
+  if (kolom == null) return;
+
+  // Onder de opstellingsknop als die er is, anders direct onder de liveknoppen.
+  // Zoeken op subtree, want de opstellingsknop zit in zijn marge-container.
+  var idx = kolom.children.indexWhere((c) =>
+      findDescendants(c, (n) => n.name == 'MatchOpstellingButton').isNotEmpty);
+  if (idx < 0) {
+    idx = kolom.children.indexWhere((c) => identical(c, liveWrap));
+  }
+
+  final scaffoldKey = wc.node.key;
+  FFVariable? pageState(String naam) {
+    final id = _findPageStateFieldId(project, 'WedstrijdDetailPage', naam);
+    if (id == null) return null;
+    return varFromPageState(id.deepCopy())
+      ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+  }
+
+  final aanVar     = pageState('matchMotmAan');
+  final verslagVar = pageState('matchHeeftVerslag');
+  final gestemdVar = pageState('matchMotmGestemd');
+  final winnaarVar = pageState('matchMotmWinnaar');
+  if (aanVar == null || verslagVar == null || gestemdVar == null || winnaarVar == null) {
+    return;
+  }
+
+  final matchIdParam = wc.params.values
+      .cast<FFParameter?>()
+      .firstWhere((p) => p?.identifier.name == 'matchId', orElse: () => null)
+      ?.identifier;
+  if (matchIdParam == null) return;
+  final matchIdVar = varFromPageParam(matchIdParam.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
+
+  FFDataTypeV2 str() => FFDataTypeV2(scalarType: FFBaseDataType.String);
+
+  // a = staat de stemming aan, v = is er een verslag, g = heb ik al gestemd.
+  FFVariable regel(String expressie) => codeExpressionVar(
+        expression: expressie,
+        arguments: [
+          CodeExpressionArg(name: 'a', dataType: str(),
+              value: FFValue(variable: aanVar.deepCopy())),
+          CodeExpressionArg(name: 'v', dataType: str(),
+              value: FFValue(variable: verslagVar.deepCopy())),
+          CodeExpressionArg(name: 'g', dataType: str(),
+              value: FFValue(variable: gestemdVar.deepCopy())),
+        ],
+        returnType: FFParameter(
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+      );
+
+  FFNode knop(String naam, String icoon, UIColor kleur) => UI.container(
+        name: naam,
+        margin: UIEdgeInsets.only(left: 16, right: 16, top: 8),
+        innerPadding: UIEdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        borderRadius: 14,
+        color: kleur,
+        child: UI.row(
+          name: '${naam}Row',
+          spacing: 10,
+          crossAxisAlignment: UICrossAxisAlignment.center,
+          children: [
+            UI.icon(icoon, size: 20, color: UIColor.white),
+            UI.expanded(UI.text('',
+                name: '${naam}Label',
+                style: UITextStyle.labelLarge,
+                color: UIColor.white,
+                maxLines: 2)),
+          ],
+        ),
+      );
+
+  // De keten: werkvelden vullen -> de lijst ophalen -> de sheet openen -> na
+  // het sluiten de wedstrijd opnieuw lezen, zodat de knop de uitslag toont.
+  //
+  // De sheet gaat pas open ná een geslaagde ophaalactie. Anders zie je een
+  // seconde lang de kandidaten van de vorige wedstrijd.
+  FFActionNode openKeten(String uitvoerNaam, String knopKey) {
+    final reset = FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.updateAppState(project, updates: [
+        StateFieldUpdate.setFromVariable('dialogMotmMatchId', matchIdVar.deepCopy()),
+        StateFieldUpdate.setFromVariable('dialogMotmGestemd', gestemdVar.deepCopy()),
+        StateFieldUpdate.set('dialogMotmId', ''),
+        StateFieldUpdate.set('dialogMotmName', ''),
+      ]),
+    );
+
+    reset.followUpAction = Actions.apiCallNode(project,
+      endpointName: 'GetMotm', groupName: 'VoetbalPlannerAPI',
+      dynamicVariables: {'matchId': matchIdVar.deepCopy()},
+      outputVariableName: uitvoerNaam, nodeKey: knopKey,
+      onSuccess: (ctx) {
+        final vullen = FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.updateAppState(project, updates: [
+            StateFieldUpdate.setFromVariable('motmRows', ctx.responseVar),
+          ]),
+        );
+        final openen = FFActionNode(
+          key: generateRandomAlphaNumericString(),
+          action: Actions.bottomSheet(project, componentName: 'MotmVoteSheet'),
+        );
+        // Ná het sluiten van de sheet: de vlaggen opnieuw ophalen. Een dialoog
+        // kan pagina-state niet zelf bijwerken.
+        openen.followUpAction = Actions.apiCallNode(project,
+            endpointName: 'GetMatchDetail', groupName: 'VoetbalPlannerAPI',
+            dynamicVariables: {'matchId': matchIdVar.deepCopy()},
+            outputVariableName: '${uitvoerNaam}Detail', nodeKey: knopKey,
+            onSuccess: (ctx3) => Actions.chain([
+                  Actions.updatePageState(project,
+                      widgetClassName: 'WedstrijdDetailPage',
+                      updates: [
+                        for (final veld in const <(String, String)>[
+                          ('matchMotmGestemd', r'$.motm_gestemd'),
+                          ('matchMotmWinnaar', r'$.motm_winnaar'),
+                          ('matchMotmAan', r'$.motm_aan'),
+                          ('matchHeeftVerslag', r'$.heeft_verslag'),
+                        ])
+                          StateFieldUpdate.setFromVariable(
+                              veld.$1, _jsonBodyVar(ctx3, veld.$2, knopKey)),
+                      ]),
+                ]));
+        vullen.followUpAction = openen;
+        return vullen;
+      },
+      onFailure: (ctx) => Actions.chain([
+        Actions.snackBar('Kon de stemmen niet ophalen.'),
+      ]));
+
+    return reset;
+  }
+
+  // Nog niet gestemd.
+  final stemKnop = knop('MatchMotmVoteButton', 'how_to_vote', UIColor.primary);
+  findDescendants(stemKnop, (n) => n.name == 'MatchMotmVoteButtonLabel')
+      .first
+      .props
+      .text
+      .textValue = FFStringValue(inputValue: 'Stem op de man of the match');
+  stemKnop.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: openKeten('motmOpen', stemKnop.key)));
+  setConditionalVisibility(stemKnop,
+      variable: regel("a == 'true' && v == 'true' && g != 'true'"));
+
+  // Al gestemd: dan toont de knop wie er voorstaat. 'null' ook uitsluiten -
+  // FlutterFlow leest een ontbrekend veld als de letterlijke tekst "null".
+  final uitslagKnop =
+      knop('MatchMotmResultButton', 'emoji_events', UIColor.hex(0xFFD97706));
+  findDescendants(uitslagKnop, (n) => n.name == 'MatchMotmResultButtonLabel')
+      .first
+      .props
+      .text
+      .textValue = FFStringValue(variable: codeExpressionVar(
+          expression: "((w ?? '') == '' || (w ?? '') == 'null')"
+              " ? 'Uitslag bekijken'"
+              " : 'Man of the match: ' + (w ?? '')",
+          arguments: [
+            CodeExpressionArg(name: 'w', dataType: str(),
+                value: FFValue(variable: winnaarVar.deepCopy())),
+          ],
+          returnType: FFParameter(dataType: str())));
+  uitslagKnop.triggerActions.add(FFTriggerActions(
+    trigger: FFActionTrigger(triggerType: FFActionTriggerType.ON_TAP),
+    rootAction: openKeten('motmStand', uitslagKnop.key)));
+  setConditionalVisibility(uitslagKnop,
+      variable: regel("a == 'true' && v == 'true' && g == 'true'"));
+
+  final wrap = UI.container(
+    name: 'MatchMotmButtonWrap',
+    child: UI.column(
+      name: 'MatchMotmButtonCol',
+      crossAxisAlignment: UICrossAxisAlignment.stretch,
+      spacing: 0,
+      children: [stemKnop, uitslagKnop],
+    ),
+  );
+
+  kolom.children.insert(idx >= 0 ? idx + 1 : kolom.children.length, wrap);
 }

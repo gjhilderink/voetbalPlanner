@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\LineupController;
 use App\Http\Controllers\Api\LiveMatchController;
 use App\Http\Controllers\Api\MatchPhotoController;
 use App\Http\Controllers\Api\MatchStatsController;
+use App\Http\Controllers\Api\MatchVoteController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\TrainingController;
@@ -189,6 +190,11 @@ Route::prefix('v1')->group(function () {
         // zelfde reden als bij de rijders: het zijn many-to-many-velden.
         Route::post('/matches/{match}/coach', [MatchController::class, 'toggleCoach']);
         Route::post('/matches/{match}/schoonmaker', [MatchController::class, 'toggleSchoonmaker']);
+
+        // Man of the match: anoniem stemmen, één stem per account. Alleen voor
+        // elftallen waar de stemming aanstaat; zie MatchVoteController.
+        Route::get('/matches/{match}/motm', [MatchVoteController::class, 'index']);
+        Route::post('/matches/{match}/motm', [MatchVoteController::class, 'store']);
 
         // Gastspeler uitnodigen voor een wedstrijd (coach) + de gast z'n uitnodigingen.
         Route::post('/matches/{match}/guest-invite', [GuestInvitationController::class, 'invite']);

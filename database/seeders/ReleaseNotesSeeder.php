@@ -1184,6 +1184,16 @@ class ReleaseNotesSeeder extends Seeder
                     . 'inhoud. Het knipsel staat kant-en-klaar bij Instellingen → Ticketshop.',
             ],
             [
+                'type'        => 'feature',
+                'title'       => 'Man of the match',
+                'description' => 'Na een wedstrijd kiest het elftal anoniem wie de man of the match was. De knop '
+                    . 'staat op het tabblad Info van de wedstrijd en verschijnt zodra er een wedstrijdverslag is. Je '
+                    . 'kiest uit de spelers die meededen, niet uit jezelf, en je stem is definitief — wie de stand al '
+                    . 'ziet en daarna nog mag schuiven bepaalt de uitslag in zijn eentje. Om diezelfde reden komen de '
+                    . 'aantallen pas in beeld nadat je zelf hebt gestemd. Wie op wie stemde blijft verborgen, ook voor '
+                    . 'de coach en ook in de portal. Zet het per elftal aan bij Beheer → Teams; standaard staat het uit.',
+            ],
+            [
                 'type'        => 'bugfix',
                 'title'       => 'Kledingnummer kon niet worden opgeslagen',
                 'description' => 'Een nummer invullen bij een kledingstuk gaf de melding dat het niet kon worden '

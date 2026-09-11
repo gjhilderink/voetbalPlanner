@@ -464,6 +464,18 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle motmRow = ffai.StructHandle(
+    "MotmRow",
+    <String, ffai.DslType>{
+      "isMine": ffai.string,
+      "isWinner": ffai.string,
+      "memberId": ffai.string,
+      "name": ffai.string,
+      "photoUrl": ffai.string,
+      "votes": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle newsItem = ffai.StructHandle(
     "NewsItem",
     <String, ffai.DslType>{
@@ -733,6 +745,7 @@ abstract final class Structs {
     matchPhotoItem,
     matchReportItem,
     matchStatRow,
+    motmRow,
     newsItem,
     onboardingSlide,
     room,

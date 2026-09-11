@@ -108,6 +108,23 @@ class MatchController extends Controller
         // tweede coach niet opnieuw begint aan iets wat al loopt.
         $data['live_gestart'] = $match->live_started_at !== null;
 
+        // Man of the match. heeft_verslag is iets anders dan live_gestart: een
+        // verslag dat wel is gestart maar waarin niets staat, is geen verslag —
+        // en dan valt er ook niets te stemmen.
+        //
+        // Vier losse vlaggen en geen genest object: de app zet ze met jsonPath
+        // in pagina-state, en dat lukt alleen met scalairen.
+        $motmAan   = $match->motmAan();
+        $alGestemd = $motmAan
+            && $match->votes()->where('user_id', $request->user()?->id)->exists();
+
+        $data['heeft_verslag'] = $match->events()->exists();
+        $data['motm_aan']      = $motmAan;
+        $data['motm_gestemd']  = $alGestemd;
+        // De uitslag pas tonen aan wie zelf gestemd heeft; anders stemt de rest
+        // op de koploper. Zie de docblock van MatchVoteController.
+        $data['motm_winnaar']  = $alGestemd ? $match->motmWinnaarLabel() : '';
+
         // Afgelast: de app zet er een balk boven en verbergt het af-/aanmelden.
         // mag_afgelasten is dezelfde rechtencheck als hierboven, apart benoemd
         // zodat de app niet hoeft te raden wat "mag opstelling" nog meer inhoudt.

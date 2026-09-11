@@ -251,6 +251,30 @@ abstract final class AppState {
     typeName: "List<DataStruct<SwapMember>>",
     persisted: false,
   );
+  static const dialogMotmGestemd = ffai.ProjectAppStateFieldHandle(
+    name: "dialogMotmGestemd",
+    key: "oypg4eqi",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogMotmId = ffai.ProjectAppStateFieldHandle(
+    name: "dialogMotmId",
+    key: "4gmjvrha",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogMotmMatchId = ffai.ProjectAppStateFieldHandle(
+    name: "dialogMotmMatchId",
+    key: "uawt8ioj",
+    typeName: "String",
+    persisted: false,
+  );
+  static const dialogMotmName = ffai.ProjectAppStateFieldHandle(
+    name: "dialogMotmName",
+    key: "bvhuqrwt",
+    typeName: "String",
+    persisted: false,
+  );
   static const dialogNote = ffai.ProjectAppStateFieldHandle(
     name: "dialogNote",
     key: "ybhkojry",
@@ -567,6 +591,12 @@ abstract final class AppState {
     name: "matchStats",
     key: "z1nr5xgm",
     typeName: "List<DataStruct<MatchStatRow>>",
+    persisted: false,
+  );
+  static const motmRows = ffai.ProjectAppStateFieldHandle(
+    name: "motmRows",
+    key: "7zugqplf",
+    typeName: "List<DataStruct<MotmRow>>",
     persisted: false,
   );
   static const myGuardianRequests = ffai.ProjectAppStateFieldHandle(
@@ -893,6 +923,10 @@ abstract final class AppState {
     dialogMatchId,
     dialogMembers,
     dialogMembersAll,
+    dialogMotmGestemd,
+    dialogMotmId,
+    dialogMotmMatchId,
+    dialogMotmName,
     dialogNote,
     dialogRijderId,
     dialogRijderName,
@@ -946,6 +980,7 @@ abstract final class AppState {
     matchReports,
     matchStaffMembers,
     matchStats,
+    motmRows,
     myGuardianRequests,
     myRoles,
     onboardingSeen,

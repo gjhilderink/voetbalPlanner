@@ -49,6 +49,12 @@ class FootballMatch extends Model
         return $this->hasMany(MatchEvent::class, 'match_id')->orderBy('created_at');
     }
 
+    /** De uitgebrachte man-of-the-match-stemmen. Zie MatchVoteController. */
+    public function votes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MatchVote::class, 'match_id');
+    }
+
     /** Er loopt een verslag: gestart en nog niet afgefloten. */
     public function isLive(): bool
     {
@@ -192,5 +198,37 @@ class FootballMatch extends Model
             ? 'Nog geen doelpunten.'
             : $goals->map(fn ($g) => ($g->minute ? $g->minute . "' " : '') . ($g->scorer?->name ?? '?'))
                 ->join(', ');
+    }
+
+    /** Mag er bij deze wedstrijd op een man of the match gestemd worden? */
+    public function motmAan(): bool
+    {
+        return (bool) $this->team?->motm_enabled;
+    }
+
+    /**
+     * De uitslag van de man-of-the-match-stemming als één regel:
+     * "Jan Jansen (3 stemmen)". Leeg als er nog niet gestemd is.
+     *
+     * Bij een gelijke stand staan ze er allemaal. Er willekeurig één uitkiezen
+     * zou een winnaar aanwijzen die het elftal niet gekozen heeft.
+     */
+    public function motmWinnaarLabel(): string
+    {
+        $perLid = $this->votes()->get()->groupBy('voted_member_id')->map->count();
+        if ($perLid->isEmpty()) {
+            return '';
+        }
+
+        $hoogste = (int) $perLid->max();
+        $namen   = Member::whereIn('id', $perLid->filter(fn (int $n) => $n === $hoogste)->keys())
+            ->orderBy('name')
+            ->pluck('name');
+
+        if ($namen->isEmpty()) {
+            return '';
+        }
+
+        return $namen->join(', ') . ' (' . $hoogste . ' ' . ($hoogste === 1 ? 'stem' : 'stemmen') . ')';
     }
 }
