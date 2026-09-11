@@ -18504,6 +18504,33 @@ void _scopeDriveScheduleToOwnTeams(FFProject project) {
       .firstWhere((e) => e?.identifier.name == 'GetDriveSchedule', orElse: () => null);
   if (ep == null) return;
   ep.url = '/matches?is_home=false&has_drivers=1&mine=1&upcoming=1&per_page=50';
+
+  // Apart endpoint voor de taak "Rijden" op het dashboard: alleen de ritten die
+  // jij zelf rijdt (driver=me). GetDriveSchedule hierboven blijft teambreed —
+  // dat is het rijschema, en daar hoor je juist te zien wie er wanneer rijdt.
+  //
+  // Deelden ze er één, dan zou "Rijden" bij iedereen in het elftal onder Mijn
+  // taken staan zodra er érgens een rijder was ingedeeld; precies wat er mis was.
+  const mijnUrl = '/matches?is_home=false&driver=me&mine=1&upcoming=1&per_page=50';
+  final mijnEp = group.endpoints
+      .cast<FFApiEndpoint?>()
+      .firstWhere((e) => e?.identifier.name == 'GetMyDrives', orElse: () => null);
+  if (mijnEp != null) {
+    mijnEp.url = mijnUrl;
+    return;
+  }
+  addEndpointToGroup(
+    project,
+    groupName: 'VoetbalPlannerAPI',
+    name: 'GetMyDrives',
+    url: mijnUrl,
+    method: FFApiEndpoint_CallType.GET,
+    bodyType: FFApiEndpoint_BodyType.NONE,
+    variables: {'token': FFDataTypeV2(scalarType: FFBaseDataType.String)},
+    headers: ['Authorization: Bearer [token]'],
+    responseDataStructName: 'FootMatch',
+    responseDataStructIsList: true,
+  );
 }
 
 // ─── Herstel RijschemaPage body als die leeg is ───────────────────────────────
@@ -18624,12 +18651,19 @@ void _restoreRijschemaBodyIfMissing(FFProject project) {
   );
 }
 
-// Appends a GetDriveSchedule API call to the DashboardPage ON_INIT_STATE chain.
+// Appends a GetMyDrives API call to the DashboardPage ON_INIT_STATE chain.
 // Must be called AFTER _wireDashboardLoad (which rebuilds the chain from scratch)
 // so it always lands at the tail: matches → duties → driveSchedule.
+//
+// GetMyDrives en niet GetDriveSchedule: het dashboard toont hier de taak
+// "Rijden", en die hoort alleen te verschijnen bij wie zelf rijdt. Het bredere
+// rijschema blijft aan de RijschemaPage hangen.
 void _wireDashboardDriveScheduleLoad(FFProject project) {
   final wc = findPage(project, name: 'DashboardPage');
   if (wc == null) return;
+  if (findApiEndpoint(project, name: 'GetMyDrives', groupName: 'VoetbalPlannerAPI') == null) {
+    return;
+  }
 
   final authTokenId = project.appState.fields
       .cast<FFAppStateField?>()
@@ -18641,7 +18675,7 @@ void _wireDashboardDriveScheduleLoad(FFProject project) {
     wc.node,
     Actions.apiCallNode(
       project,
-      endpointName: 'GetDriveSchedule',
+      endpointName: 'GetMyDrives',
       groupName: 'VoetbalPlannerAPI',
       dynamicVariables: {
         'token': varFromAppState(authTokenId.deepCopy()),

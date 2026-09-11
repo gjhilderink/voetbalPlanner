@@ -42,6 +42,18 @@ class MatchController extends Controller
             })
             ->when($request->has('is_home'), fn($q) => $q->where('is_home', $request->boolean('is_home')))
             ->when($request->boolean('has_drivers'), fn($q) => $q->has('drivers'))
+            // ?driver=me: alleen de ritten die jij zelf rijdt. has_drivers=1
+            // geeft élke wedstrijd waar een rijder op staat, en daarmee stond
+            // "Rijden" bij iedereen in het elftal onder Mijn taken.
+            //
+            // Dezelfde maatstaf als isDriver op de wedstrijd zelf (je eigen
+            // ledenrecord), zodat de taak en het vinkje op de wedstrijd niet uit
+            // elkaar kunnen lopen. Zonder ledenrecord blijft de lijst leeg —
+            // liever geen taak dan de taak van een ander.
+            ->when($request->query('driver') === 'me', function ($q) use ($user) {
+                $memberId = $user?->resolveMember()?->id;
+                $q->whereHas('drivers', fn($d) => $d->where('members.id', $memberId));
+            })
             ->when($teamId, fn($q, $id) => $q->where('team_id', $id))
             ->when($request->status, fn($q, $s) => $q->where('status', $s))
             ->when($request->upcoming, fn($q) => $q->where('match_datetime', '>=', now()))
