@@ -23284,6 +23284,10 @@ void _ensureTrainingItemCountFields(FFProject project) {
   if (ds == null) return;
   for (final fieldName in const [
     'aangemeld', 'afgemeld', 'dressing_room',
+    // Kopje per week: het opschrift ("Week 38") en of déze training het kopje
+    // boven zich krijgt. De server rekent dat laatste uit, want een lijst in de
+    // app kan niet naar de vorige regel kijken.
+    'week_label', 'toon_week',
     // Gaat deze training door? Plus de reden en of jij hem mag afgelasten.
     'is_afgelast', 'afgelast_reden', 'mag_afgelasten',
   ]) {
@@ -31751,7 +31755,28 @@ void _wireTrainingenPage(FFProject project) {
       }),
     );
   }
-  list.children.add(card);
+  // Kopje met het weeknummer boven de eerste training van elke week.
+  //
+  // Het kopje zit ín de regel en niet ertussen: een FlutterFlow-lijst kent maar
+  // één soort rij, dus een losse tussenkop kan niet. Welke training het kopje
+  // krijgt rekent de server uit (toon_week) — de lijst hier kan niet naar de
+  // vorige regel kijken om te zien of de week is omgeslagen.
+  final weekKop = UI.container(
+    name: 'TrainingenWeekKop',
+    width: double.infinity,
+    padding: UIEdgeInsets.only(top: 6, bottom: 2),
+    child: bound('TrainingenWeekLabel', 'week_label', UITextStyle.labelLarge,
+        weight: UIFontWeight.w700, maxLines: 1),
+  );
+  setConditionalVisibility(weekKop,
+      variable: _equalsLiteral(generatorVarField(list.key, 'toon_week'), 'true'));
+
+  list.children.add(UI.column(
+    name: 'TrainingenItem',
+    crossAxisAlignment: UICrossAxisAlignment.stretch,
+    spacing: 6,
+    children: [weekKop, card],
+  ));
 
   final empty = UI.text('Er staan nog geen trainingen gepland.',
       name: 'TrainingenEmpty',

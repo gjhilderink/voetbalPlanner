@@ -140,6 +140,20 @@ class TrainingController extends Controller
             $occurrences = array_slice($occurrences, 0, $limit);
         }
 
+        // Kopjes per week. De app kan in een lijst niet naar de vorige regel
+        // kijken, dus markeert de server hier welke training als eerste van zijn
+        // week komt; die krijgt het kopje boven zich. Ná het afkappen, anders
+        // begint een ingekorte lijst zonder kop.
+        $vorigeWeek = null;
+        foreach ($occurrences as $i => $rij) {
+            $datum = Carbon::parse($rij['date']);
+            $week  = $datum->isoFormat('GGGG-WW');
+
+            $occurrences[$i]['week_label'] = 'Week ' . $datum->isoWeek();
+            $occurrences[$i]['toon_week']  = $week === $vorigeWeek ? 'false' : 'true';
+            $vorigeWeek = $week;
+        }
+
         return response()->json($occurrences);
     }
 

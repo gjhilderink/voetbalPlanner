@@ -685,6 +685,8 @@ abstract final class Structs {
       "schedule_id": ffai.string,
       "start_time": ffai.string,
       "team_name": ffai.string,
+      "toon_week": ffai.string,
+      "week_label": ffai.string,
     },
     description: ffai.generatedProjectStructDescription,
   );
