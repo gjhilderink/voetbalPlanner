@@ -27441,6 +27441,7 @@ void _restyleMatchInfoRows(FFProject project) {
     'fruitHeroName':  'restaurant',
     'matchGuestNames': 'person_add',
     'matchDriverNames': 'directions_car',
+    'matchCleanerNames': 'cleaning_services',
     'notes':          'assignment',
   };
 
