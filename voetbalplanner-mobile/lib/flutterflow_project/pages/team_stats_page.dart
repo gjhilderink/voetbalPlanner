@@ -81,37 +81,37 @@ abstract final class TeamStatsPageWidgets {
                 name: "TeamStatsContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_kgjd34gs",
+                    key: "Column_9n12k1r2",
                     type: "Column",
                     path: "TeamStatsPage.body[0].children[0].children[0]",
                     name: "TeamStatsCol",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_wqamk1kl",
+                        key: "Text_hvdmoptu",
                         type: "Text",
                         path: "TeamStatsPage.body[0].children[0].children[0].children[0]",
                         name: "TeamStatsMelding",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "ListView_emr3hef2",
+                        key: "ListView_x3znwi4e",
                         type: "ListView",
                         path: "TeamStatsPage.body[0].children[0].children[0].children[1]",
                         name: "TeamStatsList",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_vinya66u",
+                            key: "Column_jyj5hq5i",
                             type: "Column",
                             path: "TeamStatsPage.body[0].children[0].children[0].children[1].children[0]",
                             name: "TeamStatItem",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Container_8q58limq",
+                                key: "Container_ijnw45vh",
                                 type: "Container",
                                 path: "TeamStatsPage.body[0].children[0].children[0].children[1].children[0].children[0]",
                                 name: "TeamStatKop",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_93m0waxl",
+                                    key: "Text_nhmsl2fr",
                                     type: "Text",
                                     path: "TeamStatsPage.body[0].children[0].children[0].children[1].children[0].children[0].children[0]",
                                     name: "TeamStatKopTekst",
@@ -119,25 +119,25 @@ abstract final class TeamStatsPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Container_lssmo8il",
+                                key: "Container_rz5c03of",
                                 type: "Container",
                                 path: "TeamStatsPage.body[0].children[0].children[0].children[1].children[0].children[1]",
                                 name: "TeamStatRegel",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Row_b87balau",
+                                    key: "Row_ea0y9vxg",
                                     type: "Row",
                                     path: "TeamStatsPage.body[0].children[0].children[0].children[1].children[0].children[1].children[0]",
                                     name: "TeamStatRegelRij",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_nrahq6s6",
+                                        key: "Text_exvsb67k",
                                         type: "Text",
                                         path: "TeamStatsPage.body[0].children[0].children[0].children[1].children[0].children[1].children[0].children[0]",
                                         name: "TeamStatLabel",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_mv573zb1",
+                                        key: "Text_53wvs1dm",
                                         type: "Text",
                                         path: "TeamStatsPage.body[0].children[0].children[0].children[1].children[0].children[1].children[0].children[1]",
                                         name: "TeamStatWaarde",

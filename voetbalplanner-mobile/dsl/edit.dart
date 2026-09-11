@@ -894,6 +894,40 @@ void buildEditFlow(App app) {
     app.struct('StaffGroupItem', {'id': string, 'name': string});
   } catch (_) {}
 
+  // UnreadChatItem: één regel in de sectie "Ongelezen" bovenaan de chatpagina.
+  //
+  // Die sectie is het vangnet onder de teller op de Berichten-tab. De vier
+  // secties daaronder komen elk uit een eigen bron (elftallen uit app-state,
+  // groepen uit Firestore, staffgroepen en leden uit de Laravel-API), en geen
+  // daarvan dekt alles wat de teller meetelt — uit een groep gezet, een gesprek
+  // van een ander elftal, een directe chat met iemand buiten je selectie. Deze
+  // lijst komt uit dezelfde streams als de teller zelf, zodat geldt: wat er
+  // meetelt, kun je openen.
+  //
+  // Alles String: FlutterFlow bindt een platte struct zonder omwegen.
+  const unreadChatItemVelden = {
+    'conversationId': string,
+    'title': string,
+    'subtitle': string,
+    'unread': string,
+    'teamId': string,
+    'teamName': string,
+    'type': string,
+  };
+  final unreadChatItemHandle = StructHandle(
+    'UnreadChatItem',
+    unreadChatItemVelden,
+    description: generatedProjectStructDescription,
+  );
+  try {
+    app.struct('UnreadChatItem', unreadChatItemVelden);
+  } catch (_) {}
+  // Niet persisted: een bewaarde lijst zou bij het opstarten spookregels tonen
+  // voordat Firestore verbinding heeft.
+  try {
+    app.state('unreadChats', listOf(unreadChatItemHandle));
+  } catch (_) {}
+
   // TeamOption (id + name + role/functie per team) bestaat al in het project en
   // wordt niet opnieuw ge-ensure'd — na het toevoegen van 'role' verschilt de
   // payload van een verse declaratie, wat ensureDataStruct afwijst. De struct is
@@ -3672,13 +3706,28 @@ Future<void> initializeGroupConversation(String? groupId) async {
   final myEmail = FFAppState().userEmail;
   final fs      = FirebaseFirestore.instance;
 
-  // Lookup chatGroups/{id} voor teamId + members.
+  // Lookup van de groep voor teamId + members.
+  //
+  // Eerst op doc-id, en anders op naam: de chatpagina geeft de groepsnáám mee
+  // als groupId (ook in de route en in de query op GroupChatPage). Alleen op
+  // doc-id zoeken leverde niets op, waardoor het gesprek zonder deelnemers werd
+  // aangemaakt en niemand een ongelezen-telling kreeg.
   String? teamId;
   List<String> members = const [];
   try {
-    final snap = await fs.collection('chatGroups').doc(id).get();
-    if (snap.exists) {
-      final data = snap.data() ?? {};
+    var snap = await fs.collection('chatGroups').doc(id).get();
+    Map<String, dynamic>? data = snap.exists ? (snap.data() ?? {}) : null;
+
+    if (data == null) {
+      final q = await fs
+          .collection('chatGroups')
+          .where('name', isEqualTo: id)
+          .limit(1)
+          .get();
+      if (q.docs.isNotEmpty) data = q.docs.first.data();
+    }
+
+    if (data != null) {
       teamId = data['teamId'] as String?;
       final raw = data['members'];
       if (raw is List) {
@@ -3813,34 +3862,50 @@ Future<void> bumpConversationUnread() async {
 
   // Verzamel participants — gebruikers wiens unread teller verhoogd moet worden.
   final participants = <String>{};
+  var heeftTeamId = false;
   try {
     final snap = await docRef.get();
     if (snap.exists) {
       final data = snap.data() ?? {};
       final raw = data['participantIds'];
       if (raw is List) participants.addAll(raw.whereType<String>());
+      heeftTeamId = (data['teamId'] ?? '').toString().isNotEmpty;
     }
   } catch (_) {}
   if (myEmail.isNotEmpty) participants.add(myEmail);
 
-  // Reguliere chatgroepen: ook chatGroups.members meenemen.
+  // Reguliere chatgroepen: ook chatGroups.members meenemen. Eerst op doc-id en
+  // anders op naam — de app geeft de groepsnaam door als groupId.
   if (convId.startsWith('group_')) {
     final groupId = convId.substring('group_'.length);
     try {
-      final snap = await fs.collection('chatGroups').doc(groupId).get();
-      if (snap.exists) {
-        final data = snap.data() ?? {};
-        final raw = data['members'];
-        if (raw is List) participants.addAll(raw.whereType<String>());
+      var snap = await fs.collection('chatGroups').doc(groupId).get();
+      Map<String, dynamic>? data = snap.exists ? (snap.data() ?? {}) : null;
+      if (data == null) {
+        final q = await fs
+            .collection('chatGroups')
+            .where('name', isEqualTo: groupId)
+            .limit(1)
+            .get();
+        if (q.docs.isNotEmpty) data = q.docs.first.data();
       }
+      final raw = data?['members'];
+      if (raw is List) participants.addAll(raw.whereType<String>());
     } catch (_) {}
   }
 
   // Stap 1: schrijf basis-metadata met set+merge (creëert doc als nodig).
+  //
+  // teamId alleen zetten als het gesprek er nog geen heeft. Het kwam hier uit
+  // currentTeamId, en dat is het elftal waar JIJ nu naar kijkt — niet
+  // noodzakelijk dat van het gesprek. Antwoorden in een gesprek van een ander
+  // elftal verhing het daarmee naar het jouwe, en een staffgroep (die met opzet
+  // geen teamId heeft) kreeg er ineens een.
   final payload = <String, dynamic>{
     if (text.isNotEmpty) 'lastMessage': text,
     'lastMessageAt': FieldValue.serverTimestamp(),
-    if (teamId.isNotEmpty) 'teamId': teamId,
+    if (!heeftTeamId && teamId.isNotEmpty && !convId.startsWith('staffgroup_'))
+      'teamId': teamId,
     if (participants.isNotEmpty) 'participantIds': FieldValue.arrayUnion(participants.toList()),
   };
   await docRef.set(payload, SetOptions(merge: true));
@@ -3907,16 +3972,66 @@ class _UnreadChatWatcher {
   static String _lastEmail = '';
   static String _lastTeamId = '';
 
-  // Per stream cached counts; total is sum across streams (de-duped by docId).
-  static final Map<String, int> _counts = {};
+  // Per stream de gesprekken zelf, op doc-id. Eerder stond hier alleen een
+  // totaal per stream; met de gesprekken erbij kan de chatpagina ook tonen
+  // wáár het bericht staat. De optelling blijft dezelfde: stream B slaat over
+  // wat stream A al heeft, dus de som over de vereniging van doc-ids is exact
+  // wat er eerst uitkwam.
+  static final Map<String, Map<String, String>> _rowsA = {};
+  static final Map<String, Map<String, String>> _rowsB = {};
 
   // Ongelezen per team, zodat de chatpagina per elftal kan laten zien waar het
   // bericht staat. Zonder dit zag je alleen een totaal en moest je zelf zoeken.
   static final Map<String, int> _perTeam = {};
 
+  // Laatst gepubliceerde lijst, als vingerafdruk. Beide streams vuren bij elk
+  // bericht in elk van je elftallen; zonder deze vergelijking zou elke snapshot
+  // de hele app-state herschrijven en alles opnieuw laten tekenen.
+  static String _laatsteLijst = '';
+
+  /// Eén regel uit een gesprek-document, klaar voor de app-state.
+  static Map<String, String> _rij(String docId, Map<String, dynamic> data, int aantal) {
+    final type = (data['type'] ?? '').toString();
+    var titel = (data['title'] ?? '').toString();
+    if (titel.isEmpty) {
+      titel = type == 'team'
+          ? 'Teamchat'
+          : type == 'group'
+              ? 'Groepschat'
+              : type == 'staffgroup'
+                  ? 'Staffgroep'
+                  : 'Bericht';
+    }
+    final teamId = (data['teamId'] ?? '').toString();
+    var teamNaam = '';
+    for (final t in FFAppState().availableTeams) {
+      if (t.id == teamId) {
+        teamNaam = t.name;
+        break;
+      }
+    }
+    return {
+      'conversationId': docId,
+      'title': titel,
+      'subtitle': (data['lastMessage'] ?? '').toString(),
+      'unread': '$aantal',
+      'teamId': teamId,
+      'teamName': teamNaam,
+      'type': type,
+    };
+  }
+
   static void _publish() {
+    // Vereniging van beide streams: wat in A staat wint, want B bevat alleen
+    // gesprekken waar je niet zelf in participantIds staat.
+    final samen = <String, Map<String, String>>{}
+      ..addAll(_rowsB)
+      ..addAll(_rowsA);
+
     int total = 0;
-    for (final v in _counts.values) total += v;
+    for (final r in samen.values) {
+      total += int.tryParse(r['unread'] ?? '0') ?? 0;
+    }
 
     // Tellingen terugschrijven op de teamlijst; die lijst voedt de teamkeuze op
     // de chatpagina, dus zo krijgt elke rij zijn eigen badge.
@@ -3935,6 +4050,31 @@ class _UnreadChatWatcher {
     // 0 = badge weg. Web/niet-ondersteund faalt stil.
     try {
       AppBadgePlus.updateBadge(total);
+    } catch (_) {}
+
+    // Pas hierna de lijst, en in een eigen try: het getal en de app-icoonbadge
+    // zijn het belangrijkst, en die mogen niet omvallen als het opbouwen van de
+    // regels struikelt.
+    try {
+      final regels = samen.values.toList()
+        ..sort((a, b) {
+          final va = int.tryParse(a['unread'] ?? '0') ?? 0;
+          final vb = int.tryParse(b['unread'] ?? '0') ?? 0;
+          return vb.compareTo(va);
+        });
+
+      final vingerafdruk =
+          regels.map((r) => '${r['conversationId']}:${r['unread']}').join('|');
+      if (vingerafdruk != _laatsteLijst) {
+        _laatsteLijst = vingerafdruk;
+        final structs = regels
+            .map((r) => UnreadChatItemStruct.maybeFromMap(r))
+            .whereType<UnreadChatItemStruct>()
+            .toList();
+        FFAppState().update(() {
+          FFAppState().unreadChats = structs;
+        });
+      }
     } catch (_) {}
   }
 
@@ -3961,9 +4101,12 @@ Future<void> watchUnreadChatCount() async {
     await _UnreadChatWatcher._byTeamSub?.cancel();
     _UnreadChatWatcher._byParticipantsSub = null;
     _UnreadChatWatcher._byTeamSub = null;
-    _UnreadChatWatcher._counts.clear();
+    _UnreadChatWatcher._rowsA.clear();
+    _UnreadChatWatcher._rowsB.clear();
+    _UnreadChatWatcher._laatsteLijst = "";
     FFAppState().update(() {
       FFAppState().unreadChatCount = 0;
+      FFAppState().unreadChats = [];
     });
     return;
   }
@@ -3990,7 +4133,9 @@ Future<void> watchUnreadChatCount() async {
   await _UnreadChatWatcher._byTeamSub?.cancel();
   _UnreadChatWatcher._byParticipantsSub = null;
   _UnreadChatWatcher._byTeamSub = null;
-  _UnreadChatWatcher._counts.clear();
+  _UnreadChatWatcher._rowsA.clear();
+  _UnreadChatWatcher._rowsB.clear();
+  _UnreadChatWatcher._laatsteLijst = "";
   _UnreadChatWatcher._lastEmail = userEmail;
   _UnreadChatWatcher._lastTeamId = teamKey;
 
@@ -4003,11 +4148,14 @@ Future<void> watchUnreadChatCount() async {
       .where('participantIds', arrayContains: userEmail)
       .snapshots()
       .listen((snap) {
-    int total = 0;
+    _UnreadChatWatcher._rowsA.clear();
     for (final doc in snap.docs) {
-      total += _UnreadChatWatcher._readCount(doc.data(), userEmail);
+      final data = doc.data();
+      final aantal = _UnreadChatWatcher._readCount(data, userEmail);
+      if (aantal <= 0) continue;
+      _UnreadChatWatcher._rowsA[doc.id] =
+          _UnreadChatWatcher._rij(doc.id, data, aantal);
     }
-    _UnreadChatWatcher._counts['participants'] = total;
     _UnreadChatWatcher._publish();
   }, onError: (Object _) {});
 
@@ -4031,8 +4179,8 @@ Future<void> watchUnreadChatCount() async {
         .where('teamId', whereIn: teamIds.take(30).toList())
         .snapshots()
         .listen((snap) {
-      int total = 0;
       _UnreadChatWatcher._perTeam.clear();
+      _UnreadChatWatcher._rowsB.clear();
       for (final doc in snap.docs) {
         final data = doc.data();
         final count = _UnreadChatWatcher._readCount(data, userEmail);
@@ -4048,9 +4196,10 @@ Future<void> watchUnreadChatCount() async {
         // Voor het totaal wél overslaan wat stream A al telt, anders dubbel.
         final participants = data['participantIds'];
         if (participants is List && participants.contains(userEmail)) continue;
-        total += count;
+        if (count <= 0) continue;
+        _UnreadChatWatcher._rowsB[doc.id] =
+            _UnreadChatWatcher._rij(doc.id, data, count);
       }
-      _UnreadChatWatcher._counts['team'] = total;
       _UnreadChatWatcher._publish();
     }, onError: (Object _) {});
   }
@@ -15622,22 +15771,42 @@ void _addConversationBadges(FFProject project) {
 // after currentConversationId has been staged in AppState.
 void _wireMarkConversationRead(FFProject project) {
   // ChatDetailPage: currentConversationId is al gezet via de conversatie-tap.
-  _wireMarkReadOnPage(project, 'ChatDetailPage', reinitTeamConv: false);
+  _wireMarkReadOnPage(project, 'ChatDetailPage');
   // TeamChatPage: opent als sub-pagina; markConversationRead werd hier nooit
   // aangeroepen (bug: ongelezen teamchat bleef staan na openen). Eerst
   // InitializeTeamConversation zodat currentConversationId = team_<currentTeamId>
   // (ook correct bij multi-team), dan pas markeren als gelezen.
-  _wireMarkReadOnPage(project, 'TeamChatPage', reinitTeamConv: true);
+  _wireMarkReadOnPage(project, 'TeamChatPage', prelude: 'InitializeTeamConversation');
+  // GroupChatPage: hier stond helemáál niets. Het gesprek werd nooit
+  // aangemaakt, dus een groepsbericht telde nergens mee — en erger: de
+  // verzendknop hoogde de teller op van wat er toevallig nog in
+  // currentConversationId stond, meestal het teamgesprek. Daardoor kreeg
+  // iedereen een ongelezen-melding op een teamchat waar niets nieuws stond.
+  _wireMarkReadOnPage(project, 'GroupChatPage',
+      prelude: 'InitializeGroupConversation', preludeParam: 'groupId');
+  // DirectChatPage: de conversatie wordt bij het openen al aangemaakt, alleen
+  // het op-nul-zetten ontbrak.
+  _wireMarkReadOnPage(project, 'DirectChatPage');
 }
 
-void _wireMarkReadOnPage(FFProject project, String pageName, {required bool reinitTeamConv}) {
+/// Hangt MarkConversationRead aan de laadketen van een chatpagina.
+///
+/// [prelude] is een custom action die er vóór moet draaien om
+/// currentConversationId te zetten; [preludeParam] is de pagina-parameter die
+/// daaraan wordt meegegeven.
+void _wireMarkReadOnPage(
+  FFProject project,
+  String pageName, {
+  String? prelude,
+  String? preludeParam,
+}) {
   final wc = findPage(project, name: pageName);
   if (wc == null) return;
 
   final markRead = findCustomAction(project, name: 'MarkConversationRead');
   if (markRead == null) return;
-  final initConv =
-      reinitTeamConv ? findCustomAction(project, name: 'InitializeTeamConversation') : null;
+  final initConv = prelude == null ? null : findCustomAction(project, name: prelude);
+  if (prelude != null && initConv == null) return;
 
   // Idempotent: skip if MarkConversationRead is already in the load chain.
   bool checkForMarkRead(FFActionNode node) {
@@ -15653,12 +15822,14 @@ void _wireMarkReadOnPage(FFProject project, String pageName, {required bool rein
   });
   if (alreadyWired) return;
 
-  FFActionNode customNode(FFCustomAction action) => FFActionNode(
+  FFActionNode customNode(FFCustomAction action, {Map<String, FFValue>? args}) =>
+      FFActionNode(
         key: generateRandomAlphaNumericString(),
         action: FFAction(
           key: generateRandomAlphaNumericString(),
           customAction: FFCustomActionCall(
             customActionIdentifier: action.identifier.deepCopy(),
+            argumentValues: args == null ? null : _actieArgs(action, args),
           ),
         ),
       );
@@ -15666,7 +15837,20 @@ void _wireMarkReadOnPage(FFProject project, String pageName, {required bool rein
   final markNode = customNode(markRead);
   FFActionNode rootNode;
   if (initConv != null) {
-    rootNode = customNode(initConv);
+    Map<String, FFValue>? args;
+    if (preludeParam != null) {
+      final param = wc.params.values.cast<FFParameter?>().firstWhere(
+          (p) => p?.hasIdentifier() == true && p?.identifier.name == preludeParam,
+          orElse: () => null);
+      if (param == null) return;
+      args = {
+        preludeParam: FFValue(
+          variable: varFromPageParam(param.identifier.deepCopy())
+            ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key),
+        ),
+      };
+    }
+    rootNode = customNode(initConv, args: args);
     rootNode.followUpAction = markNode;
   } else {
     rootNode = markNode;
@@ -18738,7 +18922,7 @@ void _fixGroupChipNameBinding(FFProject project) {
 void _fixChatsPageListViewShrinkWrap(FFProject project) {
   final wc = findPage(project, name: 'ChatsPage');
   if (wc == null) return;
-  for (final name in ['ChatsGroupsList', 'ChatsConversationsList', 'ChatsStaffGroupsList']) {
+  for (final name in ['ChatsGroupsList', 'ChatsConversationsList', 'ChatsStaffGroupsList', 'ChatsUnreadList']) {
     final node = findDescendants(wc.node, (n) => n.name == name).firstOrNull;
     if (node == null) continue;
     if (node.props.listView.shrinkWrapValue.inputValue) continue;
@@ -21757,6 +21941,9 @@ void _wireChatBadgeOverlayOnAllMainPages(FFProject project) {
   _addConvBadgeToDirectMemberChip(project);
   // Teamchat-ingang: dynamische teamkeuze (multi-team) + verbergen zonder team.
   _wireChatsPageTeamchatPicker(project);
+  // Vangnet onder de teller: alles wat ongelezen is, ook als geen van de
+  // secties hieronder het gesprek kan tonen.
+  _wireChatsPageUnreadSection(project);
 }
 
 // Teamchat-ingang op ChatsPage. Vervangt de enkele "Teamchat"-knop door een
@@ -21982,8 +22169,33 @@ void _addConvBadgeToTeamchatTile(FFProject project) {
   row.children.add(badge);
 }
 
+/// Haalt elke ConvUnreadBadge uit een rij weg, zodat hij vers opgebouwd kan
+/// worden.
+///
+/// Zoekt op de custom-widget-identiteit en niet op de naam van de node: de
+/// exemplaren die hier stonden waren naamloos ingevoegd door een oudere push, en
+/// die zou een opruiming op naam alleen laten staan.
+void _ruimConvBadgesOp(FFNode row, FFCustomWidget widget, String naam) {
+  final oud = findDescendants(
+    row,
+    (n) =>
+        n.name == naam ||
+        (n.hasCustomWidgetIdentifier() &&
+            n.customWidgetIdentifier.key == widget.identifier.key),
+  ).toList();
+  for (final n in oud) {
+    removeByKey(row, n.key);
+  }
+}
+
 // Plaatst een ConvUnreadBadge in elke groep-tile op ChatsPage. ConvId =
-// 'group_<groupId>'. Idempotent: skipt als badge er al in zit.
+// 'group_<groupId>'.
+//
+// Vers opbouwen en niet "skippen als hij er al staat". Dat laatste stond hier,
+// en daardoor bleef een eerder ingevoegde badge zónder conversationId eeuwig
+// staan: de widget stopt bij een lege id, dus een groep kon nooit een bolletje
+// tonen terwijl de teller op de Berichten-tab het bericht wél meetelde. Precies
+// het geval waarin je een 1 ziet en nergens kunt vinden waar hij van is.
 void _addConvBadgeToGroupChip(FFProject project) {
   final wc = findPage(project, name: 'ChatsPage');
   if (wc == null) return;
@@ -21991,10 +22203,13 @@ void _addConvBadgeToGroupChip(FFProject project) {
   if (convList == null) return;
   final row = findDescendants(wc.node, (n) => n.name == 'GroupChipRow').firstOrNull;
   if (row == null) return;
-  if (findDescendants(row, (n) => n.name == 'GroupConvUnreadBadge').isNotEmpty) return;
 
   final widget = findCustomWidget(project, name: 'ConvUnreadBadge');
   if (widget == null) return;
+
+  // Alles weghalen wat er al staat: zowel de badge op naam als een naamloze
+  // ConvUnreadBadge uit een oudere push.
+  _ruimConvBadgesOp(row, widget, 'GroupConvUnreadBadge');
 
   // ConvId via codeExpression: 'group_' + group.id (de Firestore doc id staat
   // niet in een veld; we gebruiken de doc-ref-id via _docField). Eenvoudiger:
@@ -22033,6 +22248,10 @@ void _addConvBadgeToGroupChip(FFProject project) {
   row.children.insert(lastIdx, badge);
 }
 
+// Zelfde verhaal als bij de groepen hierboven: vers opbouwen, want de badge die
+// er stond had geen conversationId en werd door de oude skip-bewaking nooit meer
+// vervangen. Een staffgroep-gesprek heeft bovendien geen teamId, dus hij kwam
+// ook niet in de badge naast het elftal terecht — nergens te zien dus.
 void _addConvBadgeToStaffGroupChip(FFProject project) {
   final wc = findPage(project, name: 'ChatsPage');
   if (wc == null) return;
@@ -22040,10 +22259,11 @@ void _addConvBadgeToStaffGroupChip(FFProject project) {
   if (convList == null) return;
   final row = findDescendants(wc.node, (n) => n.name == 'StaffGroupChipRow').firstOrNull;
   if (row == null) return;
-  if (findDescendants(row, (n) => n.name == 'StaffGroupConvUnreadBadge').isNotEmpty) return;
 
   final widget = findCustomWidget(project, name: 'ConvUnreadBadge');
   if (widget == null) return;
+
+  _ruimConvBadgesOp(row, widget, 'StaffGroupConvUnreadBadge');
 
   // staffGroup.id is een StaffGroupItem struct field.
   final idVar = generatorVarField(convList.key, 'id');
@@ -47445,4 +47665,193 @@ void _addMotmButton(FFProject project) {
   );
 
   kolom.children.insert(idx >= 0 ? idx + 1 : kolom.children.length, wrap);
+}
+
+/// Sectie "Ongelezen" bovenaan de chatpagina.
+///
+/// Het vangnet onder de teller op de Berichten-tab. De vier secties eronder
+/// komen elk uit een eigen bron — elftallen uit app-state, groepen uit
+/// Firestore, staffgroepen en leden uit de Laravel-API — en samen dekken ze niet
+/// alles wat de teller meetelt. Uit een groep gezet, een gesprek van een ander
+/// elftal, of een directe chat met iemand buiten je selectie: de telling ging
+/// omhoog en nergens stond een rij. Deze lijst komt uit dezelfde streams als de
+/// teller zelf, dus wat er meetelt kun je hier openen.
+///
+/// Bewust géén poging om te verbergen wat er hieronder óók al staat. Dat zou
+/// betekenen dat je alle vier de bronnen hier nabouwt — inclusief een query met
+/// een limiet zonder sortering — en één misser brengt precies de kwaal terug die
+/// dit moet verhelpen. Een regel verdwijnt zodra je hem opent, dus dubbel staan
+/// duurt alleen zolang je het nodig hebt.
+void _wireChatsPageUnreadSection(FFProject project) {
+  final wc = findPage(project, name: 'ChatsPage');
+  if (wc == null) return;
+
+  final unreadId = _findAppStateFieldId(project, 'unreadChats');
+  final convId = _findAppStateFieldId(project, 'currentConversationId');
+  final teamIdId = _findAppStateFieldId(project, 'currentTeamId');
+  final teamNameId = _findAppStateFieldId(project, 'currentTeamName');
+  if (unreadId == null || convId == null) return;
+
+  final bodyCol = findByKey(wc.node, 'Column_97jfu72d');
+  if (bodyCol == null) return;
+
+  // Vers opbouwen: een sla-over-bewaking bevriest de sectie in de vorm van de
+  // eerste push, en dat is precies hoe de groepsbadge jarenlang leeg bleef.
+  // Alles heet daarom 'ChatsUnread...' zodat deze veegactie het ook vindt.
+  for (final k in findDescendants(wc.node, (n) => n.name.startsWith('ChatsUnread'))
+      .map((n) => n.key)
+      .toList()) {
+    removeByKey(wc.node, k);
+  }
+
+  final unreadVar = varFromAppState(unreadId.deepCopy())
+    ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+
+  final lijst = UI.listView(
+    name: 'ChatsUnreadList',
+    shrinkWrap: true,
+    spacing: 8,
+    padding: UIEdgeInsets.symmetric(horizontal: 12),
+    dynamicSource: DynamicSource(variable: unreadVar, itemName: 'unreadChat'),
+  );
+
+  FFVariable veld(String naam) => generatorVarField(lijst.key, naam);
+
+  // Titel met het elftal erachter als dat bekend is: "Staffgroep · JO11-1".
+  // Juist dat stukje ontbrak — je zag een getal en wist niet in welk elftal je
+  // moest zoeken.
+  final titel = UI.text('', name: 'ChatsUnreadTitle', style: UITextStyle.bodyMedium,
+      fontWeight: UIFontWeight.w600, maxLines: 1, textOverflow: UITextOverflow.ellipsis);
+  titel.props.text.textValue = FFStringValue(variable: codeExpressionVar(
+      expression: "(t ?? '') + (((n ?? '') == '' || (n ?? '') == 'null') ? '' : '  ·  ' + (n ?? ''))",
+      arguments: [
+        CodeExpressionArg(name: 't', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: veld('title'))),
+        CodeExpressionArg(name: 'n', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+            value: FFValue(variable: veld('teamName'))),
+      ],
+      returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String))));
+
+  final subtitel = UI.text('', name: 'ChatsUnreadSubtitle', style: UITextStyle.bodySmall,
+      color: UIColor.secondaryText, maxLines: 1, textOverflow: UITextOverflow.ellipsis);
+  subtitel.props.text.textValue = FFStringValue(variable: veld('subtitle'));
+
+  // Rood bolletje met het aantal, zelfde vorm als naast een elftal. Geen
+  // ConvUnreadBadge: die opent per regel een eigen documentlistener, terwijl het
+  // aantal hier al in de regel zit.
+  final bolletje = UI.container(
+    name: 'ChatsUnreadCountBadge',
+    innerPadding: UIEdgeInsets.symmetric(horizontal: 7, vertical: 2),
+    borderRadius: 10,
+    color: UIColor.hex(0xFFEF4444),
+    child: (() {
+      final t = UI.text('', name: 'ChatsUnreadCountText', style: UITextStyle.labelSmall,
+          color: UIColor.white, maxLines: 1);
+      t.props.text.textValue = FFStringValue(variable: veld('unread'));
+      return t;
+    })(),
+  );
+
+  final rij = UI.row(
+    name: 'ChatsUnreadRow',
+    spacing: 10,
+    crossAxisAlignment: UICrossAxisAlignment.center,
+    children: [
+      UI.icon('mark_chat_unread', size: 18, color: UIColor.primary),
+      UI.expanded(UI.column(
+        name: 'ChatsUnreadTexts',
+        crossAxisAlignment: UICrossAxisAlignment.start,
+        spacing: 2,
+        children: [titel, subtitel],
+      )),
+      bolletje,
+      UI.icon('chevron_right', size: 18, color: UIColor.secondaryText),
+    ],
+  );
+
+  final tegel = UI.container(
+    name: 'ChatsUnreadTile',
+    padding: UIEdgeInsets.all(12),
+    borderRadius: 8,
+    color: UIColor.secondaryBackground,
+    child: rij,
+  );
+
+  // Tikken: eerst het elftal meenemen als het gesprek bij een ander elftal
+  // hoort. Doe je dat niet, dan schrijft het verzenden daarna het huidige
+  // elftal op het gesprek en verhuist het naar de verkeerde lijst.
+  final updates = <FFLocalStateFieldUpdate>[
+    FFLocalStateFieldUpdate(
+      fieldIdentifier: convId.deepCopy(),
+      setValue: FFValue(variable: veld('conversationId')),
+    ),
+  ];
+  if (teamIdId != null) {
+    updates.add(FFLocalStateFieldUpdate(
+      fieldIdentifier: teamIdId.deepCopy(),
+      setValue: FFValue(variable: codeExpressionVar(
+          expression: "(t ?? '') == '' ? (h ?? '') : (t ?? '')",
+          arguments: [
+            CodeExpressionArg(name: 't', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                value: FFValue(variable: veld('teamId'))),
+            CodeExpressionArg(name: 'h', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                value: FFValue(variable: varFromAppState(teamIdId.deepCopy()))),
+          ],
+          returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)))),
+    ));
+  }
+  if (teamNameId != null) {
+    updates.add(FFLocalStateFieldUpdate(
+      fieldIdentifier: teamNameId.deepCopy(),
+      setValue: FFValue(variable: codeExpressionVar(
+          expression: "(n ?? '') == '' ? (h ?? '') : (n ?? '')",
+          arguments: [
+            CodeExpressionArg(name: 'n', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                value: FFValue(variable: veld('teamName'))),
+            CodeExpressionArg(name: 'h', dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+                value: FFValue(variable: varFromAppState(teamNameId.deepCopy()))),
+          ],
+          returnType: FFParameter(dataType: FFDataTypeV2(scalarType: FFBaseDataType.String)))),
+    ));
+  }
+
+  final tapChain = FFActionNode(
+    key: generateRandomAlphaNumericString(),
+    action: FFAction(
+      key: generateRandomAlphaNumericString(),
+      localStateUpdate: FFLocalStateUpdate(
+        updates: updates,
+        stateVariableType: FFStateVariableType.APP_STATE,
+      ),
+    ),
+    followUpAction: FFActionNode(
+      key: generateRandomAlphaNumericString(),
+      action: Actions.navigate(
+        project,
+        pageName: 'ChatDetailPage',
+        params: {
+          'conversationId': VariableParamValue(veld('conversationId')),
+          'title': VariableParamValue(veld('title')),
+        },
+      ),
+    ),
+  );
+  Actions.onTapChain(tegel, tapChain);
+  lijst.children.add(tegel);
+
+  // Kop en lijst alleen tonen als er iets ongelezen is.
+  final erIsIets = _listNotEmptyVar(unreadVar.deepCopy());
+
+  final kop = UI.container(
+    name: 'ChatsUnreadLabelContainer',
+    padding: UIEdgeInsets.all(12),
+    child: UI.text('Ongelezen', style: UITextStyle.titleSmall),
+  );
+  setConditionalVisibility(kop, variable: erIsIets);
+
+  final houder = UI.container(name: 'ChatsUnreadContainer', child: lijst);
+  setConditionalVisibility(houder, variable: _listNotEmptyVar(unreadVar.deepCopy()));
+
+  bodyCol.children.insert(0, houder);
+  bodyCol.children.insert(0, kop);
 }

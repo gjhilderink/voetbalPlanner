@@ -863,6 +863,12 @@ abstract final class AppState {
     typeName: "Integer",
     persisted: false,
   );
+  static const unreadChats = ffai.ProjectAppStateFieldHandle(
+    name: "unreadChats",
+    key: "gmdp2omk",
+    typeName: "List<DataStruct<UnreadChatItem>>",
+    persisted: false,
+  );
   static const userEmail = ffai.ProjectAppStateFieldHandle(
     name: "userEmail",
     key: "ea1g6u4n",
@@ -1025,6 +1031,7 @@ abstract final class AppState {
     trainings,
     trainingsPage,
     unreadChatCount,
+    unreadChats,
     userEmail,
     userName,
     userRoles,

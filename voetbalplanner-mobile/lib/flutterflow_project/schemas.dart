@@ -704,6 +704,19 @@ abstract final class Structs {
     },
     description: ffai.generatedProjectStructDescription,
   );
+  static final ffai.StructHandle unreadChatItem = ffai.StructHandle(
+    "UnreadChatItem",
+    <String, ffai.DslType>{
+      "conversationId": ffai.string,
+      "subtitle": ffai.string,
+      "teamId": ffai.string,
+      "teamName": ffai.string,
+      "title": ffai.string,
+      "type": ffai.string,
+      "unread": ffai.string,
+    },
+    description: ffai.generatedProjectStructDescription,
+  );
   static final ffai.StructHandle userRef = ffai.StructHandle(
     "UserRef",
     <String, ffai.DslType>{
@@ -762,6 +775,7 @@ abstract final class Structs {
     teamStats,
     trainingItem,
     trainingParticipant,
+    unreadChatItem,
     userRef,
   ];
 }

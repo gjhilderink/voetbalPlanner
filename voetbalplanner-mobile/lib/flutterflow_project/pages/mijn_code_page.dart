@@ -78,25 +78,25 @@ abstract final class MijnCodePageWidgets {
                 name: "MijnCodeContainer",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_ee7whfx9",
+                    key: "Column_v41ifurv",
                     type: "Column",
                     path: "MijnCodePage.body[0].children[0].children[0]",
                     name: "MijnCodeKolom",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_smqv2yra",
+                        key: "Container_ccnk5dqx",
                         type: "Container",
                         path: "MijnCodePage.body[0].children[0].children[0].children[0]",
                         name: "MijnCodeQr",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_tvlr56mz",
+                        key: "Text_q1wex9v6",
                         type: "Text",
                         path: "MijnCodePage.body[0].children[0].children[0].children[1]",
                         name: "MijnCodeNaam",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_10b13quh",
+                        key: "Text_t806ha7z",
                         type: "Text",
                         path: "MijnCodePage.body[0].children[0].children[0].children[2]",
                         name: "MijnCodeUitleg",
