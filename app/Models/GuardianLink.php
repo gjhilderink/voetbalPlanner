@@ -102,4 +102,76 @@ class GuardianLink extends Model
     {
         return in_array($this->status, ['pending', 'approved']);
     }
+
+    /**
+     * Het verzoek afhandelen: goedkeuren of weigeren, en de ouder een melding
+     * sturen.
+     *
+     * Op het model en niet in de controller, sinds een beheerder dit ook in de
+     * portal kan doen: gebeurt hetzelfde op twee plekken, dan loopt de melding
+     * aan de ouder vroeg of laat op één van de twee achter.
+     *
+     * @param  string       $status          'approved' of 'rejected'
+     * @param  string|null  $doorMemberId    wie het afhandelde; leeg bij een
+     *                                       beheerder zonder eigen ledenrecord.
+     * @param  bool         $doorBeheerder   bepaalt alleen de tekst van de
+     *                                       melding: "de club" in plaats van de
+     *                                       naam van het kind.
+     */
+    public function beslis(string $status, ?string $doorMemberId, bool $doorBeheerder = false): void
+    {
+        $this->update([
+            'status'                => $status,
+            'resolved_by_member_id' => $doorMemberId,
+            'resolved_at'           => now(),
+        ]);
+
+        $this->meldBeslissingAanOuder($status, $doorBeheerder);
+    }
+
+    /**
+     * Meldt de ouder/verzorger dat er op het verzoek is gereageerd.
+     *
+     * Gaat naar het topic `user_<sanitize(email)>` waar de app zich al op
+     * abonneert. Faalt dit, dan blijft het bij een logregel: de beslissing is
+     * verwerkt en dat mag niet stukgaan op een push.
+     */
+    private function meldBeslissingAanOuder(string $status, bool $doorBeheerder = false): void
+    {
+        try {
+            $email = $this->guardian?->email;
+            if (! $email) {
+                return;
+            }
+
+            $kind = $this->child?->name ?: 'je kind';
+
+            // Wie het besliste staat in de tekst. Een beheerder die goedkeurt
+            // namens de club mag niet als het kind worden gepresenteerd: de
+            // ouder zou denken dat zijn kind heeft gereageerd.
+            $titel = $status === 'approved' ? 'Toegang goedgekeurd' : 'Verzoek geweigerd';
+            $tekst = match (true) {
+                $status === 'approved' && $doorBeheerder =>
+                    "De club heeft je koppeling met {$kind} goedgekeurd. Je ziet nu de wedstrijden en trainingen in de app.",
+                $status === 'approved' =>
+                    "{$kind} heeft je toegang gegeven. Je ziet nu de wedstrijden en trainingen in de app.",
+                $doorBeheerder =>
+                    "De club heeft je verzoek om toegang tot de gegevens van {$kind} geweigerd.",
+                default =>
+                    "{$kind} heeft je verzoek om toegang geweigerd.",
+            };
+
+            app(\App\Services\FcmService::class)->sendToTopic(
+                'user_' . \App\Services\FcmService::sanitizeTopicEmail($email),
+                $titel,
+                $tekst,
+                ['type' => 'guardian', 'status' => $status],
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[Guardian] push naar ouder mislukt', [
+                'link'  => $this->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 }

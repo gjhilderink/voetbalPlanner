@@ -1185,6 +1185,16 @@ class ReleaseNotesSeeder extends Seeder
             ],
             [
                 'type'        => 'feature',
+                'title'       => 'Koppelverzoeken afhandelen in de portal',
+                'description' => 'Onder Leden → Ouder/Verzorger staan alle koppelverzoeken met hun status, en '
+                    . 'kun je er nu ook op reageren. Normaal bevestigt het lid zelf in de app, maar lukt dat niet — '
+                    . 'geen app, geen e-mailadres, of het blijft liggen — dan handelt een beheerder het hier af met '
+                    . 'Goedkeuren of Weigeren. Openstaande verzoeken staan als cijfer naast het menu-item, en een '
+                    . 'verzoek dat de veertien dagen heeft overschreden is nu als Verlopen te herkennen in plaats van '
+                    . 'eindeloos "In afwachting". De ouder krijgt een melding waarin staat dat de club het besliste.',
+            ],
+            [
+                'type'        => 'feature',
                 'title'       => 'Man of the match',
                 'description' => 'Na een wedstrijd kiest het elftal anoniem wie de man of the match was. De knop '
                     . 'staat op het tabblad Info van de wedstrijd en verschijnt zodra er een wedstrijdverslag is. Je '

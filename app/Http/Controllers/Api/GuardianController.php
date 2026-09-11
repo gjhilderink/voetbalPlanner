@@ -255,17 +255,11 @@ class GuardianController extends Controller
 
         $newStatus = $validated['action'] === 'approve' ? 'approved' : 'rejected';
 
-        $guardianLink->update([
-            'status'                => $newStatus,
-            'resolved_by_member_id' => $member->id,
-            'resolved_at'           => now(),
-        ]);
-
-        // De ouder een melding sturen. Zonder dit moet die zelf blijven kijken
-        // of het al gelukt is; de app toonde tot dat moment alleen "nog even
-        // wachten". Push mag nooit het antwoord van het kind blokkeren, dus
-        // fouten worden gelogd en niet doorgegeven.
-        $this->notifyGuardianOfDecision($guardianLink, $newStatus);
+        // Bijwerken én de ouder een melding sturen. Zonder die melding moet die
+        // zelf blijven kijken of het al gelukt is; de app toonde tot dat moment
+        // alleen "nog even wachten". Staat op het model omdat de beheerder dit
+        // in de portal ook kan afhandelen.
+        $guardianLink->beslis($newStatus, $member->id);
 
         $message = $newStatus === 'approved'
             ? 'Koppeling goedgekeurd. De ouder/verzorger heeft nu toegang tot uw gegevens.'
@@ -278,40 +272,6 @@ class GuardianController extends Controller
         ]);
     }
 
-    /**
-     * Meldt de ouder/verzorger dat het kind op het verzoek heeft gereageerd.
-     *
-     * Gaat naar het topic `user_<sanitize(email)>` waar de app zich al op
-     * abonneert. Faalt dit, dan blijft het bij een logregel: het antwoord van
-     * het kind is verwerkt en dat mag niet stukgaan op een push.
-     */
-    private function notifyGuardianOfDecision(GuardianLink $link, string $status): void
-    {
-        try {
-            $email = $link->guardian?->email;
-            if (! $email) {
-                return;
-            }
-
-            $kind = $link->child?->name ?: 'je kind';
-
-            [$titel, $tekst] = $status === 'approved'
-                ? ['Toegang goedgekeurd', "{$kind} heeft je toegang gegeven. Je ziet nu de wedstrijden en trainingen in de app."]
-                : ['Verzoek geweigerd', "{$kind} heeft je verzoek om toegang geweigerd."];
-
-            app(\App\Services\FcmService::class)->sendToTopic(
-                'user_' . \App\Services\FcmService::sanitizeTopicEmail($email),
-                $titel,
-                $tekst,
-                ['type' => 'guardian', 'status' => $status],
-            );
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('[Guardian] push naar ouder mislukt', [
-                'link'  => $link->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
 
     /**
      * DELETE /v1/guardian/{guardianLink}/revoke
