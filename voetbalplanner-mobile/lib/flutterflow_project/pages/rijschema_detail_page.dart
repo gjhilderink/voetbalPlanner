@@ -162,33 +162,33 @@ abstract final class RijschemaDetailPageWidgets {
             name: "RijInfoColumn",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Text_j4o8d1gf",
+                key: "Text_2anxrd1x",
                 type: "Text",
                 path: "RijschemaDetailPage.body[0].children[0]",
                 name: "RijTitle",
                 text: "Wedstrijd details",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_kv2kcjju",
+                key: "Container_f9csjuww",
                 type: "Container",
                 path: "RijschemaDetailPage.body[0].children[1]",
                 name: "RijInfoRow_rijTeamName",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_p8sicosq",
+                    key: "Column_66wyzoze",
                     type: "Column",
                     path: "RijschemaDetailPage.body[0].children[1].children[0]",
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_cxe5ukfb",
+                        key: "Text_wx65eknw",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[1].children[0].children[0]",
                         name: "Text",
                         text: "Eigen team",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_tf9x9fnm",
+                        key: "Text_278jelmk",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[1].children[0].children[1]",
                         name: "RijInfoValue_rijTeamName",
@@ -198,26 +198,26 @@ abstract final class RijschemaDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_7v87gr5h",
+                key: "Container_cpco3xa2",
                 type: "Container",
                 path: "RijschemaDetailPage.body[0].children[2]",
                 name: "RijInfoRow_rijOpponent",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_s41b5kh4",
+                    key: "Column_lnbc8t0b",
                     type: "Column",
                     path: "RijschemaDetailPage.body[0].children[2].children[0]",
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_z5vs0ecy",
+                        key: "Text_dfqb6bdn",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[2].children[0].children[0]",
                         name: "Text",
                         text: "Tegenstander",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_ccecx3b9",
+                        key: "Text_68jfew27",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[2].children[0].children[1]",
                         name: "RijInfoValue_rijOpponent",
@@ -227,26 +227,26 @@ abstract final class RijschemaDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_kkxgglng",
+                key: "Container_6i26e4qb",
                 type: "Container",
                 path: "RijschemaDetailPage.body[0].children[3]",
                 name: "RijInfoRow_rijDatetime",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_f8bvwklf",
+                    key: "Column_3y5vrcb3",
                     type: "Column",
                     path: "RijschemaDetailPage.body[0].children[3].children[0]",
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_futceybl",
+                        key: "Text_tt8jan6q",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[3].children[0].children[0]",
                         name: "Text",
                         text: "Datum & Tijd",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_5k3ewbvv",
+                        key: "Text_lal09cvw",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[3].children[0].children[1]",
                         name: "RijInfoValue_rijDatetime",
@@ -256,26 +256,26 @@ abstract final class RijschemaDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_q7km0zli",
+                key: "Container_v1k9ndkv",
                 type: "Container",
                 path: "RijschemaDetailPage.body[0].children[4]",
                 name: "RijInfoRow_rijLocation",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_ihmkwxl2",
+                    key: "Column_jqj1zzpn",
                     type: "Column",
                     path: "RijschemaDetailPage.body[0].children[4].children[0]",
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_hs01eofs",
+                        key: "Text_h054lf3g",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[4].children[0].children[0]",
                         name: "Text",
                         text: "Locatie",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_bn4eulse",
+                        key: "Text_7q4ut621",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[4].children[0].children[1]",
                         name: "RijInfoValue_rijLocation",
@@ -285,7 +285,7 @@ abstract final class RijschemaDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Button_k81sjozc",
+                key: "Button_3d45yfsm",
                 type: "Button",
                 path: "RijschemaDetailPage.body[0].children[5]",
                 name: "RijNavigateButton",
@@ -295,26 +295,26 @@ abstract final class RijschemaDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_77hagklp",
+                key: "Container_vxlz1u4n",
                 type: "Container",
                 path: "RijschemaDetailPage.body[0].children[6]",
                 name: "RijInfoRow_rijIsHome",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_ebxqukew",
+                    key: "Column_z9t6dtgu",
                     type: "Column",
                     path: "RijschemaDetailPage.body[0].children[6].children[0]",
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_k9l9olsh",
+                        key: "Text_1runti3j",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[6].children[0].children[0]",
                         name: "Text",
                         text: "Thuis/Uit",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_oijqkla2",
+                        key: "Text_7uqq7olj",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[6].children[0].children[1]",
                         name: "RijInfoValue_rijIsHome",
@@ -324,26 +324,26 @@ abstract final class RijschemaDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_ieib4hjz",
+                key: "Container_1tplfm2c",
                 type: "Container",
                 path: "RijschemaDetailPage.body[0].children[7]",
                 name: "RijInfoRow_rijArrivalTime",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_4a0oecgz",
+                    key: "Column_kkzqvh8n",
                     type: "Column",
                     path: "RijschemaDetailPage.body[0].children[7].children[0]",
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_56urrecu",
+                        key: "Text_0x6njdo1",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[7].children[0].children[0]",
                         name: "Text",
                         text: "Verzamelen",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_kc5h3ews",
+                        key: "Text_zen4b0lk",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[7].children[0].children[1]",
                         name: "RijInfoValue_rijArrivalTime",
@@ -353,26 +353,26 @@ abstract final class RijschemaDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_qchc4ekm",
+                key: "Container_k3rx82ep",
                 type: "Container",
                 path: "RijschemaDetailPage.body[0].children[8]",
                 name: "RijInfoRow_rijCoachName",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_jxfkt2l7",
+                    key: "Column_df94ihis",
                     type: "Column",
                     path: "RijschemaDetailPage.body[0].children[8].children[0]",
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_jdsoo800",
+                        key: "Text_gudhc0df",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[8].children[0].children[0]",
                         name: "Text",
                         text: "Coach",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_cqozlmem",
+                        key: "Text_u2nbvznb",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[8].children[0].children[1]",
                         name: "RijInfoValue_rijCoachName",
@@ -382,26 +382,26 @@ abstract final class RijschemaDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_xu1ptlb2",
+                key: "Container_d8z1b6kd",
                 type: "Container",
                 path: "RijschemaDetailPage.body[0].children[9]",
                 name: "RijInfoRow_rijDriverNames",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_v9vxmf5q",
+                    key: "Column_yces1ot8",
                     type: "Column",
                     path: "RijschemaDetailPage.body[0].children[9].children[0]",
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_yl4xjj3x",
+                        key: "Text_wqxy7uix",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[9].children[0].children[0]",
                         name: "Text",
                         text: "Rijders",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_ze352k43",
+                        key: "Container_y94mib0j",
                         type: "Container",
                         path: "RijschemaDetailPage.body[0].children[9].children[0].children[1]",
                         name: "NameList_rijDriverNames",
@@ -411,26 +411,26 @@ abstract final class RijschemaDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_gcnjtp9g",
+                key: "Container_8tmj3so5",
                 type: "Container",
                 path: "RijschemaDetailPage.body[0].children[10]",
                 name: "RijInfoRow_rijNotes",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_qag7xlqg",
+                    key: "Column_qx5l8ve9",
                     type: "Column",
                     path: "RijschemaDetailPage.body[0].children[10].children[0]",
                     name: "Column",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Text_rwk8wc1l",
+                        key: "Text_j1tn8uy6",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[10].children[0].children[0]",
                         name: "Text",
                         text: "Notities",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Text_a02r0i4g",
+                        key: "Text_asc8ellk",
                         type: "Text",
                         path: "RijschemaDetailPage.body[0].children[10].children[0].children[1]",
                         name: "RijInfoValue_rijNotes",
@@ -440,7 +440,7 @@ abstract final class RijschemaDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Button_hvf4au0o",
+                key: "Button_z3wofa0q",
                 type: "Button",
                 path: "RijschemaDetailPage.body[0].children[11]",
                 name: "RijWisselButton",

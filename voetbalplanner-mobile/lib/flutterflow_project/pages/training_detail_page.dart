@@ -159,31 +159,31 @@ abstract final class TrainingDetailPageWidgets {
             name: "TrainingDetailColumn",
             children: <ffai.ProjectWidgetHandle>[
               ffai.ProjectWidgetHandle(
-                key: "Container_5zsc13f6",
+                key: "Container_mql687hc",
                 type: "Container",
                 path: "TrainingDetailPage.body[0].children[0]",
                 name: "TrainHeaderCard",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Column_d49hu3vs",
+                    key: "Column_2y4ku5dp",
                     type: "Column",
                     path: "TrainingDetailPage.body[0].children[0].children[0]",
                     name: "TrainHeaderCol",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Row_hz5zsdlf",
+                        key: "Row_r9jjw59e",
                         type: "Row",
                         path: "TrainingDetailPage.body[0].children[0].children[0].children[0]",
                         name: "TrainHeaderRow",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Container_ny3asumr",
+                            key: "Container_tmx866g8",
                             type: "Container",
                             path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[0]",
                             name: "TrainCircle_event",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_ejllxjsr",
+                                key: "Icon_4h5nkcka",
                                 type: "Icon",
                                 path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[0].children[0]",
                                 name: "Icon",
@@ -191,31 +191,31 @@ abstract final class TrainingDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Column_oknzxvd2",
+                            key: "Column_77j58w3x",
                             type: "Column",
                             path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1]",
                             name: "TrainHeaderInfo",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Text_25iishlf",
+                                key: "Text_4wert54u",
                                 type: "Text",
                                 path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[0]",
                                 name: "TrainDetailDay",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_we7dx8ds",
+                                key: "Row_25evrj3q",
                                 type: "Row",
                                 path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[1]",
                                 name: "TrainDateLine",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_7f59f1zx",
+                                    key: "Icon_2z5enac1",
                                     type: "Icon",
                                     path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[1].children[0]",
                                     name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_gnzrm16o",
+                                    key: "Text_wumpi42v",
                                     type: "Text",
                                     path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[1].children[1]",
                                     name: "TrainDetailDate",
@@ -223,19 +223,19 @@ abstract final class TrainingDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_9whmsno8",
+                                key: "Row_0ylvzyzq",
                                 type: "Row",
                                 path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[2]",
                                 name: "TrainTimeLine",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_w5pgck8j",
+                                    key: "Icon_j7efml9b",
                                     type: "Icon",
                                     path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[2].children[0]",
                                     name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_i564yp21",
+                                    key: "Text_hnczpssm",
                                     type: "Text",
                                     path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[2].children[1]",
                                     name: "TrainDetailTime",
@@ -243,19 +243,19 @@ abstract final class TrainingDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_y0if4gje",
+                                key: "Row_eko1j402",
                                 type: "Row",
                                 path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[3]",
                                 name: "TrainLocLine",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_apfckwqm",
+                                    key: "Icon_10ptxsxv",
                                     type: "Icon",
                                     path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[3].children[0]",
                                     name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_67zqpol3",
+                                    key: "Text_mbqxxbfm",
                                     type: "Text",
                                     path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[3].children[1]",
                                     name: "TrainDetailLoc",
@@ -263,19 +263,19 @@ abstract final class TrainingDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Row_o5bzifh5",
+                                key: "Row_mi6pjbih",
                                 type: "Row",
                                 path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[4]",
                                 name: "TrainDetailKleedkamerRow",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Icon_bbka106b",
+                                    key: "Icon_agmievaz",
                                     type: "Icon",
                                     path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[4].children[0]",
                                     name: "Icon",
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Text_3jitkz0x",
+                                    key: "Text_07ny9ezf",
                                     type: "Text",
                                     path: "TrainingDetailPage.body[0].children[0].children[0].children[0].children[1].children[4].children[1]",
                                     name: "TrainDetailKleedkamer",
@@ -287,25 +287,25 @@ abstract final class TrainingDetailPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_qoqvh8u6",
+                        key: "Container_hs8iat32",
                         type: "Container",
                         path: "TrainingDetailPage.body[0].children[0].children[0].children[1]",
                         name: "TrainStatusPill_aangemeld",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_kiik67b7",
+                            key: "Row_tefvjmss",
                             type: "Row",
                             path: "TrainingDetailPage.body[0].children[0].children[0].children[1].children[0]",
                             name: "TrainStatusPillRow_aangemeld",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_zeq5opn7",
+                                key: "Icon_zyi2ix27",
                                 type: "Icon",
                                 path: "TrainingDetailPage.body[0].children[0].children[0].children[1].children[0].children[0]",
                                 name: "Icon",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_xg9rzt3t",
+                                key: "Text_vokrlaxe",
                                 type: "Text",
                                 path: "TrainingDetailPage.body[0].children[0].children[0].children[1].children[0].children[1]",
                                 name: "TrainStatusPillText_aangemeld",
@@ -316,25 +316,25 @@ abstract final class TrainingDetailPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Container_t8kndeam",
+                        key: "Container_5b2g65uh",
                         type: "Container",
                         path: "TrainingDetailPage.body[0].children[0].children[0].children[2]",
                         name: "TrainStatusPill_afgemeld",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Row_49djv54p",
+                            key: "Row_u16uc557",
                             type: "Row",
                             path: "TrainingDetailPage.body[0].children[0].children[0].children[2].children[0]",
                             name: "TrainStatusPillRow_afgemeld",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Icon_sip17r4m",
+                                key: "Icon_1u6bjkjx",
                                 type: "Icon",
                                 path: "TrainingDetailPage.body[0].children[0].children[0].children[2].children[0].children[0]",
                                 name: "Icon",
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "Text_k1udife1",
+                                key: "Text_6elusbld",
                                 type: "Text",
                                 path: "TrainingDetailPage.body[0].children[0].children[0].children[2].children[0].children[1]",
                                 name: "TrainStatusPillText_afgemeld",
@@ -349,38 +349,38 @@ abstract final class TrainingDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_fovwrwnz",
+                key: "Container_km5ht645",
                 type: "Container",
                 path: "TrainingDetailPage.body[0].children[1]",
                 name: "TrainAfgelastBanner",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Row_k23dsyx8",
+                    key: "Row_455riarw",
                     type: "Row",
                     path: "TrainingDetailPage.body[0].children[1].children[0]",
                     name: "TrainAfgelastRow",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Icon_vceoljq1",
+                        key: "Icon_2izc9njg",
                         type: "Icon",
                         path: "TrainingDetailPage.body[0].children[1].children[0].children[0]",
                         name: "Icon",
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Column_t8hx1auv",
+                        key: "Column_53oj5nim",
                         type: "Column",
                         path: "TrainingDetailPage.body[0].children[1].children[0].children[1]",
                         name: "TrainAfgelastCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_cem5ad7b",
+                            key: "Text_7vu64nsl",
                             type: "Text",
                             path: "TrainingDetailPage.body[0].children[1].children[0].children[1].children[0]",
                             name: "TrainAfgelastTitel",
                             text: "Afgelast",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Text_eioazrpn",
+                            key: "Text_jnsl071k",
                             type: "Text",
                             path: "TrainingDetailPage.body[0].children[1].children[0].children[1].children[1]",
                             name: "TrainAfgelastReden",
@@ -392,25 +392,25 @@ abstract final class TrainingDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_4n8s8v41",
+                key: "Container_52aq1ygq",
                 type: "Container",
                 path: "TrainingDetailPage.body[0].children[2]",
                 name: "TrainReasonCard",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Row_hlzpq0ja",
+                    key: "Row_ypwxjsvt",
                     type: "Row",
                     path: "TrainingDetailPage.body[0].children[2].children[0]",
                     name: "TrainReasonRow",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Container_xg9i7zxc",
+                        key: "Container_j7ral0p3",
                         type: "Container",
                         path: "TrainingDetailPage.body[0].children[2].children[0].children[0]",
                         name: "TrainCircle_comment",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Icon_tquogfff",
+                            key: "Icon_mgp3e6vk",
                             type: "Icon",
                             path: "TrainingDetailPage.body[0].children[2].children[0].children[0].children[0]",
                             name: "Icon",
@@ -418,20 +418,20 @@ abstract final class TrainingDetailPageWidgets {
                         ],
                       ),
                       ffai.ProjectWidgetHandle(
-                        key: "Column_ggk4wapt",
+                        key: "Column_zjw692v4",
                         type: "Column",
                         path: "TrainingDetailPage.body[0].children[2].children[0].children[1]",
                         name: "TrainReasonCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Text_y721ayi9",
+                            key: "Text_a00ggtyz",
                             type: "Text",
                             path: "TrainingDetailPage.body[0].children[2].children[0].children[1].children[0]",
                             name: "TrainReasonLabel",
                             text: "Reden (bij afmelden)",
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "TextField_vwpadh9d",
+                            key: "TextField_q3vn6hq8",
                             type: "TextField",
                             path: "TrainingDetailPage.body[0].children[2].children[0].children[1].children[1]",
                             name: "TrainReasonField",
@@ -444,14 +444,14 @@ abstract final class TrainingDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Text_0upk255r",
+                key: "Text_57rr15oy",
                 type: "Text",
                 path: "TrainingDetailPage.body[0].children[3]",
                 name: "TrainAfmeldHeader",
                 text: "Afmelden voor deze training",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Button_nbuf86q8",
+                key: "Button_yswhiewf",
                 type: "Button",
                 path: "TrainingDetailPage.body[0].children[4]",
                 name: "TrainAfmeldButton",
@@ -461,14 +461,14 @@ abstract final class TrainingDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Text_jsoqkjxh",
+                key: "Text_7cqg11o6",
                 type: "Text",
                 path: "TrainingDetailPage.body[0].children[5]",
                 name: "TrainAanmeldHeader",
                 text: "Aanmelden voor deze training",
               ),
               ffai.ProjectWidgetHandle(
-                key: "Button_z23kacwf",
+                key: "Button_u55wq4rl",
                 type: "Button",
                 path: "TrainingDetailPage.body[0].children[6]",
                 name: "TrainAanmeldButton",
@@ -478,7 +478,7 @@ abstract final class TrainingDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Button_0t7yhkxl",
+                key: "Button_oqz4r8nh",
                 type: "Button",
                 path: "TrainingDetailPage.body[0].children[7]",
                 name: "TrainAfgelastButton",
@@ -488,7 +488,7 @@ abstract final class TrainingDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Button_j1adhe8l",
+                key: "Button_ngzrq210",
                 type: "Button",
                 path: "TrainingDetailPage.body[0].children[8]",
                 name: "TrainVrijgeefButton",
@@ -498,43 +498,43 @@ abstract final class TrainingDetailPageWidgets {
                 ],
               ),
               ffai.ProjectWidgetHandle(
-                key: "Container_8m8iwrri",
+                key: "Container_cc7utrqy",
                 type: "Container",
                 path: "TrainingDetailPage.body[0].children[9]",
                 name: "TrainAttendanceCard Margin",
                 children: <ffai.ProjectWidgetHandle>[
                   ffai.ProjectWidgetHandle(
-                    key: "Container_7tx9sq5y",
+                    key: "Container_94ax6acd",
                     type: "Container",
                     path: "TrainingDetailPage.body[0].children[9].children[0]",
                     name: "TrainAttendanceCard",
                     children: <ffai.ProjectWidgetHandle>[
                       ffai.ProjectWidgetHandle(
-                        key: "Column_btjy9ygr",
+                        key: "Column_l3tulunc",
                         type: "Column",
                         path: "TrainingDetailPage.body[0].children[9].children[0].children[0]",
                         name: "TrainAttendanceCol",
                         children: <ffai.ProjectWidgetHandle>[
                           ffai.ProjectWidgetHandle(
-                            key: "Column_50n4ivbd",
+                            key: "Column_7oqaatx3",
                             type: "Column",
                             path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0]",
                             name: "TrainAanwezig",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_0a5m9kl5",
+                                key: "Row_lk4tchnb",
                                 type: "Row",
                                 path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[0]",
                                 name: "TrainAanwezigHead",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_ybja3u35",
+                                    key: "Container_e0o7mjjw",
                                     type: "Container",
                                     path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[0].children[0]",
                                     name: "TrainAanwezigHeadIcon",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_7vkc45ub",
+                                        key: "Icon_7yvox0qx",
                                         type: "Icon",
                                         path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -542,19 +542,19 @@ abstract final class TrainingDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_tx8r6n9c",
+                                    key: "Column_tu6lw86r",
                                     type: "Column",
                                     path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[0].children[1]",
                                     name: "TrainAanwezigHeadCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_ipzirh2b",
+                                        key: "Text_ndyf7is8",
                                         type: "Text",
                                         path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[0].children[1].children[0]",
                                         name: "TrainAanwezigTitle",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_ol0cuudj",
+                                        key: "Text_65part5n",
                                         type: "Text",
                                         path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[0].children[1].children[1]",
                                         name: "TrainAanwezigSubtitle",
@@ -563,13 +563,13 @@ abstract final class TrainingDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_yc8wvkr9",
+                                    key: "Container_2mzfs1kr",
                                     type: "Container",
                                     path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[0].children[2]",
                                     name: "TrainAanwezigCountPill",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_70qje3kx",
+                                        key: "Text_3v5euvxx",
                                         type: "Text",
                                         path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[0].children[2].children[0]",
                                         name: "TrainAanwezigCountText",
@@ -579,31 +579,31 @@ abstract final class TrainingDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "ListView_8pyc00yc",
+                                key: "ListView_b632kyre",
                                 type: "ListView",
                                 path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[1]",
                                 name: "TrainAanwezigList",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_mno11ql3",
+                                    key: "Container_8xkt1bv8",
                                     type: "Container",
                                     path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[1].children[0]",
                                     name: "TrainAanwezigItem",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_psw4a46d",
+                                        key: "Row_oqkx0bfs",
                                         type: "Row",
                                         path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[1].children[0].children[0]",
                                         name: "TrainAanwezigRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_mftlkwtg",
+                                            key: "Container_suxu8t6m",
                                             type: "Container",
                                             path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[1].children[0].children[0].children[0]",
                                             name: "TrainAanwezigBadge",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Icon_cup2qs38",
+                                                key: "Icon_k82fqjga",
                                                 type: "Icon",
                                                 path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[1].children[0].children[0].children[0].children[0]",
                                                 name: "Icon",
@@ -611,13 +611,13 @@ abstract final class TrainingDetailPageWidgets {
                                             ],
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Text_a29niqxm",
+                                            key: "Text_6ge42ju6",
                                             type: "Text",
                                             path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[1].children[0].children[0].children[1]",
                                             name: "TrainAanwezigNaam",
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_oceru9r9",
+                                            key: "Container_2tuyywwt",
                                             type: "Container",
                                             path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[1].children[0].children[0].children[2]",
                                             name: "TrainAanwezigToggle",
@@ -626,7 +626,7 @@ abstract final class TrainingDetailPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_sgf38vtd",
+                                                key: "Text_4706z5z0",
                                                 type: "Text",
                                                 path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[0].children[1].children[0].children[0].children[2].children[0]",
                                                 name: "TrainAanwezigToggleLabel",
@@ -643,25 +643,25 @@ abstract final class TrainingDetailPageWidgets {
                             ],
                           ),
                           ffai.ProjectWidgetHandle(
-                            key: "Column_z5go4j3c",
+                            key: "Column_y3lbws10",
                             type: "Column",
                             path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1]",
                             name: "TrainAfwezig",
                             children: <ffai.ProjectWidgetHandle>[
                               ffai.ProjectWidgetHandle(
-                                key: "Row_2pwg6qyv",
+                                key: "Row_kppmpno9",
                                 type: "Row",
                                 path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[0]",
                                 name: "TrainAfwezigHead",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_53gvzg2p",
+                                    key: "Container_chfi7gw7",
                                     type: "Container",
                                     path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[0].children[0]",
                                     name: "TrainAfwezigHeadIcon",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Icon_sjatc3ah",
+                                        key: "Icon_qwjoqvwb",
                                         type: "Icon",
                                         path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[0].children[0].children[0]",
                                         name: "Icon",
@@ -669,19 +669,19 @@ abstract final class TrainingDetailPageWidgets {
                                     ],
                                   ),
                                   ffai.ProjectWidgetHandle(
-                                    key: "Column_w86wx6gc",
+                                    key: "Column_q2lp793b",
                                     type: "Column",
                                     path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[0].children[1]",
                                     name: "TrainAfwezigHeadCol",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_ovkyr15s",
+                                        key: "Text_fs0w5fd9",
                                         type: "Text",
                                         path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[0].children[1].children[0]",
                                         name: "TrainAfwezigTitle",
                                       ),
                                       ffai.ProjectWidgetHandle(
-                                        key: "Text_mfv1g8k6",
+                                        key: "Text_m1f3ubf2",
                                         type: "Text",
                                         path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[0].children[1].children[1]",
                                         name: "TrainAfwezigSubtitle",
@@ -692,31 +692,31 @@ abstract final class TrainingDetailPageWidgets {
                                 ],
                               ),
                               ffai.ProjectWidgetHandle(
-                                key: "ListView_jpuht0xe",
+                                key: "ListView_97ldz8f1",
                                 type: "ListView",
                                 path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[1]",
                                 name: "TrainAfwezigList",
                                 children: <ffai.ProjectWidgetHandle>[
                                   ffai.ProjectWidgetHandle(
-                                    key: "Container_plwrhhmm",
+                                    key: "Container_w7456atn",
                                     type: "Container",
                                     path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[1].children[0]",
                                     name: "TrainAfwezigItem",
                                     children: <ffai.ProjectWidgetHandle>[
                                       ffai.ProjectWidgetHandle(
-                                        key: "Row_qk56kd35",
+                                        key: "Row_13529t44",
                                         type: "Row",
                                         path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[1].children[0].children[0]",
                                         name: "TrainAfwezigRow",
                                         children: <ffai.ProjectWidgetHandle>[
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_xz83qthb",
+                                            key: "Container_n8eja652",
                                             type: "Container",
                                             path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[1].children[0].children[0].children[0]",
                                             name: "TrainAfwezigBadge",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Icon_x6sdbfdx",
+                                                key: "Icon_uo35yms0",
                                                 type: "Icon",
                                                 path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[1].children[0].children[0].children[0].children[0]",
                                                 name: "Icon",
@@ -724,19 +724,19 @@ abstract final class TrainingDetailPageWidgets {
                                             ],
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Column_6xpn9s9b",
+                                            key: "Column_90py2v2u",
                                             type: "Column",
                                             path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[1].children[0].children[0].children[1]",
                                             name: "TrainAfwezigNaamCol",
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_yve9f7qj",
+                                                key: "Text_mz4u4k7w",
                                                 type: "Text",
                                                 path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[1].children[0].children[0].children[1].children[0]",
                                                 name: "TrainAfwezigNaam",
                                               ),
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_tmp1t1zj",
+                                                key: "Text_6apz3pg2",
                                                 type: "Text",
                                                 path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[1].children[0].children[0].children[1].children[1]",
                                                 name: "TrainAfwezigReden",
@@ -744,7 +744,7 @@ abstract final class TrainingDetailPageWidgets {
                                             ],
                                           ),
                                           ffai.ProjectWidgetHandle(
-                                            key: "Container_x9hn49vs",
+                                            key: "Container_bz2qqzkc",
                                             type: "Container",
                                             path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[1].children[0].children[0].children[2]",
                                             name: "TrainAfwezigToggle",
@@ -753,7 +753,7 @@ abstract final class TrainingDetailPageWidgets {
                                             ],
                                             children: <ffai.ProjectWidgetHandle>[
                                               ffai.ProjectWidgetHandle(
-                                                key: "Text_tydes8yb",
+                                                key: "Text_damwl0l2",
                                                 type: "Text",
                                                 path: "TrainingDetailPage.body[0].children[9].children[0].children[0].children[1].children[1].children[0].children[0].children[2].children[0]",
                                                 name: "TrainAfwezigToggleLabel",

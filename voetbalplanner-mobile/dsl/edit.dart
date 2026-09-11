@@ -385,6 +385,17 @@ void buildEditFlow(App app) {
   // the branded light theme regardless of the phone's system setting.
   app.raw((project) => setDarkModeEnabled(project, enabled: false));
 
+  // Het versienummer van een publicatie (Settings & Integrations → Deployment,
+  // profiel PROD) wordt hier bewust niét gezet. Elke geslaagde upload verbrandt
+  // dat nummer definitief, dus het moet vóór elke poging met de hand omhoog —
+  // een vaste waarde in deze DSL zou hem bij de volgende push juist terugzetten.
+  app.raw((project) {
+    final prod = project.appSettings.allCodemagicSettings.codemagicSettingsMap['PROD'];
+    if (prod == null) return;
+    stderr.writeln('[VERSIE] PROD: ${prod.buildVersion.buildVersion} '
+        '+${prod.buildVersion.buildNumber}');
+  });
+
   app.raw((project) {
     // Fix ListView codegen bugs (item names + visibility wrapping)
     _fixItemName(project, 'WedstrijdenPage', 'ListView_erdckv6e', 'match');
