@@ -30706,13 +30706,13 @@ FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
   final matchesVar = varFromPageState(matchesId.deepCopy())
     ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey);
 
-  FFNode clubSide() {
+  FFNode clubSide(String s) {
     final logoId = _findAppStateFieldId(project, 'clubLogoUrl');
     final teamId = _findAppStateFieldId(project, 'currentTeamName');
     final logo = FFNode(
       key: generateRandomAlphaNumericString(),
       type: FFWidgetType.CircleImage,
-      name: 'DashNextMatchOwnLogo',
+      name: 'DashNextMatchOwnLogo$s',
       props: FFWidgetProperties(
         image: FFImage(
           type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
@@ -30731,7 +30731,7 @@ FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
       ),
     );
     final teamName = UI.text('',
-        name: 'DashNextMatchOwnName',
+        name: 'DashNextMatchOwnName$s',
         style: UITextStyle.labelMedium,
         textAlign: UITextAlign.center,
         maxLines: 2,
@@ -30742,18 +30742,18 @@ FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
             ..nodeKeyRef = FFNodeKeyReference(key: scaffoldKey));
     }
     return UI.column(
-      name: 'DashNextMatchOwnCol',
+      name: 'DashNextMatchOwnCol$s',
       spacing: 8,
       mainAxisMin: true,
       children: [logo, teamName],
     );
   }
 
-  FFNode opponentSide() {
+  FFNode opponentSide(String s) {
     final logo = FFNode(
       key: generateRandomAlphaNumericString(),
       type: FFWidgetType.CircleImage,
-      name: 'DashNextMatchOppLogo',
+      name: 'DashNextMatchOppLogo$s',
       props: FFWidgetProperties(
         image: FFImage(
           type: FFImage_FFImageType.FF_IMAGE_TYPE_NETWORK,
@@ -30787,16 +30787,49 @@ FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
       ).variable,
     );
     final oppName = _firstItemText(matchesVar,
-        name: 'DashNextMatchOppName',
+        name: 'DashNextMatchOppName$s',
         field: 'opponent',
         style: UITextStyle.labelMedium,
         textAlign: UITextAlign.center,
         maxLines: 2);
     return UI.column(
-      name: 'DashNextMatchOppCol',
+      name: 'DashNextMatchOppCol$s',
       spacing: 8,
       mainAxisMin: true,
       children: [logo, fallback, oppName],
+    );
+  }
+
+  // Thuisploeg links, zoals op elk scorebord en bij de bond. Bij een
+  // uitwedstrijd staat de tegenstander dus links en het eigen elftal rechts.
+  //
+  // Twee volledige opstellingen naast elkaar in dezelfde kolom, waarvan er
+  // steeds één zichtbaar is: FlutterFlow kan de volgorde van kinderen niet aan
+  // een variabele hangen. Dezelfde truc als bij het clublogo met zijn
+  // terugval-icoon een paar regels hierboven. De achtervoegsels Thuis/Uit
+  // houden de namen uniek — twee nodes met dezelfde naam maakt elke latere
+  // zoekactie op naam een gok.
+  final isThuis = conditionVar(
+    _firstItemVar(matchesVar, 'isHome'),
+    FFCondition_Relation.EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+  ).variable;
+  final isUit = conditionVar(
+    _firstItemVar(matchesVar, 'isHome'),
+    FFCondition_Relation.NOT_EQUAL_TO,
+    varFromConstant(FFConstantsVariable_ConstantValue.TRUE),
+  ).variable;
+
+  FFNode zijde({required bool links}) {
+    // Thuis: eigen elftal links. Uit: tegenstander links.
+    final bijThuis = links ? clubSide('Thuis') : opponentSide('Thuis');
+    final bijUit = links ? opponentSide('Uit') : clubSide('Uit');
+    setConditionalVisibility(bijThuis, variable: isThuis.deepCopy());
+    setConditionalVisibility(bijUit, variable: isUit.deepCopy());
+    return UI.column(
+      name: links ? 'DashNextMatchLinks' : 'DashNextMatchRechts',
+      mainAxisMin: true,
+      children: [bijThuis, bijUit],
     );
   }
 
@@ -30947,9 +30980,9 @@ FFNode? _dashNextMatchCard(FFProject project, FFWidgetClass wc) {
         name: 'DashNextMatchRow',
         crossAxisAlignment: UICrossAxisAlignment.center,
         children: [
-          UI.expanded(clubSide()),
+          UI.expanded(zijde(links: true)),
           middle,
-          UI.expanded(opponentSide()),
+          UI.expanded(zijde(links: false)),
         ],
       ),
       locationRow,
