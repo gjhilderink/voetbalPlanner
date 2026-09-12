@@ -13297,12 +13297,32 @@ void _addWedstrijdGuestManagement(FFProject project) {
   // (_restyleMatchInfoRows), dus de rij hoort voor iedereen zichtbaar te zijn
   // zodra er gastspelers zijn — anders ziet een coach een toegevoegde speler
   // nergens terug op het infoblad.
+  //
+  // Zichtbaar zodra één van de twee bronnen iets heeft. De namen komen uit
+  // GetMatchDetail (matchGuestNames) en de beheerlijst uit GetMatchGuestsList
+  // (matchGuests); die konden niet tegelijk leeg of gevuld zijn, maar hingen
+  // wel allebei aan één voorwaarde. Was de eerste om wat voor reden dan ook
+  // leeg — niet geladen, ouder antwoord — dan verdween de rij inclusief de
+  // lijst die er wél was. Nu telt: is er ergens een gastspeler, dan staat de
+  // rij er.
   final guestTextRow = findDescendants(wc.node, (n) => n.name == 'MatchInfoRow_matchGuestNames').firstOrNull;
   final gnVar = stateVar('matchGuestNames');
+  final guestsListId = _findPageStateFieldId(project, 'WedstrijdDetailPage', 'matchGuests');
   if (guestTextRow != null && gnVar != null) {
-    setConditionalVisibility(guestTextRow, variable: conditionVar(
+    final namenGevuld = conditionVar(
         gnVar, FFCondition_Relation.NOT_EQUAL_TO,
-        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable);
+        varFromConstant(FFConstantsVariable_ConstantValue.EMPTY_STRING)).variable;
+
+    if (guestsListId == null) {
+      setConditionalVisibility(guestTextRow, variable: namenGevuld);
+    } else {
+      final lijstVar = varFromPageState(guestsListId.deepCopy())
+        ..nodeKeyRef = FFNodeKeyReference(key: wc.node.key);
+      setConditionalVisibility(guestTextRow, variable: orConditionsVar([
+        namenGevuld,
+        _listNotEmptyVar(lijstVar),
+      ]).variable);
+    }
   }
 }
 
@@ -27948,19 +27968,43 @@ void _restyleMatchInfoRows(FFProject project) {
   // Komma-tekst 'Jan, Piet' verbergen voor wie de opstelling mag beheren: die
   // ziet de lijst met verwijderknoppen eronder. Zonder dit staan beide er, en
   // dan zie je elke naam twee keer.
+  //
+  // Maar alleen als die lijst er ook echt staat. De tekst kwam uit
+  // GetMatchDetail en de lijst uit GetMatchGuestsList; is de tweede leeg
+  // gebleven, dan verborg dit de enige weergave die de coach nog had en zag hij
+  // helemaal geen gastspelers. Bij een lege lijst valt hij nu terug op de namen.
   void hideGuestTextForCoaches(FFNode valueNode) {
     final magVar = stateVarOf('matchMagOpstelling');
     if (magVar == null) return;
-    setConditionalVisibility(valueNode, variable: codeExpressionVar(
-      expression: "(m ?? '') != 'true'",
-      arguments: [
-        CodeExpressionArg(name: 'm',
-            dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
-            value: FFValue(variable: magVar)),
-      ],
-      returnType: FFParameter(
-          dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
-    ));
+    final guestsVar = stateVarOf('matchGuests');
+
+    if (guestsVar == null) {
+      setConditionalVisibility(valueNode, variable: codeExpressionVar(
+        expression: "(m ?? '') != 'true'",
+        arguments: [
+          CodeExpressionArg(name: 'm',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: magVar)),
+        ],
+        returnType: FFParameter(
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+      ));
+      return;
+    }
+
+    setConditionalVisibility(valueNode, variable: orConditionsVar([
+      codeExpressionVar(
+        expression: "(m ?? '') != 'true'",
+        arguments: [
+          CodeExpressionArg(name: 'm',
+              dataType: FFDataTypeV2(scalarType: FFBaseDataType.String),
+              value: FFValue(variable: magVar)),
+        ],
+        returnType: FFParameter(
+            dataType: FFDataTypeV2(scalarType: FFBaseDataType.Boolean)),
+      ),
+      _listEmptyVar(guestsVar),
+    ]).variable);
   }
 
   // Gastspelers als lijst met per speler een prullenbak, voor wie de opstelling
