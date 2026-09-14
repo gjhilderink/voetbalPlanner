@@ -60,6 +60,7 @@ class TicketShopController extends Controller
             'club'         => $club,
             'activiteiten' => $activiteiten,
             'embed'        => $request->boolean('embed'),
+            'vervolg'      => $this->vervolg($request),
         ]);
     }
 
@@ -72,7 +73,7 @@ class TicketShopController extends Controller
 
         abort_if($activiteit === null, 404);
 
-        return view('shop.event', $this->eventGegevens($club, $activiteit, $request->boolean('embed')));
+        return view('shop.event', $this->eventGegevens($club, $activiteit, $request));
     }
 
     /**
@@ -94,7 +95,7 @@ class TicketShopController extends Controller
         $embed = $request->boolean('embed');
 
         if (! $this->recaptchaGoedgekeurd($request)) {
-            return $this->terugMetFouten($club, $activiteit, $embed, $request,
+            return $this->terugMetFouten($club, $activiteit, $request,
                 ['Bevestig even dat je geen robot bent.']);
         }
 
@@ -110,7 +111,7 @@ class TicketShopController extends Controller
         ]);
 
         if ($regels->fails()) {
-            return $this->terugMetFouten($club, $activiteit, $embed, $request,
+            return $this->terugMetFouten($club, $activiteit, $request,
                 $regels->errors()->all());
         }
 
@@ -125,15 +126,19 @@ class TicketShopController extends Controller
         );
 
         if (! $uitkomst['ok']) {
-            return $this->terugMetFouten($club, $activiteit, $embed, $request,
+            return $this->terugMetFouten($club, $activiteit, $request,
                 $uitkomst['fouten'] ?? ['Er ging iets mis.']);
         }
 
         /** @var Order $order */
         $order = $uitkomst['order'];
 
+        // Zonder embed=1, ook als de winkel in een kader staat: de betaling
+        // gebeurt in het hele venster (zie hieronder), dus de bezoeker komt op
+        // een gewone pagina terug en niet in het kader. Het adres van de
+        // clubsite gaat wel mee, zodat hij daar terug kan.
         $klaarUrl = url("/{$club->slug}/ticketshop/klaar/{$order->public_token}"
-            . ($embed ? '?embed=1' : ''));
+            . $this->vervolg($request, embed: false));
 
         $betaling = app(PayNlService::class)->forClub($club->id)->start(
             $order,
@@ -146,11 +151,24 @@ class TicketShopController extends Controller
             // vasthouden voor een betaling die nooit begonnen is.
             $orders->mislukt($order);
 
-            return $this->terugMetFouten($club, $activiteit, $embed, $request,
+            return $this->terugMetFouten($club, $activiteit, $request,
                 [$betaling['error'] ?? 'De betaling kon niet worden gestart.']);
         }
 
         $order->update(['paynl_transaction_id' => $betaling['transactionId']]);
+
+        // In een kader kan de betaalpagina niet gewoon geopend worden: Pay.nl
+        // zet X-Frame-Options op sameorigin, dus een browser weigert safe.pay.nl
+        // in een iframe op de site van een club te tonen - de bezoeker houdt een
+        // leeg vlak over. De betaling moet daarom uit het kader breken, en dat
+        // kan een 302 niet: die blijft binnen het kader waar hij begon.
+        if ($embed) {
+            return view('shop.betalen', [
+                'club'      => $club,
+                'embed'     => true,
+                'betaalUrl' => $betaling['paymentUrl'],
+            ]);
+        }
 
         return redirect()->away($betaling['paymentUrl']);
     }
@@ -191,6 +209,8 @@ class TicketShopController extends Controller
             'club'          => $club,
             'order'         => $order,
             'embed'         => $request->boolean('embed'),
+            'terug'         => $this->terugAdres($request),
+            'vervolg'       => $this->vervolg($request),
             'walletKaarten' => $order->isBetaald() ? $this->walletKaarten($club, $order) : [],
         ]);
     }
@@ -324,7 +344,7 @@ class TicketShopController extends Controller
     private function eventGegevens(
         Club $club,
         AgendaItem $activiteit,
-        bool $embed,
+        Request $request,
         array $fouten = [],
         array $ingevuld = [],
     ): array {
@@ -332,7 +352,9 @@ class TicketShopController extends Controller
             'club'             => $club,
             'activiteit'       => $activiteit,
             'soorten'          => $activiteit->ticketTypes->where('is_active', true)->sortBy('sort_order'),
-            'embed'            => $embed,
+            'embed'            => $request->boolean('embed'),
+            'terug'            => $this->terugAdres($request),
+            'vervolg'          => $this->vervolg($request),
             'fouten'           => $fouten,
             'ingevuld'         => $ingevuld,
             'recaptchaEnabled' => $this->recaptchaIngeschakeld(),
@@ -344,15 +366,62 @@ class TicketShopController extends Controller
     private function terugMetFouten(
         Club $club,
         AgendaItem $activiteit,
-        bool $embed,
         Request $request,
         array $fouten,
     ): View {
-        return view('shop.event', $this->eventGegevens($club, $activiteit, $embed, $fouten, [
+        return view('shop.event', $this->eventGegevens($club, $activiteit, $request, $fouten, [
             'buyer_name'  => (string) $request->input('buyer_name', ''),
             'buyer_email' => (string) $request->input('buyer_email', ''),
             'aantal'      => (array) $request->input('aantal', []),
         ]));
+    }
+
+    /**
+     * De parameters die binnen de winkel op elke link mee moeten.
+     *
+     * Zonder sessie is de URL het enige geheugen dat de winkel heeft: raakt
+     * embed of terug onderweg kwijt, dan springt de kop ineens terug in het
+     * kader of weet de bedankpagina niet meer waar de bezoeker vandaan kwam.
+     *
+     * @param  bool|null  $embed  Om het af te dwingen; standaard wat er binnenkwam.
+     */
+    private function vervolg(Request $request, ?bool $embed = null): string
+    {
+        $paren = array_filter([
+            'embed' => ($embed ?? $request->boolean('embed')) ? '1' : null,
+            'terug' => $this->terugAdres($request),
+        ]);
+
+        return $paren === [] ? '' : '?' . http_build_query($paren);
+    }
+
+    /**
+     * De pagina van de club waar de winkel in staat, als die is meegegeven.
+     *
+     * Wordt alleen een link op de bedankpagina, maar een link die de bezoeker
+     * vertrouwt omdat hij op onze pagina staat. Vandaar de zeef: een gewoon
+     * webadres, en geen javascript: of data: dat door de escaping van Blade
+     * heen komt omdat het als adres nu eenmaal geldig is.
+     */
+    private function terugAdres(Request $request): ?string
+    {
+        // Geen (string)-cast maar is_string: terug[]=x levert een array op,
+        // en die casten geeft alleen een waarschuwing en het woord Array.
+        $terug = $request->input('terug');
+        $terug = is_string($terug) ? trim($terug) : '';
+
+        if ($terug === '' || mb_strlen($terug) > 300) {
+            return null;
+        }
+
+        // Geen FILTER_VALIDATE_URL: die struikelt over een pagina met een
+        // accent in de naam, en dat is een kwestie van smaak en geen gevaar.
+        // Waar het om gaat is het schema.
+        if (! preg_match('#^https?://[^\s\x00-\x1f]+$#i', $terug)) {
+            return null;
+        }
+
+        return parse_url($terug, PHP_URL_HOST) ? $terug : null;
     }
 
     /**

@@ -106,10 +106,21 @@
                 Je kunt het gewoon opnieuw proberen.
             </p>
             <p style="margin-top:14px">
-                <a class="knop" href="{{ route('shop.show', ['clubslug' => $club->slug]) . ($embed ? '?embed=1' : '') }}">
+                <a class="knop" href="{{ route('shop.show', ['clubslug' => $club->slug]) . $vervolg }}">
                     Terug naar de kaarten
                 </a>
             </p>
         </div>
+    @endif
+
+    {{-- De weg terug naar de site van de club. Betalen gebeurt buiten het
+         kader - Pay.nl laat zich niet insluiten - dus deze pagina staat in
+         het hele venster en de club is uit beeld. Zonder deze regel is de
+         enige weg terug die van de browser, en die komt op de betaalpagina
+         uit. --}}
+    @if ($terug)
+        <p style="text-align:center;margin-top:18px">
+            <a class="terug" href="{{ $terug }}">← Terug naar de site van {{ $club->name }}</a>
+        </p>
     @endif
 @endsection

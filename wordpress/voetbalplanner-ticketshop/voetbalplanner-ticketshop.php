@@ -3,7 +3,7 @@
  * Plugin Name:       VoetbalPlanner Ticketshop
  * Plugin URI:        https://voetbalplanner.nl
  * Description:       Zet de kaartverkoop van je club op je eigen website met de shortcode [voetbalplanner_ticketshop].
- * Version:           1.0.1
+ * Version:           1.1.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            VoetbalPlanner
@@ -16,7 +16,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-define('VP_TICKETSHOP_VERSIE', '1.0.1');
+define('VP_TICKETSHOP_VERSIE', '1.1.0');
 define('VP_TICKETSHOP_BESTAND', __FILE__);
 
 /** De winkel draait op voetbalplanner.nl, tenzij de beheerder iets anders invult. */
@@ -62,6 +62,21 @@ function vp_ticketshop_schoon_basis($basis)
     }
 
     return untrailingslashit($basis);
+}
+
+/**
+ * Het adres van de pagina waar het kader op staat.
+ *
+ * Gaat mee naar de winkel, die het weer meegeeft aan Pay.nl als het adres waar
+ * de bezoeker na het betalen uitkomt. Betalen kan namelijk niet in het kader -
+ * Pay.nl laat zich niet insluiten - dus de bezoeker is deze site dan even
+ * kwijt, en op de bedankpagina staat hiermee een knop terug.
+ */
+function vp_ticketshop_terugadres()
+{
+    $terug = is_singular() ? get_permalink() : '';
+
+    return $terug ? $terug : home_url('/');
 }
 
 /**
@@ -119,7 +134,8 @@ function vp_ticketshop_shortcode($attributen = [])
 
     $basis  = vp_ticketshop_schoon_basis($attributen['basis']);
     $hoogte = vp_ticketshop_schoon_hoogte($attributen['hoogte']);
-    $bron   = $basis . '/' . $club . '/ticketshop?embed=1';
+    $bron   = $basis . '/' . $club . '/ticketshop?embed=1&terug='
+        . rawurlencode(vp_ticketshop_terugadres());
 
     wp_enqueue_script('vp-ticketshop');
 

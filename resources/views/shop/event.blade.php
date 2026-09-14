@@ -3,7 +3,7 @@
 @section('titel', $activiteit->title)
 
 @section('inhoud')
-    <a class="terug" href="{{ route('shop.show', ['clubslug' => $club->slug]) . ($embed ? '?embed=1' : '') }}">
+    <a class="terug" href="{{ route('shop.show', ['clubslug' => $club->slug]) . $vervolg }}">
         ← Alle activiteiten
     </a>
 
@@ -43,6 +43,12 @@
     <form class="kaart" method="POST"
           action="{{ route('shop.checkout', ['clubslug' => $club->slug, 'event' => $activiteit->id]) }}">
         <input type="hidden" name="embed" value="{{ $embed ? '1' : '0' }}">
+        @if ($terug)
+            {{-- De pagina van de club waar dit kader in staat. Moet mee tot aan
+                 het afrekenen, want dáár wordt bepaald waar Pay.nl de bezoeker
+                 straks afzet - en op die pagina staat de weg terug. --}}
+            <input type="hidden" name="terug" value="{{ $terug }}">
+        @endif
 
         <h2 style="margin-bottom:6px">Kies je kaarten</h2>
 

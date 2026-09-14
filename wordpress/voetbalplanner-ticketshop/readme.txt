@@ -4,7 +4,7 @@ Tags: tickets, kaartverkoop, voetbal, vereniging, embed
 Requires at least: 5.8
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,6 +18,11 @@ het bestellen, betalen en versturen van de kaarten blijft bij VoetbalPlanner.
 
 Het kader groeit vanzelf mee met de winkel, dus je krijgt geen scrollbalk in
 een scrollbalk.
+
+Alleen het betalen zelf gebeurt buiten het kader: de betaalpagina van Pay.nl
+laat zich door geen enkele site insluiten. De bezoeker gaat daarvoor even naar
+Pay.nl en komt daarna op de bedankpagina met zijn kaarten, met een knop terug
+naar jouw site.
 
 == Installation ==
 
@@ -55,6 +60,14 @@ Er staan pas kaarten in de winkel als de club de ticketshop heeft aangezet en
 er een activiteit met kaartsoorten klaarstaat. Controleer dat eerst op
 https://voetbalplanner.nl/{clubnaam}/ticketshop zelf.
 
+= Waarom verlaat de bezoeker mijn site om te betalen? =
+
+Dat kan niet anders: Pay.nl staat niet toe dat zijn betaalpagina in een kader
+van een andere site staat (X-Frame-Options), en een browser laat hem dan ook
+niet zien. Het kader zou leeg blijven. De winkel stuurt de bezoeker daarom
+naar de betaalpagina in het hele venster, en zet op de bedankpagina een knop
+terug naar de pagina waar het kader op stond.
+
 = Het kader blijft even hoog =
 
 Het meegroeien gebeurt met JavaScript. Als een cache- of optimalisatieplugin
@@ -62,6 +75,12 @@ het script van deze plugin samenvoegt of uitstelt, zet die er dan buiten. Tot
 die tijd blijft de starthoogte staan en werkt de winkel gewoon.
 
 == Changelog ==
+
+= 1.1.0 =
+* Betalen werkte niet in het kader: de browser weigerde de betaalpagina van
+  Pay.nl te tonen omdat die zich niet laat insluiten, en de bezoeker hield een
+  leeg vlak over. De betaling gaat nu naar het hele venster, en na afloop staat
+  er een knop terug naar de pagina waar het kader op staat.
 
 = 1.0.1 =
 * Het kader groeide zichzelf de pagina uit: het meldde de hoogte terug die het

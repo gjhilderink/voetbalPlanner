@@ -71,7 +71,7 @@
                     <a class="knop" href="{{ route('shop.event', [
                         'clubslug' => $club->slug,
                         'event'    => $activiteit->id,
-                    ]) . ($embed ? '?embed=1' : '') }}">Kaarten kiezen</a>
+                    ]) . $vervolg }}">Kaarten kiezen</a>
                 @endif
             </div>
         @endforeach
