@@ -115,6 +115,31 @@ class Order extends Model
         return $this->source === self::SOURCE_ISSUED;
     }
 
+    /**
+     * Mag deze bestelling weg?
+     *
+     * Opruimen hoort te kunnen, maar niet zolang er nog iets van afhangt. Na
+     * afloop van de activiteit hangt er niets meer van af: de kaarten zijn
+     * gescand of niet meer nodig, en er komt geen betaling meer binnen.
+     *
+     * Staat de activiteit nog te gebeuren, dan blijft alleen wat nooit een
+     * kaart is geworden. Een betaalde bestelling heeft codes in omloop, een
+     * ingetrokken bestelling is juist het bewijs dát die codes geweigerd
+     * moeten worden, en bij een openstaande kan de bezoeker op dit moment bij
+     * Pay.nl staan - die betaling zou straks een bestelling zoeken die er niet
+     * meer is.
+     */
+    public function magWeg(): bool
+    {
+        $begin = $this->agendaItem?->starts_at;
+
+        if ($begin === null || $begin->isPast()) {
+            return true;
+        }
+
+        return in_array($this->status, [self::STATUS_EXPIRED, self::STATUS_FAILED], true);
+    }
+
     public function aantalKaarten(): int
     {
         return (int) $this->lines->sum('quantity');

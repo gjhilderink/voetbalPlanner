@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\OrderResource\Pages;
 use App\Models\AccessCode;
+use App\Models\AccessEntry;
 use App\Models\Order;
 use App\Services\OrderService;
 use App\Support\Geld;
@@ -24,11 +25,15 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /**
  * De bestellingen uit de ticketshop.
  *
- * Alleen lezen: een bestelling is een vastgelegd feit. Wat je er wél mee kunt
- * is de mail opnieuw sturen en de bestelling intrekken - dat laatste zet de
+ * Niets aan te passen: een bestelling is een vastgelegd feit. Wat je er wél mee
+ * kunt is de mail opnieuw sturen en de bestelling intrekken - dat laatste zet de
  * codes op niet-actief, zodat ze bij de ingang geweigerd worden. Geld
  * terugstorten gebeurt bij Pay.nl en niet hier; dit scherm weet niets van de
  * rekening.
+ *
+ * Opruimen kan wel, maar alleen wat geweest is: zie canDelete() hieronder en
+ * Order::magWeg(). Intrekken en verwijderen zijn niet hetzelfde - het eerste
+ * sluit de deur voor die kaarten, het tweede wist dat ze bestonden.
  */
 class OrderResource extends Resource
 {
@@ -72,9 +77,19 @@ class OrderResource extends Resource
         return false;
     }
 
+    /**
+     * Verwijderen mag, maar niet alles en niet door iedereen.
+     *
+     * De rol 'toegang' is die van de vrijwilliger bij de ingang: die hoort
+     * bestellingen op te kunnen zoeken, niet op te ruimen. Wát er weg mag staat
+     * bij Order::magWeg(), zodat de knop in de tabel en de groepsactie niet uit
+     * elkaar kunnen lopen.
+     */
     public static function canDelete(Model $record): bool
     {
-        return false;
+        return $record instanceof Order
+            && $record->magWeg()
+            && (bool) auth()->user()?->hasAnyRole(['super_admin', 'club_admin']);
     }
 
     public static function getEloquentQuery(): Builder
@@ -167,6 +182,19 @@ class OrderResource extends Resource
                 Tables\Filters\SelectFilter::make('agenda_item_id')
                     ->label('Activiteit')
                     ->options(fn () => AccessCodeResource::agendaOpties()),
+
+                // Om op te ruimen: zo staat in één keer bij elkaar wat weg mag,
+                // zonder per activiteit na te lopen wanneer die ook alweer was.
+                Tables\Filters\TernaryFilter::make('periode')
+                    ->label('Periode')
+                    ->placeholder('Alles')
+                    ->trueLabel('Activiteit is geweest')
+                    ->falseLabel('Activiteit moet nog komen')
+                    ->queries(
+                        true:  fn (Builder $q) => $q->whereHas('agendaItem', fn (Builder $a) => $a->where('starts_at', '<', now())),
+                        false: fn (Builder $q) => $q->whereHas('agendaItem', fn (Builder $a) => $a->where('starts_at', '>=', now())),
+                        blank: fn (Builder $q) => $q,
+                    ),
             ])
             ->actions([
                 Actions\Action::make('codes')
@@ -238,10 +266,46 @@ class OrderResource extends Resource
                             ->success()
                             ->send();
                     }),
+
+                Actions\Action::make('verwijderen')
+                    ->label('Verwijderen')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Order $record): string => $record->isUitgegeven()
+                        ? 'Uitgifte verwijderen'
+                        : 'Bestelling verwijderen')
+                    ->modalDescription(fn (Order $record): string => self::watVerdwijnt($record))
+                    ->modalSubmitActionLabel('Definitief verwijderen')
+                    ->visible(fn (Order $record): bool => self::canDelete($record))
+                    ->action(function (Order $record): void {
+                        if (! self::canDelete($record)) {
+                            Notification::make()
+                                ->title('Deze bestelling blijft staan')
+                                ->body('De activiteit moet nog komen, of je mag hier niet opruimen.')
+                                ->warning()
+                                ->send();
+
+                            return;
+                        }
+
+                        $nummer = $record->order_number;
+                        $weg    = app(OrderService::class)->verwijder($record);
+
+                        Notification::make()
+                            ->title('Bestelling ' . $nummer . ' verwijderd')
+                            ->body($weg['kaarten'] > 0
+                                ? self::telwoord($weg['kaarten'], 'kaart', 'kaarten') . ' meeverdwenen.'
+                                : 'Er hingen geen kaarten aan deze bestelling.')
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->bulkActions([
-                // Buiten een BulkActionGroup: dit is de enige groepsactie hier,
-                // en afdrukken hoort niet achter een menu te zitten.
+                // Afdrukken staat buiten het menu: daar gaat deze lijst meestal
+                // voor open, en dan hoort het niet achter drie puntjes te
+                // zitten. Opruimen juist wel - een stap extra voor iets dat niet
+                // terugkomt.
                 Actions\BulkAction::make('kaarten_pdf')
                     ->label('Kaarten als pdf')
                     ->icon('heroicon-o-printer')
@@ -268,7 +332,90 @@ class OrderResource extends Resource
                             'kaarten-' . now()->format('Y-m-d') . '.pdf',
                         );
                     }),
+
+                Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('verwijderen')
+                        ->label('Verwijderen')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Bestellingen verwijderen')
+                        ->modalDescription('De gekozen bestellingen verdwijnen uit de lijst, met hun bestelregels, hun kaarten en de binnenkomsten die op die kaarten geregistreerd staan. Alleen wat weg mag gaat weg: bestellingen bij een activiteit die nog moet komen blijven staan, tenzij ze verlopen of mislukt zijn. Dit is niet ongedaan te maken.')
+                        ->modalSubmitActionLabel('Definitief verwijderen')
+                        ->deselectRecordsAfterCompletion()
+                        ->visible(fn (): bool => (bool) auth()->user()?->hasAnyRole(['super_admin', 'club_admin']))
+                        ->action(function (Collection $records): void {
+                            $dienst  = app(OrderService::class);
+                            $weg     = 0;
+                            $kaarten = 0;
+                            $blijft  = 0;
+
+                            foreach ($records as $record) {
+                                // Per bestelling opnieuw langs dezelfde regel:
+                                // welke rijen er aangevinkt zijn komt uit de
+                                // browser, en daar hangt niet van af wat weg mag.
+                                if (! self::canDelete($record)) {
+                                    $blijft++;
+
+                                    continue;
+                                }
+
+                                $uitkomst = $dienst->verwijder($record);
+                                $kaarten += $uitkomst['kaarten'];
+                                $weg++;
+                            }
+
+                            $tekst = $kaarten > 0
+                                ? self::telwoord($kaarten, 'kaart', 'kaarten') . ' meeverdwenen.'
+                                : 'Er hingen geen kaarten aan.';
+
+                            if ($blijft > 0) {
+                                $tekst .= ' ' . self::telwoord($blijft, 'bestelling', 'bestellingen')
+                                    . ' bleef staan: de activiteit moet nog komen.';
+                            }
+
+                            Notification::make()
+                                ->title(self::telwoord($weg, 'bestelling', 'bestellingen') . ' verwijderd')
+                                ->body($tekst)
+                                ->color($weg > 0 ? 'success' : 'warning')
+                                ->send();
+                        }),
+                ]),
             ]);
+    }
+
+    /**
+     * Wat er precies verdwijnt, voor het venster dat om bevestiging vraagt.
+     *
+     * Met de aantallen erbij en niet alleen "en alles wat erbij hoort": een
+     * bestelling waar twintig gescande kaarten aan hangen hoort er anders uit te
+     * zien dan een mislukte betaling van vorige week.
+     */
+    private static function watVerdwijnt(Order $order): string
+    {
+        $codeIds = $order->accessCodes()->pluck('id')->all();
+        $kaarten = count($codeIds);
+        $scans   = $codeIds === [] ? 0 : AccessEntry::whereIn('access_code_id', $codeIds)->count();
+
+        $tekst = 'Bestelling ' . $order->order_number . ' van ' . $order->buyer_name
+            . ' verdwijnt uit de lijst, met de bestelregels';
+
+        if ($kaarten > 0) {
+            $tekst .= ', ' . self::telwoord($kaarten, 'kaart', 'kaarten');
+        }
+
+        if ($scans > 0) {
+            $tekst .= ' en ' . self::telwoord($scans, 'binnenkomst', 'binnenkomsten') . ' bij de ingang';
+        }
+
+        return $tekst . '. Dit is niet ongedaan te maken. Wat er betaald is blijft bij Pay.nl staan, '
+            . 'en moeten de kaarten alleen geweigerd worden bij de ingang, gebruik dan Intrekken.';
+    }
+
+    /** "1 kaart" of "3 kaarten". */
+    private static function telwoord(int $aantal, string $enkel, string $meer): string
+    {
+        return $aantal . ' ' . ($aantal === 1 ? $enkel : $meer);
     }
 
     /**

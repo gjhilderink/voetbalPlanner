@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Mail\TicketMail;
 use App\Models\AccessCode;
+use App\Models\AccessEntry;
 use App\Models\AgendaItem;
 use App\Models\Club;
 use App\Models\Order;
@@ -274,6 +275,55 @@ class OrderService
         if ($order->status === Order::STATUS_PENDING) {
             $order->update(['status' => Order::STATUS_FAILED, 'expires_at' => null]);
         }
+    }
+
+    /**
+     * Een bestelling opruimen, met alles wat eraan hangt.
+     *
+     * Wat mee moet: de bestelregels, de toegangscodes die eruit zijn gerold en
+     * de binnenkomsten die op die codes geregistreerd staan. De codes vooral -
+     * die zijn in de database aan de bestelling gekoppeld met nullOnDelete, dus
+     * zonder deze opruiming blijven ze staan zonder bestelling erachter: nog
+     * altijd geldig bij de ingang, maar niet meer terug te voeren op een koper.
+     * Dat is het slechtste van twee werelden.
+     *
+     * Alles in één transactie, en zelf verwijderen in plaats van het aan de
+     * cascade van de database over te laten. Niet omdat die cascade niet zou
+     * werken, maar omdat hier hoort te staan wát er verdwijnt.
+     *
+     * Wie mag opruimen en wat oud genoeg is staat niet hier maar bij
+     * Order::magWeg() en in de portal.
+     *
+     * @return array{kaarten: int, scans: int}
+     */
+    public function verwijder(Order $order): array
+    {
+        return DB::transaction(function () use ($order) {
+            $codeIds = $order->accessCodes()->pluck('id')->all();
+
+            $scans   = $codeIds === [] ? 0 : AccessEntry::whereIn('access_code_id', $codeIds)->delete();
+            $kaarten = $codeIds === [] ? 0 : AccessCode::whereIn('id', $codeIds)->delete();
+
+            $order->lines()->delete();
+
+            // De gegevens uit de rij nog even vasthouden: na delete() is het
+            // logboek de enige plek waar nog staat wat hier weg is gegaan.
+            $regel = [
+                'bestelling' => $order->order_number,
+                'club'       => $order->club_id,
+                'activiteit' => $order->agenda_item_id,
+                'status'     => $order->status,
+                'kaarten'    => (int) $kaarten,
+                'scans'      => (int) $scans,
+                'door'       => auth()->user()?->email ?? 'console',
+            ];
+
+            $order->delete();
+
+            Log::info('[Ticketshop] bestelling verwijderd', $regel);
+
+            return ['kaarten' => (int) $kaarten, 'scans' => (int) $scans];
+        });
     }
 
     /**
