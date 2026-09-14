@@ -124,6 +124,15 @@ class OrderResource extends Resource
                     ->formatStateUsing(fn (int $state): string => Geld::euro($state))
                     ->sortable(),
 
+                // Een uitgifte staat op betaald zonder dat er geld langs is
+                // gekomen. Zonder deze kolom is dat een bestelling van € 0 waar
+                // niemand iets van weet.
+                Tables\Columns\TextColumn::make('source')
+                    ->label('Herkomst')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => Order::SOURCES[$state] ?? $state)
+                    ->color(fn ($state) => $state === Order::SOURCE_ISSUED ? 'warning' : 'gray'),
+
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -150,6 +159,10 @@ class OrderResource extends Resource
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')
                     ->options(Order::STATUSES),
+
+                Tables\Filters\SelectFilter::make('source')
+                    ->label('Herkomst')
+                    ->options(Order::SOURCES),
 
                 Tables\Filters\SelectFilter::make('agenda_item_id')
                     ->label('Activiteit')
@@ -186,7 +199,10 @@ class OrderResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Kaarten opnieuw mailen')
                     ->modalDescription(fn (Order $record): string => 'De kaarten gaan opnieuw naar ' . $record->buyer_email . '.')
-                    ->visible(fn (Order $record): bool => $record->isBetaald())
+                    // Niet bij een uitgifte: daar staat het adres van de
+                    // beheerder als koper, en die hoeft zijn eigen vouchers niet
+                    // gemaild te krijgen. Afdrukken is daar de bedoelde weg.
+                    ->visible(fn (Order $record): bool => $record->isBetaald() && ! $record->isUitgegeven())
                     ->action(function (Order $record): void {
                         $gelukt = app(OrderService::class)->stuurTickets($record);
 
@@ -205,8 +221,12 @@ class OrderResource extends Resource
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalHeading('Bestelling intrekken')
-                    ->modalDescription('De kaarten van deze bestelling worden bij de ingang geweigerd. Het geld terugstorten doe je bij Pay.nl; dat gebeurt hier niet.')
+                    ->modalHeading(fn (Order $record): string => $record->isUitgegeven()
+                        ? 'Uitgifte intrekken'
+                        : 'Bestelling intrekken')
+                    ->modalDescription(fn (Order $record): string => $record->isUitgegeven()
+                        ? 'De afgedrukte vouchers van deze stapel worden bij de ingang geweigerd. Doe dit als een vel zoekraakt of verkeerd is uitgedeeld; de codes blijven als uitgegeven in de lijst staan, zodat ze niet opnieuw de deur uit gaan.'
+                        : 'De kaarten van deze bestelling worden bij de ingang geweigerd. Het geld terugstorten doe je bij Pay.nl; dat gebeurt hier niet.')
                     ->visible(fn (Order $record): bool => $record->isBetaald())
                     ->action(function (Order $record): void {
                         AccessCode::where('order_id', $record->id)->update(['is_active' => false]);

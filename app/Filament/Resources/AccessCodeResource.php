@@ -7,7 +7,10 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AccessCodeResource\Pages;
 use App\Models\AccessCode;
 use App\Models\AgendaItem;
+use App\Models\TicketType;
+use App\Services\OrderService;
 use App\Support\Qr;
+use App\Support\TicketPdf;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -17,7 +20,10 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * De uitgedeelde toegangscodes van een activiteit.
@@ -46,7 +52,9 @@ class AccessCodeResource extends Resource
         $user   = auth()->user();
 
         return parent::getEloquentQuery()
-            ->with('agendaItem')
+            // De bestelling erbij: de kolom "Uitgegeven" leest eruit of deze
+            // code de deur al uit is, en zonder dit haalt elke rij hem apart op.
+            ->with(['agendaItem', 'order'])
             ->when($tenant, fn (Builder $q) => $q->where('club_id', $tenant->id))
             ->when(
                 ! $tenant && ! $user?->hasRole('super_admin') && $user?->club_id,
@@ -116,6 +124,119 @@ class AccessCodeResource extends Resource
                 $item->id => $item->title . ' — ' . ($item->starts_at?->format('d-m-Y H:i') ?? ''),
             ])
             ->all();
+    }
+
+    /**
+     * Kan deze club vouchers uitgeven?
+     *
+     * Een uitgifte wordt een bestelling, en Bestellingen hoort bij de
+     * ticketshop. Zonder die module zou de stapel wel worden vastgelegd maar
+     * nergens te zien zijn - dan is afdrukken zonder uitgeven (het PDF-vel)
+     * eerlijker dan een knop die iets wegstopt.
+     */
+    public static function vouchersMogelijk(): bool
+    {
+        return static::canCreate() && OrderResource::canViewAny();
+    }
+
+    /**
+     * De kaartsoorten van één activiteit, om vouchers op af te boeken.
+     *
+     * @return array<string, string>
+     */
+    public static function soortOpties(?string $agendaItemId): array
+    {
+        if (! $agendaItemId) {
+            return [];
+        }
+
+        return TicketType::query()
+            ->where('agenda_item_id', $agendaItemId)
+            ->orderBy('sort_order')
+            ->get()
+            ->mapWithKeys(function (TicketType $soort): array {
+                $over = $soort->beschikbaar();
+
+                return [$soort->id => $soort->name
+                    . ($over === null ? '' : ' (nog ' . $over . ' beschikbaar)')];
+            })
+            ->all();
+    }
+
+    /**
+     * Codes uitgeven en als voucher terugsturen: één A4 per code.
+     *
+     * De grens op het aantal pagina's wordt hier gecontroleerd en niet pas bij
+     * het maken van de pdf. Andersom zouden de codes als uitgegeven in de lijst
+     * staan terwijl er nooit een voucher uit de printer kwam - en die codes zijn
+     * daarna niet meer uit te geven.
+     *
+     * @param  EloquentCollection<int, AccessCode>  $codes
+     */
+    public static function vouchersUitgeven(
+        EloquentCollection $codes,
+        ?string $naam = null,
+        ?string $soortId = null,
+    ): ?StreamedResponse {
+        // Al uitgegeven codes gaan er niet nog een keer uit. Wie een zoekgeraakt
+        // vel opnieuw moet drukken doet dat bij de bestelling zelf; dan blijft
+        // het één uitgifte in plaats van twee.
+        $nieuw   = $codes->whereNull('order_id');
+        $bekende = $codes->count() - $nieuw->count();
+
+        if ($nieuw->isEmpty()) {
+            Notification::make()
+                ->title('Niets uit te geven')
+                ->body('Deze codes staan al op een bestelling. Opnieuw afdrukken doe je bij Bestellingen, met "Kaarten als pdf".')
+                ->warning()
+                ->send();
+
+            return null;
+        }
+
+        if ($nieuw->count() > TicketPdf::MAX_KAARTEN) {
+            Notification::make()
+                ->title('Te veel vouchers voor één bestand')
+                ->body('Er passen ' . TicketPdf::MAX_KAARTEN . ' vouchers in één pdf; dit zijn er '
+                    . $nieuw->count() . '. Geef ze in delen uit.')
+                ->warning()
+                ->persistent()
+                ->send();
+
+            return null;
+        }
+
+        $uitkomst = app(OrderService::class)->geefUit(
+            $nieuw->pluck('id')->all(),
+            $naam,
+            auth()->user()?->email ?? '',
+            $soortId,
+        );
+
+        if (! ($uitkomst['ok'] ?? false)) {
+            Notification::make()
+                ->title('Uitgeven ging niet')
+                ->body(implode(' ', $uitkomst['fouten'] ?? []))
+                ->danger()
+                ->persistent()
+                ->send();
+
+            return null;
+        }
+
+        $order = $uitkomst['order'];
+
+        Notification::make()
+            ->title($uitkomst['aantal'] . ' vouchers uitgegeven')
+            ->body('Ze staan nu als bestelling ' . $order->order_number . ' bij Bestellingen.'
+                . ($bekende > 0 ? ' ' . $bekende . ' van de gekozen codes waren al uitgegeven en zitten er niet bij.' : ''))
+            ->success()
+            ->send();
+
+        return OrderResource::kaartenDownload(
+            AccessCode::where('order_id', $order->id)->orderBy('code')->get(),
+            'vouchers-' . $order->order_number . '.pdf',
+        );
     }
 
     public static function form(Schema $schema): Schema
@@ -195,6 +316,18 @@ class AccessCodeResource extends Resource
                     ->color(fn (AccessCode $record): string => $record->used_count >= $record->max_uses ? 'danger' : 'success')
                     ->formatStateUsing(fn ($state, AccessCode $record): string => $state . ' / ' . $record->max_uses),
 
+                // Of de code de deur al uit is. Staat er een bestelnummer, dan
+                // is hij verkocht of als voucher afgedrukt en hoort hij niet
+                // nog een keer uitgedeeld te worden.
+                Tables\Columns\TextColumn::make('order.order_number')
+                    ->label('Uitgegeven')
+                    ->badge()
+                    ->color('success')
+                    ->placeholder('nog niet')
+                    ->description(fn (AccessCode $record): ?string => $record->order?->isUitgegeven()
+                        ? $record->order->created_at?->format('d-m-Y')
+                        : $record->order?->buyer_name),
+
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actief')
                     ->boolean()
@@ -209,6 +342,17 @@ class AccessCodeResource extends Resource
 
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Actief'),
+
+                Tables\Filters\TernaryFilter::make('uitgegeven')
+                    ->label('Uitgegeven')
+                    ->placeholder('Alles')
+                    ->trueLabel('Al uitgegeven')
+                    ->falseLabel('Nog niet uitgegeven')
+                    ->queries(
+                        true: fn (Builder $q) => $q->whereNotNull('order_id'),
+                        false: fn (Builder $q) => $q->whereNull('order_id'),
+                        blank: fn (Builder $q) => $q,
+                    ),
 
                 Tables\Filters\Filter::make('op')
                     ->label('Alleen opgebruikte codes')
@@ -254,6 +398,21 @@ class AccessCodeResource extends Resource
                 Actions\DeleteAction::make(),
             ])
             ->bulkActions([
+                // Buiten het menu: dit is wat je met een selectie wilt doen.
+                Actions\BulkAction::make('vouchers')
+                    ->label('Vouchers uitgeven')
+                    ->icon('heroicon-o-ticket')
+                    ->color('gray')
+                    ->visible(fn (): bool => static::vouchersMogelijk())
+                    ->requiresConfirmation()
+                    ->modalHeading('Vouchers uitgeven')
+                    ->modalDescription('De gekozen codes worden vastgelegd als bestelling en komen als pdf uit de printer, één A4 per code. Daarna staan ze bij Bestellingen en zijn ze in deze lijst als uitgegeven te herkennen. Codes die al uitgegeven zijn blijven buiten deze stapel.')
+                    ->modalSubmitActionLabel('Uitgeven en pdf maken')
+                    ->deselectRecordsAfterCompletion()
+                    ->action(fn (Collection $records): ?StreamedResponse => static::vouchersUitgeven(
+                        AccessCode::whereIn('id', $records->pluck('id'))->orderBy('code')->get(),
+                    )),
+
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make(),
                 ]),

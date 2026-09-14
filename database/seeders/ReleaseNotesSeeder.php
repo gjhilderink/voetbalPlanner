@@ -1211,6 +1211,17 @@ class ReleaseNotesSeeder extends Seeder
                     . 'het nummer aan te hangen. Maat en nummer staan nu los van elkaar, dus je kunt alleen een '
                     . 'nummer invullen. En de maat weghalen laat een ingevuld nummer voortaan staan.',
             ],
+            [
+                'type'        => 'feature',
+                'title'       => 'Toegangscodes uitgeven als voucher',
+                'description' => 'Codes die je zelf aanmaakt kun je nu uitgeven als voucher: één A4 per code, met '
+                    . 'de QR, de activiteit, de datum en de locatie erop. De knop staat bij Beheer → Toegangscodes, '
+                    . 'naast Codes genereren. De stapel wordt tegelijk vastgelegd als bestelling, dus je ziet in de '
+                    . 'lijst welke codes de deur al uit zijn en dezelfde code komt geen tweede keer in een nieuwe '
+                    . 'stapel. Hoort de uitgifte bij een kaartsoort uit de winkel, dan kun je hem daarop afboeken: '
+                    . 'de plekken gaan van de online voorraad af, zodat dezelfde stoel niet ook nog verkocht wordt. '
+                    . 'Raakt een vel zoek, dan trek je die uitgifte in en worden de vouchers bij de ingang geweigerd.',
+            ],
         ];
 
         $sort = 0;

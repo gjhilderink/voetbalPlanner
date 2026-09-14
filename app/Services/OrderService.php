@@ -155,6 +155,119 @@ class OrderService
         return $nieuw;
     }
 
+    /**
+     * Codes die de club zelf heeft aangemaakt uitgeven als voucher.
+     *
+     * Een afgedrukte stapel wordt een bestelling. Dat is niet om de
+     * boekhouding mooi te maken: zolang een code nergens bij hoort, is aan de
+     * lijst niet te zien dat hij de deur al uit is, en drukt een volgende
+     * beheerder hem gerust nog een keer af. Als bestelling staat hij naast de
+     * online verkoop, gaat hij van dezelfde voorraad af, en valt hij in één
+     * keer in te trekken als de stapel zoekraakt.
+     *
+     * Codes die al bij een bestelling horen worden overgeslagen en niet
+     * verplaatst - die zijn al uitgegeven, en tweemaal uitgeven is precies wat
+     * dit moet voorkomen.
+     *
+     * @param  array<int, string>  $codeIds
+     * @return array{ok: bool, order?: Order, aantal?: int, fouten?: array<int, string>}
+     */
+    public function geefUit(array $codeIds, ?string $naam, string $email, ?string $soortId = null): array
+    {
+        if ($codeIds === []) {
+            return ['ok' => false, 'fouten' => ['Er zijn geen codes gekozen.']];
+        }
+
+        return DB::transaction(function () use ($codeIds, $naam, $email, $soortId) {
+            // Met een slot erop: twee beheerders die tegelijk op afdrukken
+            // drukken mogen niet allebei dezelfde code meekrijgen.
+            $codes = AccessCode::query()
+                ->whereIn('id', $codeIds)
+                ->whereNull('order_id')
+                ->lockForUpdate()
+                ->orderBy('code')
+                ->get();
+
+            if ($codes->isEmpty()) {
+                return ['ok' => false, 'fouten' => ['Deze codes zijn al uitgegeven.']];
+            }
+
+            // Een bestelling hoort bij één activiteit. Een selectie die over
+            // twee activiteiten loopt kan dus niet in één keer.
+            $activiteiten = $codes->pluck('agenda_item_id')->unique();
+
+            if ($activiteiten->count() > 1) {
+                return ['ok' => false, 'fouten' => ['Kies codes van één activiteit tegelijk.']];
+            }
+
+            $activiteitId = (string) $activiteiten->first();
+            $soort        = null;
+
+            if ($soortId) {
+                $soort = TicketType::query()
+                    ->whereKey($soortId)
+                    ->where('agenda_item_id', $activiteitId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $soort) {
+                    return ['ok' => false, 'fouten' => ['Die kaartsoort hoort niet bij deze activiteit.']];
+                }
+
+                // Afboeken mag de winkel niet in de min trekken: dan zou de
+                // voorraad die online nog te koop staat er niet meer zijn.
+                $over = $soort->beschikbaar();
+
+                if ($over !== null && $codes->count() > $over) {
+                    return ['ok' => false, 'fouten' => [
+                        $over === 0
+                            ? "{$soort->name} is uitverkocht; daar valt niets meer op af te boeken."
+                            : "Van {$soort->name} zijn er nog {$over} over en dit zijn er {$codes->count()}.",
+                    ]];
+                }
+            }
+
+            $aantal = $codes->count();
+            $prijs  = (int) ($soort?->price_cents ?? 0);
+
+            $order = Order::create([
+                'club_id'        => $codes->first()->club_id,
+                'agenda_item_id' => $activiteitId,
+                'order_number'   => $this->vrijBestelnummer(),
+                'public_token'   => Order::nieuwToken(),
+                'buyer_name'     => $naam ?: 'Uitgegeven vouchers',
+                'buyer_email'    => $email,
+                'total_cents'    => $prijs * $aantal,
+                'status'         => Order::STATUS_PAID,
+                'source'         => Order::SOURCE_ISSUED,
+                'paid_at'        => now(),
+            ]);
+
+            $order->lines()->create([
+                'ticket_type_id'   => $soort?->id,
+                'type_name'        => $soort?->name ?? 'Voucher',
+                'unit_price_cents' => $prijs,
+                'quantity'         => $aantal,
+                'line_total_cents' => $prijs * $aantal,
+            ]);
+
+            $ids = $codes->pluck('id')->all();
+
+            AccessCode::whereIn('id', $ids)->update(['order_id' => $order->id]);
+
+            // De naam op de voucher komt uit het label van de code. Alleen
+            // invullen waar nog niets staat: een code die al "Rij 3, stoel 5"
+            // heet houdt dat.
+            if ($naam) {
+                AccessCode::whereIn('id', $ids)
+                    ->where(fn ($q) => $q->whereNull('label')->orWhere('label', ''))
+                    ->update(['label' => $naam]);
+            }
+
+            return ['ok' => true, 'order' => $order->load('lines'), 'aantal' => $aantal];
+        });
+    }
+
     /** Zet een bestelling op mislukt. Alleen als hij nog openstond. */
     public function mislukt(Order $order): void
     {

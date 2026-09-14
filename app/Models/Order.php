@@ -37,6 +37,17 @@ class Order extends Model
         self::STATUS_FAILED    => 'Mislukt',
     ];
 
+    /** Gekocht in de winkel. */
+    public const SOURCE_SHOP = 'shop';
+
+    /** Door de club zelf uitgegeven: codes die als voucher zijn afgedrukt. */
+    public const SOURCE_ISSUED = 'issued';
+
+    public const SOURCES = [
+        self::SOURCE_SHOP   => 'Winkel',
+        self::SOURCE_ISSUED => 'Uitgegeven',
+    ];
+
     /** Hoelang een onbetaalde bestelling zijn kaarten vasthoudt. */
     public const RESERVERING_MINUTEN = 30;
 
@@ -49,6 +60,7 @@ class Order extends Model
         'buyer_email',
         'total_cents',
         'status',
+        'source',
         'paynl_transaction_id',
         'paid_at',
         'expires_at',
@@ -89,6 +101,18 @@ class Order extends Model
     public function isBetaald(): bool
     {
         return $this->status === self::STATUS_PAID;
+    }
+
+    /**
+     * Is dit een stapel vouchers die de club zelf heeft uitgegeven?
+     *
+     * Zo'n bestelling staat op betaald - dat is hier de stand die zegt dat de
+     * kaarten geldig zijn en de plekken vergeven - maar er is nooit geld langs
+     * gekomen en de koper is de balie.
+     */
+    public function isUitgegeven(): bool
+    {
+        return $this->source === self::SOURCE_ISSUED;
     }
 
     public function aantalKaarten(): int

@@ -10,13 +10,16 @@ use App\Imports\AccessCodesImport;
 use App\Models\AccessCode;
 use App\Models\AgendaItem;
 use App\Support\Qr;
+use App\Support\TicketPdf;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ListAccessCodes extends ListRecords
 {
@@ -72,9 +75,72 @@ class ListAccessCodes extends ListRecords
 
                     Notification::make()
                         ->title($gemaakt . ' codes aangemaakt')
-                        ->body('Je kunt ze nu als QR afdrukken.')
+                        ->body('Je kunt ze nu als voucher uitgeven of op een vel afdrukken.')
                         ->success()
                         ->send();
+                }),
+
+            // De stap na genereren: de codes de deur uit doen. Elke code krijgt
+            // een eigen A4 met de QR erop, en de stapel wordt vastgelegd als
+            // bestelling - zo is later te zien welke codes al uitgedeeld zijn.
+            Actions\Action::make('vouchers')
+                ->label('Vouchers uitgeven')
+                ->icon('heroicon-o-ticket')
+                ->visible(fn (): bool => AccessCodeResource::vouchersMogelijk())
+                ->form([
+                    Forms\Components\Select::make('agenda_item_id')
+                        ->label('Activiteit')
+                        ->options(fn () => AccessCodeResource::agendaOpties())
+                        ->searchable()
+                        ->required()
+                        ->live(),
+
+                    Forms\Components\TextInput::make('aantal')
+                        ->label('Hoeveel')
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(TicketPdf::MAX_KAARTEN)
+                        ->helperText('Leeg = alle codes van deze activiteit die nog niet uitgegeven zijn.'),
+
+                    Forms\Components\TextInput::make('naam')
+                        ->label('Op naam van')
+                        ->maxLength(150)
+                        ->helperText('Komt op de voucher te staan. Leeg laten geeft blanco vouchers om uit te delen.'),
+
+                    Forms\Components\Select::make('ticket_type_id')
+                        ->label('Afboeken op kaartsoort')
+                        ->options(fn (Get $get) => AccessCodeResource::soortOpties($get('agenda_item_id')))
+                        ->visible(fn (Get $get): bool => AccessCodeResource::soortOpties($get('agenda_item_id')) !== [])
+                        ->helperText('Dan gaan deze vouchers van de online voorraad af, zodat dezelfde plekken niet ook nog in de winkel verkocht worden.'),
+                ])
+                ->modalWidth('md')
+                ->modalSubmitActionLabel('Uitgeven en pdf maken')
+                ->action(function (array $data): ?StreamedResponse {
+                    $aantal = (int) ($data['aantal'] ?? 0);
+
+                    $codes = AccessCode::query()
+                        ->where('agenda_item_id', $data['agenda_item_id'])
+                        ->whereNull('order_id')
+                        ->where('is_active', true)
+                        ->orderBy('code')
+                        ->when($aantal > 0, fn ($q) => $q->limit($aantal))
+                        ->get();
+
+                    if ($codes->isEmpty()) {
+                        Notification::make()
+                            ->title('Geen codes over')
+                            ->body('Alle actieve codes van deze activiteit zijn al uitgegeven. Maak er nieuwe bij met "Codes genereren".')
+                            ->warning()
+                            ->send();
+
+                        return null;
+                    }
+
+                    return AccessCodeResource::vouchersUitgeven(
+                        $codes,
+                        trim((string) ($data['naam'] ?? '')) ?: null,
+                        $data['ticket_type_id'] ?? null,
+                    );
                 }),
 
             Actions\Action::make('import')
@@ -155,9 +221,18 @@ class ListAccessCodes extends ListRecords
                     Forms\Components\Toggle::make('alleen_ongebruikt')
                         ->label('Alleen codes die nog niet gebruikt zijn')
                         ->default(false),
+
+                    // Standaard aan: codes die al verkocht of als voucher
+                    // uitgegeven zijn liggen ergens bij iemand in de tas. Die
+                    // hier nog eens uitknippen is precies hoe dezelfde plek
+                    // twee keer de deur uit gaat.
+                    Forms\Components\Toggle::make('alleen_onuitgegeven')
+                        ->label('Alleen codes die nog niet uitgegeven zijn')
+                        ->default(true)
+                        ->helperText('Uit = ook de codes die al verkocht of afgedrukt zijn staan op het vel.'),
                 ])
                 ->modalWidth('md')
-                ->action(function (array $data): \Symfony\Component\HttpFoundation\StreamedResponse {
+                ->action(function (array $data): ?StreamedResponse {
                     $item = AgendaItem::find($data['agenda_item_id']);
 
                     $codes = AccessCode::query()
@@ -167,8 +242,22 @@ class ListAccessCodes extends ListRecords
                             (bool) ($data['alleen_ongebruikt'] ?? false),
                             fn ($q) => $q->whereColumn('used_count', '<', 'max_uses'),
                         )
+                        ->when(
+                            (bool) ($data['alleen_onuitgegeven'] ?? true),
+                            fn ($q) => $q->whereNull('order_id'),
+                        )
                         ->orderBy('code')
                         ->get();
+
+                    if ($codes->isEmpty()) {
+                        Notification::make()
+                            ->title('Niets af te drukken')
+                            ->body('Er zijn geen codes die aan deze keuzes voldoen. Staan ze er wel, maar zijn ze al uitgegeven, zet dan de onderste schakelaar uit.')
+                            ->warning()
+                            ->send();
+
+                        return null;
+                    }
 
                     // De QR's vooraf tekenen en niet in de view: dan blijft de
                     // Blade een opmaakbestand en staat het zware werk hier.

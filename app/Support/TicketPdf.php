@@ -78,7 +78,13 @@ class TicketPdf
         $item  = $code->agendaItem;
         $order = $code->order;
 
-        [$houder, $soort] = Kaart::houderEnSoort($code->label, $order?->buyer_name);
+        // Bij een uitgegeven voucher is de "koper" de balie zelf. Die naam hoort
+        // niet als houder op de kaart: dan zou er op een blanco voucher
+        // "Uitgegeven vouchers" staan waar een bezoekersnaam hoort.
+        [$houder, $soort] = Kaart::houderEnSoort(
+            $code->label,
+            $order?->isUitgegeven() ? null : $order?->buyer_name,
+        );
 
         $kleur = Kaart::hex($club?->primary_color);
 
