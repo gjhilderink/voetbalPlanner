@@ -3,7 +3,7 @@
  * Plugin Name:       VoetbalPlanner Ticketshop
  * Plugin URI:        https://voetbalplanner.nl
  * Description:       Zet de kaartverkoop van je club op je eigen website met de shortcode [voetbalplanner_ticketshop].
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            VoetbalPlanner
@@ -16,7 +16,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-define('VP_TICKETSHOP_VERSIE', '1.0.0');
+define('VP_TICKETSHOP_VERSIE', '1.0.1');
 define('VP_TICKETSHOP_BESTAND', __FILE__);
 
 /** De winkel draait op voetbalplanner.nl, tenzij de beheerder iets anders invult. */

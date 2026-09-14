@@ -199,11 +199,30 @@
     @if ($embed)
         {{-- De hoogte doorgeven aan de omliggende pagina, zodat het iframe
              meegroeit en er geen scrollbalk in een scrollbalk ontstaat. De
-             ontvangende kant mag dit negeren; dan blijft de vaste hoogte staan. --}}
+             ontvangende kant mag dit negeren; dan blijft de vaste hoogte staan.
+
+             De hoogte van de inhoud, en met opzet niet die van het document:
+             documentElement.scrollHeight is minstens zo hoog als het venster, en
+             dat venster ís het iframe. Wie dat terugmeldt vraagt de omliggende
+             pagina om de hoogte die zij net zelf heeft gezet - en komt daar ook
+             maar één pixel bij, dan voert die lus zichzelf op tot het kader de
+             pagina uit groeit. De body staat niet op een vaste hoogte, dus die
+             meet wel gewoon wat erin staat.
+
+             Alleen melden bij een echte wijziging: de ResizeObserver vuurt ook
+             als er niets verandert. --}}
         <script>
             (function () {
+                var laatste = 0;
+
                 function meld() {
-                    var h = document.documentElement.scrollHeight;
+                    var h = Math.ceil(document.body.getBoundingClientRect().height);
+
+                    if (!h || h === laatste) {
+                        return;
+                    }
+
+                    laatste = h;
                     parent.postMessage({ voetbalplannerShopHoogte: h }, '*');
                 }
                 window.addEventListener('load', meld);

@@ -4,7 +4,7 @@ Tags: tickets, kaartverkoop, voetbal, vereniging, embed
 Requires at least: 5.8
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,12 @@ het script van deze plugin samenvoegt of uitstelt, zet die er dan buiten. Tot
 die tijd blijft de starthoogte staan en werkt de winkel gewoon.
 
 == Changelog ==
+
+= 1.0.1 =
+* Het kader groeide zichzelf de pagina uit: het meldde de hoogte terug die het
+  net zelf had gekregen, en daar kwamen elke ronde een paar pixels bij. Het
+  negeert nu verschillen van een paar pixels, en de winkel meet voortaan de
+  inhoud in plaats van het venster.
 
 = 1.0.0 =
 * Eerste versie: shortcode, instellingenscherm en een kader dat meegroeit.

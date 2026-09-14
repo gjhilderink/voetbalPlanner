@@ -10,6 +10,18 @@
 (function () {
     'use strict';
 
+    /**
+     * Kleinere verschillen dan dit negeren we.
+     *
+     * Het iframe hoger zetten maakt het venster ín het iframe hoger, en een
+     * winkel die de hoogte van dát venster terugmeldt vraagt daarmee om de
+     * hoogte die er net is gezet. Komt daar ook maar één pixel bij - een
+     * afronding, een rand - dan is er een lus die zichzelf opvoert, en staat
+     * een kader van 900 pixels binnen een seconde op twintigduizend. Een marge
+     * breekt die lus: een echte wijziging is altijd groter dan een paar pixels.
+     */
+    var TOLERANTIE = 8;
+
     function kaders() {
         return Array.prototype.slice.call(
             document.querySelectorAll('iframe.vp-ticketshop-kader')
@@ -56,9 +68,13 @@
             return;
         }
 
-        // Een paar pixels erbij, anders houdt een afgeronde hoogte toch nog
-        // een scrollbalk over.
-        kader.style.height = (hoogte + 4) + 'px';
+        var huidig = parseInt(kader.style.height, 10) || kader.clientHeight || 0;
+
+        if (Math.abs(hoogte - huidig) <= TOLERANTIE) {
+            return;
+        }
+
+        kader.style.height = hoogte + 'px';
         kader.style.minHeight = '0';
     });
 })();
