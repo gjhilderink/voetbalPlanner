@@ -86,8 +86,11 @@
         }
 
         /* De teller bij een kaartsoort: min, het aantal, plus. Knoppen van 38
-           pixels, want dit wordt op een telefoon met een duim bediend. */
-        .teller { display: flex; align-items: center; gap: 6px; }
+           pixels, want dit wordt op een telefoon met een duim bediend.
+
+           Krimpt niet mee: liever de hele teller op een eigen regel (zie
+           onderaan) dan drie knoppen die te smal worden om te raken. */
+        .teller { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
         .teller button {
             width: 38px;
             height: 38px;
@@ -173,6 +176,38 @@
 
         .voet { color: var(--grijs); font-size: 12px; text-align: center; margin-top: 26px; }
         .voet a { color: var(--grijs); }
+
+        /* Het blok van reCAPTCHA is 304 pixels breed en krimpt nergens in mee.
+           Past dat niet, dan schalen we het geheel. De houder krimpt in hoogte
+           met dezelfde factor mee, want een transform verandert niets aan de
+           ruimte die het blok inneemt - zonder dat blijft er een gat onder
+           staan. */
+        .recaptcha { --schaal: 1; height: calc(78px * var(--schaal)); }
+        .recaptcha .g-recaptcha { transform: scale(var(--schaal)); transform-origin: 0 0; }
+
+        /* ── Smalle schermen ─────────────────────────────────────────────────
+           De winkel hangt meestal in een iframe in een kolom op de site van de
+           club, en op een telefoon is dat al gauw 330 pixels breed. Alles met
+           een vaste maat - de teller, het blok van reCAPTCHA - past dan niet
+           meer naast de tekst. En wat er in een iframe buiten valt is niet weg
+           te scrollen zoals op een gewone pagina: het is gewoon afgesneden.
+
+           De breedte waar dit op slaat is die van het iframe zelf; een
+           ingesloten pagina heeft een eigen venster. */
+        @media (max-width: 460px) {
+            .omhulsel { padding-left: 12px; padding-right: 12px; }
+            .kaart { padding: 14px; }
+
+            /* De naam op een eigen regel, prijs en teller eronder. */
+            .rij-kies { flex-wrap: wrap; gap: 8px 12px; }
+            .rij-kies .naam { flex: 1 1 100%; }
+            .rij-kies .prijs { flex: 1 1 auto; }
+            .rij-kies .teller,
+            .rij-kies .op { margin-left: auto; }
+        }
+
+        @media (max-width: 400px) { .recaptcha { --schaal: 0.88; } }
+        @media (max-width: 350px) { .recaptcha { --schaal: 0.76; } }
     </style>
 </head>
 <body>

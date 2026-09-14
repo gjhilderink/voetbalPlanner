@@ -49,7 +49,7 @@
         @foreach ($soorten as $soort)
             @php $over = $soort->maximumNu(); @endphp
 
-            <div class="rij">
+            <div class="rij rij-kies">
                 <div class="naam">
                     {{ $soort->name }}
                     @if ($soort->description)
@@ -107,7 +107,7 @@
         </div>
 
         @if ($recaptchaEnabled ?? false)
-            <div class="veld">
+            <div class="veld recaptcha">
                 <div class="g-recaptcha" data-sitekey="{{ $recaptchaSiteKey }}"></div>
             </div>
         @endif
