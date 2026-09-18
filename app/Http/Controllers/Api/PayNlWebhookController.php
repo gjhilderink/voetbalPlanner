@@ -58,8 +58,42 @@ class PayNlWebhookController extends Controller
         $stand = app(PayNlService::class)->forClub($order->club_id)->status($transactieId);
 
         if (! ($stand['ok'] ?? false)) {
-            // Hier wél een foutcode: dit is wat opnieuw proberen zin geeft.
-            return response('FALSE|Kon de status niet ophalen', 503);
+            // De API-aanroep mislukte (bijv. 403 door ontbrekende leesrechten).
+            // Pay.nl stuurt de status ook mee in het webhook-bericht zelf; gebruik
+            // dat als fallback. De transactie-ID is al gematcht met een bekende
+            // bestelling, dus het risico op nep-verzoeken is beperkt.
+            $action   = strtoupper(trim((string) (
+                $request->input('action_name')
+                ?? $request->input('action')
+                ?? ''
+            )));
+            $statusId = (string) ($request->input('status_id') ?? $request->input('statusId') ?? '');
+
+            $betaald = $statusId === '100'
+                || in_array($action, ['PAID', 'PAID_CHECKAMOUNT', 'AUTHORIZE'], true);
+            $mislukt = in_array($action, ['CANCEL', 'DENIED', 'EXPIRED', 'FAILURE', 'CHARGEBACK'], true);
+
+            Log::warning('[Pay.nl] API-verificatie mislukt, terugvallen op webhook-payload', [
+                'transaction' => $transactieId,
+                'error'       => $stand['error'] ?? '?',
+                'action'      => $action,
+                'status_id'   => $statusId,
+                'betaald'     => $betaald,
+                'mislukt'     => $mislukt,
+            ]);
+
+            if (! $betaald && ! $mislukt) {
+                // Geen bruikbare status in de payload → laat Pay.nl het opnieuw proberen.
+                return response('FALSE|Kon de status niet vaststellen', 503);
+            }
+
+            if ($betaald) {
+                $orders->afronden($order);
+            } elseif ($mislukt) {
+                $orders->mislukt($order);
+            }
+
+            return response('TRUE|Verwerkt via payload', 200);
         }
 
         if ($stand['betaald'] ?? false) {

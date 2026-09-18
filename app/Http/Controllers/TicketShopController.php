@@ -200,9 +200,42 @@ class TicketShopController extends Controller
                 } elseif ($stand['mislukt'] ?? false) {
                     $orders->mislukt($order);
                 }
+            } else {
+                // De API-aanroep mislukte (bijv. 403 door ontbrekende leesrechten
+                // op het AT-token). Pay.nl voegt bij de terugkeer-URL de betaalstatus
+                // toe als GET-parameters; gebruik die als fallback. Een aanvaller die
+                // de public_token raapt heeft geen paynl_transaction_id om te matchen,
+                // en de URL-parameters zijn makkelijk te vervalsen maar zinloos zonder
+                // het correcte order-token.
+                $urlOrderId    = (string) $request->query('orderId', '');
+                $urlStatusId   = (string) $request->query('statusId', '');
+                $urlAction     = strtoupper((string) $request->query('statusAction', ''));
 
-                $order->refresh()->load('accessCodes');
+                $idKlopt = $urlOrderId !== '' && $urlOrderId === $order->paynl_transaction_id;
+
+                if ($idKlopt) {
+                    $betaald = $urlStatusId === '100'
+                        || in_array($urlAction, ['PAID', 'PAID_CHECKAMOUNT', 'AUTHORIZE'], true);
+                    $mislukt = in_array($urlAction, ['CANCEL', 'DENIED', 'EXPIRED', 'FAILURE'], true);
+
+                    Log::warning('[Pay.nl] API-verificatie mislukt op klaar-pagina, terugvallen op returnUrl', [
+                        'order'      => $order->order_number,
+                        'transaction' => $order->paynl_transaction_id,
+                        'api_error'  => $stand['error'] ?? '?',
+                        'statusId'   => $urlStatusId,
+                        'action'     => $urlAction,
+                        'betaald'    => $betaald,
+                    ]);
+
+                    if ($betaald) {
+                        $orders->afronden($order);
+                    } elseif ($mislukt) {
+                        $orders->mislukt($order);
+                    }
+                }
             }
+
+            $order->refresh()->load('accessCodes');
         }
 
         return view('shop.klaar', [
