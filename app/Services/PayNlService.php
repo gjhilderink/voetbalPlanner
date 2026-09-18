@@ -111,6 +111,11 @@ class PayNlService
             'customer'    => [
                 'email' => $order->buyer_email,
             ],
+            // extra1 t/m extra3 komen ongewijzigd terug in de exchange-webhook.
+            // Pay.nl gebruikt intern een andere order_id dan het EX-XXXX dat wij
+            // opslaan, dus we sturen het bestelnummer mee zodat de webhook de
+            // bestelling altijd kan terugvinden — ook zonder de status-API.
+            'extra1'      => $order->order_number,
             // Testmodus hoort in het integration-object. Bovenin doet hij
             // niets, en dan rekent Pay.nl een echte betaling af terwijl de
             // instelling zegt dat je aan het testen bent.
