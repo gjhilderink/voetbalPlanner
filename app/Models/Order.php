@@ -62,6 +62,7 @@ class Order extends Model
         'status',
         'source',
         'paynl_transaction_id',
+        'paynl_order_id',
         'paid_at',
         'expires_at',
         'mail_sent_at',

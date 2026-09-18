@@ -192,7 +192,17 @@ class PayNlService
                 'data'        => self::kortVoorLog($data),
             ]);
 
-            return ['ok' => true, 'paymentUrl' => (string) $url, 'transactionId' => (string) $id];
+            // orderId is Pay.nl's internal session ID (e.g. "3594290559X4cec9").
+            // The exchange webhook sends this as order_id — not the EX-XXXX we store
+            // as transactionId — so we return it separately to save alongside the order.
+            $orderId = $data['orderId'] ?? null;
+
+            return [
+                'ok'            => true,
+                'paymentUrl'    => (string) $url,
+                'transactionId' => (string) $id,
+                'orderId'       => $orderId !== null ? (string) $orderId : null,
+            ];
         } catch (\Throwable $e) {
             Log::error('[Pay.nl] transactie starten gooide een fout', [
                 'order' => $order->order_number,

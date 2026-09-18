@@ -66,10 +66,15 @@ class PayNlWebhookController extends Controller
             return response('TRUE|Geen identificatie', 200);
         }
 
-        // Zoek de bestelling: eerst via extra1 (meest betrouwbaar), dan via
-        // het opgeslagen transactie-ID (EX-XXXX voor nieuwe transacties).
+        // Zoek de bestelling: eerst via extra1, dan via de interne orderId
+        // (paynl_order_id = bv. "3594290559X4cec9" — wat Pay.nl stuurt als order_id),
+        // dan via het EX-XXXX transactie-ID als laatste fallback.
         $order = $orderNumber !== ''
             ? Order::where('order_number', $orderNumber)->first()
+            : null;
+
+        $order ??= $transactieId !== ''
+            ? Order::where('paynl_order_id', $transactieId)->first()
             : null;
 
         $order ??= $transactieId !== ''

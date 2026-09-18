@@ -156,7 +156,10 @@ class TicketShopController extends Controller
                 [$betaling['error'] ?? 'De betaling kon niet worden gestart.']);
         }
 
-        $order->update(['paynl_transaction_id' => $betaling['transactionId']]);
+        $order->update([
+            'paynl_transaction_id' => $betaling['transactionId'],
+            'paynl_order_id'       => $betaling['orderId'] ?? null,
+        ]);
 
         // In een kader kan de betaalpagina niet gewoon geopend worden: Pay.nl
         // zet X-Frame-Options op sameorigin, dus een browser weigert safe.pay.nl
