@@ -194,6 +194,14 @@ class TicketShopController extends Controller
         if (! $order->isBetaald() && $order->paynl_transaction_id) {
             $stand = app(PayNlService::class)->forClub($club->id)->status($order->paynl_transaction_id);
 
+            // Alle URL-parameters loggen zodat we zien wat Pay.nl meestuurt.
+            Log::info('[Ticketshop] klaar-pagina parameters', [
+                'order'      => $order->order_number,
+                'query'      => $request->query(),
+                'api_ok'     => $stand['ok'] ?? false,
+                'api_error'  => $stand['error'] ?? null,
+            ]);
+
             if ($stand['ok'] ?? false) {
                 if ($stand['betaald'] ?? false) {
                     $orders->afronden($order);
@@ -201,12 +209,6 @@ class TicketShopController extends Controller
                     $orders->mislukt($order);
                 }
             } else {
-                // De API-aanroep mislukte (bijv. 403 door ontbrekende leesrechten
-                // op het AT-token). Pay.nl voegt bij de terugkeer-URL de betaalstatus
-                // toe als GET-parameters; gebruik die als fallback. Een aanvaller die
-                // de public_token raapt heeft geen paynl_transaction_id om te matchen,
-                // en de URL-parameters zijn makkelijk te vervalsen maar zinloos zonder
-                // het correcte order-token.
                 $urlOrderId    = (string) $request->query('orderId', '');
                 $urlStatusId   = (string) $request->query('statusId', '');
                 $urlAction     = strtoupper((string) $request->query('statusAction', ''));

@@ -188,6 +188,8 @@ class PayNlService
                 'order'       => $order->order_number,
                 'transaction' => $id,
                 'testModus'   => $this->testModus,
+                'alle_velden' => array_keys($data),
+                'data'        => self::kortVoorLog($data),
             ]);
 
             return ['ok' => true, 'paymentUrl' => (string) $url, 'transactionId' => (string) $id];
