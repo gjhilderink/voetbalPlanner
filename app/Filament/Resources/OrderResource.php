@@ -197,6 +197,49 @@ class OrderResource extends Resource
                     ),
             ])
             ->actions([
+                Actions\Action::make('hercontroleer')
+                    ->label('Hercontroleer betaling')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->visible(fn (Order $record): bool => $record->status === Order::STATUS_PENDING && (bool) $record->paynl_transaction_id)
+                    ->action(function (Order $record): void {
+                        $stand = app(\App\Services\PayNlService::class)->forClub($record->club_id)->status($record->paynl_transaction_id);
+
+                        if (! ($stand['ok'] ?? false)) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Pay.nl fout')
+                                ->body($stand['error'] ?? 'Onbekende fout')
+                                ->send();
+
+                            return;
+                        }
+
+                        if ($stand['betaald'] ?? false) {
+                            $gelukt = app(OrderService::class)->afronden($record);
+
+                            Notification::make()
+                                ->success()
+                                ->title($gelukt ? 'Betaling bevestigd' : 'Al verwerkt')
+                                ->body($gelukt
+                                    ? 'Kaarten aangemaakt en verstuurd naar ' . $record->buyer_email . '.'
+                                    : 'Deze bestelling was al afgerond.')
+                                ->send();
+                        } elseif ($stand['mislukt'] ?? false) {
+                            Notification::make()
+                                ->warning()
+                                ->title('Betaling mislukt of geannuleerd')
+                                ->body('Pay.nl meldt dat de betaling niet is doorgekomen.')
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->info()
+                                ->title('Betaling nog in behandeling')
+                                ->body('Pay.nl meldt dat de betaling nog niet is afgerond.')
+                                ->send();
+                        }
+                    }),
+
                 Actions\Action::make('diagnose')
                     ->label('Pay.nl diagnose')
                     ->icon('heroicon-o-magnifying-glass')
@@ -212,9 +255,24 @@ class OrderResource extends Resource
 
                         if ($txId) {
                             $stand = app(\App\Services\PayNlService::class)->forClub($record->club_id)->status($txId);
-                            $json  = htmlspecialchars(json_encode($stand, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-                            $lines[] = '<p style="margin-top:12px"><strong>Pay.nl response:</strong></p>';
-                            $lines[] = '<pre style="font-size:12px;background:#f3f4f6;padding:1rem;border-radius:6px;overflow:auto;max-height:60vh;white-space:pre-wrap;word-break:break-all">' . $json . '</pre>';
+
+                            if (! ($stand['ok'] ?? false)) {
+                                $lines[] = '<p style="margin-top:12px;color:#dc2626"><strong>Fout:</strong> ' . htmlspecialchars($stand['error'] ?? '') . '</p>';
+
+                                if (isset($stand['httpStatus'])) {
+                                    $lines[] = '<p><strong>HTTP-statuscode:</strong> ' . (int) $stand['httpStatus'] . '</p>';
+                                }
+
+                                if (isset($stand['foutBody']) && $stand['foutBody'] !== '') {
+                                    $lines[] = '<p style="margin-top:8px"><strong>Pay.nl foutbody:</strong></p>';
+                                    $lines[] = '<pre style="font-size:12px;background:#fef2f2;padding:1rem;border-radius:6px;overflow:auto;max-height:40vh;white-space:pre-wrap;word-break:break-all">'
+                                        . htmlspecialchars($stand['foutBody']) . '</pre>';
+                                }
+                            } else {
+                                $json  = htmlspecialchars(json_encode($stand, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                                $lines[] = '<p style="margin-top:12px"><strong>Pay.nl response:</strong></p>';
+                                $lines[] = '<pre style="font-size:12px;background:#f3f4f6;padding:1rem;border-radius:6px;overflow:auto;max-height:60vh;white-space:pre-wrap;word-break:break-all">' . $json . '</pre>';
+                            }
                         }
 
                         return new \Illuminate\Support\HtmlString(implode('', $lines));

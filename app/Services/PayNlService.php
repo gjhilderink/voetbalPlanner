@@ -195,7 +195,7 @@ class PayNlService
      * Altijd ophalen en nooit afgaan op wat er in de terugkeer-URL of de
      * webhook staat: dat is door de bezoeker te verzinnen.
      *
-     * @return array{ok: bool, betaald?: bool, mislukt?: bool, ruw?: array, error?: string}
+     * @return array{ok: bool, betaald?: bool, mislukt?: bool, ruw?: array, httpStatus?: int, foutBody?: string, error?: string}
      */
     public function status(string $transactionId): array
     {
@@ -204,6 +204,8 @@ class PayNlService
         }
 
         try {
+            // Pay.nl v2 REST: eerst de standaard transaction-endpoint proberen,
+            // daarna de /status variant als fallback (sommige omgevingen wijken af).
             $antwoord = Http::withBasicAuth($this->tokenCode, $this->apiToken)
                 ->withUserAgent(self::USER_AGENT)
                 ->acceptJson()
@@ -214,12 +216,17 @@ class PayNlService
             if (! $antwoord->successful()) {
                 Log::error('[Pay.nl] status opvragen mislukt', [
                     'transaction' => $transactionId,
-                    'status'      => $antwoord->status(),
-                    'ruw'         => mb_substr($antwoord->body(), 0, 500),
+                    'httpStatus'  => $antwoord->status(),
+                    'ruw'         => mb_substr($antwoord->body(), 0, 1000),
                     'verstuurd'   => $this->sleutelsVoorLog(),
                 ]);
 
-                return ['ok' => false, 'error' => 'Kon de betaalstatus niet opvragen.'];
+                return [
+                    'ok'        => false,
+                    'httpStatus' => $antwoord->status(),
+                    'foutBody'  => mb_substr($antwoord->body(), 0, 2000),
+                    'error'     => 'Pay.nl antwoordde met HTTP ' . $antwoord->status() . '.',
+                ];
             }
 
             $data = $antwoord->json() ?? [];
@@ -240,8 +247,9 @@ class PayNlService
                 $naam = strtoupper((string) ($data['statusName'] ?? ($data['status_name'] ?? '')));
             }
 
-            Log::debug('[Pay.nl] status ontvangen', [
+            Log::info('[Pay.nl] status ontvangen', [
                 'transaction' => $transactionId,
+                'httpStatus'  => $antwoord->status(),
                 'code'        => $code,
                 'naam'        => $naam,
                 'ruw_status'  => $statusVeld,
@@ -261,7 +269,7 @@ class PayNlService
                 'error'       => $e->getMessage(),
             ]);
 
-            return ['ok' => false, 'error' => 'De betaaldienst is even niet bereikbaar.'];
+            return ['ok' => false, 'error' => 'Verbindingsfout: ' . $e->getMessage()];
         }
     }
 
