@@ -197,6 +197,29 @@ class OrderResource extends Resource
                     ),
             ])
             ->actions([
+                Actions\Action::make('diagnose')
+                    ->label('Pay.nl diagnose')
+                    ->icon('heroicon-o-magnifying-glass')
+                    ->color('gray')
+                    ->visible(fn (Order $record): bool => $record->status === Order::STATUS_PENDING)
+                    ->modalHeading(fn (Order $record): string => 'Pay.nl diagnose — ' . $record->order_number)
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Sluiten')
+                    ->modalContent(function (Order $record): \Illuminate\Support\HtmlString {
+                        $txId  = $record->paynl_transaction_id;
+                        $lines = [];
+                        $lines[] = '<p><strong>Opgeslagen transactie-ID:</strong> ' . ($txId ?: '<em>leeg — transactie-ID is niet opgeslagen!</em>') . '</p>';
+
+                        if ($txId) {
+                            $stand = app(\App\Services\PayNlService::class)->forClub($record->club_id)->status($txId);
+                            $json  = htmlspecialchars(json_encode($stand, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                            $lines[] = '<p style="margin-top:12px"><strong>Pay.nl response:</strong></p>';
+                            $lines[] = '<pre style="font-size:12px;background:#f3f4f6;padding:1rem;border-radius:6px;overflow:auto;max-height:60vh;white-space:pre-wrap;word-break:break-all">' . $json . '</pre>';
+                        }
+
+                        return new \Illuminate\Support\HtmlString(implode('', $lines));
+                    }),
+
                 Actions\Action::make('afronden')
                     ->label('Handmatig afronden')
                     ->icon('heroicon-o-check-circle')

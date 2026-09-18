@@ -151,23 +151,31 @@ class PayNlService
                 ];
             }
 
+            // Pay.nl geeft de betaal-URL en het transactie-ID in wisselende velden
+            // terug, afhankelijk van de API-versie en of het test- of live is.
             $url = $data['paymentUrl']
                 ?? ($data['links']['redirect'] ?? null)
-                ?? ($data['transaction']['paymentUrl'] ?? null);
-            $id  = $data['id'] ?? ($data['orderId'] ?? null);
+                ?? ($data['transaction']['paymentUrl'] ?? null)
+                ?? ($data['checkoutUrl'] ?? null);
+            $id  = $data['id']
+                ?? ($data['orderId'] ?? null)
+                ?? ($data['transaction']['id'] ?? null)
+                ?? ($data['transaction']['orderId'] ?? null);
 
             if (! $url || ! $id) {
                 Log::error('[Pay.nl] antwoord zonder betaal-URL of transactie-id', [
                     'order' => $order->order_number,
+                    'sleutels' => array_keys($data),
                     'body'  => self::kortVoorLog($data),
                 ]);
 
                 return ['ok' => false, 'error' => 'Onverwacht antwoord van de betaaldienst.'];
             }
 
-            Log::debug('[Pay.nl] transactie gestart', [
+            Log::info('[Pay.nl] transactie gestart', [
                 'order'       => $order->order_number,
                 'transaction' => $id,
+                'testModus'   => $this->testModus,
             ]);
 
             return ['ok' => true, 'paymentUrl' => (string) $url, 'transactionId' => (string) $id];
