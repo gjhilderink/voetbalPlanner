@@ -169,13 +169,20 @@ class PayNlService
 
             if (! $url || ! $id) {
                 Log::error('[Pay.nl] antwoord zonder betaal-URL of transactie-id', [
-                    'order' => $order->order_number,
+                    'order'    => $order->order_number,
                     'sleutels' => array_keys($data),
-                    'body'  => self::kortVoorLog($data),
+                    'body'     => self::kortVoorLog($data),
                 ]);
 
                 return ['ok' => false, 'error' => 'Onverwacht antwoord van de betaaldienst.'];
             }
+
+            // Pay.nl leest extra1 t/m extra3 uit de betaal-URL (GET-parameters),
+            // niet uit de REST API-body. Door het bestelnummer als extra1 aan de
+            // URL toe te voegen stuurt Pay.nl het ongewijzigd terug in de exchange-
+            // webhook, zodat de webhook altijd de bijbehorende bestelling kan vinden.
+            $separator = str_contains((string) $url, '?') ? '&' : '?';
+            $url       = $url . $separator . 'extra1=' . rawurlencode($order->order_number);
 
             Log::info('[Pay.nl] transactie gestart', [
                 'order'       => $order->order_number,
