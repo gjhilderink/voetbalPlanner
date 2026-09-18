@@ -26,22 +26,33 @@ class PayNlWebhookController extends Controller
 {
     public function __invoke(Request $request, OrderService $orders): Response
     {
-        // Pay.nl stuurt het transactienummer onder wisselende namen, afhankelijk
-        // van welke generatie van hun koppeling er aan staat.
+        $payload = $request->all();
+
+        // Pay.nl stuurt het transactienummer onder wisselende namen. Bij de
+        // "SIGNED JSON POST"-methode zit alles genest onder een 'data'-object.
+        // Bij oudere POST-varianten staat het plat bovenin.
         $transactieId = (string) (
-            $request->input('order_id')
-            ?? $request->input('orderId')
-            ?? $request->input('id')
+            // SIGNED JSON POST (v2): data.id
+            $payload['data']['id']
+            // SIGNED JSON POST alternatief: data.orderId of data.transactionId
+            ?? ($payload['data']['orderId'] ?? null)
+            ?? ($payload['data']['transactionId'] ?? null)
+            // Platte POST (oud): order_id of orderId of id
+            ?? ($payload['order_id'] ?? null)
+            ?? ($payload['orderId'] ?? null)
+            ?? ($payload['id'] ?? null)
             ?? ''
         );
 
         if ($transactieId === '') {
             Log::warning('[Pay.nl] terugmelding zonder transactienummer', [
-                'sleutels' => array_keys($request->all()),
+                'sleutels' => array_keys($payload),
+                'data_keys' => isset($payload['data']) && is_array($payload['data'])
+                    ? array_keys($payload['data'])
+                    : null,
+                'ruw' => mb_substr(json_encode($payload), 0, 500),
             ]);
 
-            // Toch 200: een foutcode laat Pay.nl uren opnieuw proberen, en er
-            // valt hier niets te herstellen.
             return response('TRUE|Geen transactienummer', 200);
         }
 
@@ -55,35 +66,44 @@ class PayNlWebhookController extends Controller
             return response('TRUE|Onbekende bestelling', 200);
         }
 
+        // Haal de status op bij Pay.nl voor verificatie.
         $stand = app(PayNlService::class)->forClub($order->club_id)->status($transactieId);
 
         if (! ($stand['ok'] ?? false)) {
             // De API-aanroep mislukte (bijv. 403 door ontbrekende leesrechten).
-            // Pay.nl stuurt de status ook mee in het webhook-bericht zelf; gebruik
-            // dat als fallback. De transactie-ID is al gematcht met een bekende
-            // bestelling, dus het risico op nep-verzoeken is beperkt.
-            $action   = strtoupper(trim((string) (
-                $request->input('action_name')
-                ?? $request->input('action')
-                ?? ''
-            )));
-            $statusId = (string) ($request->input('status_id') ?? $request->input('statusId') ?? '');
+            // Lees dan de status direct uit de payload. Bij SIGNED JSON POST
+            // zit die onder data.status.code / data.status.action; bij een
+            // platte POST als action / status_id.
+            $statusObject = $payload['data']['status'] ?? null;
 
-            $betaald = $statusId === '100'
-                || in_array($action, ['PAID', 'PAID_CHECKAMOUNT', 'AUTHORIZE'], true);
-            $mislukt = in_array($action, ['CANCEL', 'DENIED', 'EXPIRED', 'FAILURE', 'CHARGEBACK'], true);
+            if (is_array($statusObject)) {
+                $statusCode = (string) ($statusObject['code'] ?? '');
+                $actie      = strtoupper((string) ($statusObject['action'] ?? ''));
+            } else {
+                $statusCode = (string) (
+                    $payload['data']['statusId']
+                    ?? ($payload['status_id'] ?? ($payload['statusId'] ?? ''))
+                );
+                $actie = strtoupper((string) (
+                    $payload['data']['statusAction']
+                    ?? ($payload['action_name'] ?? ($payload['action'] ?? ''))
+                ));
+            }
+
+            $betaald = $statusCode === '100'
+                || in_array($actie, ['PAID', 'PAID_CHECKAMOUNT', 'AUTHORIZE'], true);
+            $mislukt = in_array($actie, ['CANCEL', 'DENIED', 'EXPIRED', 'FAILURE', 'CHARGEBACK'], true);
 
             Log::warning('[Pay.nl] API-verificatie mislukt, terugvallen op webhook-payload', [
                 'transaction' => $transactieId,
-                'error'       => $stand['error'] ?? '?',
-                'action'      => $action,
-                'status_id'   => $statusId,
+                'api_error'   => $stand['error'] ?? '?',
+                'status_code' => $statusCode,
+                'actie'       => $actie,
                 'betaald'     => $betaald,
                 'mislukt'     => $mislukt,
             ]);
 
             if (! $betaald && ! $mislukt) {
-                // Geen bruikbare status in de payload → laat Pay.nl het opnieuw proberen.
                 return response('FALSE|Kon de status niet vaststellen', 503);
             }
 
@@ -102,8 +122,6 @@ class PayNlWebhookController extends Controller
             $orders->mislukt($order);
         }
 
-        // Pay.nl verwacht een antwoord dat met TRUE begint; anders blijft het
-        // opnieuw proberen.
         return response('TRUE|Verwerkt', 200);
     }
 }
