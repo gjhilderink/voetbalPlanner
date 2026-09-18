@@ -27,17 +27,24 @@ class PayNlWebhookController extends Controller
     public function __invoke(Request $request, OrderService $orders): Response
     {
         $payload = $request->all();
+        $nested  = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+
+        // Alles loggen zodat we de exacte Pay.nl-payload kunnen inzien.
+        Log::info('[Pay.nl] webhook ontvangen', [
+            'method'       => $request->method(),
+            'content_type' => $request->header('Content-Type'),
+            'sleutels'     => array_keys($payload),
+            'data_sleutels' => array_keys($nested),
+            'ruw'          => mb_substr($request->getContent(), 0, 1000),
+        ]);
 
         // Pay.nl stuurt het transactienummer onder wisselende namen. Bij de
         // "SIGNED JSON POST"-methode zit alles genest onder een 'data'-object.
         // Bij oudere POST-varianten staat het plat bovenin.
         $transactieId = (string) (
-            // SIGNED JSON POST (v2): data.id
-            $payload['data']['id']
-            // SIGNED JSON POST alternatief: data.orderId of data.transactionId
-            ?? ($payload['data']['orderId'] ?? null)
-            ?? ($payload['data']['transactionId'] ?? null)
-            // Platte POST (oud): order_id of orderId of id
+            $nested['id']
+            ?? $nested['orderId']
+            ?? $nested['transactionId']
             ?? ($payload['order_id'] ?? null)
             ?? ($payload['orderId'] ?? null)
             ?? ($payload['id'] ?? null)
@@ -46,11 +53,9 @@ class PayNlWebhookController extends Controller
 
         if ($transactieId === '') {
             Log::warning('[Pay.nl] terugmelding zonder transactienummer', [
-                'sleutels' => array_keys($payload),
-                'data_keys' => isset($payload['data']) && is_array($payload['data'])
-                    ? array_keys($payload['data'])
-                    : null,
-                'ruw' => mb_substr(json_encode($payload), 0, 500),
+                'sleutels'   => array_keys($payload),
+                'data_keys'  => array_keys($nested),
+                'ruw'        => mb_substr($request->getContent(), 0, 500),
             ]);
 
             return response('TRUE|Geen transactienummer', 200);
@@ -74,18 +79,18 @@ class PayNlWebhookController extends Controller
             // Lees dan de status direct uit de payload. Bij SIGNED JSON POST
             // zit die onder data.status.code / data.status.action; bij een
             // platte POST als action / status_id.
-            $statusObject = $payload['data']['status'] ?? null;
+            $statusObject = $nested['status'] ?? null;
 
             if (is_array($statusObject)) {
                 $statusCode = (string) ($statusObject['code'] ?? '');
                 $actie      = strtoupper((string) ($statusObject['action'] ?? ''));
             } else {
                 $statusCode = (string) (
-                    $payload['data']['statusId']
+                    $nested['statusId']
                     ?? ($payload['status_id'] ?? ($payload['statusId'] ?? ''))
                 );
                 $actie = strtoupper((string) (
-                    $payload['data']['statusAction']
+                    $nested['statusAction']
                     ?? ($payload['action_name'] ?? ($payload['action'] ?? ''))
                 ));
             }
