@@ -201,7 +201,7 @@ class PayNlService
                 ->acceptJson()
                 ->timeout(20)
                 ->retry(2, 500, null, false)
-                ->get(self::BASIS_URL . '/transactions/' . urlencode($transactionId) . '/status');
+                ->get(self::BASIS_URL . '/transactions/' . urlencode($transactionId));
 
             if (! $antwoord->successful()) {
                 Log::error('[Pay.nl] status opvragen mislukt', [
