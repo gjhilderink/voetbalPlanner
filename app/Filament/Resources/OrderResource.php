@@ -202,42 +202,55 @@ class OrderResource extends Resource
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
                     ->visible(fn (Order $record): bool => $record->status === Order::STATUS_PENDING && (bool) $record->paynl_transaction_id)
+                    ->requiresConfirmation()
+                    ->modalHeading('Betaling hercontroleren')
+                    ->modalDescription(fn (Order $record): string =>
+                        'Vraag de betaalstatus op bij Pay.nl voor bestelling ' . $record->order_number . '. '
+                        . 'Als de API niet beschikbaar is, wordt de bestelling direct afgerond (alleen doen als betaling bij Pay.nl bevestigd is).')
+                    ->modalSubmitActionLabel('Hercontroleer')
                     ->action(function (Order $record): void {
                         $stand = app(\App\Services\PayNlService::class)->forClub($record->club_id)->status($record->paynl_transaction_id);
 
-                        if (! ($stand['ok'] ?? false)) {
-                            Notification::make()
-                                ->danger()
-                                ->title('Pay.nl fout')
-                                ->body($stand['error'] ?? 'Onbekende fout')
-                                ->send();
+                        if ($stand['ok'] ?? false) {
+                            if ($stand['betaald'] ?? false) {
+                                $gelukt = app(OrderService::class)->afronden($record);
+                                Notification::make()
+                                    ->success()
+                                    ->title($gelukt ? 'Betaling bevestigd via API' : 'Al verwerkt')
+                                    ->body($gelukt
+                                        ? 'Kaarten aangemaakt en verstuurd naar ' . $record->buyer_email . '.'
+                                        : 'Deze bestelling was al afgerond.')
+                                    ->send();
+                            } elseif ($stand['mislukt'] ?? false) {
+                                Notification::make()
+                                    ->warning()
+                                    ->title('Betaling mislukt of geannuleerd')
+                                    ->body('Pay.nl meldt dat de betaling niet is doorgekomen.')
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->info()
+                                    ->title('Betaling nog in behandeling')
+                                    ->body('Pay.nl meldt dat de betaling nog niet is afgerond.')
+                                    ->send();
+                            }
 
                             return;
                         }
 
-                        if ($stand['betaald'] ?? false) {
-                            $gelukt = app(OrderService::class)->afronden($record);
+                        // Pay.nl API onbereikbaar of geen rechten (bijv. 403).
+                        // Als admin expliciet hercontroleert, ronden we direct af —
+                        // de admin heeft de betaling handmatig bij Pay.nl bevestigd.
+                        $gelukt = app(OrderService::class)->afronden($record);
 
-                            Notification::make()
-                                ->success()
-                                ->title($gelukt ? 'Betaling bevestigd' : 'Al verwerkt')
-                                ->body($gelukt
-                                    ? 'Kaarten aangemaakt en verstuurd naar ' . $record->buyer_email . '.'
-                                    : 'Deze bestelling was al afgerond.')
-                                ->send();
-                        } elseif ($stand['mislukt'] ?? false) {
-                            Notification::make()
-                                ->warning()
-                                ->title('Betaling mislukt of geannuleerd')
-                                ->body('Pay.nl meldt dat de betaling niet is doorgekomen.')
-                                ->send();
-                        } else {
-                            Notification::make()
-                                ->info()
-                                ->title('Betaling nog in behandeling')
-                                ->body('Pay.nl meldt dat de betaling nog niet is afgerond.')
-                                ->send();
-                        }
+                        Notification::make()
+                            ->success()
+                            ->title($gelukt ? 'Afgerond (API overgeslagen)' : 'Al verwerkt')
+                            ->body($gelukt
+                                ? 'Kaarten aangemaakt en verstuurd naar ' . $record->buyer_email . '. '
+                                    . 'API-fout: ' . ($stand['error'] ?? 'onbekend') . '.'
+                                : 'Deze bestelling was al afgerond.')
+                            ->send();
                     }),
 
                 Actions\Action::make('diagnose')
