@@ -215,13 +215,34 @@ class PayNlService
             }
 
             $data = $antwoord->json() ?? [];
-            $code = (string) ($data['status']['code'] ?? ($data['statusCode'] ?? ''));
-            $naam = strtoupper((string) ($data['status']['action'] ?? ($data['statusName'] ?? '')));
+
+            // Pay.nl v2 REST geeft de status soms als object met code/action,
+            // soms als losse statusCode/statusName velden, en soms als een
+            // string in het 'status'-veld. Alle vormen worden hier afgevangen.
+            $statusVeld = $data['status'] ?? null;
+
+            if (is_array($statusVeld)) {
+                $code = (string) ($statusVeld['code'] ?? ($statusVeld['id'] ?? ''));
+                $naam = strtoupper((string) ($statusVeld['action'] ?? ($statusVeld['name'] ?? '')));
+            } elseif (is_string($statusVeld)) {
+                $code = '';
+                $naam = strtoupper($statusVeld);
+            } else {
+                $code = (string) ($data['statusCode'] ?? ($data['status_code'] ?? ''));
+                $naam = strtoupper((string) ($data['statusName'] ?? ($data['status_name'] ?? '')));
+            }
+
+            Log::debug('[Pay.nl] status ontvangen', [
+                'transaction' => $transactionId,
+                'code'        => $code,
+                'naam'        => $naam,
+                'ruw_status'  => $statusVeld,
+            ]);
 
             // Pay.nl kent 100 als betaald; de overige eindtoestanden zijn
             // afgebroken, geweigerd of verlopen. Beide vormen worden gelezen,
             // want de code en de naam komen niet in elk antwoord allebei mee.
-            $betaald = $code === '100' || in_array($naam, ['PAID', 'PAID_CHECKAMOUNT'], true);
+            $betaald = $code === '100' || in_array($naam, ['PAID', 'PAID_CHECKAMOUNT', 'AUTHORIZE'], true);
             $mislukt = in_array($code, ['-90', '-80', '-72', '-71', '-70', '-63', '-60'], true)
                 || in_array($naam, ['CANCEL', 'EXPIRED', 'DENIED', 'FAILURE', 'CHARGEBACK', 'REFUND'], true);
 

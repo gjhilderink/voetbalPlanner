@@ -197,6 +197,35 @@ class OrderResource extends Resource
                     ),
             ])
             ->actions([
+                Actions\Action::make('afronden')
+                    ->label('Handmatig afronden')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Bestelling handmatig afronden')
+                    ->modalDescription(fn (Order $record): string =>
+                        'Markeer bestelling ' . $record->order_number . ' als betaald, maak de kaarten aan en stuur ze naar ' . $record->buyer_email . '. '
+                        . 'Doe dit alleen als de betaling bij Pay.nl is bevestigd maar de status hier niet automatisch werd bijgewerkt.')
+                    ->modalSubmitActionLabel('Ja, afronden')
+                    ->visible(fn (Order $record): bool => $record->status === Order::STATUS_PENDING)
+                    ->action(function (Order $record): void {
+                        $gelukt = app(OrderService::class)->afronden($record);
+
+                        if ($gelukt) {
+                            Notification::make()
+                                ->success()
+                                ->title('Bestelling afgerond')
+                                ->body('Kaarten aangemaakt en verstuurd naar ' . $record->buyer_email . '.')
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->warning()
+                                ->title('Al verwerkt')
+                                ->body('Deze bestelling was al afgerond.')
+                                ->send();
+                        }
+                    }),
+
                 Actions\Action::make('codes')
                     ->label('Kaarten bekijken')
                     ->icon('heroicon-o-qr-code')
